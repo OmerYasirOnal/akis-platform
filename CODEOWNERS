@@ -1,0 +1,29 @@
+# CODEOWNERS file
+# https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Default owner for everything
+* @OmerYasirOnal
+
+# Documentation
+docs/* @OmerYasirOnal
+*.md @OmerYasirOnal
+
+# GitHub workflows
+.github/* @OmerYasirOnal
+
+# Core authentication and GitHub integration
+src/lib/auth/* @OmerYasirOnal
+src/lib/github/* @OmerYasirOnal
+src/modules/github/* @OmerYasirOnal
+
+# Agent system
+src/lib/agents/* @OmerYasirOnal
+src/modules/agents/* @OmerYasirOnal
+
+# API routes
+src/app/api/* @OmerYasirOnal
+
+# Scripts and configuration
+scripts/* @OmerYasirOnal
+*.config.* @OmerYasirOnal
+
