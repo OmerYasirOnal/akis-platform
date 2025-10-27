@@ -1,0 +1,91 @@
+src/app/actions/scribe.ts:72:        installationId: parseInt(process.env.GITHUB_APP_INSTALLATION_ID || '0', 10) || undefined,
+src/app/api/agent/documentation/analyze/route.ts:11:import { getGitHubToken } from '@/modules/github/token-provider';
+src/app/api/integrations/github/callback/route.ts:35:        client_id: process.env.GITHUB_CLIENT_ID,
+src/app/api/integrations/github/callback/route.ts:36:        client_secret: process.env.GITHUB_CLIENT_SECRET,
+src/app/api/integrations/github/connect/route.ts:22:    const clientId = process.env.GITHUB_CLIENT_ID;
+src/app/api/github/app/diagnostics/route.ts:45:    const appId = process.env.GITHUB_APP_ID;
+src/app/api/github/app/diagnostics/route.ts:46:    const installationId = process.env.GITHUB_APP_INSTALLATION_ID;
+src/app/api/github/app/diagnostics/route.ts:47:    const privateKeyPem = process.env.GITHUB_APP_PRIVATE_KEY_PEM;
+src/app/api/github/app/diagnostics/route.ts:48:    const appSlug = process.env.GITHUB_APP_SLUG || 'akis-scribe';
+src/app/api/github/app/diagnostics/route.ts:56:        error: 'GitHub App not configured. Set GITHUB_APP_ID, GITHUB_APP_INSTALLATION_ID, and GITHUB_APP_PRIVATE_KEY_PEM in environment.',
+src/app/api/github/app/diagnostics/route.ts:60:    // Get installation token (includes permissions)
+src/app/api/github/app/diagnostics/route.ts:71:        error: `Failed to get installation token: ${tokenResult.error}`,
+src/app/api/github/app/install-info/route.ts:23:    const appId = process.env.GITHUB_APP_ID;
+src/app/api/github/app/install-info/route.ts:24:    const appSlug = process.env.GITHUB_APP_SLUG;
+src/app/api/github/app/install-info/route.ts:25:    const appName = process.env.GITHUB_APP_NAME || 'AKIS Scribe Agent';
+src/app/api/github/app/install-info/route.ts:26:    const installationId = process.env.GITHUB_APP_INSTALLATION_ID;
+src/app/api/github/app/install-info/route.ts:35:        message: 'GitHub App is not configured. Set GITHUB_APP_ID and other variables in .env.local',
+src/app/api/github/connect/route.ts:34:        client_id: process.env.GITHUB_CLIENT_ID,
+src/app/api/github/connect/route.ts:35:        client_secret: process.env.GITHUB_CLIENT_SECRET,
+src/shared/config/github.ts:40:  const appId = process.env.GITHUB_APP_ID;
+src/shared/config/github.ts:41:  const installationId = process.env.GITHUB_APP_INSTALLATION_ID;
+src/shared/config/github.ts:42:  const privateKeyPem = process.env.GITHUB_APP_PRIVATE_KEY_PEM;
+src/shared/config/github.ts:45:  const oauthClientId = process.env.GITHUB_CLIENT_ID;
+src/shared/config/github.ts:46:  const oauthClientSecret = process.env.GITHUB_CLIENT_SECRET;
+src/shared/config/github.ts:65:  if (!appId) missingKeys.push('GITHUB_APP_ID');
+src/shared/config/github.ts:66:  if (!installationId) missingKeys.push('GITHUB_APP_INSTALLATION_ID');
+src/shared/config/github.ts:67:  if (!privateKeyPem) missingKeys.push('GITHUB_APP_PRIVATE_KEY_PEM');
+src/components/GitHubConnect.tsx:14:    const clientId = process.env.NEXT_PUBLIC_GITHUB_CLIENT_ID;
+src/components/DocumentationAgentUI.tsx:56:        installationId: parseInt(process.env.NEXT_PUBLIC_GITHUB_APP_INSTALLATION_ID || '0') || undefined,
+src/__tests__/unit/actor.test.ts:56:    process.env.GITHUB_APP_INSTALLATION_ID = '99999';
+src/__tests__/unit/actor.test.ts:67:    process.env.GITHUB_APP_INSTALLATION_ID = '99999';
+src/__tests__/unit/actor.test.ts:83:    delete process.env.GITHUB_APP_INSTALLATION_ID;
+src/__tests__/unit/actor.test.ts:92:    process.env.GITHUB_APP_INSTALLATION_ID = '99999';
+src/__tests__/integration/scribe-app-only.test.ts:12:  GITHUB_APP_ID: '12345',
+src/__tests__/integration/scribe-app-only.test.ts:13:  GITHUB_APP_INSTALLATION_ID: '99999',
+src/__tests__/integration/scribe-app-only.test.ts:14:  GITHUB_APP_PRIVATE_KEY_PEM: `-----BEGIN RSA PRIVATE KEY-----
+src/__tests__/integration/scribe-app-only.test.ts:24:  // Mock installation token
+src/__tests__/integration/scribe-app-only.test.ts:25:  if (urlStr.includes('/app/installations/') && urlStr.includes('/access_tokens')) {
+src/__tests__/integration/scribe-app-only.test.ts:29:        token: 'ghs_mock_installation_token',
+src/__tests__/integration/scribe-app-only.test.ts:105:      accessToken: 'ghs_mock_installation_token',
+src/__tests__/integration/scribe-app-only.test.ts:135:      accessToken: 'ghs_mock_installation_token',
+src/__tests__/integration/scribe-app-only.test.ts:152:    delete process.env.GITHUB_APP_INSTALLATION_ID;
+src/__tests__/e2e/github-app-auth.test.ts:14:    expect(process.env.GITHUB_APP_ID).toBeDefined();
+src/__tests__/e2e/github-app-auth.test.ts:15:    expect(process.env.GITHUB_APP_INSTALLATION_ID).toBeDefined();
+src/__tests__/e2e/github-app-auth.test.ts:16:    expect(process.env.GITHUB_APP_PRIVATE_KEY_PEM).toBeDefined();
+src/__tests__/e2e/github-app-auth.test.ts:19:  it('should acquire GitHub App installation token', async () => {
+src/__tests__/e2e/github-app-auth.test.ts:29:    const { getGitHubToken } = await import('@/lib/github/token-provider');
+src/__tests__/e2e/github-app-auth.test.ts:110:    const { getGitHubToken } = await import('@/lib/github/token-provider');
+src/__tests__/e2e/github-app-auth.test.ts:114:    delete process.env.GITHUB_APP_ID;
+src/__tests__/e2e/github-app-auth.test.ts:115:    delete process.env.GITHUB_APP_INSTALLATION_ID;
+src/__tests__/e2e/github-app-auth.test.ts:116:    delete process.env.GITHUB_APP_PRIVATE_KEY_PEM;
+src/__tests__/e2e/github-app-auth.test.ts:153:    // Check if token-provider can be imported on client
+src/__tests__/e2e/github-app-auth.test.ts:184:      const { getGitHubToken } = await import('@/lib/github/token-provider');
+src/lib/auth/github-app.ts:55:      `https://api.github.com/app/installations/${installationId}/access_tokens`,
+src/lib/auth/github-app.ts:91:  const appId = process.env.GITHUB_APP_ID;
+src/lib/auth/github-app.ts:92:  const installationId = process.env.GITHUB_APP_INSTALLATION_ID;
+src/lib/auth/github-app.ts:93:  const privateKeyPem = process.env.GITHUB_APP_PRIVATE_KEY_PEM;
+src/lib/auth/github-app.ts:100:  // Normalize newlines in private key (in case stored as escaped string)
+src/lib/auth/github-app.ts:139:  const appId = process.env.GITHUB_APP_ID;
+src/lib/auth/github-app.ts:140:  const installationId = process.env.GITHUB_APP_INSTALLATION_ID;
+src/lib/auth/github-app.ts:141:  const privateKeyPem = process.env.GITHUB_APP_PRIVATE_KEY_PEM;
+src/lib/auth/github-app.ts:148:  // Normalize newlines in private key (in case stored as escaped string)
+src/lib/auth/actor.ts:115:  const envInstallationId = process.env.GITHUB_APP_INSTALLATION_ID;
+src/lib/auth/github-token.ts:2: * DEPRECATED: Use @/lib/github/token-provider instead
+src/lib/auth/github-token.ts:5: * @deprecated Import from @/lib/github/token-provider
+src/lib/auth/github-token.ts:8:import { getGitHubToken as getGitHubTokenNew, TokenProviderOptions as TokenProviderOptionsNew } from '../github/token-provider';
+src/lib/auth/github-token.ts:38: * @deprecated Use getGitHubToken from @/lib/github/token-provider
+src/lib/auth/github-token.ts:44:  logger.warn('GitHubToken', 'DEPRECATED: Use @/lib/github/token-provider instead');
+src/lib/github/token-provider.ts:111:  const hasAppEnv = process.env.GITHUB_APP_ID && 
+src/lib/github/token-provider.ts:112:                    process.env.GITHUB_APP_INSTALLATION_ID && 
+src/lib/github/token-provider.ts:113:                    process.env.GITHUB_APP_PRIVATE_KEY_PEM;
+src/lib/github/__tests__/token-provider.test.ts:8:import { getGitHubToken, isValidGitHubToken } from '../token-provider';
+src/lib/github/__tests__/token-provider.test.ts:12:  GITHUB_APP_ID: '123456',
+src/lib/github/__tests__/token-provider.test.ts:13:  GITHUB_APP_INSTALLATION_ID: '12345678',
+src/lib/github/__tests__/token-provider.test.ts:14:  GITHUB_APP_PRIVATE_KEY_PEM: '-----BEGIN RSA PRIVATE KEY-----\ntest\n-----END RSA PRIVATE KEY-----',
+src/lib/github/__tests__/token-provider.test.ts:25:    delete process.env.GITHUB_APP_ID;
+src/lib/github/__tests__/token-provider.test.ts:26:    delete process.env.GITHUB_APP_INSTALLATION_ID;
+src/lib/github/__tests__/token-provider.test.ts:27:    delete process.env.GITHUB_APP_PRIVATE_KEY_PEM;
+src/lib/github/__tests__/token-provider.test.ts:82:    delete process.env.GITHUB_APP_ID;
+src/lib/github/__tests__/token-provider.test.ts:83:    delete process.env.GITHUB_APP_INSTALLATION_ID;
+src/lib/github/__tests__/token-provider.test.ts:84:    delete process.env.GITHUB_APP_PRIVATE_KEY_PEM;
+src/lib/github/client.ts:15:import { getGitHubToken, TokenProviderOptions } from './token-provider';
+src/modules/agents/scribe/server/runner.server.ts:19:import { getGitHubToken } from '@/modules/github/token-provider';
+src/modules/agents/scribe/server/runner.server.ts:95:        installationId: parseInt(process.env.GITHUB_APP_INSTALLATION_ID || '0', 10) || undefined,
+src/modules/github/token-provider.ts:106:        const installationId = options.actor?.installationId || process.env.GITHUB_APP_INSTALLATION_ID || 'unknown';
+src/modules/github/token-provider.ts:146:  const hasAppEnv = process.env.GITHUB_APP_ID && 
+src/modules/github/token-provider.ts:147:                    process.env.GITHUB_APP_INSTALLATION_ID && 
+src/modules/github/token-provider.ts:148:                    process.env.GITHUB_APP_PRIVATE_KEY_PEM;
+src/modules/github/token-provider.ts:181:      message: 'GitHub App credentials are configured but token acquisition failed. Check your GITHUB_APP_PRIVATE_KEY_PEM format.',
+src/modules/github/operations.ts:12:import { getGitHubToken } from './token-provider';
+src/modules/github/client.ts:17:import { getGitHubToken, TokenProviderOptions } from './token-provider';

@@ -1,0 +1,17 @@
+TypeScript Alias Configuration Check
+=====================================
+
+1. compilerOptions.baseUrl: MISSING (expected ".")
+   - Current: undefined
+   - Status: ⚠️ ISSUE - baseUrl should be set to "." for proper path resolution
+
+2. compilerOptions.paths["@/*"]: PRESENT
+   - Current: ["./src/*"]
+   - Status: ✓ OK
+
+3. Next.js TS Paths Resolution: DEFAULT
+   - Next.js version ≥14 typically resolves tsconfig paths automatically
+   - No explicit webpack alias found in next.config.ts
+   - Status: ⚠️ VERIFY - May cause resolution issues without baseUrl
+
+RECOMMENDATION: Add "baseUrl": "." to tsconfig.json compilerOptions
