@@ -8,7 +8,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
-- **[BREAKING REFACTOR]** Complete structural refactor to feature-sliced architecture
+- **[DOCUMENTATION]** Repository-wide documentation consolidation (PR #2)
+  - Reorganized 81 markdown files into structured `docs/` hierarchy
+  - Created `docs/guides/` (16 files): setup, environment, quick start, usage guides
+  - Created `docs/architecture/` (10 files): system design, API, auth, observability
+  - Created `docs/reports/` (21 files): phase reports, audit findings, batch reports
+  - Created `docs/archive/` (26 files): historical changelists, hotfix summaries, legacy docs
+  - Root now contains only `README.md` and `CHANGELOG.md` (clean)
+  - Updated README with correct links to new structure and feature-sliced architecture
+  - All validation outputs and proofs preserved under `docs/validation/` and `docs/proofs/`
+  - Removed empty directories: `diagnostics/`, `docs/audit/`, `docs/phase2/batches/`
+  - All file moves preserve git history (via `git mv`)
+
+- **[BREAKING REFACTOR]** Complete structural refactor to feature-sliced architecture (PR #1)
   - Migrated from flat `lib/` structure to domain-organized `modules/` + `shared/`
   - Moved 35 files: agents, AI utils, auth, GitHub operations, components
   - Removed 6 deprecated files (1,831 lines, ~47KB): duplicate GitHub implementations, unused legacy utils
@@ -18,7 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Path alias `@/*` fully enabled and validated
   - Zero TypeScript errors in application code
   - Build succeeds after Next.js cache clear
-  - See: `docs/PHASE_2_REPORT.md`, `docs/PHASE_3_REPORT.md`, `docs/PHASE_4_REPORT.md` for complete details
+  - See: `docs/reports/PHASE_2_REPORT.md`, `docs/reports/PHASE_3_REPORT.md`, `docs/reports/PHASE_4_REPORT.md` for complete details
 
 ### Added
 - Comprehensive documentation structure (PLAN.md, CONTRIBUTING.md, GETTING_STARTED.md, ARCHITECTURE.md, API.md)
