@@ -9,7 +9,7 @@
 
 - 🤖 **AI-Powered Documentation Agent (Scribe)** - Automatically analyzes repos and generates documentation
 - 📊 **DAS (Documentation Assessment Score)** - Quantifies documentation quality
-- 🔐 **GitHub App Integration** - Secure OAuth-based authentication
+- 🔐 **GitHub App Integration** - Secure OAuth-based authentication with centralized token management
 - 🎯 **Automated PR Creation** - Creates draft PRs with documentation improvements
 - 🧠 **Multi-Model AI Support** - Integrates with OpenRouter for flexible model selection
 - ✅ **Documentation Quality Gate** - CI/CD enforcement of documentation standards
@@ -18,9 +18,10 @@
 
 - **Framework**: Next.js 16 (App Router) + React 19
 - **Language**: TypeScript
+- **Architecture**: Feature-Sliced Design (modules + shared)
 - **Styling**: Tailwind CSS v4
 - **AI**: OpenRouter API (multi-model)
-- **Authentication**: GitHub App (OAuth)
+- **Authentication**: GitHub App (OAuth) with SSOT token provider
 - **Validation**: Zod schemas
 
 ## Getting Started
@@ -29,13 +30,13 @@
 
 - Node.js 18+ (LTS recommended)
 - npm or yarn
-- GitHub App credentials ([Setup Guide](docs/GITHUB_APP_SETUP.md))
+- GitHub App credentials ([Setup Guide](docs/guides/GITHUB_APP_SETUP.md))
 
 ### Quick Setup
 
 1. **Clone the repository**
 ```bash
-git clone https://github.com/OmerYasirOnal/devagents.git
+git clone https://github.com/OmerYasirOnal/akis-platform-devolopment.git
 cd devagents
 ```
 
@@ -57,7 +58,7 @@ GITHUB_APP_INSTALLATION_ID=your_installation_id
 OPENROUTER_API_KEY=your_openrouter_key
 ```
 
-See [Environment Setup Guide](docs/ENV_SETUP.md) for detailed configuration.
+See [Environment Setup Guide](docs/guides/ENV_SETUP.md) for detailed configuration.
 
 4. **Run development server**
 ```bash
@@ -75,17 +76,41 @@ npm run dev          # Start development server
 npm run build        # Build for production
 npm run start        # Start production server
 npm run lint         # Run ESLint
+npm run typecheck    # TypeScript validation
 npm run doc:check    # Validate documentation quality
 npm test             # Run tests
 ```
 
 ## Documentation
 
-- 📖 [Getting Started Guide](docs/GETTING_STARTED.md) - Detailed setup instructions
-- 🏗️ [Architecture Overview](docs/ARCHITECTURE.md) - System design and structure
-- 🔌 [API Reference](docs/API.md) - REST API endpoints
-- 🤝 [Contributing Guide](CONTRIBUTING.md) - How to contribute
-- 📋 [Documentation Agent Guide](DOCUMENTATION_AGENT_GUIDE.md) - Agent usage
+### 📖 Guides
+- [Getting Started](docs/guides/GETTING_STARTED.md) - Detailed setup instructions
+- [Quick Start](docs/guides/QUICK_START.md) - Fast track setup
+- [Environment Setup](docs/guides/ENV_SETUP.md) - Configuration guide
+- [GitHub App Setup](docs/guides/GITHUB_APP_SETUP.md) - GitHub integration
+- [Documentation Agent Guide](docs/guides/DOCUMENTATION_AGENT_GUIDE.md) - Agent usage
+- [Test Guide](docs/guides/TEST_GUIDE.md) - Testing documentation
+- [Rollback Guide](docs/guides/ROLLBACK_GUIDE.md) - Emergency procedures
+- [Contributing](docs/guides/CONTRIBUTING.md) - How to contribute
+
+### 🏗️ Architecture
+- [Architecture Overview](docs/architecture/ARCHITECTURE.md) - System design
+- [API Reference](docs/architecture/API.md) - REST API endpoints
+- [Authentication System](docs/architecture/AUTH_SYSTEM.md) - Auth flow & SSOT
+- [Agent System](docs/architecture/AGENT_SYSTEM.md) - AI agent architecture
+- [Observability](docs/architecture/OBSERVABILITY.md) - Monitoring & logging
+- [Security Checks](docs/architecture/SECURITY_CHECKS.md) - Security practices
+
+### 📊 Reports
+- [Structural Refactor Reports](docs/reports/) - PHASE 1-4 refactor documentation
+- [Audit Reports](docs/reports/REPO_AUDIT_REPORT.md) - Initial audit findings
+- [Migration Reports](docs/reports/) - Migration documentation
+
+### 🔍 Validation & Proofs
+- [Validation Outputs](docs/validation/) - Build, lint, typecheck results
+- [Proofs](docs/proofs/) - Grep proofs, SSOT integrity checks
+
+For archived documentation (hotfixes, changelists, legacy docs), see [docs/archive/](docs/archive/).
 
 ## How It Works
 
@@ -100,23 +125,40 @@ npm test             # Run tests
 ```
 devagents/
 ├── src/
-│   ├── app/              # Next.js App Router (pages & API routes)
-│   ├── components/       # React components
-│   ├── lib/
-│   │   ├── agents/       # AI agent implementations
-│   │   ├── auth/         # Authentication & token management
-│   │   ├── github/       # GitHub API client
-│   │   └── contracts/    # API schemas & types
-│   └── modules/          # Feature modules
-├── docs/                 # Documentation
-├── scripts/              # Utility scripts
-├── .github/              # GitHub workflows & templates
-└── public/               # Static assets
+│   ├── app/                    # Next.js App Router (pages & API routes)
+│   ├── modules/                # Feature modules (domain-specific)
+│   │   ├── documentation/      # Documentation agent & components
+│   │   │   ├── agent/          # Agent logic & playbooks
+│   │   │   └── components/     # Documentation UI components
+│   │   ├── github/             # GitHub integration
+│   │   │   ├── token-provider.ts  # SSOT for GitHub tokens
+│   │   │   ├── client.ts       # GitHub API client
+│   │   │   └── operations.ts   # GitHub operations
+│   │   └── agents/             # Agent orchestration
+│   ├── shared/                 # Shared code (cross-domain)
+│   │   ├── components/         # UI components
+│   │   ├── lib/                # Pure utilities
+│   │   │   ├── ai/             # AI model integration
+│   │   │   ├── auth/           # Auth primitives
+│   │   │   └── utils/          # General utilities
+│   │   ├── services/           # IO-bound services
+│   │   └── types/              # Global types & schemas
+│   └── contexts/               # React contexts
+├── docs/                       # Documentation
+│   ├── guides/                 # Setup & usage guides
+│   ├── architecture/           # System design docs
+│   ├── reports/                # Phase & audit reports
+│   ├── validation/             # Validation outputs
+│   ├── proofs/                 # Integrity proofs
+│   └── archive/                # Historical docs
+├── scripts/                    # Utility scripts
+├── .github/                    # GitHub workflows & templates
+└── public/                     # Static assets
 ```
 
 ## Contributing
 
-We welcome contributions! Please read our [Contributing Guide](CONTRIBUTING.md) before submitting PRs.
+We welcome contributions! Please read our [Contributing Guide](docs/guides/CONTRIBUTING.md) before submitting PRs.
 
 ### Development Workflow
 
@@ -147,13 +189,17 @@ npm run doc:check
 
 ### Vercel (Recommended)
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/OmerYasirOnal/devagents)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/OmerYasirOnal/akis-platform-devolopment)
 
 1. Click the button above
 2. Configure environment variables
 3. Deploy
 
 See [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for other platforms.
+
+## Changelog
+
+See [CHANGELOG.md](CHANGELOG.md) for version history and recent changes.
 
 ## License
 
@@ -162,8 +208,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## Support
 
 - 📧 **Email**: support@akis-platform.com
-- 🐛 **Issues**: [GitHub Issues](https://github.com/OmerYasirOnal/devagents/issues)
-- 💬 **Discussions**: [GitHub Discussions](https://github.com/OmerYasirOnal/devagents/discussions)
+- 🐛 **Issues**: [GitHub Issues](https://github.com/OmerYasirOnal/akis-platform-devolopment/issues)
+- 💬 **Discussions**: [GitHub Discussions](https://github.com/OmerYasirOnal/akis-platform-devolopment/discussions)
 
 ## Acknowledgments
 
