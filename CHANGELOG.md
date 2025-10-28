@@ -8,6 +8,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- **[DOCUMENTATION]** Repository-wide documentation consolidation
+  - Reorganized 81 markdown files into structured `docs/` hierarchy
+  - Created `docs/guides/` (16 files): setup, environment, quick start, usage guides
+  - Created `docs/architecture/` (10 files): system design, API, auth, observability
+  - Created `docs/reports/` (21 files): phase reports, audit findings, batch reports
+  - Created `docs/archive/` (26 files): historical changelists, hotfix summaries, legacy docs
+  - Root now contains only `README.md` and `CHANGELOG.md` (clean)
+  - Updated README with correct links to new structure and feature-sliced architecture
+  - All validation outputs and proofs preserved under `docs/validation/` and `docs/proofs/`
+  - Removed empty directories: `diagnostics/`, `docs/audit/`, `docs/phase2/batches/`
+  - All file moves preserve git history (via `git mv`)
+
 - **[BREAKING REFACTOR]** Complete structural refactor to feature-sliced architecture
   - Migrated from flat `lib/` structure to domain-organized `modules/` + `shared/`
   - Moved 35 files: agents, AI utils, auth, GitHub operations, components
