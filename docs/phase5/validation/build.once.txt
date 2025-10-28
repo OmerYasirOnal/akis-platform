@@ -1,0 +1,45 @@
+
+> devagents@0.1.0 build
+> next build
+
+   ▲ Next.js 16.0.0 (Turbopack)
+   - Environments: .env.local
+
+   Creating an optimized production build ...
+ ✓ Compiled successfully in 3.0s
+   Running TypeScript ...
+   Collecting page data ...
+   Generating static pages (0/23) ...
+   Generating static pages (5/23) 
+   Generating static pages (11/23) 
+   Generating static pages (17/23) 
+ ✓ Generating static pages (23/23) in 578.4ms
+   Finalizing page optimization ...
+
+Route (app)
+┌ ○ /
+├ ○ /_not-found
+├ ƒ /api/agent/document
+├ ƒ /api/agent/documentation/analyze
+├ ƒ /api/agent/documentation/info
+├ ƒ /api/agent/info
+├ ƒ /api/agent/scribe/run
+├ ƒ /api/github/app/diagnostics
+├ ƒ /api/github/app/install-info
+├ ƒ /api/github/branch
+├ ƒ /api/github/connect
+├ ƒ /api/github/repos
+├ ƒ /api/github/repositories
+├ ƒ /api/integrations/github/callback
+├ ƒ /api/integrations/github/connect
+├ ƒ /api/integrations/github/disconnect
+├ ƒ /api/logs
+├ ○ /dashboard
+├ ○ /login
+├ ○ /profile
+└ ○ /register
+
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+
