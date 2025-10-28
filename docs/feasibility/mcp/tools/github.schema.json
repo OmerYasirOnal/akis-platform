@@ -1,0 +1,568 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "AKIS MCP GitHub Tools",
+  "version": "1.0.0",
+  "description": "Tool schemas for GitHub MCP server. All tools require installation_id for auth boundary enforcement.",
+  
+  "tools": [
+    {
+      "name": "github.list_repos",
+      "description": "List repositories accessible by the GitHub App installation",
+      "category": "read",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "installation_id": {
+            "type": "number",
+            "description": "GitHub App installation ID (required for auth boundary)",
+            "minimum": 1
+          },
+          "page": {
+            "type": "number",
+            "description": "Page number (1-indexed)",
+            "default": 1,
+            "minimum": 1
+          },
+          "per_page": {
+            "type": "number",
+            "description": "Results per page",
+            "default": 30,
+            "minimum": 1,
+            "maximum": 100
+          }
+        },
+        "required": ["installation_id"],
+        "additionalProperties": false
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "repositories": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "number",
+                  "description": "GitHub repository ID"
+                },
+                "name": {
+                  "type": "string",
+                  "description": "Repository name (without owner)"
+                },
+                "full_name": {
+                  "type": "string",
+                  "description": "Full name (owner/repo)"
+                },
+                "owner": {
+                  "type": "string",
+                  "description": "Repository owner login"
+                },
+                "private": {
+                  "type": "boolean",
+                  "description": "Whether repo is private"
+                },
+                "default_branch": {
+                  "type": "string",
+                  "description": "Default branch name"
+                },
+                "html_url": {
+                  "type": "string",
+                  "format": "uri"
+                }
+              },
+              "required": ["id", "name", "full_name", "owner", "default_branch"]
+            }
+          },
+          "total_count": {
+            "type": "number",
+            "description": "Total number of accessible repositories"
+          },
+          "has_next_page": {
+            "type": "boolean"
+          }
+        },
+        "required": ["repositories", "total_count", "has_next_page"]
+      },
+      "requiredPermissions": {
+        "metadata": "read"
+      }
+    },
+
+    {
+      "name": "github.get_file",
+      "description": "Get file content from a repository",
+      "category": "read",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "installation_id": {
+            "type": "number",
+            "minimum": 1
+          },
+          "owner": {
+            "type": "string",
+            "description": "Repository owner login",
+            "minLength": 1
+          },
+          "repo": {
+            "type": "string",
+            "description": "Repository name",
+            "minLength": 1
+          },
+          "path": {
+            "type": "string",
+            "description": "File path within repository",
+            "minLength": 1
+          },
+          "ref": {
+            "type": "string",
+            "description": "Branch, tag, or commit SHA (defaults to default_branch)"
+          }
+        },
+        "required": ["installation_id", "owner", "repo", "path"],
+        "additionalProperties": false
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "content": {
+            "type": "string",
+            "description": "UTF-8 decoded file content"
+          },
+          "sha": {
+            "type": "string",
+            "description": "Git blob SHA"
+          },
+          "size": {
+            "type": "number",
+            "description": "File size in bytes"
+          }
+        },
+        "required": ["path", "content", "sha", "size"]
+      },
+      "requiredPermissions": {
+        "contents": "read"
+      }
+    },
+
+    {
+      "name": "github.create_branch",
+      "description": "Create a new branch from a base ref",
+      "category": "write",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "installation_id": {
+            "type": "number",
+            "minimum": 1
+          },
+          "owner": {
+            "type": "string",
+            "minLength": 1
+          },
+          "repo": {
+            "type": "string",
+            "minLength": 1
+          },
+          "branch": {
+            "type": "string",
+            "description": "New branch name",
+            "pattern": "^[a-zA-Z0-9/_-]+$",
+            "minLength": 1,
+            "maxLength": 255
+          },
+          "base_ref": {
+            "type": "string",
+            "description": "Base branch/tag/SHA (defaults to default_branch)"
+          }
+        },
+        "required": ["installation_id", "owner", "repo", "branch"],
+        "additionalProperties": false
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "ref": {
+            "type": "string",
+            "description": "Full ref path (refs/heads/...)"
+          },
+          "sha": {
+            "type": "string",
+            "description": "Commit SHA at branch HEAD"
+          }
+        },
+        "required": ["ref", "sha"]
+      },
+      "requiredPermissions": {
+        "contents": "write"
+      }
+    },
+
+    {
+      "name": "github.commit_files",
+      "description": "Commit one or more files to a branch",
+      "category": "write",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "installation_id": {
+            "type": "number",
+            "minimum": 1
+          },
+          "owner": {
+            "type": "string",
+            "minLength": 1
+          },
+          "repo": {
+            "type": "string",
+            "minLength": 1
+          },
+          "branch": {
+            "type": "string",
+            "description": "Target branch",
+            "minLength": 1
+          },
+          "files": {
+            "type": "array",
+            "description": "Files to commit",
+            "items": {
+              "type": "object",
+              "properties": {
+                "path": {
+                  "type": "string",
+                  "description": "File path within repository",
+                  "minLength": 1
+                },
+                "content": {
+                  "type": "string",
+                  "description": "UTF-8 file content"
+                }
+              },
+              "required": ["path", "content"],
+              "additionalProperties": false
+            },
+            "minItems": 1,
+            "maxItems": 50
+          },
+          "message": {
+            "type": "string",
+            "description": "Commit message",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "author": {
+            "type": "object",
+            "description": "Optional commit author override",
+            "properties": {
+              "name": {
+                "type": "string",
+                "minLength": 1
+              },
+              "email": {
+                "type": "string",
+                "format": "email"
+              }
+            },
+            "required": ["name", "email"]
+          }
+        },
+        "required": ["installation_id", "owner", "repo", "branch", "files", "message"],
+        "additionalProperties": false
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "commits": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "path": {
+                  "type": "string"
+                },
+                "sha": {
+                  "type": "string",
+                  "description": "New file SHA"
+                },
+                "url": {
+                  "type": "string",
+                  "format": "uri",
+                  "description": "GitHub URL to file"
+                }
+              },
+              "required": ["path", "sha", "url"]
+            }
+          }
+        },
+        "required": ["commits"]
+      },
+      "requiredPermissions": {
+        "contents": "write"
+      }
+    },
+
+    {
+      "name": "github.create_pr",
+      "description": "Create a pull request",
+      "category": "write",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "installation_id": {
+            "type": "number",
+            "minimum": 1
+          },
+          "owner": {
+            "type": "string",
+            "minLength": 1
+          },
+          "repo": {
+            "type": "string",
+            "minLength": 1
+          },
+          "title": {
+            "type": "string",
+            "description": "Pull request title",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "body": {
+            "type": "string",
+            "description": "Pull request description (markdown)",
+            "maxLength": 65536
+          },
+          "head": {
+            "type": "string",
+            "description": "Source branch name",
+            "minLength": 1
+          },
+          "base": {
+            "type": "string",
+            "description": "Target branch (defaults to default_branch)"
+          },
+          "draft": {
+            "type": "boolean",
+            "description": "Create as draft PR",
+            "default": true
+          },
+          "labels": {
+            "type": "array",
+            "description": "Labels to apply to PR",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 10
+          }
+        },
+        "required": ["installation_id", "owner", "repo", "title", "head"],
+        "additionalProperties": false
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "number": {
+            "type": "number",
+            "description": "Pull request number"
+          },
+          "html_url": {
+            "type": "string",
+            "format": "uri",
+            "description": "GitHub URL to PR"
+          },
+          "state": {
+            "type": "string",
+            "enum": ["open", "closed"]
+          },
+          "draft": {
+            "type": "boolean"
+          }
+        },
+        "required": ["number", "html_url", "state", "draft"]
+      },
+      "requiredPermissions": {
+        "pull_requests": "write"
+      }
+    },
+
+    {
+      "name": "github.add_pr_comment",
+      "description": "Add a comment to a pull request",
+      "category": "write",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "installation_id": {
+            "type": "number",
+            "minimum": 1
+          },
+          "owner": {
+            "type": "string",
+            "minLength": 1
+          },
+          "repo": {
+            "type": "string",
+            "minLength": 1
+          },
+          "pr_number": {
+            "type": "number",
+            "description": "Pull request number",
+            "minimum": 1
+          },
+          "body": {
+            "type": "string",
+            "description": "Comment body (markdown)",
+            "minLength": 1,
+            "maxLength": 65536
+          }
+        },
+        "required": ["installation_id", "owner", "repo", "pr_number", "body"],
+        "additionalProperties": false
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "number",
+            "description": "Comment ID"
+          },
+          "html_url": {
+            "type": "string",
+            "format": "uri"
+          }
+        },
+        "required": ["id", "html_url"]
+      },
+      "requiredPermissions": {
+        "pull_requests": "write"
+      }
+    },
+
+    {
+      "name": "github.get_repo_tree",
+      "description": "Get repository file tree",
+      "category": "read",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "installation_id": {
+            "type": "number",
+            "minimum": 1
+          },
+          "owner": {
+            "type": "string",
+            "minLength": 1
+          },
+          "repo": {
+            "type": "string",
+            "minLength": 1
+          },
+          "ref": {
+            "type": "string",
+            "description": "Branch/tag/SHA (defaults to default_branch)"
+          },
+          "recursive": {
+            "type": "boolean",
+            "description": "Recursively fetch tree",
+            "default": true
+          }
+        },
+        "required": ["installation_id", "owner", "repo"],
+        "additionalProperties": false
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "tree": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "path": {
+                  "type": "string"
+                },
+                "mode": {
+                  "type": "string"
+                },
+                "type": {
+                  "type": "string",
+                  "enum": ["blob", "tree"]
+                },
+                "sha": {
+                  "type": "string"
+                },
+                "size": {
+                  "type": "number"
+                }
+              },
+              "required": ["path", "type", "sha"]
+            }
+          },
+          "truncated": {
+            "type": "boolean",
+            "description": "Whether tree was truncated (too many files)"
+          }
+        },
+        "required": ["tree", "truncated"]
+      },
+      "requiredPermissions": {
+        "contents": "read"
+      }
+    }
+  ],
+
+  "errorCodes": [
+    {
+      "code": "INSTALLATION_NOT_FOUND",
+      "httpStatus": 404,
+      "description": "Installation ID not found in database or inactive",
+      "userAction": "Install or reinstall AKIS GitHub App"
+    },
+    {
+      "code": "REPO_NOT_AUTHORIZED",
+      "httpStatus": 403,
+      "description": "Repository not linked to this installation",
+      "userAction": "Add repository in GitHub App installation settings"
+    },
+    {
+      "code": "INSUFFICIENT_PERMISSIONS",
+      "httpStatus": 403,
+      "description": "GitHub App lacks required permissions for this operation",
+      "userAction": "Grant missing permissions in GitHub App settings"
+    },
+    {
+      "code": "RATE_LIMIT_EXCEEDED",
+      "httpStatus": 429,
+      "description": "GitHub API rate limit exceeded",
+      "userAction": "Retry after rate limit reset (check Retry-After header)"
+    },
+    {
+      "code": "TOKEN_EXPIRED",
+      "httpStatus": 401,
+      "description": "Installation token expired (should auto-refresh)",
+      "userAction": "Retry request (token will be refreshed automatically)"
+    },
+    {
+      "code": "INVALID_PARAMS",
+      "httpStatus": 400,
+      "description": "Tool parameters failed schema validation",
+      "userAction": "Check tool documentation and fix parameters"
+    },
+    {
+      "code": "GITHUB_API_ERROR",
+      "httpStatus": 502,
+      "description": "GitHub API returned an error",
+      "userAction": "Check GitHub status page, retry if transient"
+    },
+    {
+      "code": "RESOURCE_NOT_FOUND",
+      "httpStatus": 404,
+      "description": "Requested resource (file, branch, PR) not found on GitHub",
+      "userAction": "Verify resource exists and try again"
+    }
+  ]
+}
+
