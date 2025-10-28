@@ -21,8 +21,8 @@ import "server-only";
  */
 
 import { runScribeServer, ScribeRunnerInput, ScribeRunnerOutput } from '@/modules/agents/scribe/server/runner.server';
-import { logger } from '@/lib/utils/logger';
-import { resolveActorOrFallback } from '@/lib/auth/actor';
+import { logger } from "@/shared/lib/utils/logger";
+import { resolveActorOrFallback } from "@/shared/lib/auth/actor";
 
 export interface RunScribeActionInput {
   repo: string; // Format: "owner/repo"

@@ -1,0 +1,230 @@
+LEGACY AUTH FLOWS & DEPRECATED TOKEN PROVIDERS
+==============================================
+Generated: 2025-10-27
+Purpose: Track all deprecated GitHub authentication flows for migration to SSOT
+
+---
+
+## DEPRECATED TOKEN PROVIDERS (TO BE REMOVED)
+
+### 1. lib/github/token-provider.ts
+Status: DEPRECATED
+Reason: Replaced by modules/github/token-provider.ts
+Usage: Found in test files only
+Action: Mark for removal after test migration
+
+Grep Proof:
+$ grep -rn "from.*lib/github/token-provider" src/
+src/lib/github/__tests__/token-provider.test.ts:8:import { getGitHubToken, isValidGitHubToken } from '../token-provider';
+src/__tests__/e2e/github-app-auth.test.ts:29:    const { getGitHubToken } = await import('@/lib/github/token-provider');
+src/__tests__/e2e/github-app-auth.test.ts:110:    const { getGitHubToken } = await import('@/lib/github/token-provider');
+src/__tests__/e2e/github-app-auth.test.ts:184:      const { getGitHubToken } = await import('@/lib/github/token-provider');
+
+Files Importing: 2 test files (github-app-auth.test.ts, token-provider.test.ts)
+
+---
+
+### 2. lib/auth/github-token.ts
+Status: DEPRECATED (explicitly marked in code)
+Reason: Wrapper around new token-provider; adds no value
+Usage: None found
+
+Deprecation Notice in Code:
+Line 2: * DEPRECATED: Use @/lib/github/token-provider instead
+Line 5: * @deprecated Import from @/lib/github/token-provider
+Line 38: * @deprecated Use getGitHubToken from @/lib/github/token-provider
+Line 68: logger.warn('GitHubToken', 'DEPRECATED: Use @/lib/github/token-provider instead');
+
+Grep Proof:
+$ grep -rn "from.*lib/auth/github-token" src/
+(No results - not imported anywhere)
+
+Action: Safe to remove immediately after validation
+
+---
+
+## LOW-LEVEL TOKEN PRIMITIVES (TO BE MOVED)
+
+### 3. lib/auth/github-app.ts
+Status: Core primitive, needs consolidation
+Reason: Contains JWT creation and raw GitHub API token fetch
+Current Usage: Imported by modules/github/token-provider.ts
+
+Key Functions:
+- getInstallationToken(installationId: number)
+- getCachedGitHubAppToken()
+
+Current Imports:
+$ grep -rn "from.*lib/auth/github-app" src/
+src/app/api/github/app/diagnostics/route.ts:30:import { getInstallationToken } from '@/lib/auth/github-app';
+src/modules/github/token-provider.ts:66:import { getCachedGitHubAppToken } from '@/lib/auth/github-app';
+
+Target: modules/github/auth/github-app.ts
+Action: Move to modules/github/auth/, update imports
+
+---
+
+## CURRENT TOKEN FLOW (TARGET SSOT)
+
+Primary Provider: modules/github/token-provider.ts
+Location: src/modules/github/token-provider.ts
+Status: CURRENT SSOT
+
+Current Imports (Proof of Adoption):
+$ grep -rn "from.*modules/github/token-provider" src/
+src/app/api/agent/documentation/analyze/route.ts:11:import { getGitHubToken } from '@/modules/github/token-provider';
+src/modules/agents/scribe/server/runner.server.ts:19:import { getGitHubToken } from '@/modules/github/token-provider';
+src/modules/github/operations.ts:12:import { getGitHubToken } from './token-provider';
+src/modules/github/client.ts:17:import { getGitHubToken, TokenProviderOptions } from './token-provider';
+
+Files Importing: 4 (2 API routes, 1 scribe server, 2 GitHub modules)
+
+Key Features:
+- Actor-based authentication (GitHub App or PAT)
+- Automatic fallback logic
+- Token caching via lib/auth/github-app.ts
+- Comprehensive error handling
+
+---
+
+## DIRECT GITHUB API CALLS (BYPASS TOKEN PROVIDER)
+
+### Legacy Fetch Calls (No Token Provider)
+Files with direct api.github.com fetch:
+
+1. src/app/api/integrations/github/callback/route.ts
+   - Line 48: fetch('https://api.github.com/user')
+   - Context: OAuth callback, uses OAuth token from query
+
+2. src/app/api/github/app/diagnostics/route.ts
+   - Line 77: fetch('https://api.github.com/app/installations/${installationId}')
+   - Line 103: fetch('https://api.github.com/installation/repositories')
+   - Context: Diagnostics route, uses token from getInstallationToken()
+
+3. src/app/api/github/repositories/route.ts
+   - Line 35: fetch('https://api.github.com/user/repos')
+   - Context: Uses PAT from AuthStorage (browser token)
+
+4. src/app/api/github/connect/route.ts
+   - Line 47: fetch('https://api.github.com/user')
+   - Context: OAuth callback, uses OAuth token
+
+5. src/components/GitHubRepositories.tsx (CLIENT-SIDE)
+   - Line 54: fetch('https://api.github.com/user/repos')
+   - Context: Client component, uses browser-stored PAT
+   - Note: Client-side fetch is acceptable for user PAT
+
+6. src/components/integrations/GitHubPATIntegration.tsx (CLIENT-SIDE)
+   - Line 64: fetch('https://api.github.com/user')
+   - Context: Client component, PAT validation
+   - Note: Client-side fetch is acceptable for user PAT
+
+7. src/lib/agents/utils/github-utils-legacy.ts (DEPRECATED FILE)
+   - Multiple direct fetch calls (11 total)
+   - Lines: 42, 93, 105, 340, 358, 409, 459, 535, 583
+   - Context: Legacy utilities, not imported anywhere
+   - Action: Candidate for removal
+
+8. src/lib/utils/diagnostic.ts
+   - Line 51: fetch('https://api.github.com/user')
+   - Line 105: fetch('https://api.github.com/rate_limit')
+   - Line 149, 191: fetch('https://api.github.com${endpoint}')
+   - Context: Diagnostic utility, test/debug only
+
+9. src/lib/services/mcp.ts
+   - Line 95: fetch('https://api.github.com/repos/${owner}/${repo}/contents/${file.path}')
+   - Line 159: fetch('https://api.github.com/repos/${owner}/${repo}/pulls')
+   - Line 218: fetch('https://api.github.com/repos/${owner}/${repo}/issues/${result.prNumber}/labels')
+   - Line 307: fetch('https://api.github.com/repos/${owner}/${repo}/contents/${path}')
+   - Context: MCP service, should use GitHubClient instead
+
+10. src/modules/github/client.ts, src/lib/github/client.ts
+    - Only references baseUrl = 'https://api.github.com' (not actual calls)
+    - Context: Client configuration, acceptable
+
+---
+
+## MIGRATION PLAN (PHASE 3)
+
+### Step 1: Consolidate Primitives
+1. Move lib/auth/github-app.ts → modules/github/auth/github-app.ts
+2. Update imports in modules/github/token-provider.ts
+3. Update imports in app/api/github/app/diagnostics/route.ts
+
+### Step 2: Migrate Test Imports
+1. Update src/__tests__/e2e/github-app-auth.test.ts
+   - Change import from '@/lib/github/token-provider' to '@/modules/github/token-provider'
+2. Migrate src/lib/github/__tests__/token-provider.test.ts
+   - Move to src/modules/github/__tests__/token-provider-legacy.test.ts
+   - Update import to use modules version
+
+### Step 3: Refactor Direct Fetch Calls (Non-Critical)
+1. src/lib/services/mcp.ts: Refactor to use GitHubClient from modules/github/client.ts
+   - Benefit: Token management, rate limiting, error handling
+   - Priority: Medium (MCP service used in agent workflows)
+
+2. Client-side fetch calls (components/): Leave as-is
+   - Reason: Browser-stored PAT, not server-side GitHub App token
+   - Acceptable pattern for user-initiated actions
+
+3. OAuth callbacks: Leave as-is
+   - Reason: Use OAuth token from query params, not GitHub App token
+   - Different authentication flow
+
+### Step 4: Remove Deprecated Files
+1. Delete lib/auth/github-token.ts (no imports)
+2. Delete lib/github/token-provider.ts (after test migration)
+3. Delete lib/agents/utils/github-utils-legacy.ts (no imports)
+
+---
+
+## VALIDATION (POST-MIGRATION)
+
+Run these commands to verify SSOT compliance:
+
+1. No imports of deprecated providers:
+   $ grep -rn "from.*lib/github/token-provider" src/ | wc -l
+   Expected: 0
+
+   $ grep -rn "from.*lib/auth/github-token" src/ | wc -l
+   Expected: 0
+
+2. All token requests use SSOT:
+   $ grep -rn "getGitHubToken\|getInstallationToken" src/ \
+     | grep -v "@/modules/github/token-provider" \
+     | grep -v "@/modules/github/auth/github-app" \
+     | grep -v "test.ts"
+   Expected: Empty (or only test files)
+
+3. GitHub App primitives centralized:
+   $ grep -rn "from.*github-app" src/ \
+     | grep -v "@/modules/github"
+   Expected: Empty
+
+---
+
+## REFERENCE: ENV VAR USAGE
+
+GitHub App credentials are read from environment:
+- GITHUB_APP_ID
+- GITHUB_APP_INSTALLATION_ID
+- GITHUB_APP_PRIVATE_KEY_PEM
+
+All reads centralized in:
+- modules/github/auth/github-app.ts (target)
+- lib/auth/github-app.ts (current, to be moved)
+- shared/config/github.ts (config validator, read-only)
+
+OAuth credentials (user PAT flow):
+- GITHUB_CLIENT_ID
+- GITHUB_CLIENT_SECRET
+
+Used in:
+- app/api/integrations/github/callback/route.ts
+- app/api/github/connect/route.ts
+- components/GitHubConnect.tsx
+
+---
+
+END OF LEGACY AUTH REFS
+

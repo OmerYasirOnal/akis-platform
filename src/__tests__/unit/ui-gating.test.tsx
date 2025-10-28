@@ -10,7 +10,7 @@
 import React from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
-import { DocumentationAgentUI } from '@/components/DocumentationAgentUI';
+import { DocumentationAgentUI } from "@/modules/documentation/components/DocumentationAgentUI";
 
 // Mock AuthContext
 jest.mock('@/contexts/AuthContext', () => ({

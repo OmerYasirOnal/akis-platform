@@ -1,0 +1,18 @@
+--- tsconfig.json.backup	2025-10-28 04:56:39
++++ tsconfig.json	2025-10-28 04:56:50
+@@ -1,5 +1,6 @@
+ {
+   "compilerOptions": {
++    "baseUrl": ".",
+     "target": "ES2017",
+     "lib": ["dom", "dom.iterable", "esnext"],
+     "allowJs": true,
+@@ -19,7 +20,7 @@
+       }
+     ],
+     "paths": {
+-      "@/*": ["./src/*"]
++      "@/*": ["src/*"]
+     }
+   },
+   "include": [

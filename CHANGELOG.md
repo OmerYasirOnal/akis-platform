@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **[BREAKING REFACTOR]** Complete structural refactor to feature-sliced architecture
+  - Migrated from flat `lib/` structure to domain-organized `modules/` + `shared/`
+  - Moved 35 files: agents, AI utils, auth, GitHub operations, components
+  - Removed 6 deprecated files (1,831 lines, ~47KB): duplicate GitHub implementations, unused legacy utils
+  - **100% `@/lib/` import elimination** (43 → 0 imports)
+  - Established `modules/github/token-provider.ts` as Single Source of Truth for GitHub authentication
+  - All GitHub calls now use centralized SSOT with 5-minute token caching
+  - Path alias `@/*` fully enabled and validated
+  - Zero TypeScript errors in application code
+  - Build succeeds after Next.js cache clear
+  - See: `docs/PHASE_2_REPORT.md`, `docs/PHASE_3_REPORT.md`, `docs/PHASE_4_REPORT.md` for complete details
+
 ### Added
 - Comprehensive documentation structure (PLAN.md, CONTRIBUTING.md, GETTING_STARTED.md, ARCHITECTURE.md, API.md)
 - CI/CD Documentation Quality Gate workflow
@@ -14,13 +27,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - CODEOWNERS file for code ownership
 - Scribe heuristics improvement specification
 - Enhanced README with detailed project information
+- **Feature-sliced architecture** with clear module boundaries
+- **GitHub SSOT** with JWT creation, token caching (5-min safety window), clock skew tolerance (2-min)
+- **PEM format normalization** for private keys (`\n` → newline)
+- **Server-only enforcement** for token provider (build-time)
 
-### Changed
-- README.md completely rewritten with proper Getting Started section
-- Documentation structure aligned with DAS (Documentation Assessment Score) requirements
+### Removed
+- `modules/github/auth/github-app.ts` (merged into token-provider.ts)
+- `lib/github/token-provider.ts` (legacy duplicate)
+- `lib/github/client.ts` (legacy duplicate, no upsert support)
+- `lib/github/operations.ts` (legacy duplicate)
+- `lib/auth/github-token.ts` (deprecated OAuth wrapper)
+- `lib/agents/utils/github-utils-legacy.ts` (unused, 660 lines)
 
 ### Fixed
 - Documentation coverage issues (target: DAS ≥ 80%)
+- **Import chaos**: eliminated all `@/lib/` imports
+- **GitHub auth duplication**: consolidated 3 token implementations into 1 SSOT
+- **Module boundary violations**: established clear feature/shared separation
 
 ## [0.1.0] - 2025-01-27
 

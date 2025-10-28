@@ -1,0 +1,41 @@
+✅ Dev server started (PID: 54445)
+
+> devagents@0.1.0 predev
+> npm run validate:env
+
+
+> devagents@0.1.0 validate:env
+> node scripts/validate-env.mjs
+
+[0m[0m
+[36m═══════════════════════════════════════════════[0m
+[36m  AKIS Platform - Environment Validation[0m
+[36m═══════════════════════════════════════════════[0m
+[0m[0m
+[34m🤖 AI/LLM Configuration[0m
+[34m───────────────────────────────────────────────[0m
+[32m✅ OPENROUTER_API_KEY is set[0m
+[31m❌ OPENAI_API_KEY is not set (optional)[0m
+[36mℹ️  Using OpenRouter API (recommended)[0m
+[0m[0m
+[34m🔐 GitHub OAuth Configuration[0m
+[34m───────────────────────────────────────────────[0m
+[31m❌ GITHUB_CLIENT_ID is missing[0m
+[31m❌ GITHUB_CLIENT_SECRET is missing[0m
+[31m❌ NEXT_PUBLIC_GITHUB_CLIENT_ID is missing[0m
+[0m[0m
+[33m⚠️  GitHub OAuth is not fully configured[0m
+[33m⚠️  User login and repository access may not work[0m
+[36mℹ️  Create OAuth App at: https://github.com/settings/developers[0m
+[0m[0m
+[34m🤖 GitHub App Configuration (Optional)[0m
+[34m───────────────────────────────────────────────[0m
+[32m✅ GitHub App is fully configured[0m
+[36mℹ️  Agents can use GitHub App authentication (recommended)[0m
+[0m[0m
+[34m⚙️  Agent Configuration[0m
+[34m───────────────────────────────────────────────[0m
+[31m❌ ALLOW_LOW_DAS is not set (using default: false)[0m
+[31m❌ MAX_FILES_TO_SCAN is not set (using default: 200)[0m
+[31m❌ MAX_RUN_TIME is not set (using default: 180)[0m
+[0m[0m

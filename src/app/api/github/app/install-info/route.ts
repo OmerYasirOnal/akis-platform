@@ -9,7 +9,7 @@
  */
 
 import { NextResponse } from 'next/server';
-import { logger } from '@/lib/utils/logger';
+import { logger } from "@/shared/lib/utils/logger";
 
 export const runtime = 'nodejs';
 
