@@ -10,15 +10,17 @@
 - [ ] Breaking change
 
 ## Checklist
-- [ ] README has a **Quickstart/Getting Started** section
 - [ ] `CHANGELOG.md` updated (if user-facing changes)
-- [ ] `docs/ARCHITECTURE.md` updated (if structural changes)
-- [ ] `docs/API.md` updated (if API changed)
-- [ ] Environment variables documented in `docs/ENV_SETUP.md` (if config changed)
+- [ ] `README.md` updated (if needed)
+- [ ] `docs/architecture/ARCHITECTURE.md` updated (if structural changes)
+- [ ] `docs/architecture/API.md` updated (if API changed)
+- [ ] `docs/guides/ENV_SETUP.md` updated (if config changed)
 - [ ] Tests added/updated (if applicable)
-- [ ] Code follows project conventions
-- [ ] No linting errors
-- [ ] All tests pass
+- [ ] Code follows project conventions (feature-sliced architecture)
+- [ ] No linting errors (`npm run lint`)
+- [ ] TypeScript validation passes (`npm run typecheck`)
+- [ ] All tests pass (`npm test`)
+- [ ] Build succeeds (`npm run build`)
 
 ## Screenshots / Logs
 <!-- Add relevant evidence, screenshots, or log excerpts -->
