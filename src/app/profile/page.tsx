@@ -3,7 +3,7 @@
 import { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
-import { GitHubPATIntegration } from '@/components/integrations/GitHubPATIntegration';
+import { GitHubPATIntegration } from "@/shared/components/integrations/GitHubPATIntegration";
 
 function ProfileContent() {
   const { user, isAuthenticated, integrations, logout, addIntegration, refreshIntegrations } = useAuth();

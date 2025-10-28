@@ -6,9 +6,9 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { CreateBranchRequestSchema, type CreateBranchResponse, type ValidationErrorResponse } from '@/lib/contracts/github-branch';
+import { CreateBranchRequestSchema, type CreateBranchResponse, type ValidationErrorResponse } from '@/shared/types/contracts/github-branch';
 import { createBranch, checkBranchExists } from '@/modules/github/operations';
-import { logger } from '@/lib/utils/logger';
+import { logger } from "@/shared/lib/utils/logger";
 
 export const runtime = 'nodejs';
 

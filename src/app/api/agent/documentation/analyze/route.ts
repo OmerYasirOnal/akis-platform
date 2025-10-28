@@ -6,8 +6,8 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { documentationAgent } from '@/lib/agents/documentation-agent';
-import type { DocumentationAgentInput } from '@/lib/agents/documentation-agent-types';
+import { documentationAgent } from "@/modules/documentation/agent/documentation-agent";
+import type { DocumentationAgentInput } from "@/modules/documentation/agent/types";
 import { getGitHubToken } from '@/modules/github/token-provider';
 
 export const runtime = 'nodejs';

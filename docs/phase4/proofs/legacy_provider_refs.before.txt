@@ -1,0 +1,4 @@
+src/lib/auth/github-token.ts:2: * DEPRECATED: Use @/lib/github/token-provider instead
+src/lib/auth/github-token.ts:5: * @deprecated Import from @/lib/github/token-provider
+src/lib/auth/github-token.ts:38: * @deprecated Use getGitHubToken from @/lib/github/token-provider
+src/lib/auth/github-token.ts:44:  logger.warn('GitHubToken', 'DEPRECATED: Use @/lib/github/token-provider instead');

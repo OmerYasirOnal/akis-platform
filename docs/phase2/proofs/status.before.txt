@@ -1,0 +1,11 @@
+ M docs/candidates_for_removal.md
+ M tsconfig.json
+?? docs/PHASE_1_REPORT.md
+?? docs/PHASE_A_SUMMARY.md
+?? docs/STRUCTURE_GATE_REVIEW.md
+?? docs/legacy_auth_refs.txt
+?? docs/phase2/
+?? docs/proofs/
+?? docs/validation/
+?? next.config.ts.backup
+?? tsconfig.json.backup

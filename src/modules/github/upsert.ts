@@ -12,7 +12,7 @@
  */
 
 import { createGitHubClient, GitHubClientOptions } from './client';
-import { logger } from '@/lib/utils/logger';
+import { logger } from "@/shared/lib/utils/logger";
 
 export interface UpsertFileOptions {
   // GitHub authentication (via GitHubClientOptions fields)

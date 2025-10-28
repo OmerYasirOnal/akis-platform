@@ -8,17 +8,17 @@ import "server-only";
  * Use server actions (src/app/actions/scribe.ts) or API routes instead.
  */
 
-import { DocumentationAgent } from '@/lib/agents/documentation-agent';
-import { DocumentationAgentInput, DocumentationWorkflowOutput } from '@/lib/agents/documentation-agent-types';
+import { DocumentationAgent } from "@/modules/documentation/agent/documentation-agent";
+import { DocumentationAgentInput, DocumentationWorkflowOutput } from "@/modules/documentation/agent/types";
 import {
   mcpCreateBranch,
   mcpOpenPR,
   MCPConfig,
-} from '@/lib/services/mcp';
+} from "@/shared/services/mcp";
 import { upsertMultipleFiles } from '@/modules/github/upsert';
 import { getGitHubToken } from '@/modules/github/token-provider';
-import { logger } from '@/lib/utils/logger';
-import { Actor, resolveActorOrFallback, getCommitAuthor, getActorBanner } from '@/lib/auth/actor';
+import { logger } from "@/shared/lib/utils/logger";
+import { Actor, resolveActorOrFallback, getCommitAuthor, getActorBanner } from "@/shared/lib/auth/actor";
 
 export interface ScribeRunnerInput {
   repoOwner: string;

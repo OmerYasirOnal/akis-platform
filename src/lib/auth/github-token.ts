@@ -1,12 +1,12 @@
 /**
- * DEPRECATED: Use @/lib/github/token-provider instead
+ * DEPRECATED: Use @/modules/github/token-provider instead
  * This file is kept for backward compatibility
  * 
  * @deprecated Import from @/lib/github/token-provider
  */
 
 import { getGitHubToken as getGitHubTokenNew, TokenProviderOptions as TokenProviderOptionsNew } from '../github/token-provider';
-import { logger } from '../utils/logger';
+import { logger } from '@/shared/lib/utils/logger';
 
 export interface TokenProviderOptions {
   /**

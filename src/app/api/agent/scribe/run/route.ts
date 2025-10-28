@@ -8,7 +8,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { runScribeServer, ScribeRunnerInput } from '@/modules/agents/scribe/server/runner.server';
-import { logger } from '@/lib/utils/logger';
+import { logger } from "@/shared/lib/utils/logger";
 
 export const runtime = 'nodejs';
 export const maxDuration = 300; // 5 minutes
