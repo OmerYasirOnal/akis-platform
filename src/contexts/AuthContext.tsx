@@ -1,8 +1,8 @@
 'use client';
 
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
-import { User, UserIntegration, AuthState } from '@/lib/auth/types';
-import { AuthStorage } from '@/lib/auth/storage';
+import { User, UserIntegration, AuthState } from '@/shared/types/auth';
+import { AuthStorage } from "@/shared/lib/auth/storage";
 
 interface AuthContextType extends AuthState {
   login: (email: string, password: string) => Promise<boolean>;

@@ -4,7 +4,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { documentationAgent } from '@/lib/agents/documentation-agent';
+import { documentationAgent } from "@/modules/documentation/agent/documentation-agent";
 
 export async function GET(req: NextRequest) {
   try {

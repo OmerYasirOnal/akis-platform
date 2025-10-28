@@ -9,7 +9,7 @@
  * - Fallback disabled
  */
 
-import { resolveActorOrFallback, isAppBotFallbackEnabled, getCommitAuthor, getActorBanner } from '@/lib/auth/actor';
+import { resolveActorOrFallback, isAppBotFallbackEnabled, getCommitAuthor, getActorBanner } from "@/shared/lib/auth/actor";
 
 // Mock environment variables
 const originalEnv = process.env;

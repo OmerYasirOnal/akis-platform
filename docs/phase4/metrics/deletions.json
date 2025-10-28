@@ -1,0 +1,64 @@
+{
+  "phase": "PHASE 4 - Final Validation & PR Preparation",
+  "date": "2025-10-27",
+  "deletions": {
+    "total_files": 6,
+    "total_lines": 1831,
+    "total_size_kb": 47,
+    "files": [
+      {
+        "path": "src/modules/github/auth/github-app.ts",
+        "lines": 166,
+        "size_kb": 4.7,
+        "reason": "Token primitives merged into modules/github/token-provider.ts (SSOT)",
+        "active_imports_before": 0,
+        "proof": "docs/phase4/proofs/github_app_refs.before.txt"
+      },
+      {
+        "path": "src/lib/github/token-provider.ts",
+        "lines": 216,
+        "size_kb": 5.6,
+        "reason": "Legacy duplicate; replaced by modules/github/token-provider.ts",
+        "active_imports_before": 0,
+        "proof": "docs/phase4/proofs/legacy_provider_refs.before.txt (comments only)"
+      },
+      {
+        "path": "src/lib/github/client.ts",
+        "lines": 235,
+        "size_kb": 6.3,
+        "reason": "Legacy duplicate; replaced by modules/github/client.ts (newer, with upsert)",
+        "active_imports_before": 0,
+        "proof": "docs/phase4/proofs/legacy_client_refs.before.txt"
+      },
+      {
+        "path": "src/lib/github/operations.ts",
+        "lines": 440,
+        "size_kb": 10,
+        "reason": "Legacy duplicate; replaced by modules/github/operations.ts (more operations)",
+        "active_imports_before": 0,
+        "proof": "docs/phase4/proofs/legacy_ops_refs.before.txt (comments only)"
+      },
+      {
+        "path": "src/lib/auth/github-token.ts",
+        "lines": 114,
+        "size_kb": 2.9,
+        "reason": "Deprecated OAuth wrapper; marked @deprecated in code",
+        "active_imports_before": 0,
+        "proof": "docs/phase4/proofs/legacy_auth_token_refs.before.txt"
+      },
+      {
+        "path": "src/lib/agents/utils/github-utils-legacy.ts",
+        "lines": 660,
+        "size_kb": 17,
+        "reason": "Unused legacy utils with direct fetch calls; broken imports; blocking build",
+        "active_imports_before": 0,
+        "proof": "docs/phase4/proofs/github_utils_legacy_refs.before.txt"
+      }
+    ]
+  },
+  "validation": {
+    "grep_proofs": "All 6 files had 0 active imports (comments/deprecation notices excluded)",
+    "safety": "Proof-based deletion; all files recoverable via git history"
+  }
+}
+

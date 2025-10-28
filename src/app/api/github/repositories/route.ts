@@ -4,7 +4,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { AuthStorage } from '@/lib/auth/storage';
+import { AuthStorage } from "@/shared/lib/auth/storage";
 
 export const runtime = 'nodejs';
 

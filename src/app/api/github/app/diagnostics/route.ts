@@ -1,6 +1,6 @@
 import "server-only";
 import { NextRequest, NextResponse } from 'next/server';
-import { getInstallationToken } from '@/lib/auth/github-app';
+import { getInstallationToken } from "@/modules/github/token-provider";
 
 /**
  * GitHub App Diagnostics Endpoint
@@ -57,18 +57,27 @@ export async function GET(req: NextRequest) {
       } as DiagnosticsResponse);
     }
 
-    // Get installation token (includes permissions)
-    const normalizedKey = privateKeyPem.replace(/\\n/g, '\n');
-    const tokenResult = await getInstallationToken(appId, installationId, normalizedKey);
+    // Get installation token via SSOT (env vars already set)
+    // Note: getInstallationToken now reads from env internally
+    let token: string;
+    let expiresAt: string;
+    
+    try {
+      const tokenResult = await getInstallationToken({
+        installationId: parseInt(installationId, 10),
+        correlationId: 'diagnostics',
+      });
 
-    if ('error' in tokenResult) {
+      token = tokenResult.token;
+      expiresAt = tokenResult.expiresAt;
+    } catch (error: any) {
       return NextResponse.json({
         installed: false,
         appSlug,
         installationId: parseInt(installationId, 10),
         requiredPermissions: REQUIRED_PERMISSIONS,
         missing: Object.keys(REQUIRED_PERMISSIONS).map(k => `${k}:${REQUIRED_PERMISSIONS[k]}`),
-        error: `Failed to get installation token: ${tokenResult.error}`,
+        error: `Failed to get installation token: ${error.message}`,
       } as DiagnosticsResponse, { status: 500 });
     }
 
@@ -77,7 +86,7 @@ export async function GET(req: NextRequest) {
       `https://api.github.com/app/installations/${installationId}`,
       {
         headers: {
-          'Authorization': `Bearer ${tokenResult.token}`,
+          'Authorization': `Bearer ${token}`,
           'Accept': 'application/vnd.github+json',
           'X-GitHub-Api-Version': '2022-11-28',
         },
@@ -103,7 +112,7 @@ export async function GET(req: NextRequest) {
       `https://api.github.com/installation/repositories`,
       {
         headers: {
-          'Authorization': `Bearer ${tokenResult.token}`,
+          'Authorization': `Bearer ${token}`,
           'Accept': 'application/vnd.github+json',
           'X-GitHub-Api-Version': '2022-11-28',
         },
