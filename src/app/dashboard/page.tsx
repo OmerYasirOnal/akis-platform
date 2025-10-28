@@ -3,10 +3,10 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
-import { DocumentAgent } from '@/components/DocumentAgent';
-import { AgentPlaybookViewer } from '@/components/AgentPlaybookViewer';
-import { GitHubRepositories } from '@/components/GitHubRepositories';
-import { DocumentationAgentUI } from '@/components/DocumentationAgentUI';
+import { DocumentAgent } from "@/modules/documentation/components/DocumentAgent";
+import { AgentPlaybookViewer } from "@/modules/documentation/components/AgentPlaybookViewer";
+import { GitHubRepositories } from "@/shared/components/github/GitHubRepositories";
+import { DocumentationAgentUI } from "@/modules/documentation/components/DocumentationAgentUI";
 import Link from 'next/link';
 
 export default function DashboardPage() {
@@ -40,7 +40,7 @@ export default function DashboardPage() {
         // Bu useEffect içinde hook çağıramayız, bu yüzden farklı yaklaşım gerekli
         // Storage'a direkt yazalım
         if (typeof window !== 'undefined') {
-          const { AuthStorage } = require('@/lib/auth/storage');
+          const { AuthStorage } = require('@/shared/lib/auth/storage');
           AuthStorage.addIntegration(integrationData);
           window.location.reload(); // Yenile ki context güncellensin
         }

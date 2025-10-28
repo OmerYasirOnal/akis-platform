@@ -1,53 +1,48 @@
 import "server-only";
 
 /**
- * Unified GitHub Token Provider
+ * ✅ SSOT: GitHub Token Provider (PHASE 3 Consolidated)
  * 
- * Priority:
- * 1. GitHub App Installation Token (server-side, short-lived, secure)
- * 2. OAuth User Token (dev-only fallback when ALLOW_OAUTH_FALLBACK=true)
+ * Single Source of Truth for GitHub Installation Tokens
+ * Implements: JWT → Installation Access Token flow with caching
  * 
  * Security:
+ * - Server-only (build-time enforced)
+ * - Short-lived tokens (~1 hour, auto-refresh)
+ * - 2-minute safety margin before expiry
  * - Tokens never exposed to client
- * - Auto-refresh before expiry
- * - Correlation IDs for observability
- * - Structured logging with redaction
- * - OAuth fallback DISABLED by default (safe-by-default)
+ * - Structured logging with correlation IDs
+ * 
+ * Priority:
+ * 1. GitHub App Installation Token (production)
+ * 2. OAuth User Token (dev-only fallback, guarded)
  */
 
-import { getCachedGitHubAppToken } from '@/lib/auth/github-app';
-import { logger } from '@/lib/utils/logger';
+import jwt from 'jsonwebtoken';
+import { logger } from "@/shared/lib/utils/logger";
+
+// ============================================================================
+// TYPES & INTERFACES
+// ============================================================================
+
+export interface InstallationToken {
+  token: string;
+  expiresAt: string;
+}
+
+export interface TokenProvider {
+  getInstallationToken(params?: { 
+    installationId?: number; 
+    repo?: string;
+    correlationId?: string;
+  }): Promise<InstallationToken>;
+}
 
 export interface TokenProviderOptions {
-  /**
-   * Correlation ID for tracking requests
-   */
   correlationId?: string;
-
-  /**
-   * Force OAuth usage (bypass GitHub App)
-   * Only use for development/testing
-   * @deprecated Use ALLOW_OAUTH_FALLBACK env instead
-   */
   forceOAuth?: boolean;
-
-  /**
-   * User's OAuth token (from session/cookie)
-   * Should only be passed from server-side session
-   */
   userToken?: string;
-
-  /**
-   * Repository context (for logging)
-   */
-  repo?: {
-    owner: string;
-    name: string;
-  };
-
-  /**
-   * Actor context (for structured logging)
-   */
+  repo?: { owner: string; name: string; };
   actor?: {
     mode: 'oauth_user' | 'app_bot' | 'service_account';
     installationId?: number;
@@ -71,6 +66,192 @@ export interface TokenProviderError {
   };
 }
 
+// ============================================================================
+// TOKEN CACHE (5-minute safety window)
+// ============================================================================
+
+interface TokenCache {
+  token: string;
+  expiresAt: Date;
+}
+
+let tokenCache: TokenCache | null = null;
+
+// ============================================================================
+// CORE PRIMITIVES (Consolidated from github-app.ts)
+// ============================================================================
+
+/**
+ * Create GitHub App JWT token (valid for 10 minutes)
+ * Used to authenticate as the GitHub App itself
+ * 
+ * @internal - Use getInstallationToken() instead
+ */
+function createGitHubAppJWT(appId: string, privateKey: string): string {
+  const now = Math.floor(Date.now() / 1000);
+  
+  const payload = {
+    iat: now - 60,           // Issued at (1 min ago for clock drift)
+    exp: now + 9 * 60,       // Expires in 9 minutes
+    iss: appId,              // Issuer (GitHub App ID)
+  };
+
+  return jwt.sign(payload, privateKey, { algorithm: 'RS256' });
+}
+
+/**
+ * Exchange JWT for Installation Access Token
+ * This token is used for actual GitHub API calls
+ * 
+ * @internal - Use getInstallationToken() instead
+ * @returns Installation access token (valid ~1 hour)
+ */
+async function exchangeJWTForInstallationToken(
+  appId: string,
+  installationId: string,
+  privateKey: string
+): Promise<{ token: string; expiresAt: string } | { error: string }> {
+  try {
+    // Step 1: Create JWT
+    const jwtToken = createGitHubAppJWT(appId, privateKey);
+
+    // Step 2: Exchange JWT for Installation Access Token
+    const response = await fetch(
+      `https://api.github.com/app/installations/${installationId}/access_tokens`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${jwtToken}`,
+          Accept: 'application/vnd.github+json',
+          'X-GitHub-Api-Version': '2022-11-28',
+        },
+      }
+    );
+
+    if (!response.ok) {
+      const error = await response.json();
+      logger.error('TokenProvider', `Token exchange failed: ${error.message || `HTTP ${response.status}`}`);
+      return { error: error.message || `HTTP ${response.status}` };
+    }
+
+    const data = await response.json();
+    
+    logger.info('TokenProvider', `✅ Installation token acquired, expires: ${data.expires_at}`);
+    
+    return {
+      token: data.token,
+      expiresAt: data.expires_at,
+    };
+  } catch (error: any) {
+    logger.error('TokenProvider', `Exception during token exchange: ${error.message}`);
+    return { error: error.message };
+  }
+}
+
+// ============================================================================
+// PUBLIC API (Minimal Interface)
+// ============================================================================
+
+/**
+ * ✅ SSOT: Get GitHub Installation Token
+ * 
+ * Automatically handles:
+ * - Environment variable reading (APP_ID, INSTALLATION_ID, PRIVATE_KEY_PEM)
+ * - JWT creation and exchange
+ * - Token caching with 5-minute safety window (auto-refresh)
+ * - PEM format normalization (handles \n escaping)
+ * 
+ * @param params - Optional parameters
+ * @param params.installationId - Override installation ID (defaults to env GITHUB_APP_INSTALLATION_ID)
+ * @param params.repo - Repository context for logging
+ * @param params.correlationId - Tracking ID for observability
+ * 
+ * @returns Installation token with expiry, or throws error
+ * 
+ * @example
+ * ```ts
+ * const { token } = await getInstallationToken();
+ * const octokit = new Octokit({ auth: token });
+ * ```
+ */
+export async function getInstallationToken(params?: {
+  installationId?: number;
+  repo?: string;
+  correlationId?: string;
+}): Promise<InstallationToken> {
+  const correlationId = params?.correlationId || Math.random().toString(36).substring(7);
+  const now = new Date();
+  
+  // Check cache first (5-minute safety margin)
+  if (tokenCache && tokenCache.expiresAt > new Date(now.getTime() + 5 * 60 * 1000)) {
+    logger.info('TokenProvider', `[${correlationId}] Using cached token (expires: ${tokenCache.expiresAt.toISOString()})`);
+    return {
+      token: tokenCache.token,
+      expiresAt: tokenCache.expiresAt.toISOString(),
+    };
+  }
+
+  // Fetch new token
+  logger.info('TokenProvider', `[${correlationId}] Fetching new installation token...`);
+  
+  const appId = process.env.GITHUB_APP_ID;
+  const installationId = params?.installationId?.toString() || process.env.GITHUB_APP_INSTALLATION_ID;
+  const privateKeyPem = process.env.GITHUB_APP_PRIVATE_KEY_PEM;
+
+  if (!appId || !installationId || !privateKeyPem) {
+    const missing = [];
+    if (!appId) missing.push('GITHUB_APP_ID');
+    if (!installationId) missing.push('GITHUB_APP_INSTALLATION_ID');
+    if (!privateKeyPem) missing.push('GITHUB_APP_PRIVATE_KEY_PEM');
+    
+    const errorMsg = `GitHub App credentials missing: ${missing.join(', ')}`;
+    logger.error('TokenProvider', `[${correlationId}] ❌ ${errorMsg}`);
+    throw new Error(errorMsg);
+  }
+
+  // Normalize PEM (handles \n escape sequences from env vars)
+  const normalizedKey = privateKeyPem.replace(/\\n/g, '\n');
+
+  const result = await exchangeJWTForInstallationToken(appId, installationId, normalizedKey);
+  
+  if ('error' in result) {
+    logger.error('TokenProvider', `[${correlationId}] ❌ Token exchange failed: ${result.error}`);
+    throw new Error(`Failed to get installation token: ${result.error}`);
+  }
+
+  // Cache the token
+  tokenCache = {
+    token: result.token,
+    expiresAt: new Date(result.expiresAt),
+  };
+
+  logger.info('TokenProvider', `[${correlationId}] ✅ Token cached until ${tokenCache.expiresAt.toISOString()}`);
+
+  return {
+    token: result.token,
+    expiresAt: result.expiresAt,
+  };
+}
+
+/**
+ * ✅ Get cached token or fetch new one (alias for backward compatibility)
+ * 
+ * @deprecated Use getInstallationToken() instead
+ */
+export async function getCachedGitHubAppToken(): Promise<string | null> {
+  try {
+    const { token } = await getInstallationToken();
+    return token;
+  } catch (error) {
+    logger.error('TokenProvider', `getCachedGitHubAppToken failed: ${error}`);
+    return null;
+  }
+}
+
+// ============================================================================
+// LEGACY API (OAuth Fallback - Dev Only, Safe-by-Default)
+// ============================================================================
+
 /**
  * Check if OAuth fallback is allowed
  * Safe-by-default: only allowed in development when explicitly enabled
@@ -83,7 +264,11 @@ function isOAuthFallbackAllowed(): boolean {
 }
 
 /**
- * Get GitHub token with intelligent fallback
+ * Get GitHub token with intelligent fallback (OAuth support)
+ * 
+ * @deprecated Use getInstallationToken() for production. This function
+ * supports OAuth fallback for development only.
+ * 
  * Server-side only - NEVER call from client
  */
 export async function getGitHubToken(
@@ -100,19 +285,15 @@ export async function getGitHubToken(
   // Priority 1: GitHub App Installation Token (preferred)
   if (!options.forceOAuth) {
     try {
-      const appToken = await getCachedGitHubAppToken();
+      const { token, expiresAt } = await getInstallationToken({ correlationId });
       
-      if (appToken) {
-        const installationId = options.actor?.installationId || process.env.GITHUB_APP_INSTALLATION_ID || 'unknown';
-        logger.info('TokenProvider', `[${correlationId}] ✅ Using GitHub App token (installation: ${installationId})`);
-        return {
-          token: appToken,
-          source: 'github_app',
-          // Note: expiresAt is managed internally by getCachedGitHubAppToken
-        };
-      }
-
-      logger.warn('TokenProvider', `[${correlationId}] ⚠️ GitHub App token unavailable (${actorInfo})`);
+      const installationId = options.actor?.installationId || process.env.GITHUB_APP_INSTALLATION_ID || 'unknown';
+      logger.info('TokenProvider', `[${correlationId}] ✅ Using GitHub App token (installation: ${installationId})`);
+      return {
+        token,
+        source: 'github_app',
+        expiresAt: new Date(expiresAt),
+      };
     } catch (error: any) {
       logger.error('TokenProvider', `[${correlationId}] ❌ GitHub App error: ${error.message}`);
     }
@@ -183,6 +364,10 @@ export async function getGitHubToken(
     },
   };
 }
+
+// ============================================================================
+// UTILITY FUNCTIONS
+// ============================================================================
 
 /**
  * Validate if token is valid (basic format check)
@@ -257,4 +442,3 @@ export async function testGitHubToken(token: string): Promise<{
     };
   }
 }
-

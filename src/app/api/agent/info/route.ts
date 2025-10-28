@@ -5,7 +5,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { documentAgentV2 } from '@/lib/agents/document-agent-v2';
+import { documentAgentV2 } from "@/modules/documentation/agent/document-agent-v2";
 
 export async function GET(req: NextRequest) {
   try {

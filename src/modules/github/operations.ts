@@ -10,7 +10,7 @@ import "server-only";
 
 import { createGitHubClient, GitHubClientOptions, GitHubResult } from './client';
 import { getGitHubToken } from './token-provider';
-import { logger } from '@/lib/utils/logger';
+import { logger } from "@/shared/lib/utils/logger";
 
 /**
  * Repository data structure

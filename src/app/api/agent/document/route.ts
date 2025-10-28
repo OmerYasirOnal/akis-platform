@@ -8,7 +8,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export const runtime = 'nodejs';
 
-import { documentAgentV2 } from '@/lib/agents/document-agent-v2';
+import { documentAgentV2 } from "@/modules/documentation/agent/document-agent-v2";
 import { z } from 'zod';
 
 // Request validation schema
