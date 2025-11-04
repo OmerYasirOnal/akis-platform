@@ -4,6 +4,7 @@ import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
 import sensible from '@fastify/sensible';
 import { registerApi } from './api/index.js';
+import './agents/scribe/ScribeAgent.js'; // Ensure agent is registered
 
 const app = Fastify({ logger: true });
 await app.register(cors);

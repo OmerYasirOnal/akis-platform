@@ -1,6 +1,6 @@
-import { IAgent } from './IAgent.js';
-import { AgentInput, AgentResult, AgentState, AgentInfo, AgentContract } from '../contracts/AgentContract.js';
-import { AgentPlaybook } from '../contracts/AgentPlaybook.js';
+import type { IAgent } from './IAgent.js';
+import type { AgentInput, AgentResult, AgentState, AgentInfo, AgentContract } from '../contracts/AgentContract.js';
+import type { AgentPlaybook } from '../contracts/AgentPlaybook.js';
 import { canTransition } from '../state/AgentStateMachine.js';
 
 export abstract class BaseAgent implements IAgent {
