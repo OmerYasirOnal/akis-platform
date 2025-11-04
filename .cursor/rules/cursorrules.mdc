@@ -1,0 +1,57 @@
+---
+title: AKIS v2 Workspace Rules
+alwaysApply: true
+---
+
+# Cursor Repo Rules — AKIS v2 (Fastify + Drizzle, Modular Monolith)
+
+## CRITICAL ARCHITECTURE GUARDRAILS (Non-Negotiable)
+- Architecture: MUST be a **Modular Monolith** with a **Central Orchestrator** managing all agents.
+- Backend framework: MUST be **Fastify** (no Express/Nest unless explicitly approved).
+- Database: **PostgreSQL**.
+- ORM / Query Builder: MUST be **Drizzle** (or Kysely). **Do NOT use Prisma.**
+- Absolutely forbidden:
+  - **Next.js for backend APIs** (UI may exist elsewhere later, but backend is NOT Next API routes).
+  - **Prisma** (heavy engine; not allowed).
+- Language/Runtime: **TypeScript** on Node 20+.
+
+## DIRECTORY CONTRACT (Must match exactly)
+
+src/
+├─ core/
+│  ├─ orchestrator/       (AgentOrchestrator.ts)
+│  ├─ agents/             (IAgent.ts, BaseAgent.ts, AgentFactory.ts)
+│  ├─ state/              (AgentStateMachine.ts)
+│  └─ contracts/          (AgentContract.ts, AgentPlaybook.ts)
+├─ agents/
+│  ├─ scribe/             (ScribeAgent.ts, ScribePlaybook.json)
+│  ├─ trace/              (…)
+│  └─ proto/              (…)
+├─ services/
+│  ├─ github/             (GitHubService.ts)
+│  ├─ confluence/         (ConfluenceService.ts)
+│  ├─ jira/               (JiraService.ts)
+│  └─ ai/                 (AIService.ts)
+├─ api/                   (Fastify routes)
+├─ config/
+└─ tests/
+
+## REQUIRED PATTERNS
+- Agent Creation: **Factory + Registry**
+- Agent Behavior: **Strategy + Command** (capabilities from Playbook)
+- Agent Lifecycle: **State (FSM)** (pending → running → completed/failed)
+- External Services: **Adapter/Facade** (GitHub, Confluence, Jira, AI)
+
+## PERFORMANCE / PLATFORM CONSTRAINTS
+- Target: OCI Free Tier ARM — keep deps lean.
+- Logging: **pino**.
+- Validation: **zod** (or TypeBox).
+- Prefer async I/O; offload CPU-heavy work to worker threads if needed.
+
+## TESTING & QUALITY
+- Tests with **vitest** + **supertest**.
+- TS strict mode.
+- Conventional commits (e.g., `INIT:`, `feat:`, `chore:`).
+
+## CONFLICT RESOLUTION
+If a request contradicts these rules, prioritize this file and propose a compliant alternative.

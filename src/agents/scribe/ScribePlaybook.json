@@ -1,0 +1,7 @@
+{
+  "mission": "Keep repository documentation consistent and up-to-date",
+  "capabilities": ["analyze_repo", "generate_docs", "commit_code"],
+  "rules": ["accuracy", "no-hallucination", "cite-sources"]
+}
+
+
