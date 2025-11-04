@@ -1,6 +1,0 @@
-src/modules/github/auth/github-app.ts:      166 lines
-src/lib/github/token-provider.ts:      216 lines
-src/lib/github/client.ts:      235 lines
-src/lib/github/operations.ts:      440 lines
-src/lib/auth/github-token.ts:      114 lines
-src/lib/agents/utils/github-utils-legacy.ts:      660 lines

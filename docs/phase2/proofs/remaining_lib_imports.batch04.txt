@@ -1,5 +1,0 @@
-src/app/api/github/app/diagnostics/route.ts:import { getInstallationToken } from '@/lib/auth/github-app';
-src/shared/lib/ai/openrouter.ts:// NOTE: Model constants should be imported directly from @/lib/ai/models
-src/lib/auth/github-token.ts: * @deprecated Import from @/lib/github/token-provider
-src/lib/auth/github-token.ts: * @deprecated Use getGitHubToken from @/lib/github/token-provider
-src/modules/github/token-provider.ts:import { getCachedGitHubAppToken } from '@/lib/auth/github-app';
