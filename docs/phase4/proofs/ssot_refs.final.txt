@@ -1,3 +1,0 @@
-src/app/api/agent/documentation/analyze/route.ts:11:import { getGitHubToken } from '@/modules/github/token-provider';
-src/app/api/github/app/diagnostics/route.ts:3:import { getInstallationToken } from "@/modules/github/token-provider";
-src/modules/agents/scribe/server/runner.server.ts:19:import { getGitHubToken } from '@/modules/github/token-provider';
