@@ -21,4 +21,3 @@ export function Pagination({ nextCursor, onNext, isLoading }: PaginationProps) {
     </div>
   );
 }
-

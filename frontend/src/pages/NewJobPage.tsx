@@ -10,7 +10,9 @@ export default function NewJobPage() {
   const [spec, setSpec] = useState('');
   const [goal, setGoal] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState<{ message: string; code?: string; requestId?: string } | null>(null);
+  const [error, setError] = useState<{ message: string; code?: string; requestId?: string } | null>(
+    null
+  );
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -63,9 +65,7 @@ export default function NewJobPage() {
 
       <form onSubmit={handleSubmit} className="bg-white shadow rounded-lg p-6">
         <div className="mb-4">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Job Type
-          </label>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Job Type</label>
           <select
             value={jobType}
             onChange={(e) => setJobType(e.target.value as typeof jobType)}
@@ -79,9 +79,7 @@ export default function NewJobPage() {
 
         {jobType === 'scribe' && (
           <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Document Content
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Document Content</label>
             <textarea
               value={doc}
               onChange={(e) => setDoc(e.target.value)}
@@ -95,9 +93,7 @@ export default function NewJobPage() {
 
         {jobType === 'trace' && (
           <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Specification
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Specification</label>
             <textarea
               value={spec}
               onChange={(e) => setSpec(e.target.value)}
@@ -111,9 +107,7 @@ export default function NewJobPage() {
 
         {jobType === 'proto' && (
           <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Goal
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Goal</label>
             <textarea
               value={goal}
               onChange={(e) => setGoal(e.target.value)}
@@ -144,4 +138,3 @@ export default function NewJobPage() {
     </div>
   );
 }
-

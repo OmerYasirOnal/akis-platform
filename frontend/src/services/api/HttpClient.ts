@@ -40,10 +40,7 @@ export class HttpClient {
     return error;
   }
 
-  private async fetchWithRetry(
-    url: string,
-    options: RequestOptions = {}
-  ): Promise<Response> {
+  private async fetchWithRetry(url: string, options: RequestOptions = {}): Promise<Response> {
     const { retries = 3, retryDelay = 1000, ...fetchOptions } = options;
     let lastError: Error | null = null;
 
@@ -164,4 +161,3 @@ export class HttpClient {
     return data as T;
   }
 }
-

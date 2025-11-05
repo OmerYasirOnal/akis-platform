@@ -11,7 +11,9 @@ export default function JobDetailPage() {
   const { id } = useParams<{ id: string }>();
   const [job, setJob] = useState<Job | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<{ message: string; code?: string; requestId?: string } | null>(null);
+  const [error, setError] = useState<{ message: string; code?: string; requestId?: string } | null>(
+    null
+  );
   const [includePlan, setIncludePlan] = useState(false);
   const [includeAudit, setIncludeAudit] = useState(false);
   const [requestId, setRequestId] = useState<string | undefined>();
@@ -87,9 +89,7 @@ export default function JobDetailPage() {
           ← Back to Jobs
         </Link>
         <h1 className="text-2xl font-bold text-gray-900">Job Details</h1>
-        {requestId && (
-          <p className="text-sm text-gray-500 mt-1">Request ID: {requestId}</p>
-        )}
+        {requestId && <p className="text-sm text-gray-500 mt-1">Request ID: {requestId}</p>}
       </div>
 
       {error && <ErrorToast error={error} onClose={() => setError(null)} />}
@@ -114,15 +114,11 @@ export default function JobDetailPage() {
           </div>
           <div>
             <label className="text-sm font-medium text-gray-500">Created At</label>
-            <p className="mt-1 text-sm text-gray-900">
-              {new Date(job.createdAt).toLocaleString()}
-            </p>
+            <p className="mt-1 text-sm text-gray-900">{new Date(job.createdAt).toLocaleString()}</p>
           </div>
           <div>
             <label className="text-sm font-medium text-gray-500">Updated At</label>
-            <p className="mt-1 text-sm text-gray-900">
-              {new Date(job.updatedAt).toLocaleString()}
-            </p>
+            <p className="mt-1 text-sm text-gray-900">{new Date(job.updatedAt).toLocaleString()}</p>
           </div>
         </div>
 
@@ -194,4 +190,3 @@ export default function JobDetailPage() {
     </div>
   );
 }
-

@@ -19,9 +19,7 @@ export function ErrorToast({ error, onClose }: ErrorToastProps) {
         <div className="flex-1">
           <h3 className="text-sm font-medium text-red-800">Error</h3>
           <p className="mt-1 text-sm text-red-700">{error.message}</p>
-          {error.code && (
-            <p className="mt-1 text-xs text-red-600">Code: {error.code}</p>
-          )}
+          {error.code && <p className="mt-1 text-xs text-red-600">Code: {error.code}</p>}
           {error.requestId && (
             <p className="mt-1 text-xs text-red-600">Request ID: {error.requestId}</p>
           )}
@@ -37,4 +35,3 @@ export function ErrorToast({ error, onClose }: ErrorToastProps) {
     </div>
   );
 }
-

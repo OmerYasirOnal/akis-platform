@@ -19,9 +19,13 @@ export default function JobsListPage() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<{ message: string; code?: string; requestId?: string } | null>(null);
+  const [error, setError] = useState<{ message: string; code?: string; requestId?: string } | null>(
+    null
+  );
   const [filterType, setFilterType] = useState<'scribe' | 'trace' | 'proto' | ''>('');
-  const [filterState, setFilterState] = useState<'pending' | 'running' | 'completed' | 'failed' | ''>('');
+  const [filterState, setFilterState] = useState<
+    'pending' | 'running' | 'completed' | 'failed' | ''
+  >('');
 
   const loadJobs = async (cursor?: string) => {
     try {
@@ -90,12 +94,7 @@ export default function JobsListPage() {
         </div>
       </div>
 
-      {error && (
-        <ErrorToast
-          error={error}
-          onClose={() => setError(null)}
-        />
-      )}
+      {error && <ErrorToast error={error} onClose={() => setError(null)} />}
 
       {isLoading && jobs.length === 0 ? (
         <div className="text-center py-8">Loading...</div>
@@ -117,10 +116,7 @@ export default function JobsListPage() {
               {jobs.map((job) => (
                 <TableRow key={job.id} className="hover:bg-gray-50">
                   <TableCell>
-                    <Link
-                      to={`/jobs/${job.id}`}
-                      className="text-blue-600 hover:text-blue-800"
-                    >
+                    <Link to={`/jobs/${job.id}`} className="text-blue-600 hover:text-blue-800">
                       {job.id.slice(0, 8)}...
                     </Link>
                   </TableCell>
@@ -140,14 +136,9 @@ export default function JobsListPage() {
               ))}
             </TableBody>
           </Table>
-          <Pagination
-            nextCursor={nextCursor}
-            onNext={handleLoadMore}
-            isLoading={isLoading}
-          />
+          <Pagination nextCursor={nextCursor} onNext={handleLoadMore} isLoading={isLoading} />
         </>
       )}
     </div>
   );
 }
-

@@ -17,4 +17,3 @@ export function Pill({ type }: PillProps) {
     </span>
   );
 }
-

@@ -15,4 +15,3 @@ export function CodeBlock({ data, title }: CodeBlockProps) {
     </div>
   );
 }
-

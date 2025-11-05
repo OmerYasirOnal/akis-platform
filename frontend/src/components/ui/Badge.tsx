@@ -18,4 +18,3 @@ export function Badge({ state }: BadgeProps) {
     </span>
   );
 }
-
