@@ -26,6 +26,16 @@ pnpm db:migrate
 
 **Note:** Drizzle uses `DATABASE_URL` from `.env` for migrations. Ensure your database is running and accessible.
 
+**Initial Migration:** The `jobs` table includes:
+- `id` (uuid, primary key)
+- `type` (varchar(50), not null)
+- `state` (job_state enum: pending|running|completed|failed)
+- `payload` (jsonb, nullable)
+- `result` (jsonb, nullable)
+- `error` (varchar(1000), nullable)
+- `createdAt` (timestamp, not null)
+- `updatedAt` (timestamp, not null)
+
 4. Start development server:
 ```bash
 pnpm dev
