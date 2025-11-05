@@ -39,7 +39,10 @@ export class AgentFactory {
   static create(agentKey: string, deps?: AgentDependencies): IAgent {
     const AgentClass = this.registry.get(agentKey);
     if (!AgentClass) {
-      throw new Error(`Agent type "${agentKey}" is not registered`);
+      const available = this.listTypes();
+      throw new Error(
+        `Agent type "${agentKey}" is not registered. Available types: ${available.length > 0 ? available.join(', ') : 'none'}`
+      );
     }
     return new AgentClass(deps);
   }
