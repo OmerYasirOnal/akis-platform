@@ -1,27 +1,49 @@
-import { HttpClient } from '../../http/HttpClient.js';
-
 /**
- * ConfluenceMCPService - MCP client adapter for Confluence via Atlassian Rovo MCP
+ * ConfluenceMCPService - MCP client adapter for Confluence (signature-only)
+ * Phase 5.B: Method signatures only, no HTTP implementation
  * Provides high-level methods that internally use RESTful HTTP to Confluence MCP endpoints
  */
-export class ConfluenceMCPService {
-  private httpClient: HttpClient;
-  private token: string;
-  private baseUrl = 'https://api.atlassian.com/mcp/v1/confluence/';
 
-  constructor(token: string) {
-    this.token = token;
-    this.httpClient = new HttpClient();
+export interface ConfluenceMCPServiceOptions {
+  baseUrl: string;
+  token?: string;
+}
+
+/**
+ * Confluence MCP Service - signature-only adapter
+ * Used by Scribe agent
+ */
+export class ConfluenceMCPService {
+  constructor(opts: ConfluenceMCPServiceOptions) {
+    // Signature-only: no implementation
   }
 
   /**
    * Get a Confluence page by ID
    * @param pageId - Page ID
    */
-  async getPage(pageId: string): Promise<unknown> {
-    // TODO: Implement HTTP GET to Confluence MCP endpoint
-    // GET /mcp/v1/confluence/page/{id}
-    throw new Error('Not implemented');
+  async getPage(pageId: string): Promise<{
+    id: string;
+    title: string;
+    content: string;
+    spaceKey: string;
+  }> {
+    // Signature-only: no implementation
+    throw new Error('Not implemented: signature-only MCP adapter');
+  }
+
+  /**
+   * Fetch a Confluence page by title/space (for Scribe agent)
+   * @param spaceKey - Space key
+   * @param title - Page title
+   */
+  async fetchConfluencePage(spaceKey: string, title: string): Promise<{
+    id: string;
+    title: string;
+    content: string;
+  }> {
+    // Signature-only: no implementation
+    throw new Error('Not implemented: signature-only MCP adapter');
   }
 
   /**
@@ -30,10 +52,12 @@ export class ConfluenceMCPService {
    * @param title - Page title
    * @param content - Page content (markdown/HTML)
    */
-  async createPage(spaceKey: string, title: string, content: string): Promise<unknown> {
-    // TODO: Implement HTTP POST to Confluence MCP endpoint
-    // POST /mcp/v1/confluence/page
-    throw new Error('Not implemented');
+  async createPage(spaceKey: string, title: string, content: string): Promise<{
+    id: string;
+    url: string;
+  }> {
+    // Signature-only: no implementation
+    throw new Error('Not implemented: signature-only MCP adapter');
   }
 
   /**
@@ -41,10 +65,12 @@ export class ConfluenceMCPService {
    * @param pageId - Page ID
    * @param content - Updated content
    */
-  async updatePage(pageId: string, content: string): Promise<unknown> {
-    // TODO: Implement HTTP PUT to Confluence MCP endpoint
-    // PUT /mcp/v1/confluence/page/{id}
-    throw new Error('Not implemented');
+  async updatePage(pageId: string, content: string): Promise<{
+    id: string;
+    version: number;
+  }> {
+    // Signature-only: no implementation
+    throw new Error('Not implemented: signature-only MCP adapter');
   }
 }
 

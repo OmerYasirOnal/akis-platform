@@ -1,18 +1,22 @@
-import { HttpClient } from '../../http/HttpClient.js';
-
 /**
- * GitHubMCPService - MCP client adapter for GitHub
+ * GitHubMCPService - MCP client adapter for GitHub (signature-only)
+ * Phase 5.B: Method signatures only, no HTTP implementation
  * Provides high-level methods that internally use JSON-RPC 2.0 to GitHub MCP endpoint
  * FORBIDDEN: Direct REST SDK usage (e.g., Octokit) from business code
  */
-export class GitHubMCPService {
-  private httpClient: HttpClient;
-  private token: string;
-  private baseUrl = 'https://api.githubcopilot.com/mcp/';
 
-  constructor(token: string) {
-    this.token = token;
-    this.httpClient = new HttpClient();
+export interface GitHubMCPServiceOptions {
+  baseUrl: string;
+  token?: string;
+}
+
+/**
+ * GitHub MCP Service - signature-only adapter
+ * Used by Scribe, Trace, Proto agents
+ */
+export class GitHubMCPService {
+  constructor(opts: GitHubMCPServiceOptions) {
+    // Signature-only: no implementation
   }
 
   /**
@@ -27,10 +31,9 @@ export class GitHubMCPService {
     repo: string,
     branchName: string,
     baseSha: string
-  ): Promise<unknown> {
-    // TODO: Implement JSON-RPC 2.0 call to GitHub MCP endpoint
-    // Method: github/createBranch
-    throw new Error('Not implemented');
+  ): Promise<{ branch: string; sha: string }> {
+    // Signature-only: no implementation
+    throw new Error('Not implemented: signature-only MCP adapter');
   }
 
   /**
@@ -49,10 +52,45 @@ export class GitHubMCPService {
     filePath: string,
     content: string,
     commitMessage: string
-  ): Promise<unknown> {
-    // TODO: Implement JSON-RPC 2.0 call to GitHub MCP endpoint
-    // Method: github/commitFile
-    throw new Error('Not implemented');
+  ): Promise<{ commitSha: string; filePath: string }> {
+    // Signature-only: no implementation
+    throw new Error('Not implemented: signature-only MCP adapter');
+  }
+
+  /**
+   * List repository issues (for Trace agent)
+   * @param owner - Repository owner
+   * @param repo - Repository name
+   * @param state - Issue state ('open' | 'closed' | 'all')
+   */
+  async listIssues(
+    owner: string,
+    repo: string,
+    state?: 'open' | 'closed' | 'all'
+  ): Promise<Array<{ number: number; title: string; body?: string }>> {
+    // Signature-only: no implementation
+    throw new Error('Not implemented: signature-only MCP adapter');
+  }
+
+  /**
+   * Create a PR draft (for Proto agent)
+   * @param owner - Repository owner
+   * @param repo - Repository name
+   * @param title - PR title
+   * @param body - PR body
+   * @param head - Head branch
+   * @param base - Base branch
+   */
+  async createPRDraft(
+    owner: string,
+    repo: string,
+    title: string,
+    body: string,
+    head: string,
+    base: string
+  ): Promise<{ prNumber: number; url: string }> {
+    // Signature-only: no implementation
+    throw new Error('Not implemented: signature-only MCP adapter');
   }
 }
 
