@@ -2,7 +2,15 @@ import { test } from 'node:test';
 import assert from 'node:assert';
 import { buildApp } from '../src/server.app.js';
 
-test('smoke tests for agent job flow', async (t) => {
+// Check if DATABASE_URL is set (required for DB-dependent tests)
+const hasDatabase = !!process.env.DATABASE_URL;
+
+test('smoke tests for agent job flow', { skip: !hasDatabase }, async (t) => {
+  if (!hasDatabase) {
+    console.log('Skipping DB-dependent tests: DATABASE_URL not set');
+    return;
+  }
+
   const app = await buildApp();
 
   // Test 1: GET /health → 200 {status:"ok"}
@@ -41,7 +49,11 @@ test('smoke tests for agent job flow', async (t) => {
       },
     });
 
-    assert.strictEqual(response.statusCode, 200);
+    if (response.statusCode !== 200) {
+      console.error('Response body:', response.body);
+      console.error('Response status:', response.statusCode);
+    }
+    assert.strictEqual(response.statusCode, 200, `Expected 200, got ${response.statusCode}: ${response.body}`);
     const body = JSON.parse(response.body);
     assert.ok(body.jobId, 'jobId should be present');
     assert.ok(typeof body.jobId === 'string', 'jobId should be a string');
