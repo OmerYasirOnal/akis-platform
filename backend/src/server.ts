@@ -1,3 +1,4 @@
+import "dotenv/config";
 import Fastify from 'fastify';
 import { agentsRoutes } from './api/agents';
 import { healthRoutes } from './api/health';
