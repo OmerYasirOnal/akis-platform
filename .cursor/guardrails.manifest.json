@@ -1,0 +1,29 @@
+{
+    "name": "AKIS Cursor Guard-Rails",
+    "version": "1.0.0",
+    "enforced": true,
+    "sources": [
+      "CONTEXT_ARCHITECTURE.md",
+      "CONTEXT_SCOPE.md"
+    ],
+    "nonNegotiables": [
+      "Modular Monolith with central AgentOrchestrator",
+      "Backend: Fastify + TypeScript + Drizzle + PostgreSQL",
+      "Frontend: React (Vite) + Tailwind SPA (decoupled from backend)",
+      "All external integrations via MCP Client Adapters (no direct REST SDKs)",
+      "Factory & Registry for agent creation; FSM for lifecycle; Orchestrator for coordination; Strategy/Command for playbooks; plan→execute→reflect"
+    ],
+    "ruleFiles": [
+      ".cursor/rules/00-architecture.rules.md",
+      ".cursor/rules/01-stack-backend.rules.md",
+      ".cursor/rules/02-stack-frontend.rules.md",
+      ".cursor/rules/03-directory-structure.rules.md",
+      ".cursor/rules/04-design-patterns.rules.md",
+      ".cursor/rules/05-mcp-integration.rules.md",
+      ".cursor/rules/06-database.rules.md",
+      ".cursor/rules/07-api-conventions.rules.md",
+      ".cursor/rules/08-testing-and-dod.rules.md",
+      ".cursor/rules/99-prohibited.rules.md"
+    ]
+  }
+  
