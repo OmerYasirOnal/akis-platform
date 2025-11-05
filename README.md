@@ -19,17 +19,37 @@ AKIS Platform, yazılım geliştirme süreçlerindeki tekrarlayan görevleri oto
 
 ## Geliştirme
 
+### Backend
+
 ```bash
-# Backend
 cd backend
 pnpm install
+
+# Set up environment
+cp .env.example .env
+# Edit .env with your values
+
+# Run development server
 pnpm dev
 
-# Frontend (coming soon)
-cd frontend
-pnpm install
-pnpm dev
+# The server will start on http://localhost:3000
+# Health check: http://localhost:3000/health
 ```
+
+### Komutlar
+
+- `pnpm dev` - Development server (watch mode)
+- `pnpm build` - Build for production
+- `pnpm start` - Start production server
+- `pnpm lint` - Run ESLint
+- `pnpm typecheck` - TypeScript type checking
+- `pnpm db:generate` - Generate Drizzle migrations
+- `pnpm db:migrate` - Run database migrations
+- `pnpm db:studio` - Open Drizzle Studio
+
+### Frontend
+
+Frontend scaffolding (coming soon)
 
 ## Dokümantasyon
 
