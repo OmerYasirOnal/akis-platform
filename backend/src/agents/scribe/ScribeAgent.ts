@@ -12,6 +12,9 @@ export class ScribeAgent extends BaseAgent {
   constructor(deps?: AgentDependencies) {
     super();
     this.deps = deps;
+    // ScribeAgent does not require planning or reflection (simple agent)
+    this.playbook.requiresPlanning = false;
+    this.playbook.requiresReflection = false;
     // TODO: Extract tools from deps (githubMCP, confluenceMCP, etc.)
   }
 

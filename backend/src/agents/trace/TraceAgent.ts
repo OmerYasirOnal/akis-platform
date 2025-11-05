@@ -12,6 +12,9 @@ export class TraceAgent extends BaseAgent {
   constructor(deps?: AgentDependencies) {
     super();
     this.deps = deps;
+    // TraceAgent does not require planning or reflection (simple agent)
+    this.playbook.requiresPlanning = false;
+    this.playbook.requiresReflection = false;
     // TODO: Extract tools from deps (jiraMCP, githubMCP, aiService, etc.)
   }
 

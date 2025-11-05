@@ -1,27 +1,48 @@
-import { HttpClient } from '../../http/HttpClient.js';
-
 /**
- * JiraMCPService - MCP client adapter for Jira via Atlassian Rovo MCP
+ * JiraMCPService - MCP client adapter for Jira (signature-only)
+ * Phase 5.B: Method signatures only, no HTTP implementation
  * Provides high-level methods that internally use RESTful HTTP to Jira MCP endpoints
  */
-export class JiraMCPService {
-  private httpClient: HttpClient;
-  private token: string;
-  private baseUrl = 'https://api.atlassian.com/mcp/v1/jira/';
 
-  constructor(token: string) {
-    this.token = token;
-    this.httpClient = new HttpClient();
+export interface JiraMCPServiceOptions {
+  baseUrl: string;
+  token?: string;
+}
+
+/**
+ * Jira MCP Service - signature-only adapter
+ * Used by Trace agent
+ */
+export class JiraMCPService {
+  constructor(opts: JiraMCPServiceOptions) {
+    // Signature-only: no implementation
   }
 
   /**
    * Get a Jira issue by key
    * @param issueKey - Issue key (e.g., PROJ-123)
    */
-  async getIssue(issueKey: string): Promise<unknown> {
-    // TODO: Implement HTTP GET to Jira MCP endpoint
-    // GET /mcp/v1/jira/issue/{key}
-    throw new Error('Not implemented');
+  async getIssue(issueKey: string): Promise<{
+    key: string;
+    summary: string;
+    description?: string;
+    acceptanceCriteria?: string;
+  }> {
+    // Signature-only: no implementation
+    throw new Error('Not implemented: signature-only MCP adapter');
+  }
+
+  /**
+   * List issues for a project (for Trace agent)
+   * @param projectKey - Project key
+   * @param jql - Optional JQL query
+   */
+  async listIssues(
+    projectKey: string,
+    jql?: string
+  ): Promise<Array<{ key: string; summary: string; acceptanceCriteria?: string }>> {
+    // Signature-only: no implementation
+    throw new Error('Not implemented: signature-only MCP adapter');
   }
 
   /**
@@ -29,10 +50,13 @@ export class JiraMCPService {
    * @param projectKey - Project key
    * @param fields - Issue fields
    */
-  async createIssue(projectKey: string, fields: unknown): Promise<unknown> {
-    // TODO: Implement HTTP POST to Jira MCP endpoint
-    // POST /mcp/v1/jira/issue
-    throw new Error('Not implemented');
+  async createIssue(projectKey: string, fields: {
+    summary: string;
+    description?: string;
+    issueType: string;
+  }): Promise<{ key: string; id: string }> {
+    // Signature-only: no implementation
+    throw new Error('Not implemented: signature-only MCP adapter');
   }
 
   /**
@@ -40,10 +64,9 @@ export class JiraMCPService {
    * @param issueKey - Issue key
    * @param comment - Comment text
    */
-  async addComment(issueKey: string, comment: string): Promise<unknown> {
-    // TODO: Implement HTTP POST to Jira MCP endpoint
-    // POST /mcp/v1/jira/issue/{key}/comment
-    throw new Error('Not implemented');
+  async addComment(issueKey: string, comment: string): Promise<{ commentId: string }> {
+    // Signature-only: no implementation
+    throw new Error('Not implemented: signature-only MCP adapter');
   }
 }
 

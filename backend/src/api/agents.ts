@@ -2,8 +2,8 @@ import { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { AgentOrchestrator } from '../core/orchestrator/AgentOrchestrator.js';
 import { db } from '../db/client.js';
-import { jobs } from '../db/schema.js';
-import { eq } from 'drizzle-orm';
+import { jobs, jobPlans, jobAudits } from '../db/schema.js';
+import { eq, desc } from 'drizzle-orm';
 import { JobNotFoundError, InvalidStateTransitionError, DatabaseError } from '../core/errors.js';
 
 // Request validation schemas
@@ -16,8 +16,16 @@ const jobIdParamsSchema = z.object({
   id: z.string().uuid(),
 });
 
-// Initialize orchestrator (in production, inject tools/MCP adapters here)
-const orchestrator = new AgentOrchestrator();
+const includeQuerySchema = z.object({
+  include: z.string().optional(), // Comma-separated: 'plan,audit'
+});
+
+// Initialize orchestrator (will be injected from server.app.ts)
+let orchestrator: AgentOrchestrator;
+
+export function setOrchestrator(orch: AgentOrchestrator): void {
+  orchestrator = orch;
+}
 
 export async function agentsRoutes(fastify: FastifyInstance) {
   // POST /api/agents/jobs
@@ -105,12 +113,26 @@ export async function agentsRoutes(fastify: FastifyInstance) {
             id: { type: 'string', format: 'uuid' },
           },
         },
+        querystring: {
+          type: 'object',
+          properties: {
+            include: { type: 'string' },
+          },
+        },
       },
     },
     async (request, reply) => {
       try {
         // Validate params with Zod (UUID format)
         const params = jobIdParamsSchema.parse(request.params);
+        const query = includeQuerySchema.parse(request.query || {});
+
+        // Parse include flags
+        const includeFlags = query.include
+          ? query.include.split(',').map((s) => s.trim().toLowerCase())
+          : [];
+        const includePlan = includeFlags.includes('plan');
+        const includeAudit = includeFlags.includes('audit');
 
         // Fetch job from database
         let job;
@@ -132,8 +154,51 @@ export async function agentsRoutes(fastify: FastifyInstance) {
           return;
         }
 
-        // Return job data (without sensitive data if any)
-        return {
+        // Phase 5.F: Fetch plan if requested
+        let plan = null;
+        if (includePlan) {
+          try {
+            const [planRow] = await db
+              .select()
+              .from(jobPlans)
+              .where(eq(jobPlans.jobId, params.id))
+              .limit(1);
+            if (planRow) {
+              plan = {
+                steps: planRow.steps,
+                rationale: planRow.rationale,
+                createdAt: planRow.createdAt,
+              };
+            }
+          } catch (error) {
+            // Don't fail request if plan fetch fails
+            console.error(`Failed to fetch plan for job ${params.id}:`, error);
+          }
+        }
+
+        // Phase 5.F: Fetch audit entries if requested
+        let audits: unknown[] = [];
+        if (includeAudit) {
+          try {
+            const auditRows = await db
+              .select()
+              .from(jobAudits)
+              .where(eq(jobAudits.jobId, params.id))
+              .orderBy(desc(jobAudits.createdAt))
+              .limit(50); // Limit to recent 50 audits
+            audits = auditRows.map((row) => ({
+              phase: row.phase,
+              payload: row.payload,
+              createdAt: row.createdAt,
+            }));
+          } catch (error) {
+            // Don't fail request if audit fetch fails
+            console.error(`Failed to fetch audits for job ${params.id}:`, error);
+          }
+        }
+
+        // Return job data with optional plan/audit
+        const response: Record<string, unknown> = {
           id: job.id,
           type: job.type,
           state: job.state,
@@ -143,6 +208,15 @@ export async function agentsRoutes(fastify: FastifyInstance) {
           createdAt: job.createdAt,
           updatedAt: job.updatedAt,
         };
+
+        if (includePlan) {
+          response.plan = plan;
+        }
+        if (includeAudit) {
+          response.audit = audits;
+        }
+
+        return response;
       } catch (error) {
         if (error instanceof z.ZodError) {
           reply.code(400).send({

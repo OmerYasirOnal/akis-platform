@@ -2,22 +2,31 @@ import { AgentFactory, type AgentDependencies } from '../agents/AgentFactory.js'
 import { AgentStateMachine } from '../state/AgentStateMachine.js';
 import type { IAgent } from '../agents/IAgent.js';
 import { db } from '../../db/client.js';
-import { jobs, type NewJob } from '../../db/schema.js';
+import { jobs, jobPlans, jobAudits, type NewJob, type NewJobPlan, type NewJobAudit } from '../../db/schema.js';
 import { eq } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
 import { JobNotFoundError, InvalidStateTransitionError, DatabaseError } from '../errors.js';
+import type { AIService } from '../../services/ai/AIService.js';
+import type { Plan } from '../../services/ai/AIService.js';
+import type { Critique } from '../../services/ai/AIService.js';
+import type { MCPTools } from '../../services/mcp/adapters/index.js';
 
 /**
  * AgentOrchestrator - Central coordinator for agent workflows
+ * Phase 5.D: Extended with Planner→Execute→Reflector pipeline with DI
  * Sole owner of lifecycle/FSM management
  * Agents never call each other; all coordination goes through orchestrator
  */
 export class AgentOrchestrator {
   private stateMachines: Map<string, AgentStateMachine> = new Map();
   private tools: AgentDependencies;
+  private aiService?: AIService;
+  private mcpTools?: MCPTools;
 
-  constructor(tools: AgentDependencies = {}) {
+  constructor(tools: AgentDependencies = {}, aiService?: AIService, mcpTools?: MCPTools) {
     this.tools = tools;
+    this.aiService = aiService;
+    this.mcpTools = mcpTools;
   }
 
   /**
@@ -109,7 +118,7 @@ export class AgentOrchestrator {
       throw new DatabaseError(`Failed to update job state: ${error instanceof Error ? error.message : String(error)}`, error);
     }
 
-    // Execute agent (stub: returns {ok: true})
+    // Execute agent with Planner→Execute→Reflector pipeline
     try {
       if (!job) {
         const result = await db.select().from(jobs).where(eq(jobs.id, jobId)).limit(1);
@@ -120,16 +129,96 @@ export class AgentOrchestrator {
       }
 
       const agent = AgentFactory.create(job.type, this.tools);
-      // TODO: Plan phase (for complex agents)
-      // if (agent.plan) {
-      //   executionContext = await agent.plan(job.payload);
-      // }
+      const playbook = agent.getPlaybook();
+      const context = job.payload || {};
 
-      // Execute agent (stub implementation - deterministic)
-      const result = await agent.execute(job.payload || {});
+      // Phase 5.D: Planning phase (if required)
+      let plan: Plan | undefined;
+      if (playbook.requiresPlanning && this.aiService) {
+        try {
+          // Extract goal from context
+          const goal = (context && typeof context === 'object' && 'goal' in context && typeof context.goal === 'string')
+            ? context.goal
+            : `Execute ${job.type} agent`;
+
+          // Call agent's plan method
+          if (agent.plan) {
+            plan = await agent.plan(this.aiService.planner, context);
+
+            // Persist plan to DB
+            const newPlan: NewJobPlan = {
+              jobId,
+              steps: plan.steps as unknown as Record<string, unknown>,
+              rationale: plan.rationale || null,
+            };
+            await db.insert(jobPlans).values(newPlan);
+
+            // Audit: log plan phase
+            const planAudit: NewJobAudit = {
+              jobId,
+              phase: 'plan',
+              payload: plan as unknown as Record<string, unknown>,
+            };
+            await db.insert(jobAudits).values(planAudit);
+          }
+        } catch (planError) {
+          // If planning fails, log but continue (unless critical)
+          console.error(`Planning failed for job ${jobId}:`, planError);
+          // For now, continue without plan
+        }
+      }
+
+      // Phase 5.D: Execution phase
+      let executionResult: unknown;
+      if (agent.executeWithTools && this.mcpTools) {
+        // Use executeWithTools if available (preferred for complex agents)
+        executionResult = await agent.executeWithTools(this.mcpTools, plan, context);
+      } else {
+        // Fallback to regular execute
+        executionResult = await agent.execute(context);
+      }
+
+      // Audit: log execute phase
+      try {
+        const executeAudit: NewJobAudit = {
+          jobId,
+          phase: 'execute',
+          payload: executionResult as unknown as Record<string, unknown>,
+        };
+        await db.insert(jobAudits).values(executeAudit);
+      } catch (auditError) {
+        // Don't fail job if audit write fails
+        console.error(`Failed to write execute audit for job ${jobId}:`, auditError);
+      }
+
+      // Phase 5.D: Reflection phase (if required)
+      let finalResult = executionResult;
+      if (playbook.requiresReflection && this.aiService && agent.reflect) {
+        try {
+          const critique = await agent.reflect(this.aiService.reflector, executionResult);
+
+          // Persist critique/audit to DB
+          const reflectAudit: NewJobAudit = {
+            jobId,
+            phase: 'reflect',
+            payload: critique as unknown as Record<string, unknown>,
+          };
+          await db.insert(jobAudits).values(reflectAudit);
+
+          // Append critique to result (optional)
+          finalResult = {
+            ...(executionResult && typeof executionResult === 'object' ? executionResult : { result: executionResult }),
+            critique,
+          };
+        } catch (reflectError) {
+          // If reflection fails, log but don't fail job
+          console.error(`Reflection failed for job ${jobId}:`, reflectError);
+          // Continue with execution result
+        }
+      }
 
       // Auto-complete on success
-      await this.completeJob(jobId, result);
+      await this.completeJob(jobId, finalResult);
     } catch (error) {
       // Auto-fail on error (failJob handles its own errors)
       try {

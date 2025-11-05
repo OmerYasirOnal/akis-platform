@@ -1,8 +1,12 @@
 import { BaseAgent } from '../../core/agents/BaseAgent.js';
 import type { AgentDependencies } from '../../core/agents/AgentFactory.js';
+import type { Plan } from '../../services/ai/AIService.js';
+import type { Critique } from '../../services/ai/AIService.js';
+import type { MCPTools } from '../../services/mcp/adapters/index.js';
 
 /**
  * ProtoAgent - Generates working MVP prototypes from requirements
+ * Phase 5.C: Implements plan/reflect/execute with mock outputs
  * Extends BaseAgent; accepts injected tools (MCP adapters, AIService) via constructor
  * Complex agent: uses plan() → reflect() → execute() pattern
  */
@@ -13,34 +17,80 @@ export class ProtoAgent extends BaseAgent {
   constructor(deps?: AgentDependencies) {
     super();
     this.deps = deps;
-    // TODO: Extract tools from deps (githubMCP, aiService, etc.)
+    // Set playbook flags: ProtoAgent requires both planning and reflection
+    this.playbook.requiresPlanning = true;
+    this.playbook.requiresReflection = true;
   }
 
-  async plan(context: unknown): Promise<unknown> {
-    // TODO: Implement planning phase
-    // - Analyze requirements
-    // - Design architecture (using aiService from this.deps)
-    // - Create execution plan
-    throw new Error('Not implemented');
+  /**
+   * Plan execution steps (mock implementation)
+   * @param planner - Planner instance injected by orchestrator
+   * @param context - Planning context (should contain goal)
+   */
+  async plan(
+    planner: { plan(input: { agent: string; goal: string; context?: unknown }): Promise<Plan> },
+    context: unknown
+  ): Promise<Plan> {
+    // Extract goal from context (assume context has goal field)
+    const goal = (context && typeof context === 'object' && 'goal' in context && typeof context.goal === 'string')
+      ? context.goal
+      : 'scaffold a demo plan';
+
+    // Call planner
+    return await planner.plan({
+      agent: this.type,
+      goal,
+      context,
+    });
   }
 
+  /**
+   * Reflect on execution artifact (mock implementation)
+   * @param reflector - Reflector instance injected by orchestrator
+   * @param artifact - Execution artifact to critique
+   */
+  async reflect(
+    reflector: { critique(input: { artifact: unknown; context?: unknown }): Promise<Critique> },
+    artifact: unknown
+  ): Promise<Critique> {
+    // Call reflector
+    return await reflector.critique({
+      artifact,
+      context: { agent: this.type },
+    });
+  }
+
+  /**
+   * Execute with tools and optional plan (mock implementation)
+   * @param tools - MCP tools injected by orchestrator
+   * @param plan - Optional plan from planning phase
+   * @param context - Execution context
+   */
+  async executeWithTools(tools: MCPTools, plan?: Plan, context?: unknown): Promise<unknown> {
+    // Mock execution: return deterministic result
+    return {
+      ok: true,
+      agent: 'proto',
+      message: 'MVP prototype mock execution completed',
+      planUsed: plan ? plan.steps.length : 0,
+      result: {
+        filesCreated: 3,
+        testsPassed: true,
+        mvpReady: true,
+      },
+    };
+  }
+
+  /**
+   * Default execute (fallback, not used when executeWithTools is available)
+   */
   async execute(context: unknown): Promise<unknown> {
-    // TODO: Implement ProtoAgent logic
-    // - Generate code structure
-    // - Implement features
-    // - Run tests
-    // - Create PR via GitHubMCPService (from this.deps)
-    
-    // Stub: return success for now
-    return { ok: true, agent: 'proto', message: 'MVP prototype stub (not implemented)' };
-  }
-
-  async reflect(output: unknown, context: unknown): Promise<unknown> {
-    // TODO: Implement reflection phase
-    // - Critique generated code (using aiService from this.deps)
-    // - Validate against requirements
-    // - Suggest improvements
-    throw new Error('Not implemented');
+    // Fallback implementation
+    return {
+      ok: true,
+      agent: 'proto',
+      message: 'MVP prototype stub (use executeWithTools for full flow)',
+    };
   }
 }
 
