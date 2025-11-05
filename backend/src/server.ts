@@ -2,12 +2,16 @@ import 'dotenv/config';
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import { getEnv } from './config/env.js';
+import { registerAgents } from './core/agents/registry.js';
 import { indexRoutes } from './api/index.js';
 import { healthRoutes } from './api/health.js';
 import { agentsRoutes } from './api/agents.js';
 
 // Validate environment variables at startup (fail-fast)
 const env = getEnv();
+
+// Register all agents with the factory
+registerAgents();
 
 const server = Fastify({
   logger: true,
