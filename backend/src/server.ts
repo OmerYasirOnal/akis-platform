@@ -1,19 +1,12 @@
+import 'dotenv/config';
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
+import { getEnv } from './config/env.js';
 import { healthRoutes } from './api/health.js';
 import { agentsRoutes } from './api/agents.js';
 
-// Validate required environment variables at startup (fail-fast)
-function validateEnv(): void {
-  const required = ['DATABASE_URL'];
-  const missing = required.filter((key) => !process.env[key]);
-
-  if (missing.length > 0) {
-    throw new Error(`Missing required environment variables: ${missing.join(', ')}`);
-  }
-}
-
-validateEnv();
+// Validate environment variables at startup (fail-fast)
+const env = getEnv();
 
 const server = Fastify({
   logger: true,
@@ -28,8 +21,8 @@ await server.register(cors, {
 await server.register(healthRoutes);
 await server.register(agentsRoutes);
 
-const port = Number(process.env.PORT) || 3000;
-const host = process.env.HOST || '0.0.0.0';
+const port = env.AKIS_PORT;
+const host = env.AKIS_HOST;
 
 server.listen({ port, host }, (err) => {
   if (err) {
