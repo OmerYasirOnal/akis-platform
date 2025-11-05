@@ -1,11 +1,15 @@
 import 'dotenv/config';
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
+import { randomUUID } from 'crypto';
 import { getEnv } from './config/env.js';
 import { registerAgents } from './core/agents/registry.js';
+import swagger from '@fastify/swagger';
+import swaggerUi from '@fastify/swagger-ui';
 import { indexRoutes } from './api/index.js';
 import { healthRoutes } from './api/health.js';
 import { agentsRoutes, setOrchestrator } from './api/agents.js';
+import { metricsRoutes, metrics } from './api/metrics.js';
 import { AgentOrchestrator } from './core/orchestrator/AgentOrchestrator.js';
 import { createAIService } from './services/ai/AIService.js';
 import type { MCPTools } from './services/mcp/adapters/index.js';
@@ -41,8 +45,62 @@ export async function buildApp() {
   const orchestrator = new AgentOrchestrator({}, aiService, mcpTools);
   setOrchestrator(orchestrator);
 
+  // Phase 7.A: Enable structured logging with request-id
+  const isTest = process.env.NODE_ENV === 'test';
   const app = Fastify({
-    logger: false, // Disable logger in tests
+    logger: isTest
+      ? false
+      : {
+          level: process.env.LOG_LEVEL || 'info',
+          // Only use pino-pretty in development if available
+          transport:
+            process.env.NODE_ENV === 'development'
+              ? {
+                  target: 'pino-pretty',
+                  options: {
+                    colorize: true,
+                  },
+                }
+              : undefined,
+        },
+    requestIdHeader: 'request-id',
+    requestIdLogLabel: 'requestId',
+    genReqId: (req) => {
+      // Accept inbound request-id header if present, else generate UUID
+      return (req.headers['request-id'] as string) || randomUUID();
+    },
+  });
+
+  // Phase 7.A: Add request logging hook
+  app.addHook('onRequest', async (request, reply) => {
+    // Fastify automatically sets request.id from genReqId
+    // We can attach it to the reply for later use
+    reply.requestId = request.id;
+  });
+
+  app.addHook('onResponse', async (request, reply) => {
+    // Phase 7.B: Record HTTP duration metric
+    const duration = reply.elapsedTime / 1000; // Convert to seconds
+    const route = request.routerPath || request.url.split('?')[0];
+    metrics.httpDuration.observe(
+      {
+        method: request.method,
+        route,
+        status_code: reply.statusCode.toString(),
+      },
+      duration
+    );
+
+    // Log essential request fields
+    if (app.log) {
+      app.log.info({
+        method: request.method,
+        url: request.url,
+        statusCode: reply.statusCode,
+        requestId: request.id,
+        duration,
+      }, 'request completed');
+    }
   });
 
   // Register CORS
@@ -50,10 +108,44 @@ export async function buildApp() {
     origin: true,
   });
 
+  // Phase 7.C: Register Swagger/OpenAPI
+  await app.register(swagger, {
+    openapi: {
+      info: {
+        title: 'AKIS Platform API',
+        description: 'AI Agent Workflow Engine API',
+        version: '0.1.0',
+      },
+      servers: [
+        {
+          url: env.BACKEND_URL || 'http://localhost:3000',
+          description: 'Development server',
+        },
+      ],
+    },
+  });
+
+  await app.register(swaggerUi, {
+    routePrefix: '/docs',
+    uiConfig: {
+      docExpansion: 'list',
+      deepLinking: false,
+    },
+    staticCSP: true,
+    transformStaticCSP: (header) => header,
+  });
+
   // Register routes (order matters: root first, then specific routes)
   await app.register(indexRoutes);
   await app.register(healthRoutes);
+  await app.register(metricsRoutes);
   await app.register(agentsRoutes);
+
+  // Phase 7.C: Expose OpenAPI JSON at /openapi.json (after routes are registered)
+  app.get('/openapi.json', async (_request, reply) => {
+    reply.type('application/json');
+    return app.swagger();
+  });
 
   // 404 handler (must be registered after all routes)
   app.setNotFoundHandler((request, reply) => {
