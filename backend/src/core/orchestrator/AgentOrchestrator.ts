@@ -49,7 +49,9 @@ export class AgentOrchestrator {
     try {
       await db.insert(jobs).values(newJob);
     } catch (error) {
-      throw new DatabaseError(`Failed to create job: ${error instanceof Error ? error.message : String(error)}`, error);
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      throw new DatabaseError(`Failed to create job: ${errorMsg}`, error);
     }
 
     const stateMachine = new AgentStateMachine('pending');
