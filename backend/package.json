@@ -11,6 +11,8 @@
     "lint": "eslint . --ext .ts",
     "typecheck": "tsc --noEmit",
     "format": "prettier --write \"src/**/*.ts\"",
+    "test": "node --test --loader tsx test/**/*.test.ts",
+    "test:ci": "NODE_ENV=test node --test --loader tsx test/**/*.test.ts",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio"
