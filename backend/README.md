@@ -69,13 +69,30 @@ pnpm db:studio
 
 See `.env.example` for all available environment variables.
 
-Required:
+### Required
 - `DATABASE_URL` - PostgreSQL connection string
 
-Optional (for features):
+### Optional (for features)
 - `GITHUB_APP_ID`, `GITHUB_INSTALLATION_ID`, `GITHUB_APP_PRIVATE_KEY_PEM` - GitHub integration
-- `ATLASSIAN_ORG_ID`, `ATLASSIAN_API_TOKEN`, `ATLASSIAN_EMAIL` - Atlassian integration
 - `AI_API_KEY` - AI service API key
+
+### Atlassian Integration (Conditional)
+
+Atlassian variables (`ATLASSIAN_ORG_ID`, `ATLASSIAN_API_TOKEN`, `ATLASSIAN_EMAIL`) are:
+- **Optional in development** (default) - Set `MCP_ATLASSIAN_ENABLED=false` (default)
+- **Required in production** - Automatically enforced when `NODE_ENV=production`
+- **Required when enabled** - Set `MCP_ATLASSIAN_ENABLED=true` to enable in development
+
+**To enable Atlassian integration:**
+1. Set `MCP_ATLASSIAN_ENABLED=true` in your `.env`
+2. Provide all three Atlassian variables:
+   - `ATLASSIAN_ORG_ID` - Your Atlassian organization ID
+   - `ATLASSIAN_API_TOKEN` - API token from Atlassian account settings
+   - `ATLASSIAN_EMAIL` - Valid email address (must pass email validation)
+
+**Default behavior:**
+- `MCP_ATLASSIAN_ENABLED=false` in `.env.example` (development-friendly)
+- No Atlassian credentials needed to start the server in development mode
 
 ## Database Pool Configuration
 

@@ -3,30 +3,77 @@ import { z } from 'zod';
 
 /**
  * Environment schema validation (fail-fast)
+ * Atlassian vars are optional in development unless MCP_ATLASSIAN_ENABLED=true
  */
-const envSchema = z.object({
-  NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
-  AKIS_HOST: z.string().default('0.0.0.0'),
-  AKIS_PORT: z.coerce.number().default(3000),
-  FRONTEND_URL: z.string().url().default('http://localhost:5173'),
-  BACKEND_URL: z.string().url().default('http://localhost:3000'),
-  DATABASE_URL: z.string().url(),
-  POSTGRES_HOST: z.string().default('localhost'),
-  POSTGRES_PORT: z.coerce.number().default(5432),
-  POSTGRES_DB: z.string().default('akis_v2'),
-  POSTGRES_USER: z.string().default('postgres'),
-  POSTGRES_PASSWORD: z.string().default('postgres'),
-  GITHUB_MCP_BASE_URL: z.string().url().optional(),
-  ATLASSIAN_MCP_BASE_URL: z.string().url().optional(),
-  GITHUB_APP_ID: z.string().optional(),
-  GITHUB_INSTALLATION_ID: z.string().optional(),
-  GITHUB_APP_PRIVATE_KEY_PEM: z.string().optional(),
-  ATLASSIAN_ORG_ID: z.string().optional(),
-  ATLASSIAN_API_TOKEN: z.string().optional(),
-  ATLASSIAN_EMAIL: z.string().email().optional(),
-  AI_PROVIDER: z.string().default('openrouter'),
-  AI_API_KEY: z.string().optional(),
-});
+const envSchema = z
+  .object({
+    NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
+    AKIS_HOST: z.string().default('0.0.0.0'),
+    AKIS_PORT: z.coerce.number().default(3000),
+    FRONTEND_URL: z.string().url().default('http://localhost:5173'),
+    BACKEND_URL: z.string().url().default('http://localhost:3000'),
+    DATABASE_URL: z.string().url(),
+    POSTGRES_HOST: z.string().default('localhost'),
+    POSTGRES_PORT: z.coerce.number().default(5432),
+    POSTGRES_DB: z.string().default('akis_v2'),
+    POSTGRES_USER: z.string().default('postgres'),
+    POSTGRES_PASSWORD: z.string().default('postgres'),
+    GITHUB_MCP_BASE_URL: z.string().url().optional(),
+    ATLASSIAN_MCP_BASE_URL: z.string().url().optional(),
+    GITHUB_APP_ID: z.string().optional(),
+    GITHUB_INSTALLATION_ID: z.string().optional(),
+    GITHUB_APP_PRIVATE_KEY_PEM: z.string().optional(),
+    MCP_ATLASSIAN_ENABLED: z.string().default('false'),
+    ATLASSIAN_ORG_ID: z.string().optional(),
+    ATLASSIAN_API_TOKEN: z.string().optional(),
+    ATLASSIAN_EMAIL: z.string().optional(),
+    AI_PROVIDER: z.string().default('openrouter'),
+    AI_API_KEY: z.string().optional(),
+  })
+  .superRefine((data, ctx) => {
+    const isProduction = data.NODE_ENV === 'production';
+    const isAtlassianEnabled = data.MCP_ATLASSIAN_ENABLED === 'true';
+    const isStrictMode = isProduction || isAtlassianEnabled;
+
+    if (isStrictMode) {
+      // In production or when explicitly enabled, require all Atlassian vars
+      if (!data.ATLASSIAN_ORG_ID) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'ATLASSIAN_ORG_ID is required when MCP_ATLASSIAN_ENABLED=true or NODE_ENV=production',
+          path: ['ATLASSIAN_ORG_ID'],
+        });
+      }
+
+      if (!data.ATLASSIAN_API_TOKEN) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'ATLASSIAN_API_TOKEN is required when MCP_ATLASSIAN_ENABLED=true or NODE_ENV=production',
+          path: ['ATLASSIAN_API_TOKEN'],
+        });
+      }
+
+      if (!data.ATLASSIAN_EMAIL) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'ATLASSIAN_EMAIL is required when MCP_ATLASSIAN_ENABLED=true or NODE_ENV=production',
+          path: ['ATLASSIAN_EMAIL'],
+        });
+      } else {
+        // Validate email format when required
+        const emailSchema = z.string().email();
+        const emailResult = emailSchema.safeParse(data.ATLASSIAN_EMAIL);
+        if (!emailResult.success) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: 'ATLASSIAN_EMAIL must be a valid email address',
+            path: ['ATLASSIAN_EMAIL'],
+          });
+        }
+      }
+    }
+    // In development with MCP_ATLASSIAN_ENABLED=false, all Atlassian vars are optional (no validation)
+  });
 
 export type Env = z.infer<typeof envSchema>;
 
