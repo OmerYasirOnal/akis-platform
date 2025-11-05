@@ -27,13 +27,14 @@ pnpm install
 
 # Set up environment
 cp .env.example .env
-# Edit .env with your values
+# Edit .env with your values (especially DATABASE_URL)
 
 # Run development server
 pnpm dev
 
-# The server will start on http://localhost:3000
+# The server will start on http://localhost:3000 (default port)
 # Health check: http://localhost:3000/health
+# Frontend default port: 5173 (Vite)
 ```
 
 ### Komutlar
