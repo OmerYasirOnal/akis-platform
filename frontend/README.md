@@ -2,6 +2,11 @@
 
 Frontend SPA for AKIS Platform built with Vite + React + TypeScript + Tailwind CSS.
 
+## Requirements
+
+- Node.js >= 22.12.0 or >= 20.19.0 (required for Vite 7)
+- Use `nvm use` at repo root to switch to correct Node version
+
 ## Setup
 
 1. Install dependencies:
