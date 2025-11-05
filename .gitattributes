@@ -1,0 +1,6 @@
+* text=auto eol=lf
+*.ts text
+*.tsx text
+*.md text
+*.mdc text
+
