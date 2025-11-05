@@ -20,7 +20,9 @@ export class ScribeAgent extends BaseAgent {
     // - Analyze code changes
     // - Update Confluence documentation via ConfluenceMCPService (from this.deps)
     // - Commit documentation changes via GitHubMCPService (from this.deps)
-    throw new Error('Not implemented');
+    
+    // Stub: return success for now
+    return { ok: true, agent: 'scribe', message: 'Documentation update stub (not implemented)' };
   }
 }
 
