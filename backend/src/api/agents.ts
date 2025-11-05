@@ -4,6 +4,7 @@ import { AgentOrchestrator } from '../core/orchestrator/AgentOrchestrator.js';
 import { db } from '../db/client.js';
 import { jobs } from '../db/schema.js';
 import { eq } from 'drizzle-orm';
+import { JobNotFoundError, InvalidStateTransitionError, DatabaseError } from '../core/errors.js';
 
 // Request validation schemas
 const submitJobSchema = z.object({
@@ -45,20 +46,42 @@ export async function agentsRoutes(fastify: FastifyInstance) {
           payload: body.payload,
         });
 
-        // Start job immediately (for now - executes agent and transitions to completed/failed)
+        // Start job immediately (executes agent and transitions to completed/failed)
+        let finalState = 'pending';
         try {
           await orchestrator.startJob(jobId);
+          // Query final state after execution
+          const [job] = await db.select().from(jobs).where(eq(jobs.id, jobId)).limit(1);
+          if (job) {
+            finalState = job.state;
+          }
         } catch (startError) {
           // If start fails, job is already marked as failed in DB
-          // Return jobId anyway so client can check status
+          // Query state to return accurate status
+          try {
+            const [job] = await db.select().from(jobs).where(eq(jobs.id, jobId)).limit(1);
+            if (job) {
+              finalState = job.state;
+            }
+          } catch {
+            // If we can't query, default to pending
+          }
         }
 
-        return { jobId, status: 'pending' };
+        return { jobId, state: finalState };
       } catch (error) {
         if (error instanceof z.ZodError) {
           reply.code(400).send({
             error: 'Validation failed',
             details: error.errors,
+          });
+          return;
+        }
+        // Wrap structured errors for API
+        if (error instanceof DatabaseError || error instanceof InvalidStateTransitionError) {
+          reply.code(500).send({
+            error: error.name,
+            message: error.message,
           });
           return;
         }
@@ -86,14 +109,26 @@ export async function agentsRoutes(fastify: FastifyInstance) {
     },
     async (request, reply) => {
       try {
-        // Validate params with Zod
+        // Validate params with Zod (UUID format)
         const params = jobIdParamsSchema.parse(request.params);
 
         // Fetch job from database
-        const [job] = await db.select().from(jobs).where(eq(jobs.id, params.id)).limit(1);
-
-        if (!job) {
-          reply.code(404).send({ error: 'Job not found' });
+        let job;
+        try {
+          const result = await db.select().from(jobs).where(eq(jobs.id, params.id)).limit(1);
+          if (!result.length) {
+            reply.code(404).send({
+              error: 'Job not found',
+              message: `Job with id ${params.id} does not exist`,
+            });
+            return;
+          }
+          job = result[0];
+        } catch (error) {
+          reply.code(500).send({
+            error: 'Database error',
+            message: error instanceof Error ? error.message : 'Failed to fetch job',
+          });
           return;
         }
 
