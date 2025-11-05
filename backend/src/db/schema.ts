@@ -7,6 +7,8 @@ export const jobs = pgTable('jobs', {
   type: varchar('type', { length: 50 }).notNull(),
   state: jobStateEnum('state').default('pending').notNull(),
   payload: jsonb('payload'),
+  result: jsonb('result'),
+  error: varchar('error', { length: 1000 }),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });

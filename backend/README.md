@@ -17,12 +17,14 @@ cp .env.example .env
 
 3. Run database migrations:
 ```bash
-# Generate migration from schema changes
+# Generate migration from schema changes (after modifying src/db/schema.ts)
 pnpm db:generate
 
-# Apply migrations to database
+# Apply migrations to database (runs SQL migrations in migrations/ folder)
 pnpm db:migrate
 ```
+
+**Note:** Drizzle uses `DATABASE_URL` from `.env` for migrations. Ensure your database is running and accessible.
 
 4. Start development server:
 ```bash
