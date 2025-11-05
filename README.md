@@ -52,6 +52,31 @@ pnpm dev
 
 Frontend scaffolding (coming soon)
 
+## CI/CD
+
+Proje GitHub Actions ile otomatik test edilir. Her push ve pull request'te CI workflow çalışır.
+
+### CI Konfigürasyonu
+
+- **Node.js**: 22.12.0
+- **Backend Job**:
+  - PostgreSQL 16 service (test veritabanı: `akis_v2_test`)
+  - pnpm ile bağımlılık yönetimi ve cache optimizasyonu
+  - Drizzle migration'ları (`db:generate` ve `db:migrate`)
+  - Typecheck, lint ve test adımları
+  - `DATABASE_URL` test veritabanına işaret eder
+- **Frontend Job**:
+  - npm ile bağımlılık yönetimi
+  - Typecheck, lint ve test adımları
+
+### Branch Protection
+
+`main` branch için branch protection kuralları aktif edilmelidir:
+- "Require status checks to pass before merging" seçeneği aktif olmalı
+- `backend` ve `frontend` job'ları required status check olarak eklenmelidir
+
+Bu ayarlar GitHub repository Settings > Branches > Branch protection rules üzerinden yapılır.
+
 ## Dokümantasyon
 
 Detaylı dokümantasyon için [docs/](docs/) klasörüne bakın.
