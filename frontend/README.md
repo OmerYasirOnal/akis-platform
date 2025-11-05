@@ -1,73 +1,113 @@
-# React + TypeScript + Vite
+# AKIS Platform Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Frontend SPA for AKIS Platform built with Vite + React + TypeScript + Tailwind CSS.
 
-Currently, two official plugins are available:
+## Setup
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
-
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+1. Install dependencies:
+```bash
+npm install
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
-
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+2. Create `.env` file (copy from `.env.example`):
+```bash
+VITE_BACKEND_URL=http://localhost:3000
 ```
+
+3. Start development server:
+```bash
+npm run dev
+```
+
+The app will be available at `http://localhost:5173`
+
+## Scripts
+
+- `npm run dev` - Start development server
+- `npm run build` - Build for production
+- `npm run preview` - Preview production build
+- `npm run lint` - Run ESLint
+- `npm run format` - Format code with Prettier
+- `npm run typecheck` - Type check with TypeScript
+- `npm run test` - Run tests with Vitest
+- `npm run generate:types` - Generate TypeScript types from OpenAPI schema (requires backend running)
+
+## Project Structure
+
+```
+frontend/
+├── src/
+│   ├── components/        # Reusable UI components
+│   │   ├── Layout.tsx     # Main layout with navigation
+│   │   └── ui/            # UI primitives (Table, Badge, Pill, etc.)
+│   ├── pages/             # Page components
+│   │   ├── JobsListPage.tsx
+│   │   ├── JobDetailPage.tsx
+│   │   └── NewJobPage.tsx
+│   ├── hooks/             # Custom React hooks
+│   │   ├── useJobs.ts
+│   │   ├── useJob.ts
+│   │   └── useCreateJob.ts
+│   ├── services/          # API client
+│   │   └── api/
+│   │       ├── HttpClient.ts  # Lightweight fetch wrapper
+│   │       ├── client.ts      # API methods
+│   │       └── types.ts      # TypeScript types
+│   └── App.tsx            # Root component with routing
+├── vite.config.ts
+├── tailwind.config.js
+└── package.json
+```
+
+## Features
+
+- **Typed API Client**: Lightweight HttpClient using native fetch with retry/backoff
+- **Routing**: React Router with routes for jobs list, detail, and creation
+- **Observability**: Request-ID surfacing and unified error handling
+- **Cursor Pagination**: Efficient pagination for jobs list
+- **Auto-refresh**: Job detail page auto-refreshes until terminal state
+- **Type Safety**: Full TypeScript strict mode compliance
+
+## Testing
+
+Run tests:
+```bash
+npm run test
+```
+
+Tests are located in:
+- `src/services/api/__tests__/HttpClient.test.ts`
+- `src/pages/__tests__/JobsListPage.test.tsx`
+
+## Verification Steps
+
+1. Start backend (port 3000):
+```bash
+cd backend && npm run dev
+```
+
+2. Start frontend (port 5173):
+```bash
+cd frontend && npm run dev
+```
+
+3. Test endpoints:
+```bash
+# List jobs
+curl http://localhost:3000/api/agents/jobs
+
+# Create scribe job
+curl -X POST http://localhost:3000/api/agents/jobs \
+  -H "Content-Type: application/json" \
+  -d '{"type":"scribe","payload":{"doc":"Test document"}}'
+
+# Get job detail
+curl http://localhost:3000/api/agents/jobs/{jobId}?include=plan,audit
+```
+
+4. UI Verification:
+- Navigate to `http://localhost:5173`
+- Should redirect to `/jobs`
+- Click "New Job" to create a job
+- View job detail with plan/audit toggles
+- Test filters (type, state) and pagination
