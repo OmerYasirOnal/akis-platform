@@ -6,7 +6,7 @@ export default defineConfig({
   plugins: [react()],
   test: {
     globals: true,
-    environment: 'jsdom',
+    environment: 'node', // Use node for API tests, jsdom only if needed for component tests
     setupFiles: './src/test/setup.ts',
   },
 });
