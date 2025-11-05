@@ -1,0 +1,1 @@
+CREATE INDEX IF NOT EXISTS "idx_jobs_type_state_created" ON "jobs" USING btree ("type","state","created_at");

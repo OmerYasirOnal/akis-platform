@@ -15,7 +15,7 @@ export interface GitHubMCPServiceOptions {
  * Used by Scribe, Trace, Proto agents
  */
 export class GitHubMCPService {
-  constructor(opts: GitHubMCPServiceOptions) {
+  constructor(_opts: GitHubMCPServiceOptions) {
     // Signature-only: no implementation
   }
 
@@ -27,10 +27,10 @@ export class GitHubMCPService {
    * @param baseSha - Base commit SHA
    */
   async createBranch(
-    owner: string,
-    repo: string,
-    branchName: string,
-    baseSha: string
+    _owner: string,
+    _repo: string,
+    _branchName: string,
+    _baseSha: string
   ): Promise<{ branch: string; sha: string }> {
     // Signature-only: no implementation
     throw new Error('Not implemented: signature-only MCP adapter');
@@ -46,12 +46,12 @@ export class GitHubMCPService {
    * @param commitMessage - Commit message
    */
   async commitFile(
-    owner: string,
-    repo: string,
-    branch: string,
-    filePath: string,
-    content: string,
-    commitMessage: string
+    _owner: string,
+    _repo: string,
+    _branch: string,
+    _filePath: string,
+    _content: string,
+    _commitMessage: string
   ): Promise<{ commitSha: string; filePath: string }> {
     // Signature-only: no implementation
     throw new Error('Not implemented: signature-only MCP adapter');
@@ -64,9 +64,9 @@ export class GitHubMCPService {
    * @param state - Issue state ('open' | 'closed' | 'all')
    */
   async listIssues(
-    owner: string,
-    repo: string,
-    state?: 'open' | 'closed' | 'all'
+    _owner: string,
+    _repo: string,
+    _state?: 'open' | 'closed' | 'all'
   ): Promise<Array<{ number: number; title: string; body?: string }>> {
     // Signature-only: no implementation
     throw new Error('Not implemented: signature-only MCP adapter');
@@ -82,12 +82,12 @@ export class GitHubMCPService {
    * @param base - Base branch
    */
   async createPRDraft(
-    owner: string,
-    repo: string,
-    title: string,
-    body: string,
-    head: string,
-    base: string
+    _owner: string,
+    _repo: string,
+    _title: string,
+    _body: string,
+    _head: string,
+    _base: string
   ): Promise<{ prNumber: number; url: string }> {
     // Signature-only: no implementation
     throw new Error('Not implemented: signature-only MCP adapter');

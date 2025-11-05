@@ -68,7 +68,7 @@ test('smoke tests for agent job flow', { skip: !hasDatabase }, async (t) => {
       url: '/api/agents/jobs',
       payload: {
         type: 'trace',
-        payload: { test: 'data' },
+        payload: { spec: 'Test spec: user logs in -> sees dashboard' },
       },
     });
 

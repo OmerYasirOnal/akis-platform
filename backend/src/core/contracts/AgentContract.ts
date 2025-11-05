@@ -5,16 +5,16 @@ import { z } from 'zod';
  * Uses Zod for runtime validation
  */
 
-export interface AgentContract<TInput = unknown, TOutput = unknown> {
+export abstract class AgentContract<TInput = unknown, TOutput = unknown> {
   /**
    * Input schema validation
    */
-  inputSchema: z.ZodSchema<TInput>;
+  abstract inputSchema: z.ZodSchema<TInput>;
 
   /**
    * Output schema validation
    */
-  outputSchema: z.ZodSchema<TOutput>;
+  abstract outputSchema: z.ZodSchema<TOutput>;
 
   /**
    * Validate input against contract

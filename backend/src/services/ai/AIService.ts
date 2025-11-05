@@ -79,7 +79,7 @@ class MockPlanner implements Planner {
  * Mock Reflector implementation (deterministic, no LLM calls)
  */
 class MockReflector implements Reflector {
-  async critique(input: { artifact: unknown; context?: unknown }): Promise<Critique> {
+  async critique(_input: { artifact: unknown; context?: unknown }): Promise<Critique> {
     // Deterministic mock critique
     return {
       issues: [

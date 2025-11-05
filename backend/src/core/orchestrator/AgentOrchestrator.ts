@@ -1,6 +1,5 @@
 import { AgentFactory, type AgentDependencies } from '../agents/AgentFactory.js';
 import { AgentStateMachine } from '../state/AgentStateMachine.js';
-import type { IAgent } from '../agents/IAgent.js';
 import { db } from '../../db/client.js';
 import { jobs, jobPlans, jobAudits, type NewJob, type NewJobPlan, type NewJobAudit } from '../../db/schema.js';
 import { eq } from 'drizzle-orm';
@@ -8,7 +7,6 @@ import { randomUUID } from 'crypto';
 import { JobNotFoundError, InvalidStateTransitionError, DatabaseError } from '../errors.js';
 import type { AIService } from '../../services/ai/AIService.js';
 import type { Plan } from '../../services/ai/AIService.js';
-import type { Critique } from '../../services/ai/AIService.js';
 import type { MCPTools } from '../../services/mcp/adapters/index.js';
 
 /**
@@ -59,7 +57,6 @@ export class AgentOrchestrator {
       await db.insert(jobs).values(newJob);
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
-      const errorStack = error instanceof Error ? error.stack : undefined;
       throw new DatabaseError(`Failed to create job: ${errorMsg}`, error);
     }
 
@@ -136,11 +133,6 @@ export class AgentOrchestrator {
       let plan: Plan | undefined;
       if (playbook.requiresPlanning && this.aiService) {
         try {
-          // Extract goal from context
-          const goal = (context && typeof context === 'object' && 'goal' in context && typeof context.goal === 'string')
-            ? context.goal
-            : `Execute ${job.type} agent`;
-
           // Call agent's plan method
           if (agent.plan) {
             plan = await agent.plan(this.aiService.planner, context);
@@ -363,8 +355,9 @@ export class AgentOrchestrator {
 
       // Optional: Plan phase (for complex agents)
       let executionContext = context;
-      if (agent.plan) {
-        executionContext = await agent.plan(context);
+      if (agent.plan && this.aiService) {
+        const plan = await agent.plan(this.aiService.planner, context);
+        executionContext = plan;
       }
 
       // Execute agent
@@ -372,8 +365,9 @@ export class AgentOrchestrator {
 
       // Optional: Reflect phase (for complex agents)
       let finalOutput = output;
-      if (agent.reflect) {
-        finalOutput = await agent.reflect(output, executionContext);
+      if (agent.reflect && this.aiService) {
+        const critique = await agent.reflect(this.aiService.reflector, output);
+        finalOutput = { ...(output && typeof output === 'object' ? output : { result: output }), critique };
       }
 
       stateMachine.complete();

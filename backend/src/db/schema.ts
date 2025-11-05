@@ -1,4 +1,4 @@
-import { pgTable, uuid, varchar, jsonb, timestamp, pgEnum, text } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, varchar, jsonb, timestamp, pgEnum, text, index } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 
 export const jobStateEnum = pgEnum('job_state', ['pending', 'running', 'completed', 'failed']);
@@ -14,7 +14,10 @@ export const jobs = pgTable('jobs', {
   error: varchar('error', { length: 1000 }),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
-});
+}, (table) => ({
+  // Phase 7.D: Index for efficient jobs listing (type, state, createdAt DESC)
+  typeStateCreatedIdx: index('idx_jobs_type_state_created').on(table.type, table.state, table.createdAt),
+}));
 
 export type Job = typeof jobs.$inferSelect;
 export type NewJob = typeof jobs.$inferInsert;
