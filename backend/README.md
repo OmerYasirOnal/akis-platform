@@ -102,3 +102,43 @@ The database client uses conservative pooling for OCI Free Tier:
 - Max connections: 10
 - Configured in `src/db/client.ts`
 
+## API Examples
+
+### Create Agent Job
+
+```bash
+curl -X POST http://localhost:3000/api/agents/jobs \
+  -H "Content-Type: application/json" \
+  -d '{"type":"scribe","payload":{"doc":"hello"}}'
+```
+
+Response:
+```json
+{
+  "jobId": "uuid-here",
+  "status": "pending"
+}
+```
+
+### Get Job Status
+
+```bash
+curl http://localhost:3000/api/agents/jobs/<JOB_ID>
+```
+
+Response:
+```json
+{
+  "id": "uuid-here",
+  "type": "scribe",
+  "state": "completed",
+  "payload": {"doc": "hello"},
+  "result": {"ok": true, "agent": "scribe", "message": "..."},
+  "error": null,
+  "createdAt": "2025-11-05T...",
+  "updatedAt": "2025-11-05T..."
+}
+```
+
+**Note:** Planner/reflector hooks and MCP calls are NOT implemented yet. Agents return stub responses for now.
+

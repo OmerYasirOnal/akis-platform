@@ -30,7 +30,9 @@ export class ProtoAgent extends BaseAgent {
     // - Implement features
     // - Run tests
     // - Create PR via GitHubMCPService (from this.deps)
-    throw new Error('Not implemented');
+    
+    // Stub: return success for now
+    return { ok: true, agent: 'proto', message: 'MVP prototype stub (not implemented)' };
   }
 
   async reflect(output: unknown, context: unknown): Promise<unknown> {

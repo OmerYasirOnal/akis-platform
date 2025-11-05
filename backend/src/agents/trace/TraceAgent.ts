@@ -21,7 +21,9 @@ export class TraceAgent extends BaseAgent {
     // - Generate test scenarios
     // - Convert to automation test code (e.g., Cucumber)
     // - Commit via GitHubMCPService (from this.deps)
-    throw new Error('Not implemented');
+    
+    // Stub: return success for now
+    return { ok: true, agent: 'trace', message: 'Test generation stub (not implemented)' };
   }
 }
 
