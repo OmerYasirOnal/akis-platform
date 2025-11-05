@@ -17,6 +17,11 @@ AKIS Platform, yazılım geliştirme süreçlerindeki tekrarlayan görevleri oto
 - **Frontend**: React (Vite) + Tailwind CSS
 - **Integrations**: MCP (Model Context Protocol) adapters
 
+## Güncel Durum
+
+- Phase 8: Frontend SPA ✓
+- Phase 9: Auth & RBAC ▶
+
 ## Geliştirme
 
 ### Backend
@@ -37,6 +42,16 @@ pnpm dev
 # Frontend default port: 5173 (Vite)
 ```
 
+### Local Dev Hızlı Komutlar
+
+```bash
+# Backend
+cd backend && pnpm dev
+
+# Frontend
+cd frontend && npm run dev
+```
+
 ### Komutlar
 
 - `pnpm dev` - Development server (watch mode)
@@ -50,11 +65,24 @@ pnpm dev
 
 ### Frontend
 
-Frontend scaffolding (coming soon)
+```bash
+cd frontend
+npm install
+
+# Set up environment
+cp .env.example .env
+
+# Run development server
+npm run dev
+
+# The frontend will start on http://localhost:5173 (default port)
+```
 
 ## CI/CD
 
 Proje GitHub Actions ile otomatik test edilir. Her push ve pull request'te CI workflow çalışır.
+
+**Not:** PR açınca split jobs (backend/frontend) çalışır; Postgres 16 service ile testler koşturulur.
 
 ### CI Konfigürasyonu
 
