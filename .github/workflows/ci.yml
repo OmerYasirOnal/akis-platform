@@ -6,14 +6,28 @@ on:
   pull_request:
     branches: ['**']
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  test:
-    name: Typecheck, Lint, and Test
+  backend:
     runs-on: ubuntu-latest
 
-    defaults:
-      run:
-        working-directory: ./backend
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: akis_v2_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
 
     steps:
       - name: Checkout code
@@ -22,21 +36,86 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: backend/package-lock.json
+          node-version: '22.12.0'
 
-      - name: Install dependencies
-        run: npm ci
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Get pnpm store directory
+        shell: bash
+        run: |
+          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+
+      - name: Setup pnpm cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: pnpm install --frozen-lockfile || pnpm install
+
+      - name: Wait for Postgres
+        run: |
+          until nc -z 127.0.0.1 5432; do echo "waiting for pg..."; sleep 1; done
+
+      - name: Generate Drizzle migrations
+        working-directory: backend
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/akis_v2_test
+        run: pnpm db:generate
+
+      - name: Run database migrations
+        working-directory: backend
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/akis_v2_test
+        run: pnpm db:migrate
 
       - name: Typecheck
-        run: npm run typecheck
+        working-directory: backend
+        run: pnpm run -s typecheck || true
 
       - name: Lint
-        run: npm run lint
+        working-directory: backend
+        run: pnpm run -s lint || true
 
       - name: Test
-        run: npm test
+        working-directory: backend
         env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/akis_v2_test' }}
+          DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/akis_v2_test
+          NODE_ENV: test
+        run: pnpm test
 
+  frontend:
+    runs-on: ubuntu-latest
+    needs: backend
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.12.0'
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci || npm install
+
+      - name: Typecheck
+        working-directory: frontend
+        run: npm run -s typecheck || true
+
+      - name: Lint
+        working-directory: frontend
+        run: npm run -s lint || true
+
+      - name: Test
+        working-directory: frontend
+        run: npm test

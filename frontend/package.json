@@ -13,7 +13,7 @@
     "lint": "eslint .",
     "format": "prettier --write \"src/**/*.{ts,tsx,js,jsx,json,css}\"",
     "typecheck": "tsc --noEmit",
-    "test": "vitest",
+    "test": "vitest --run",
     "generate:types": "openapi-typescript http://localhost:3000/openapi.json -o src/services/api/openapi-types.ts"
   },
   "dependencies": {
