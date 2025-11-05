@@ -1,0 +1,147 @@
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { api } from '../services/api';
+import { ErrorToast } from '../components/ui/ErrorToast';
+
+export default function NewJobPage() {
+  const navigate = useNavigate();
+  const [jobType, setJobType] = useState<'scribe' | 'trace' | 'proto'>('scribe');
+  const [doc, setDoc] = useState('');
+  const [spec, setSpec] = useState('');
+  const [goal, setGoal] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<{ message: string; code?: string; requestId?: string } | null>(null);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    setError(null);
+
+    try {
+      let payload: Record<string, unknown> = {};
+      if (jobType === 'scribe') {
+        if (!doc.trim()) {
+          setError({ message: 'Document content is required for Scribe jobs' });
+          setIsSubmitting(false);
+          return;
+        }
+        payload = { doc: doc.trim() };
+      } else if (jobType === 'trace') {
+        if (!spec.trim()) {
+          setError({ message: 'Specification is required for Trace jobs' });
+          setIsSubmitting(false);
+          return;
+        }
+        payload = { spec: spec.trim() };
+      } else if (jobType === 'proto') {
+        payload = { goal: goal.trim() || 'Generate prototype' };
+      }
+
+      const response = await api.createJob({
+        type: jobType,
+        payload,
+      });
+
+      navigate(`/jobs/${response.jobId}`);
+    } catch (err: unknown) {
+      const apiError = err as { message?: string; code?: string; requestId?: string };
+      setError({
+        message: apiError.message || 'Failed to create job',
+        code: apiError.code,
+        requestId: apiError.requestId,
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <div>
+      <h1 className="text-2xl font-bold text-gray-900 mb-6">Create New Job</h1>
+
+      {error && <ErrorToast error={error} onClose={() => setError(null)} />}
+
+      <form onSubmit={handleSubmit} className="bg-white shadow rounded-lg p-6">
+        <div className="mb-4">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Job Type
+          </label>
+          <select
+            value={jobType}
+            onChange={(e) => setJobType(e.target.value as typeof jobType)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md"
+          >
+            <option value="scribe">Scribe (Documentation)</option>
+            <option value="trace">Trace (Test Generation)</option>
+            <option value="proto">Proto (Prototype)</option>
+          </select>
+        </div>
+
+        {jobType === 'scribe' && (
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Document Content
+            </label>
+            <textarea
+              value={doc}
+              onChange={(e) => setDoc(e.target.value)}
+              rows={10}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md"
+              placeholder="Enter document content to process..."
+              required
+            />
+          </div>
+        )}
+
+        {jobType === 'trace' && (
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Specification
+            </label>
+            <textarea
+              value={spec}
+              onChange={(e) => setSpec(e.target.value)}
+              rows={10}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md"
+              placeholder="Enter test specification..."
+              required
+            />
+          </div>
+        )}
+
+        {jobType === 'proto' && (
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Goal
+            </label>
+            <textarea
+              value={goal}
+              onChange={(e) => setGoal(e.target.value)}
+              rows={5}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md"
+              placeholder="Enter prototype goal or requirements..."
+            />
+          </div>
+        )}
+
+        <div className="flex gap-4">
+          <button
+            type="submit"
+            disabled={isSubmitting}
+            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isSubmitting ? 'Creating...' : 'Create Job'}
+          </button>
+          <button
+            type="button"
+            onClick={() => navigate('/jobs')}
+            className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300"
+          >
+            Cancel
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
+

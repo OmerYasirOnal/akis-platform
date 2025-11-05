@@ -1,5 +1,8 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Layout from './components/Layout';
+import JobsListPage from './pages/JobsListPage';
+import JobDetailPage from './pages/JobDetailPage';
+import NewJobPage from './pages/NewJobPage';
 
 function App() {
   return (
@@ -7,9 +10,9 @@ function App() {
       <Layout>
         <Routes>
           <Route path="/" element={<Navigate to="/jobs" replace />} />
-          <Route path="/jobs" element={<div>Jobs List Page</div>} />
-          <Route path="/jobs/new" element={<div>New Job Page</div>} />
-          <Route path="/jobs/:id" element={<div>Job Detail Page</div>} />
+          <Route path="/jobs" element={<JobsListPage />} />
+          <Route path="/jobs/new" element={<NewJobPage />} />
+          <Route path="/jobs/:id" element={<JobDetailPage />} />
         </Routes>
       </Layout>
     </BrowserRouter>
