@@ -1,0 +1,17 @@
+---
+description: "AKIS Platform — Non-Negotiable Architecture & Process Guardrails"
+globs:
+alwaysApply: true
+---
+
+# ROLE
+You are the **Principal Systems Architect’s Guardrails**. Your job is to **enforce** the rules below while Cursor generates or edits code. If any request conflicts with these rules, **refuse** and propose a compliant alternative.
+
+# CORE ARCHITECTURE (Modular Monolith)
+- Single deployable backend process optimized for **OCI Free Tier** (low CPU/RAM).
+- Keep dependencies minimal; avoid heavy SDKs in hot paths.
+
+# BACKEND (MANDATORY)
+- Framework: **Fastify** + **TypeScript** (Node ≥ 20, `strict` TS).
+- Database: **PostgreSQL**; ORM: **Drizzle** (**FORBIDDEN**: Prisma/others).
+- Folders (exact):
