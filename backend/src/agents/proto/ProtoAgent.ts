@@ -66,7 +66,7 @@ export class ProtoAgent extends BaseAgent {
    * @param plan - Optional plan from planning phase
    * @param context - Execution context
    */
-  async executeWithTools(tools: MCPTools, plan?: Plan, context?: unknown): Promise<unknown> {
+  async executeWithTools(_tools: MCPTools, plan?: Plan, _context?: unknown): Promise<unknown> {
     // Mock execution: return deterministic result
     return {
       ok: true,
@@ -84,7 +84,7 @@ export class ProtoAgent extends BaseAgent {
   /**
    * Default execute (fallback, not used when executeWithTools is available)
    */
-  async execute(context: unknown): Promise<unknown> {
+  async execute(_context: unknown): Promise<unknown> {
     // Fallback implementation
     return {
       ok: true,

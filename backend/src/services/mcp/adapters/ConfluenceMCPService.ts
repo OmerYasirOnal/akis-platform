@@ -14,7 +14,7 @@ export interface ConfluenceMCPServiceOptions {
  * Used by Scribe agent
  */
 export class ConfluenceMCPService {
-  constructor(opts: ConfluenceMCPServiceOptions) {
+  constructor(_opts: ConfluenceMCPServiceOptions) {
     // Signature-only: no implementation
   }
 
@@ -22,7 +22,7 @@ export class ConfluenceMCPService {
    * Get a Confluence page by ID
    * @param pageId - Page ID
    */
-  async getPage(pageId: string): Promise<{
+  async getPage(_pageId: string): Promise<{
     id: string;
     title: string;
     content: string;
@@ -37,7 +37,7 @@ export class ConfluenceMCPService {
    * @param spaceKey - Space key
    * @param title - Page title
    */
-  async fetchConfluencePage(spaceKey: string, title: string): Promise<{
+  async fetchConfluencePage(_spaceKey: string, _title: string): Promise<{
     id: string;
     title: string;
     content: string;
@@ -52,7 +52,7 @@ export class ConfluenceMCPService {
    * @param title - Page title
    * @param content - Page content (markdown/HTML)
    */
-  async createPage(spaceKey: string, title: string, content: string): Promise<{
+  async createPage(_spaceKey: string, _title: string, _content: string): Promise<{
     id: string;
     url: string;
   }> {
@@ -65,7 +65,7 @@ export class ConfluenceMCPService {
    * @param pageId - Page ID
    * @param content - Updated content
    */
-  async updatePage(pageId: string, content: string): Promise<{
+  async updatePage(_pageId: string, _content: string): Promise<{
     id: string;
     version: number;
   }> {

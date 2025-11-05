@@ -15,6 +15,13 @@
       "when": 1762370503771,
       "tag": "0001_noisy_veda",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1762371406437,
+      "tag": "0002_aberrant_sleeper",
+      "breakpoints": true
     }
   ]
 }

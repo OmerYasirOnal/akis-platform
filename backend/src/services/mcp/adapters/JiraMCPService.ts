@@ -14,7 +14,7 @@ export interface JiraMCPServiceOptions {
  * Used by Trace agent
  */
 export class JiraMCPService {
-  constructor(opts: JiraMCPServiceOptions) {
+  constructor(_opts: JiraMCPServiceOptions) {
     // Signature-only: no implementation
   }
 
@@ -22,7 +22,7 @@ export class JiraMCPService {
    * Get a Jira issue by key
    * @param issueKey - Issue key (e.g., PROJ-123)
    */
-  async getIssue(issueKey: string): Promise<{
+  async getIssue(_issueKey: string): Promise<{
     key: string;
     summary: string;
     description?: string;
@@ -38,8 +38,8 @@ export class JiraMCPService {
    * @param jql - Optional JQL query
    */
   async listIssues(
-    projectKey: string,
-    jql?: string
+    _projectKey: string,
+    _jql?: string
   ): Promise<Array<{ key: string; summary: string; acceptanceCriteria?: string }>> {
     // Signature-only: no implementation
     throw new Error('Not implemented: signature-only MCP adapter');
@@ -50,7 +50,7 @@ export class JiraMCPService {
    * @param projectKey - Project key
    * @param fields - Issue fields
    */
-  async createIssue(projectKey: string, fields: {
+  async createIssue(_projectKey: string, _fields: {
     summary: string;
     description?: string;
     issueType: string;
@@ -64,7 +64,7 @@ export class JiraMCPService {
    * @param issueKey - Issue key
    * @param comment - Comment text
    */
-  async addComment(issueKey: string, comment: string): Promise<{ commentId: string }> {
+  async addComment(_issueKey: string, _comment: string): Promise<{ commentId: string }> {
     // Signature-only: no implementation
     throw new Error('Not implemented: signature-only MCP adapter');
   }
