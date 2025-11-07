@@ -1,6 +1,5 @@
 import { Link } from 'react-router-dom';
-// Placeholder SVG - Replace with official PNG: akis-logo.png
-import logoImage from '../assets/branding/akis-logo.svg';
+import logoImage from '../assets/branding/akis-logo.png';
 
 interface LogoProps {
   /**
