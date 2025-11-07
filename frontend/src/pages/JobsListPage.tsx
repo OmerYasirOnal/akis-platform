@@ -68,12 +68,12 @@ export default function JobsListPage() {
   return (
     <div>
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900 mb-4">Jobs</h1>
+        <h1 className="text-2xl font-bold text-ak-text-primary mb-4">Jobs</h1>
         <div className="flex gap-4">
           <select
             value={filterType}
             onChange={(e) => setFilterType(e.target.value as typeof filterType)}
-            className="px-3 py-2 border border-gray-300 rounded-md"
+            className="px-3 py-2 bg-ak-surface border border-ak-border text-ak-text-primary rounded-md focus:outline-none focus:ring-2 focus:ring-ak-primary focus:ring-offset-2 focus:ring-offset-ak-bg"
           >
             <option value="">All Types</option>
             <option value="scribe">Scribe</option>
@@ -83,7 +83,7 @@ export default function JobsListPage() {
           <select
             value={filterState}
             onChange={(e) => setFilterState(e.target.value as typeof filterState)}
-            className="px-3 py-2 border border-gray-300 rounded-md"
+            className="px-3 py-2 bg-ak-surface border border-ak-border text-ak-text-primary rounded-md focus:outline-none focus:ring-2 focus:ring-ak-primary focus:ring-offset-2 focus:ring-offset-ak-bg"
           >
             <option value="">All States</option>
             <option value="pending">Pending</option>
@@ -99,7 +99,7 @@ export default function JobsListPage() {
       {isLoading && jobs.length === 0 ? (
         <div className="text-center py-8">Loading...</div>
       ) : jobs.length === 0 ? (
-        <div className="text-center py-8 text-gray-500">No jobs found</div>
+        <div className="text-center py-8 text-ak-text-secondary">No jobs found</div>
       ) : (
         <>
           <Table>
@@ -114,9 +114,9 @@ export default function JobsListPage() {
             </TableHeader>
             <TableBody>
               {jobs.map((job) => (
-                <TableRow key={job.id} className="hover:bg-gray-50">
+                <TableRow key={job.id} className="hover:bg-ak-surface">
                   <TableCell>
-                    <Link to={`/jobs/${job.id}`} className="text-blue-600 hover:text-blue-800">
+                    <Link to={`/jobs/${job.id}`} className="text-ak-primary hover:text-ak-text-primary transition-colors">
                       {job.id.slice(0, 8)}...
                     </Link>
                   </TableCell>
@@ -126,10 +126,10 @@ export default function JobsListPage() {
                   <TableCell>
                     <Badge state={job.state} />
                   </TableCell>
-                  <TableCell className="text-sm text-gray-500">
+                  <TableCell className="text-sm text-ak-text-secondary">
                     {new Date(job.createdAt).toLocaleString()}
                   </TableCell>
-                  <TableCell className="text-sm text-gray-500">
+                  <TableCell className="text-sm text-ak-text-secondary">
                     {new Date(job.updatedAt).toLocaleString()}
                   </TableCell>
                 </TableRow>
