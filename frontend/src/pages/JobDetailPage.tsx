@@ -60,15 +60,17 @@ export default function JobDetailPage() {
     return () => clearInterval(interval);
   }, [job?.state]);
 
+  const containerClass = 'mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8';
+
   if (isLoading && !job) {
-    return <div className="text-center py-8">Loading...</div>;
+    return <div className={`${containerClass} py-12 text-center`}>Loading...</div>;
   }
 
   if (error && !job) {
     return (
       <>
         <ErrorToast error={error} onClose={() => setError(null)} />
-        <div className="text-center py-8">
+        <div className={`${containerClass} py-12 text-center`}>
           <p className="text-red-400">{error.message}</p>
           <Link to="/jobs" className="text-ak-primary hover:text-ak-text-primary mt-4 inline-block">
             ← Back to Jobs
@@ -79,11 +81,11 @@ export default function JobDetailPage() {
   }
 
   if (!job) {
-    return <div className="text-center py-8">Job not found</div>;
+    return <div className={`${containerClass} py-12 text-center`}>Job not found</div>;
   }
 
   return (
-    <div>
+    <div className={containerClass}>
       <div className="mb-6">
         <Link to="/jobs" className="text-ak-primary hover:text-ak-text-primary mb-4 inline-block">
           ← Back to Jobs
@@ -122,22 +124,22 @@ export default function JobDetailPage() {
           </div>
         </div>
 
-        <div className="mt-6">
-          <label className="block text-sm font-medium text-ak-text-primary mb-2">
+        <div className="mt-6 space-y-3">
+          <label className="flex items-center gap-2 text-sm font-medium text-ak-text-primary">
             <input
               type="checkbox"
               checked={includePlan}
               onChange={(e) => setIncludePlan(e.target.checked)}
-              className="mr-2"
+              className="h-4 w-4 rounded border-ak-border bg-ak-surface text-ak-primary focus:ring-ak-primary"
             />
             Include Plan
           </label>
-          <label className="block text-sm font-medium text-ak-text-primary mb-2">
+          <label className="flex items-center gap-2 text-sm font-medium text-ak-text-primary">
             <input
               type="checkbox"
               checked={includeAudit}
               onChange={(e) => setIncludeAudit(e.target.checked)}
-              className="mr-2"
+              className="h-4 w-4 rounded border-ak-border bg-ak-surface text-ak-primary focus:ring-ak-primary"
             />
             Include Audit
           </label>
