@@ -66,7 +66,7 @@ export default function JobsListPage() {
   };
 
   return (
-    <div>
+    <div className="mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8">
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-ak-text-primary mb-4">Jobs</h1>
         <div className="flex gap-4">

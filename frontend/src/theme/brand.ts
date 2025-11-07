@@ -1,37 +1,39 @@
 /**
- * AKIS Brand Asset Paths
- * 
- * Centralized source of truth for brand asset references.
- * All components should import logo paths from here to avoid path inconsistencies.
+ * AKIS Brand Asset Registry
+ *
+ * Tek bir kaynaktan logo yollarını ve meta verilerini sağlar.
+ * Tüm bileşenler bu dosyadan tüketmelidir.
  */
 
-// Primary logo (transparent PNG)
 import logoPng from '../assets/branding/akis-logo.png';
 
 /**
- * Primary logo path (PNG, transparent background)
- * Use this for standard resolution displays
+ * Ana logo (PNG, şeffaf arka plan)
  */
-export const logoPath = logoPng;
+export const AKIS_LOGO_URL = logoPng;
 
 /**
- * High-DPI logo path (PNG @2x, if available)
- * Note: If akis-logo@2x.png exists, it should be imported here
- * For now, using the regular logo for all resolutions
+ * Yüksek DPI varyasyonu hazır olduğunda bu sabite güncellenmelidir.
+ * Şimdilik tek çözünürlük kullanılmaktadır.
  */
-export const logoPath2x: string | null = null;
+export const AKIS_LOGO_2X_URL: string | null = null;
 
 /**
- * Logo alt text
+ * Erişilebilirlik için alt metin
  */
-export const logoAlt = 'AKIS';
+export const AKIS_LOGO_ALT = 'AKIS';
 
 /**
- * Logo default size (height in pixels)
- * Desktop: ~24-28px, Mobile: ~20-24px
+ * Standart yükseklikler (px)
  */
-export const logoDefaultHeight = {
-  desktop: 28, // ~h-7 in Tailwind (28px)
-  mobile: 24,  // ~h-6 in Tailwind (24px)
+export const AKIS_LOGO_DEFAULT_HEIGHT = {
+  desktop: 28,
+  mobile: 24,
 } as const;
+
+/**
+ * Landing kahraman bölümünde önerilen logo yüksekliği (px).
+ * Masaüstünde ~112px (≈ h-28), mobilde daha küçük ölçekte hizalanır.
+ */
+export const AKIS_LOGO_HERO_HEIGHT = 112;
 

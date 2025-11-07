@@ -7,21 +7,21 @@
 
 export const brandTokens = {
   // Primary brand color (logo/accents/focus)
-  primary: '#07D1AF',
-  
+  akPrimary: '#07D1AF',
+
   // Background tokens
-  bg: '#0A1215',           // App/page background
-  
+  akBackground: '#0A1215', // App/page background
+
   // Surface variants for dark UI
-  surface: '#0F181B',      // Near bg, low elevation
-  surface2: '#141D21',     // Slightly lighter for cards/modals
-  
+  akSurface: '#0F181B', // Near bg, low elevation
+  akSurface2: '#141D21', // Slightly lighter for cards/modals
+
   // Text tokens for dark UI
-  textPrimary: '#F5F5F5',  // High-contrast body text (WCAG AA: 15.2:1 on bg)
-  textSecondary: '#B0B0B0', // Muted text (WCAG AA: 7.1:1 on bg)
-  
+  akTextPrimary: '#F5F5F5', // High-contrast body text (WCAG AA: 15.2:1 on bg)
+  akTextSecondary: '#B0B0B0', // Muted text (WCAG AA: 7.1:1 on bg)
+
   // Border token
-  border: '#1F2932',       // Subtle separators
+  akBorder: '#1F2932', // Subtle separators
 } as const;
 
 /**
