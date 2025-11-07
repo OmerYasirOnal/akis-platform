@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
 import { ErrorToast } from '../components/ui/ErrorToast';
+import Button from '../components/common/Button';
 
 export default function NewJobPage() {
   const navigate = useNavigate();
@@ -58,7 +59,7 @@ export default function NewJobPage() {
   };
 
   return (
-    <div>
+    <div className="mx-auto w-full max-w-4xl px-4 sm:px-6 lg:px-8">
       <h1 className="text-2xl font-bold text-ak-text-primary mb-6">Create New Job</h1>
 
       {error && <ErrorToast error={error} onClose={() => setError(null)} />}
@@ -118,21 +119,17 @@ export default function NewJobPage() {
           </div>
         )}
 
-        <div className="flex gap-4">
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="px-4 py-2 bg-ak-primary text-ak-bg rounded-md hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity focus:outline-none focus:ring-2 focus:ring-ak-primary focus:ring-offset-2 focus:ring-offset-ak-bg"
-          >
+        <div className="flex flex-wrap gap-3">
+          <Button type="submit" disabled={isSubmitting}>
             {isSubmitting ? 'Creating...' : 'Create Job'}
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
+            variant="outline"
             onClick={() => navigate('/jobs')}
-            className="px-4 py-2 bg-ak-surface text-ak-text-primary rounded-md hover:bg-ak-surface-2 transition-colors focus:outline-none focus:ring-2 focus:ring-ak-primary focus:ring-offset-2 focus:ring-offset-ak-bg"
           >
             Cancel
-          </button>
+          </Button>
         </div>
       </form>
     </div>
