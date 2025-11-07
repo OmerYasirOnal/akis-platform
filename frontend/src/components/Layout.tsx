@@ -12,7 +12,7 @@ export default function Layout({ children }: LayoutProps) {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16">
             <div className="flex items-center gap-6">
-              <Logo size="default" />
+              <Logo size="md" />
               <Link
                 to="/jobs"
                 className="inline-flex items-center px-4 py-2 text-sm font-medium text-ak-text-primary hover:text-ak-primary transition-colors"

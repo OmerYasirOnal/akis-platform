@@ -144,19 +144,19 @@ export default function JobDetailPage() {
         </div>
       </div>
 
-      {job.payload && (
+      {job.payload ? (
         <div className="mb-6">
           <h2 className="text-lg font-semibold mb-2 text-ak-text-primary">Payload</h2>
           <CodeBlock data={job.payload} />
         </div>
-      )}
+      ) : null}
 
-      {job.result && (
+      {job.result ? (
         <div className="mb-6">
           <h2 className="text-lg font-semibold mb-2 text-ak-text-primary">Result</h2>
           <CodeBlock data={job.result} />
         </div>
-      )}
+      ) : null}
 
       {job.error && (
         <div className="mb-6">
