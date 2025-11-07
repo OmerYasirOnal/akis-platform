@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import logoImage from '../assets/branding/akis-logo.png';
+import logoImage from '../../assets/branding/akis-logo.png';
 
 interface LogoProps {
   /**
