@@ -56,13 +56,7 @@ const LandingPage: React.FC = () => {
 
   return (
     <div className="space-y-24">
-      <section className="relative overflow-hidden">
-        <div className="absolute inset-0 -z-10">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(7,209,175,0.12),_transparent_60%)]" />
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom,_rgba(20,29,33,0.75),_transparent_65%)]" />
-          <div className="absolute inset-0 opacity-30 mix-blend-overlay" />
-        </div>
-
+      <section className="relative overflow-hidden py-16">
         <div className="mx-auto flex max-w-6xl flex-col items-center gap-10 px-4 text-center sm:px-6 lg:px-8">
           <Logo size="hero" className="drop-shadow-[0_35px_55px_rgba(7,209,175,0.25)]" />
           <div className="flex flex-col gap-6">
@@ -142,11 +136,8 @@ const LandingPage: React.FC = () => {
 
       <section
         id="pricing"
-        className="relative isolate overflow-hidden bg-ak-surface py-16"
+        className="bg-ak-surface py-16"
       >
-        <div className="absolute inset-0 -z-10 opacity-70 blur-3xl">
-          <div className="mx-auto h-48 w-3/4 bg-[radial-gradient(circle_at_top,_rgba(7,209,175,0.25),_transparent_60%)]" />
-        </div>
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-6 px-4 text-center sm:flex-row sm:text-left sm:px-6 lg:px-8">
           <div>
             <h2 className="text-2xl font-semibold text-ak-text-primary sm:text-3xl">
