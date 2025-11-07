@@ -5,7 +5,7 @@ interface TableProps {
 export function Table({ children }: TableProps) {
   return (
     <div className="overflow-x-auto">
-      <table className="min-w-full divide-y divide-gray-200">{children}</table>
+      <table className="min-w-full divide-y divide-ak-border">{children}</table>
     </div>
   );
 }
@@ -15,7 +15,7 @@ interface TableHeaderProps {
 }
 
 export function TableHeader({ children }: TableHeaderProps) {
-  return <thead className="bg-gray-50">{children}</thead>;
+  return <thead className="bg-ak-surface">{children}</thead>;
 }
 
 interface TableRowProps {
@@ -33,7 +33,7 @@ interface TableHeadProps {
 
 export function TableHead({ children }: TableHeadProps) {
   return (
-    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+    <th className="px-6 py-3 text-left text-xs font-medium text-ak-text-secondary uppercase tracking-wider">
       {children}
     </th>
   );
@@ -44,7 +44,7 @@ interface TableBodyProps {
 }
 
 export function TableBody({ children }: TableBodyProps) {
-  return <tbody className="bg-white divide-y divide-gray-200">{children}</tbody>;
+  return <tbody className="bg-ak-surface-2 divide-y divide-ak-border">{children}</tbody>;
 }
 
 interface TableCellProps {

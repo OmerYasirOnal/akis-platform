@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { HttpClient, ApiError } from '../HttpClient';
+import { HttpClient } from '../HttpClient';
 
 // Mock fetch
 global.fetch = vi.fn();

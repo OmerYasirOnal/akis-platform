@@ -59,17 +59,17 @@ export default function NewJobPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">Create New Job</h1>
+      <h1 className="text-2xl font-bold text-ak-text-primary mb-6">Create New Job</h1>
 
       {error && <ErrorToast error={error} onClose={() => setError(null)} />}
 
-      <form onSubmit={handleSubmit} className="bg-white shadow rounded-lg p-6">
+      <form onSubmit={handleSubmit} className="bg-ak-surface-2 shadow rounded-lg p-6 border border-ak-border">
         <div className="mb-4">
-          <label className="block text-sm font-medium text-gray-700 mb-2">Job Type</label>
+          <label className="block text-sm font-medium text-ak-text-primary mb-2">Job Type</label>
           <select
             value={jobType}
             onChange={(e) => setJobType(e.target.value as typeof jobType)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md"
+            className="w-full px-3 py-2 bg-ak-surface border border-ak-border text-ak-text-primary rounded-md focus:outline-none focus:ring-2 focus:ring-ak-primary focus:ring-offset-2 focus:ring-offset-ak-bg"
           >
             <option value="scribe">Scribe (Documentation)</option>
             <option value="trace">Trace (Test Generation)</option>
@@ -79,12 +79,12 @@ export default function NewJobPage() {
 
         {jobType === 'scribe' && (
           <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-2">Document Content</label>
+            <label className="block text-sm font-medium text-ak-text-primary mb-2">Document Content</label>
             <textarea
               value={doc}
               onChange={(e) => setDoc(e.target.value)}
               rows={10}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md"
+              className="w-full px-3 py-2 bg-ak-surface border border-ak-border text-ak-text-primary rounded-md focus:outline-none focus:ring-2 focus:ring-ak-primary focus:ring-offset-2 focus:ring-offset-ak-bg placeholder:text-ak-text-secondary"
               placeholder="Enter document content to process..."
               required
             />
@@ -93,12 +93,12 @@ export default function NewJobPage() {
 
         {jobType === 'trace' && (
           <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-2">Specification</label>
+            <label className="block text-sm font-medium text-ak-text-primary mb-2">Specification</label>
             <textarea
               value={spec}
               onChange={(e) => setSpec(e.target.value)}
               rows={10}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md"
+              className="w-full px-3 py-2 bg-ak-surface border border-ak-border text-ak-text-primary rounded-md focus:outline-none focus:ring-2 focus:ring-ak-primary focus:ring-offset-2 focus:ring-offset-ak-bg placeholder:text-ak-text-secondary"
               placeholder="Enter test specification..."
               required
             />
@@ -107,12 +107,12 @@ export default function NewJobPage() {
 
         {jobType === 'proto' && (
           <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-2">Goal</label>
+            <label className="block text-sm font-medium text-ak-text-primary mb-2">Goal</label>
             <textarea
               value={goal}
               onChange={(e) => setGoal(e.target.value)}
               rows={5}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md"
+              className="w-full px-3 py-2 bg-ak-surface border border-ak-border text-ak-text-primary rounded-md focus:outline-none focus:ring-2 focus:ring-ak-primary focus:ring-offset-2 focus:ring-offset-ak-bg placeholder:text-ak-text-secondary"
               placeholder="Enter prototype goal or requirements..."
             />
           </div>
@@ -122,14 +122,14 @@ export default function NewJobPage() {
           <button
             type="submit"
             disabled={isSubmitting}
-            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-4 py-2 bg-ak-primary text-ak-bg rounded-md hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity focus:outline-none focus:ring-2 focus:ring-ak-primary focus:ring-offset-2 focus:ring-offset-ak-bg"
           >
             {isSubmitting ? 'Creating...' : 'Create Job'}
           </button>
           <button
             type="button"
             onClick={() => navigate('/jobs')}
-            className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300"
+            className="px-4 py-2 bg-ak-surface text-ak-text-primary rounded-md hover:bg-ak-surface-2 transition-colors focus:outline-none focus:ring-2 focus:ring-ak-primary focus:ring-offset-2 focus:ring-offset-ak-bg"
           >
             Cancel
           </button>
