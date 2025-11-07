@@ -29,7 +29,7 @@ export default function BrandingPage() {
 
         {/* Logo Section */}
         <section className="space-y-4">
-          <h2 className="text-2xl font-semibold text-ak-text-primary">Logo</h2>
+          <h2 className="text-2xl font-semibold text-ak-text-primary">Logo (PNG)</h2>
           <div className="bg-ak-bg p-8 rounded-lg border border-ak-border flex items-center justify-center">
             <Logo size="lg" linkToHome={false} />
           </div>
@@ -44,6 +44,27 @@ export default function BrandingPage() {
               <Logo size="lg" linkToHome={false} />
             </div>
           </div>
+          <p className="text-sm text-ak-text-secondary">
+            Logo sizes: sm (~20px), default (~24-28px), lg (~36px). Transparent PNG format.
+          </p>
+        </section>
+
+        {/* Header Sample */}
+        <section className="space-y-4">
+          <h2 className="text-2xl font-semibold text-ak-text-primary">Header Sample</h2>
+          <div className="bg-ak-surface border-b border-ak-border">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+              <div className="flex justify-between h-16">
+                <div className="flex items-center gap-6">
+                  <Logo size="default" />
+                  <div className="text-sm font-medium text-ak-text-primary">Navigation Item</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <p className="text-sm text-ak-text-secondary">
+            Header uses <code className="text-ak-primary">ak-surface</code> background with logo at default size (~24-28px).
+          </p>
         </section>
 
         {/* Color Tokens Table */}
