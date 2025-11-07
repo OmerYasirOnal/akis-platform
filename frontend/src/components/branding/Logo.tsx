@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import logoImage from '../../assets/branding/akis-logo.png';
+import { logoPath, logoPath2x, logoAlt } from '../../theme/brand';
 
 interface LogoProps {
   /**
@@ -24,31 +24,34 @@ interface LogoProps {
  * AKIS Logo Component
  * 
  * Renders the official AKIS logo with transparent background.
- * Respects safe area around the mark (≥ 8px padding).
+ * Default size: ~24-28px height on desktop, ~20-24px on mobile.
+ * Respects safe area around the mark (≥ 8-12px padding).
  */
 export default function Logo({ 
   size = 'default', 
   linkToHome = true,
   className = '' 
 }: LogoProps) {
+  // Size classes: sm ~20px, default ~24-28px, lg ~36px
   const sizeClasses = {
-    sm: 'h-6 w-auto',
-    default: 'h-8 w-auto',
-    lg: 'h-12 w-auto',
+    sm: 'h-5 w-auto',      // ~20px mobile
+    default: 'h-7 w-auto',  // ~28px desktop (24-28px range)
+    lg: 'h-9 w-auto',       // ~36px large
   };
 
   const logoElement = (
     <img
-      src={logoImage}
-      alt="AKIS Platform"
+      src={logoPath}
+      srcSet={logoPath2x ? `${logoPath} 1x, ${logoPath2x} 2x` : undefined}
+      alt={logoAlt}
       className={`${sizeClasses[size]} ${className}`}
-      style={{ padding: '8px 0' }}
+      style={{ padding: '8px 12px 8px 0' }} // Safe area: top/bottom 8px, right 12px
     />
   );
 
   if (linkToHome) {
     return (
-      <Link to="/jobs" className="inline-flex items-center">
+      <Link to="/" className="inline-flex items-center">
         {logoElement}
       </Link>
     );
