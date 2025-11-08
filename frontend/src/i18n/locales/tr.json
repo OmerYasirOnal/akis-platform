@@ -1,0 +1,10 @@
+{
+  "app.title": "AKIS Platformu",
+  "app.tagline": "Daha hızlı üret, daha az endişelen.",
+  "nav.home": "Ana sayfa",
+  "nav.dashboard": "Kontrol paneli",
+  "cta.getStarted": "Hemen başla",
+  "status.loading": "Yükleniyor...",
+  "status.error": "Bir şeyler ters gitti."
+}
+

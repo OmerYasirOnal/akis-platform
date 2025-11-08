@@ -1,0 +1,10 @@
+{
+  "app.title": "AKIS Platform",
+  "app.tagline": "Build faster, worry less.",
+  "nav.home": "Home",
+  "nav.dashboard": "Dashboard",
+  "cta.getStarted": "Get started",
+  "status.loading": "Loading...",
+  "status.error": "Something went wrong."
+}
+
