@@ -1,19 +1,24 @@
+import { cn } from "../../utils/cn";
+
+type PillType = "scribe" | "trace" | "proto";
+
 interface PillProps {
-  type: 'scribe' | 'trace' | 'proto';
+  type: PillType;
 }
 
-const typeColors = {
-  scribe: 'bg-purple-100 text-purple-800',
-  trace: 'bg-indigo-100 text-indigo-800',
-  proto: 'bg-pink-100 text-pink-800',
+const typeStyles: Record<PillType, { dot: string; label: string }> = {
+  scribe: { dot: "bg-ak-primary", label: "Scribe" },
+  trace: { dot: "bg-ak-primary/80", label: "Trace" },
+  proto: { dot: "bg-ak-primary/60", label: "Proto" },
 };
 
 export function Pill({ type }: PillProps) {
+  const style = typeStyles[type];
+
   return (
-    <span
-      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${typeColors[type]}`}
-    >
-      {type}
+    <span className="inline-flex items-center gap-2 rounded-full border border-ak-border bg-ak-surface px-3 py-1 text-xs font-medium uppercase tracking-wide text-ak-text-primary">
+      <span className={cn("h-1.5 w-1.5 rounded-full", style.dot)} aria-hidden />
+      {style.label}
     </span>
   );
 }

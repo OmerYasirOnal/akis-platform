@@ -91,7 +91,7 @@ const Signup: React.FC = () => {
   };
 
   return (
-    <div className="mx-auto flex max-w-6xl flex-col items-center gap-16 px-4 text-left sm:px-6 lg:px-8">
+    <div className="mx-auto flex w-full max-w-6xl flex-col items-center gap-16 bg-ak-bg px-4 py-16 text-left sm:px-6 lg:px-8">
       <div className="flex w-full max-w-lg flex-col gap-3 text-center">
         <p className="text-xs font-semibold uppercase tracking-[0.25em] text-ak-text-secondary/80">
           Hemen katıl
@@ -104,7 +104,7 @@ const Signup: React.FC = () => {
         </p>
       </div>
 
-      <Card className="w-full max-w-lg space-y-6 bg-ak-surface-2">
+      <Card className="w-full max-w-lg space-y-6">
         <form className="space-y-6" noValidate onSubmit={handleSubmit}>
           <Input
             label="İsim"
@@ -142,7 +142,7 @@ const Signup: React.FC = () => {
             rightElement={
               <button
                 type="button"
-                className="text-xs font-medium uppercase tracking-wide text-ak-text-secondary transition-colors hover:text-ak-primary"
+                className="rounded-lg text-xs font-medium uppercase tracking-wide text-ak-text-secondary transition-colors hover:text-ak-primary focus:outline-none focus:ring-2 focus:ring-ak-primary focus:ring-offset-0"
                 onClick={() => setShowPassword((prev) => !prev)}
               >
                 {showPassword ? 'Gizle' : 'Göster'}
@@ -166,7 +166,7 @@ const Signup: React.FC = () => {
             rightElement={
               <button
                 type="button"
-                className="text-xs font-medium uppercase tracking-wide text-ak-text-secondary transition-colors hover:text-ak-primary"
+                className="rounded-lg text-xs font-medium uppercase tracking-wide text-ak-text-secondary transition-colors hover:text-ak-primary focus:outline-none focus:ring-2 focus:ring-ak-primary focus:ring-offset-0"
                 onClick={() => setShowConfirmPassword((prev) => !prev)}
               >
                 {showConfirmPassword ? 'Gizle' : 'Göster'}
@@ -178,7 +178,7 @@ const Signup: React.FC = () => {
             <label className="flex items-start gap-3 text-sm text-ak-text-secondary">
               <input
                 type="checkbox"
-                className="mt-1 h-4 w-4 rounded border-ak-border bg-ak-surface text-ak-primary focus:ring-ak-primary"
+                className="mt-1 h-4 w-4 rounded border-ak-border bg-ak-surface text-ak-primary focus:outline-none focus:ring-2 focus:ring-ak-primary focus:ring-offset-0"
                 checked={form.termsAccepted}
                 onChange={(event) =>
                   setForm((prev) => ({
@@ -193,7 +193,7 @@ const Signup: React.FC = () => {
                 </span>
                 <Link
                   to="#"
-                  className="font-medium text-ak-primary transition-colors hover:text-ak-text-primary"
+                className="font-medium text-ak-primary transition-colors hover:text-ak-text-primary focus:outline-none focus:ring-2 focus:ring-ak-primary focus:ring-offset-2 focus:ring-offset-ak-bg"
                   title="Dokümantasyon yakında yayınlanacak"
                 >
                   gizlilik politikasını
@@ -202,7 +202,7 @@ const Signup: React.FC = () => {
               </span>
             </label>
             {errors.terms ? (
-              <p className="text-xs text-red-400">{errors.terms}</p>
+              <p className="text-xs text-ak-danger">{errors.terms}</p>
             ) : null}
           </div>
 
@@ -215,7 +215,7 @@ const Signup: React.FC = () => {
           Zaten hesabın var mı?{' '}
           <Link
             to="/login"
-            className="font-medium text-ak-primary transition-colors hover:text-ak-text-primary"
+            className="font-medium text-ak-primary transition-colors hover:text-ak-text-primary focus:outline-none focus:ring-2 focus:ring-ak-primary focus:ring-offset-2 focus:ring-offset-ak-bg"
           >
             Hemen giriş yap
           </Link>

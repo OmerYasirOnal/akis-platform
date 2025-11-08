@@ -8,13 +8,14 @@ export default {
   theme: {
     extend: {
       colors: {
-        'ak-primary': '#07D1AF',
         'ak-bg': '#0A1215',
-        'ak-surface': '#0F181B',
-        'ak-surface-2': '#141D21',
-        'ak-text-primary': '#F5F5F5',
-        'ak-text-secondary': '#B0B0B0',
-        'ak-border': '#1F2932',
+        'ak-primary': '#07D1AF',
+        'ak-surface': '#0D171B',
+        'ak-surface-2': '#122027',
+        'ak-text-primary': '#E9F1F3',
+        'ak-text-secondary': '#A9B6BB',
+        'ak-border': '#1A262C',
+        'ak-danger': '#FF6B6B',
       },
     },
   },

@@ -82,7 +82,7 @@ const Login: React.FC = () => {
   };
 
   return (
-    <div className="mx-auto flex max-w-6xl flex-col items-center gap-16 px-4 text-left sm:px-6 lg:px-8">
+    <div className="mx-auto flex w-full max-w-6xl flex-col items-center gap-16 bg-ak-bg px-4 py-16 text-left sm:px-6 lg:px-8">
       <div className="flex w-full max-w-lg flex-col gap-3 text-center">
         <p className="text-xs font-semibold uppercase tracking-[0.25em] text-ak-text-secondary/80">
           Hoş geldin
@@ -95,9 +95,9 @@ const Login: React.FC = () => {
         </p>
       </div>
 
-      <Card className="w-full max-w-lg space-y-6 bg-ak-surface-2">
+      <Card className="w-full max-w-lg space-y-6">
         {[alertMessage, authError].some(Boolean) ? (
-          <div className="rounded-xl border border-ak-border bg-ak-surface px-4 py-3 text-sm text-ak-text-primary">
+          <div className="rounded-xl border border-ak-border bg-ak-surface-2 px-4 py-3 text-sm text-ak-text-primary">
             {authError ?? alertMessage}
           </div>
         ) : null}
@@ -133,7 +133,7 @@ const Login: React.FC = () => {
             rightElement={
               <button
                 type="button"
-                className="text-xs font-medium uppercase tracking-wide text-ak-text-secondary transition-colors hover:text-ak-primary"
+                className="rounded-lg text-xs font-medium uppercase tracking-wide text-ak-text-secondary transition-colors hover:text-ak-primary focus:outline-none focus:ring-2 focus:ring-ak-primary focus:ring-offset-0"
                 onClick={() => setShowPassword((prev) => !prev)}
               >
                 {showPassword ? 'Gizle' : 'Göster'}
@@ -160,7 +160,7 @@ const Login: React.FC = () => {
           AKIS’e yeni misin?{' '}
           <Link
             to="/signup"
-            className="font-medium text-ak-primary transition-colors hover:text-ak-text-primary"
+            className="font-medium text-ak-primary transition-colors hover:text-ak-text-primary focus:outline-none focus:ring-2 focus:ring-ak-primary focus:ring-offset-2 focus:ring-offset-ak-bg"
           >
             Hemen hesap oluştur
           </Link>
