@@ -116,7 +116,7 @@ export default function JobsListPage() {
               {jobs.map((job) => (
                 <TableRow key={job.id} className="hover:bg-ak-surface">
                   <TableCell>
-                    <Link to={`/jobs/${job.id}`} className="text-ak-primary hover:text-ak-text-primary transition-colors">
+                    <Link to={`/dashboard/jobs/${job.id}`} className="text-ak-primary hover:text-ak-text-primary transition-colors">
                       {job.id.slice(0, 8)}...
                     </Link>
                   </TableCell>

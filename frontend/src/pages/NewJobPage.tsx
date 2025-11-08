@@ -45,7 +45,7 @@ export default function NewJobPage() {
         payload,
       });
 
-      navigate(`/jobs/${response.jobId}`);
+      navigate(`/dashboard/jobs/${response.jobId}`);
     } catch (err: unknown) {
       const apiError = err as { message?: string; code?: string; requestId?: string };
       setError({
@@ -126,7 +126,7 @@ export default function NewJobPage() {
           <Button
             type="button"
             variant="outline"
-            onClick={() => navigate('/jobs')}
+            onClick={() => navigate('/dashboard/jobs')}
           >
             Cancel
           </Button>

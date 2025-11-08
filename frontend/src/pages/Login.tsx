@@ -33,8 +33,9 @@ const Login: React.FC = () => {
   };
 
   const authState = location.state as AuthLocationState | null;
-  const redirectPath = authState?.from?.pathname ?? '/jobs';
+  const redirectPath = authState?.from?.pathname ?? '/dashboard';
   const alertMessage = authState?.message ?? null;
+  const [authError, setAuthError] = React.useState<string | null>(null);
 
   const validate = React.useCallback(() => {
     const nextErrors: LoginErrors = {};
@@ -64,11 +65,20 @@ const Login: React.FC = () => {
     }
 
     setIsSubmitting(true);
+    setAuthError(null);
 
-    // UI-only placeholder: backend is not called.
-    await new Promise((resolve) => setTimeout(resolve, 300));
-    login();
-    navigate(redirectPath, { replace: true });
+    try {
+      const result = await login(form.email, form.password);
+
+      if (!result.success) {
+        setAuthError(result.message);
+        return;
+      }
+
+      navigate(redirectPath, { replace: true });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -85,10 +95,10 @@ const Login: React.FC = () => {
         </p>
       </div>
 
-      <Card className="w-full max-w-lg space-y-6 bg-ak-surface">
-        {alertMessage ? (
-          <div className="rounded-xl border border-ak-border/70 bg-ak-surface-2 px-4 py-3 text-sm text-ak-text-primary">
-            {alertMessage}
+      <Card className="w-full max-w-lg space-y-6 bg-ak-surface-2">
+        {[alertMessage, authError].some(Boolean) ? (
+          <div className="rounded-xl border border-ak-border bg-ak-surface px-4 py-3 text-sm text-ak-text-primary">
+            {authError ?? alertMessage}
           </div>
         ) : null}
         <form className="space-y-6" onSubmit={handleSubmit} noValidate>
@@ -150,7 +160,7 @@ const Login: React.FC = () => {
           AKIS’e yeni misin?{' '}
           <Link
             to="/signup"
-            className="font-medium text-ak-primary transition-colors hover:text-[#0AE0C0]"
+            className="font-medium text-ak-primary transition-colors hover:text-ak-text-primary"
           >
             Hemen hesap oluştur
           </Link>
