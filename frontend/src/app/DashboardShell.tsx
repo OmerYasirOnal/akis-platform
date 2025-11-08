@@ -1,5 +1,6 @@
+import { useEffect, useRef, useState } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
-import { useAuth } from '../auth/AuthContext';
+import { useAuth } from '../state/auth/AuthContext';
 import Button from '../components/common/Button';
 
 const dashboardLinks = [
@@ -25,7 +26,28 @@ const settingsLinks = [
 ];
 
 const DashboardShell = () => {
-  const { session, logout } = useAuth();
+  const { user, logout } = useAuth();
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const isMountedRef = useRef(true);
+
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
+  const workspaceLabel = user?.email ?? 'AKIS Team';
+
+  const handleLogout = async () => {
+    setIsLoggingOut(true);
+    try {
+      await logout();
+    } finally {
+      if (isMountedRef.current) {
+        setIsLoggingOut(false);
+      }
+    }
+  };
 
   return (
     <div className="flex min-h-screen bg-ak-bg text-ak-text-primary">
@@ -34,10 +56,8 @@ const DashboardShell = () => {
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-ak-text-secondary/70">
             Workspace
           </p>
-          <p className="text-lg font-semibold text-ak-text-primary">
-            {session?.displayName ?? 'AKIS Team'}
-          </p>
-          <p className="text-sm text-ak-text-secondary">{session?.email}</p>
+          <p className="text-lg font-semibold text-ak-text-primary">{workspaceLabel}</p>
+          <p className="text-sm text-ak-text-secondary">{user?.email}</p>
         </div>
 
         <nav className="space-y-6 text-sm font-medium">
@@ -121,9 +141,10 @@ const DashboardShell = () => {
           <Button
             variant="outline"
             className="w-full justify-center"
-            onClick={logout}
+            onClick={handleLogout}
+            disabled={isLoggingOut}
           >
-            Logout
+            {isLoggingOut ? 'Çıkış yapılıyor...' : 'Logout'}
           </Button>
         </div>
       </aside>
@@ -133,17 +154,18 @@ const DashboardShell = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-ak-text-primary">
-                {session?.displayName ?? 'AKIS Team'}
+                {workspaceLabel}
               </p>
-              <p className="text-xs text-ak-text-secondary">{session?.email}</p>
+              <p className="text-xs text-ak-text-secondary">{user?.email}</p>
             </div>
             <Button
               size="md"
               variant="outline"
               className="px-4 text-sm"
-              onClick={logout}
+              onClick={handleLogout}
+              disabled={isLoggingOut}
             >
-              Logout
+              {isLoggingOut ? 'Çıkış...' : 'Logout'}
             </Button>
           </div>
         </div>
