@@ -1,6 +1,6 @@
 /**
  * AKIS Brand Asset Registry
- *
+ * 
  * Tek bir kaynaktan logo yollarını ve meta verilerini sağlar.
  * Tüm bileşenler bu dosyadan tüketmelidir.
  */

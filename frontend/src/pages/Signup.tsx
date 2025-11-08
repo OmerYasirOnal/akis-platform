@@ -17,7 +17,7 @@ const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const Signup: React.FC = () => {
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { signup } = useAuth();
   const [form, setForm] = React.useState({
     name: '',
     email: '',
@@ -78,9 +78,16 @@ const Signup: React.FC = () => {
     }
 
     setIsSubmitting(true);
-    await new Promise((resolve) => setTimeout(resolve, 350));
-    login();
-    navigate('/jobs', { replace: true });
+    try {
+      await signup({
+        email: form.email,
+        name: form.name,
+        password: form.password,
+      });
+      navigate('/dashboard', { replace: true });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -97,7 +104,7 @@ const Signup: React.FC = () => {
         </p>
       </div>
 
-      <Card className="w-full max-w-lg space-y-6 bg-ak-surface">
+      <Card className="w-full max-w-lg space-y-6 bg-ak-surface-2">
         <form className="space-y-6" noValidate onSubmit={handleSubmit}>
           <Input
             label="İsim"
@@ -186,7 +193,7 @@ const Signup: React.FC = () => {
                 </span>
                 <Link
                   to="#"
-                  className="font-medium text-ak-primary transition-colors hover:text-[#0AE0C0]"
+                  className="font-medium text-ak-primary transition-colors hover:text-ak-text-primary"
                   title="Dokümantasyon yakında yayınlanacak"
                 >
                   gizlilik politikasını
@@ -208,7 +215,7 @@ const Signup: React.FC = () => {
           Zaten hesabın var mı?{' '}
           <Link
             to="/login"
-            className="font-medium text-ak-primary transition-colors hover:text-[#0AE0C0]"
+            className="font-medium text-ak-primary transition-colors hover:text-ak-text-primary"
           >
             Hemen giriş yap
           </Link>
