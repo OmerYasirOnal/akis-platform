@@ -13,15 +13,18 @@ export const brandTokens = {
   akBackground: '#0A1215', // App/page background
   
   // Surface variants for dark UI
-  akSurface: '#0F181B', // Near bg, low elevation
-  akSurface2: '#141D21', // Slightly lighter for cards/modals
+  akSurface: '#0D171B', // Near bg, low elevation
+  akSurface2: '#122027', // Slightly lighter for cards/modals
   
   // Text tokens for dark UI
-  akTextPrimary: '#F5F5F5', // High-contrast body text (WCAG AA: 15.2:1 on bg)
-  akTextSecondary: '#B0B0B0', // Muted text (WCAG AA: 7.1:1 on bg)
+  akTextPrimary: '#E9F1F3', // High-contrast body text (WCAG AA: 15.2:1 on bg)
+  akTextSecondary: '#A9B6BB', // Muted text (WCAG AA: 7.1:1 on bg)
   
   // Border token
-  akBorder: '#1F2932', // Subtle separators
+  akBorder: '#1A262C', // Subtle separators
+
+  // Status tokens
+  akDanger: '#FF6B6B',
 } as const;
 
 /**
