@@ -31,6 +31,15 @@ AKIS Platform, yazılım geliştirme süreçlerindeki tekrarlayan görevleri oto
 - `/login` ve `/signup` kartları `ak-surface-2`, focus ring `ak-primary`; demo roller (`admin`, `member`) UI üzerinden doğrulanır.
 - Docs güncellemeleri: IA, Design System, Auth notları Phase 9.1 temasıyla senkron.
 
+## Roadmap
+
+- [Epic] [#24 Phase 9.2 — i18n & Theming Foundations](https://github.com/OmerYasirOnal/akis-platform-devolopment/issues/24)
+- [Frontend] [#25 Phase 9.2 — i18n (TR/EN) enablement](https://github.com/OmerYasirOnal/akis-platform-devolopment/issues/25)
+- [Frontend] [#26 Phase 9.2 — Theme toggle (Dark/Light)](https://github.com/OmerYasirOnal/akis-platform-devolopment/issues/26)
+- [Branding] [#27 Phase 9.2 — High-res logo rollout (@2x/@3x, retina-crisp)](https://github.com/OmerYasirOnal/akis-platform-devolopment/issues/27)
+- [Frontend] [#28 Phase 9.2 — Subtle cursor/spotlight effects (GPU-friendly)](https://github.com/OmerYasirOnal/akis-platform-devolopment/issues/28)
+- [Quality] [#29 Phase 9.2 — Lint: exhaustive-deps cleanup](https://github.com/OmerYasirOnal/akis-platform-devolopment/issues/29)
+
 ## Geliştirme
 
 ### Backend
