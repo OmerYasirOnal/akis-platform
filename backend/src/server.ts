@@ -1,9 +1,9 @@
-import helmet from '@fastify/helmet';
 import rateLimit from '@fastify/rate-limit';
 import { buildApp } from './server.app.js';
 import { getEnv } from './config/env.js';
 import { corsPlugin } from './plugins/security/cors.js';
 import { cookiesPlugin } from './plugins/security/cookies.js';
+import { helmetPlugin } from './plugins/security/helmet.js';
 
 const env = getEnv();
 const app = await buildApp();
@@ -11,9 +11,8 @@ const app = await buildApp();
 const jsonParser = app.getDefaultJsonParser('error', 'ignore');
 app.addContentTypeParser('application/json', { parseAs: 'string' }, jsonParser);
 
-await app.register(helmet, {
-  contentSecurityPolicy: env.NODE_ENV === 'production',
-  crossOriginResourcePolicy: { policy: 'same-origin' },
+await app.register(helmetPlugin, {
+  enableCSP: env.NODE_ENV === 'production',
 });
 
 await app.register(rateLimit, {
