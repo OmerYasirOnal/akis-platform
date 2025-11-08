@@ -1,69 +1,61 @@
-import { Link } from 'react-router-dom';
+import { Link } from "react-router-dom";
 import {
-  AKIS_LOGO_ALT,
-  AKIS_LOGO_URL,
-  AKIS_LOGO_2X_URL,
-} from '../../theme/brand';
+  LOGO_ALT,
+  LOGO_PNG_HERO,
+  LOGO_SIZES,
+  type LogoSize,
+} from "../../theme/brand";
+import { cn } from "../../utils/cn";
 
 interface LogoProps {
   /**
-   * Size variant for the logo
-   * @default 'default'
+   * Logo boyutu
+   * @default 'nav'
    */
-  size?: 'sm' | 'default' | 'lg' | 'hero';
-  
+  size?: LogoSize;
   /**
-   * Whether to wrap the logo in a Link to home
+   * Logoyu ana sayfaya bağla
    * @default true
    */
   linkToHome?: boolean;
-  
   /**
-   * Additional CSS classes
+   * Ek CSS sınıfları
    */
   className?: string;
 }
 
-/**
- * AKIS Logo Component
- * 
- * Renders the official AKIS logo with transparent background.
- * Default size: ~24-28px height on desktop, ~20-24px on mobile.
- * Respects safe area around the mark (≥ 8-12px padding).
- */
-export default function Logo({ 
-  size = 'default', 
-  linkToHome = true,
-  className = '' 
-}: LogoProps) {
-  // Size classes: sm ~20px, default ~24-28px, lg ~36px
-  const sizeClasses = {
-    sm: 'h-5 w-auto',      // ~20px mobile
-    default: 'h-7 w-auto',  // ~28px desktop (24-28px range)
-    lg: 'h-9 w-auto',       // ~36px large
-    hero: 'h-28 w-auto sm:h-32', // ~112-128px hero
-  };
+const LOGO_SRC = new URL(LOGO_PNG_HERO, import.meta.url).href;
 
-  const paddingClass = size === 'hero' ? '' : 'py-2 pr-4';
+export default function Logo({
+  size = "nav",
+  linkToHome = true,
+  className,
+}: LogoProps) {
+  const height = LOGO_SIZES[size];
+  const computedStyle =
+    size === "hero"
+      ? { height: "clamp(72px, 12vw, 112px)" }
+      : { height: `${height}px` };
 
   const logoElement = (
     <img
-      src={AKIS_LOGO_URL}
-      srcSet={AKIS_LOGO_2X_URL ? `${AKIS_LOGO_URL} 1x, ${AKIS_LOGO_2X_URL} 2x` : undefined}
-      alt={AKIS_LOGO_ALT}
-      className={`${sizeClasses[size]} ${paddingClass} ${className}`.trim()}
-      loading="lazy"
+      src={LOGO_SRC}
+      alt={LOGO_ALT}
+      className={cn("w-auto", className)}
+      style={computedStyle}
+      loading={size === "hero" ? "eager" : "lazy"}
+      decoding="async"
     />
   );
 
-  if (linkToHome) {
-    return (
-      <Link to="/" className="inline-flex items-center">
-        {logoElement}
-      </Link>
-    );
+  if (!linkToHome) {
+    return logoElement;
   }
 
-  return logoElement;
+  return (
+    <Link to="/" className="inline-flex items-center justify-center">
+      {logoElement}
+    </Link>
+  );
 }
 

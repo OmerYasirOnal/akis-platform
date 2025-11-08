@@ -17,7 +17,7 @@ export default function RequireAuth({ children }: RequireAuthProps) {
         replace
         state={{
           from: location,
-          message: 'Please sign in to continue',
+          message: 'Bu AKIS alanı korumalı — devam etmek için lütfen giriş yap.',
         }}
       />
     );

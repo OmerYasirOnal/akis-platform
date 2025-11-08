@@ -9,6 +9,16 @@ Bu dokümantasyon, AKIS Platform'un Phase 9 Authentication ve Role-Based Access 
 - RBAC guard mekanizması
 - Frontend session state yönetimi
 
+## Phase 9.1 Güncellemeleri (Frontend UI)
+
+- **Demo kullanıcı rolleri:** `admin@example.com / admin123` → `admin`, `user@example.com / user123` → `member`. `frontend/src/auth/AuthContext.tsx` içindeki `DEMO_USERS` sözlüğü tek kaynaktır.
+- **Session saklama:** Başarılı girişte `localStorage` (`akis-auth-state`) kaydı yapılır; logout tüm alanları temizler.
+- **UI teması:** `/login` ve `/signup` sayfaları `bg-ak-bg` tam sayfa, form kartları `bg-ak-surface-2 border-ak-border`, odak halkaları `ak-primary`.
+- **Redirect mesajı:** `RequireAuth` koruması, yetkisiz erişim isteğini `/login`'e yönlendirirken `state.message` ile “Bu AKIS alanı korumalı...” uyarısını kart üstünde gösterir.
+- **Form erişilebilirliği:** Input bileşeni `focus:ring-2 focus:ring-ak-primary/70`, toggle düğmeleri `focus:ring-ak-primary`, checkbox `focus:ring-2` ile güncellendi.
+- **Signup akışı:** Demo kayıt `member` rolüyle oturum açar ve başarıyla `/dashboard`'a yönlendirir.
+- **UI-only:** Phase 9.1 backend entegrasyonu gerçekleştirmez; demo akışı exclusively frontend üzerinde çalışır.
+
 ## Akış Diyagramı
 
 ```

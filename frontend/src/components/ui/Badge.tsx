@@ -1,20 +1,50 @@
+import { cn } from "../../utils/cn";
+
+type BadgeState = "pending" | "running" | "completed" | "failed";
+
 interface BadgeProps {
-  state: 'pending' | 'running' | 'completed' | 'failed';
+  state: BadgeState;
 }
 
-const stateColors = {
-  pending: 'bg-yellow-100 text-yellow-800',
-  running: 'bg-blue-100 text-blue-800',
-  completed: 'bg-green-100 text-green-800',
-  failed: 'bg-red-100 text-red-800',
+const stateStyles: Record<
+  BadgeState,
+  { container: string; dot: string; label: string }
+> = {
+  pending: {
+    container:
+      "border border-dashed border-ak-border text-ak-text-secondary",
+    dot: "bg-ak-text-secondary",
+    label: "Pending",
+  },
+  running: {
+    container: "border border-ak-primary/40 text-ak-primary",
+    dot: "bg-ak-primary",
+    label: "Running",
+  },
+  completed: {
+    container: "border border-ak-primary text-ak-primary",
+    dot: "bg-ak-primary",
+    label: "Completed",
+  },
+  failed: {
+    container: "border border-ak-border text-ak-text-primary",
+    dot: "bg-ak-text-primary",
+    label: "Failed",
+  },
 };
 
 export function Badge({ state }: BadgeProps) {
+  const theme = stateStyles[state];
+
   return (
     <span
-      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${stateColors[state]}`}
+      className={cn(
+        "inline-flex items-center gap-2 rounded-full bg-ak-surface px-3 py-1 text-xs font-medium uppercase tracking-wide",
+        theme.container
+      )}
     >
-      {state}
+      <span className={cn("h-1.5 w-1.5 rounded-full", theme.dot)} aria-hidden />
+      {theme.label}
     </span>
   );
 }

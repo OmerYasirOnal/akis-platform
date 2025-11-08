@@ -71,7 +71,7 @@ export default function JobDetailPage() {
       <>
         <ErrorToast error={error} onClose={() => setError(null)} />
         <div className={`${containerClass} py-12 text-center`}>
-          <p className="text-red-400">{error.message}</p>
+          <p className="text-ak-danger">{error.message}</p>
           <Link to="/jobs" className="text-ak-primary hover:text-ak-text-primary mt-4 inline-block">
             ← Back to Jobs
           </Link>
@@ -162,9 +162,9 @@ export default function JobDetailPage() {
 
       {job.error && (
         <div className="mb-6">
-          <h2 className="text-lg font-semibold mb-2 text-red-400">Error</h2>
-          <div className="rounded-lg border border-red-500 bg-ak-surface p-4">
-            <p className="text-red-300">{job.error}</p>
+          <h2 className="mb-2 text-lg font-semibold text-ak-danger">Error</h2>
+          <div className="rounded-lg border border-ak-danger/70 bg-ak-surface p-4">
+            <p className="text-ak-danger">{job.error}</p>
           </div>
         </div>
       )}

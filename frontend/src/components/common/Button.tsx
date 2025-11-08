@@ -16,13 +16,13 @@ export type ButtonProps<C extends React.ElementType> = ButtonOwnProps<C> &
 
 const variantClasses: Record<ButtonVariant, string> = {
   primary:
-    'bg-ak-primary text-ak-bg hover:bg-ak-primary focus-visible:outline-ak-primary',
+    'bg-ak-primary text-ak-bg hover:bg-ak-primary/90',
   secondary:
-    'bg-ak-surface text-ak-text-primary hover:bg-ak-surface-2 focus-visible:outline-ak-primary',
+    'bg-ak-surface-2 text-ak-text-primary hover:bg-ak-surface',
   outline:
-    'bg-transparent border border-ak-border text-ak-text-primary hover:border-ak-primary hover:text-ak-primary',
+    'bg-ak-bg border border-ak-border text-ak-text-primary hover:border-ak-primary hover:text-ak-primary hover:bg-ak-surface',
   ghost:
-    'bg-transparent text-ak-text-secondary hover:text-ak-text-primary hover:bg-ak-surface',
+    'bg-ak-bg text-ak-text-secondary hover:text-ak-text-primary hover:bg-ak-surface',
 };
 
 const sizeClasses: Record<ButtonSize, string> = {
@@ -31,7 +31,7 @@ const sizeClasses: Record<ButtonSize, string> = {
 };
 
 const baseClasses =
-  'inline-flex items-center justify-center rounded-full font-semibold tracking-tight transition-colors duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-60 disabled:cursor-not-allowed whitespace-nowrap';
+  'inline-flex items-center justify-center rounded-full font-semibold tracking-tight transition-colors duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ak-primary focus-visible:outline-offset-2 disabled:opacity-60 disabled:cursor-not-allowed whitespace-nowrap';
 
 function Button<C extends React.ElementType = 'button'>(
   {

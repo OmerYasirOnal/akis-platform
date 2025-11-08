@@ -94,7 +94,7 @@ const LandingPage: React.FC = () => {
   }, [location.hash]);
 
   return (
-    <div className="space-y-24">
+    <div className="space-y-24 bg-ak-bg text-ak-text-primary">
       <section className="mx-auto flex max-w-6xl flex-col items-center gap-10 px-4 text-center sm:px-6 lg:px-8">
         <Logo size="hero" />
         <div className="flex flex-col gap-6">
@@ -140,7 +140,7 @@ const LandingPage: React.FC = () => {
 
         <div className="grid gap-6 md:grid-cols-3">
           {painPoints.map((pain) => (
-            <Card key={pain.title} className="bg-ak-surface">
+            <Card key={pain.title}>
               <h3 className="text-xl font-semibold text-ak-text-primary">
                 {pain.title}
               </h3>
@@ -173,7 +173,7 @@ const LandingPage: React.FC = () => {
 
         <div className="grid gap-6 md:grid-cols-3">
           {products.map((product) => (
-            <Card id={product.id} key={product.id} className="flex flex-col gap-6 bg-ak-surface">
+            <Card id={product.id} key={product.id} className="flex flex-col gap-6">
               <div>
                 <h3 className="text-2xl font-semibold text-ak-text-primary">
                   {product.title}
@@ -214,7 +214,7 @@ const LandingPage: React.FC = () => {
         </header>
         <div className="grid gap-4 md:grid-cols-3">
           {howItWorks.map((step) => (
-            <Card key={step.step} className="bg-ak-surface">
+            <Card key={step.step}>
               <span className="text-sm font-medium uppercase tracking-[0.25em] text-ak-text-secondary/70">
                 {step.step}
               </span>
@@ -233,7 +233,7 @@ const LandingPage: React.FC = () => {
             Built for developers, by developers
           </h2>
         </header>
-        <Card className="bg-ak-surface">
+        <Card>
           <ul className="space-y-3 text-sm text-ak-text-secondary">
             {trustSignals.map((signal) => (
               <li key={signal} className="flex items-start gap-2">

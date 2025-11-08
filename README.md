@@ -14,13 +14,22 @@ AKIS Platform, yazılım geliştirme süreçlerindeki tekrarlayan görevleri oto
 
 - **Backend**: Fastify + TypeScript (Node ≥ 20)
 - **Database**: PostgreSQL + Drizzle ORM
-- **Frontend**: React (Vite) + Tailwind CSS
+- **Frontend**: React (Vite SPA, Next.js kullanılmıyor) + Tailwind CSS
 - **Integrations**: MCP (Model Context Protocol) adapters
 
 ## Güncel Durum
 
 - Phase 8: Frontend SPA ✓
+- Phase 9.1: Dark Theme Unification & Auth UI ✓
 - Phase 9: Auth & RBAC ▶
+
+## Phase 9.1 – Dark Theme Unification & Auth UI
+
+- Site geneli `#0A1215` full-bleed, header/footer kartları `ak-surface` / `ak-surface-2`.
+- Hero logosu 72–112px aralığında `Logo.tsx` ile clamp'lenir; yüksek çözünürlüklü `akis-official-logo@2x.png`.
+- Landing CTA'ları `/signup` (primary) ve `/login` (outline) yönlendirmeleriyle güncellendi.
+- `/login` ve `/signup` kartları `ak-surface-2`, focus ring `ak-primary`; demo roller (`admin`, `member`) UI üzerinden doğrulanır.
+- Docs güncellemeleri: IA, Design System, Auth notları Phase 9.1 temasıyla senkron.
 
 ## Geliştirme
 

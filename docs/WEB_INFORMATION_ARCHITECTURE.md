@@ -1,8 +1,9 @@
 # AKIS Platform - Web Sitesi Bilgi Mimarisi ve İçerik Yapısı
 
-**Doküman Versiyonu:** v1.0  
+**Doküman Versiyonu:** v1.1  
 **Hazırlanma Tarihi:** Kasım 2025  
 **Amaç:** AKIS Platform web sitesinin kapsamlı bilgi mimarisi, sayfa yapıları ve kullanıcı akışları
+**Güncelleme Notu (Phase 9.1):** Solid dark hero, ak-surface-2 kart desenleri ve /login + /signup karanlık temalarıyla güncellendi.
 
 ---
 
@@ -191,7 +192,7 @@ AKIS Platform (Public + Private Areas)
 ├──────────────────────────────────────────────────────────────┤
 │                                                               │
 │                      [AKIS LOGO]                             │
-│              (Visual height: 120px desktop)                   │
+│        (Responsive height: clamp(72px → 112px) desktopte 112px) │
 │                                                               │
 │          Software Development's New Center                    │
 │         (H1, 56px font, 700 weight, primary text)            │
@@ -200,7 +201,7 @@ AKIS Platform (Public + Private Areas)
 │          so your team can focus on what truly matters.       │
 │     (Subtitle, 20px font, secondary text, max-width: 42rem)  │
 │                                                               │
-│   [Primary CTA: "Get Early Access →"]  [Secondary: "Watch Demo"] │
+│   [Primary CTA: "Get Early Access →" (/signup)]  [Secondary: "Already with AKIS?" (/login)] │
 │                                                               │
 │   Trusted by development teams at                            │
 │   [4-6 logo placeholders - muted grayscale]                  │
@@ -209,15 +210,14 @@ AKIS Platform (Public + Private Areas)
 ```
 
 **Arka Plan Detayları:**
-- Base color: `#0A1215`
-- Radial gradient overlay: Center `#0E1A1F` → Edges `#0A1215`
-- Subtle noise texture (1-2% opacity, CSS filter veya SVG)
-- Optional: Animated grid lines (subtle, low-contrast, performance-safe)
+- Base color: `#0A1215` (solid, full-bleed)
+- Hero/body `bg-ak-bg`, root `<div id="root">` ve `<body>` `min-h-screen`
+- No gradients veya blend modları (Phase 9.1 karanlık tutarlılık)
 
 **CTA Butonları:**
-- **Primary:** `bg-[#07D1AF]`, `hover:scale-105`, `shadow-lg`
-- **Secondary:** Border-only, `hover:bg-[#07D1AF]/10`
-- Aralarında `gap-4`, center-aligned
+- **Primary:** `Button` komponenti `variant="primary"` (`bg-ak-primary`, `text-ak-bg`, `focus-visible:outline-ak-primary`)
+- **Secondary:** `Button` komponenti `variant="outline"` (`border-ak-border`, `text-ak-text-primary`, hover'da `text-ak-primary`)
+- Aralarında `gap-3` (mobile dikey stack, desktop yatay); rotalar `/signup` ve `/login`
 
 **Trust Signals (Logo Wall):**
 - 4-6 logo, grayscale filter, `opacity-50`
@@ -505,7 +505,7 @@ No credit card. No commitments. Cancel anytime.
 [Primary CTA: Get Early Access →]  [Secondary: See Roadmap]
 ```
 
-**Background:** Gradient from `rgba(7, 209, 175, 0.1)` to transparent
+**Background:** `ak-surface` band, `border-y ak-border` (gradient kaldırıldı)
 
 ---
 
@@ -887,6 +887,7 @@ Don't see your tool?
 │    - Form: Name, Email, Password, Confirm                    │
 │    - OAuth Option: "Continue with GitHub" (recommended)     │
 │    - Terms checkbox validation                               │
+│    - UI: Full-bleed `ak-bg`, kart `ak-surface-2`, odak halkası `ak-primary` (Phase 9.1) │
 └───────────────────────┬──────────────────────────────────────┘
                         │
                         ▼
@@ -969,6 +970,7 @@ Don't see your tool?
 │ 1. Login (/login)                                            │
 │    - Email/password veya "Continue with GitHub"             │
 │    - Remember me checkbox                                    │
+│    - UI: `ak-bg` tam ekran, form kartı `ak-surface-2`, focus ring `ak-primary` │
 └───────────────────────┬──────────────────────────────────────┘
                         │
                         ▼
@@ -1424,9 +1426,9 @@ Ultra (2xl):    1536px
 - Mobile: Hamburger menu → Full-screen drawer
 
 **Hero Logo:**
-- Desktop: 128px height
-- Tablet: 96px height
-- Mobile: 80px height
+- Desktop: 112px height (max)
+- Tablet: ~96px height
+- Mobile: 72–88px (CSS clamp ile)
 
 **Product Cards (Landing):**
 - Desktop: 3-column grid
