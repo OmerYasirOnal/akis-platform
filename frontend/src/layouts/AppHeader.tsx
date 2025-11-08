@@ -1,37 +1,53 @@
-import { useCallback, useEffect, useState } from "react";
-import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
 
-import { useAuth } from "../auth/AuthContext";
-import Logo from "../components/branding/Logo";
-import Button from "../components/common/Button";
-import ThemeToggle from "../components/ThemeToggle";
-import { cn } from "../utils/cn";
+import { useAuth } from '../state/auth/AuthContext';
+import Logo from '../components/branding/Logo';
+import Button from '../components/common/Button';
+import ThemeToggle from '../components/ThemeToggle';
+import { cn } from '../utils/cn';
 
 const primaryLinks = [
-  { label: "Platform", to: "/platform" },
-  { label: "Agents", to: "/agents" },
-  { label: "Integrations", to: "/integrations" },
-  { label: "Solutions", to: "/solutions" },
-  { label: "Pricing", to: "/pricing" },
-  { label: "Docs", to: "/docs" },
-  { label: "Changelog", to: "/changelog" },
-  { label: "About", to: "/about" },
-  { label: "Contact", to: "/contact" },
+  { label: 'Platform', to: '/platform' },
+  { label: 'Agents', to: '/agents' },
+  { label: 'Integrations', to: '/integrations' },
+  { label: 'Solutions', to: '/solutions' },
+  { label: 'Pricing', to: '/pricing' },
+  { label: 'Docs', to: '/docs' },
+  { label: 'Changelog', to: '/changelog' },
+  { label: 'About', to: '/about' },
+  { label: 'Contact', to: '/contact' },
 ];
 
 const AppHeader = () => {
-  const { session, isAuthenticated, logout } = useAuth();
+  const { user, isAuthenticated, logout, devLoginEnabled } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const isMountedRef = useRef(true);
+  const loginPath = devLoginEnabled ? '/auth/dev-login' : '/login';
 
   useEffect(() => {
     setMobileOpen(false);
   }, [location]);
 
-  const handleLogout = useCallback(() => {
-    logout();
-    navigate("/");
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
+  const handleLogout = useCallback(async () => {
+    setIsLoggingOut(true);
+    try {
+      await logout();
+      navigate('/');
+    } finally {
+      if (isMountedRef.current) {
+        setIsLoggingOut(false);
+      }
+    }
   }, [logout, navigate]);
 
   return (
@@ -68,13 +84,18 @@ const AppHeader = () => {
                 <Button as={Link} to="/dashboard" variant="ghost">
                   Dashboard
                 </Button>
-                <Button variant="outline" onClick={handleLogout}>
-                  Logout
+                {devLoginEnabled && user ? (
+                  <span className="rounded-full border border-ak-border bg-ak-surface-2 px-3 py-1 text-xs text-ak-text-secondary">
+                    {user.email}
+                  </span>
+                ) : null}
+                <Button variant="outline" onClick={handleLogout} disabled={isLoggingOut}>
+                  {isLoggingOut ? 'Çıkış yapılıyor...' : 'Logout'}
                 </Button>
               </>
             ) : (
               <>
-                <Button as={Link} to="/login" variant="outline">
+                <Button as={Link} to={loginPath} variant="outline">
                   Login
                 </Button>
                 <Button as={Link} to="/signup">
@@ -135,13 +156,13 @@ const AppHeader = () => {
                 <Button as={Link} to="/dashboard" variant="secondary">
                   Dashboard
                 </Button>
-                <Button variant="outline" onClick={handleLogout}>
-                  Logout
+                <Button variant="outline" onClick={handleLogout} disabled={isLoggingOut}>
+                  {isLoggingOut ? 'Çıkış yapılıyor...' : 'Logout'}
                 </Button>
               </>
             ) : (
               <>
-                <Button as={Link} to="/login" variant="outline">
+                <Button as={Link} to={loginPath} variant="outline">
                   Login
                 </Button>
                 <Button as={Link} to="/signup">
@@ -151,11 +172,9 @@ const AppHeader = () => {
             )}
           </div>
 
-          {session ? (
+          {devLoginEnabled && user ? (
             <div className="rounded-xl border border-ak-border bg-ak-surface px-4 py-3 text-xs text-ak-text-secondary">
-              Signed in as{" "}
-              <span className="text-ak-text-primary">{session.displayName}</span>{" "}
-              ({session.role})
+              Signed in as <span className="text-ak-text-primary">{user.email}</span>
             </div>
           ) : null}
         </div>
