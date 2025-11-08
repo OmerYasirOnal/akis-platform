@@ -8,14 +8,15 @@ export default {
   theme: {
     extend: {
       colors: {
-        'ak-bg': '#0A1215',
-        'ak-primary': '#07D1AF',
-        'ak-surface': '#0D171B',
-        'ak-surface-2': '#122027',
-        'ak-text-primary': '#E9F1F3',
-        'ak-text-secondary': '#A9B6BB',
-        'ak-border': '#1A262C',
-        'ak-danger': '#FF6B6B',
+        'ak-bg': 'var(--ak-bg)',
+        'ak-primary': 'var(--ak-primary)',
+        'ak-primary-soft': 'var(--ak-primary-soft)',
+        'ak-surface': 'var(--ak-surface)',
+        'ak-surface-2': 'var(--ak-surface-2)',
+        'ak-text-primary': 'var(--ak-text-primary)',
+        'ak-text-secondary': 'var(--ak-text-secondary)',
+        'ak-border': 'var(--ak-border)',
+        'ak-danger': 'var(--ak-danger)',
       },
     },
   },

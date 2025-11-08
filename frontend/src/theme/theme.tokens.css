@@ -1,0 +1,23 @@
+:root {
+  /* Dark palette */
+  --ak-color-bg-dark: #0A1215;
+  --ak-color-surface-dark: #0D171B;
+  --ak-color-surface-2-dark: #122027;
+  --ak-color-text-primary-dark: #E9F1F3;
+  --ak-color-text-secondary-dark: #A9B6BB;
+  --ak-color-border-dark: #1A262C;
+
+  /* Light palette */
+  --ak-color-bg-light: #F4F7F9;
+  --ak-color-surface-light: #FFFFFF;
+  --ak-color-surface-2-light: #E6EEF2;
+  --ak-color-text-primary-light: #112026;
+  --ak-color-text-secondary-light: #4A5A62;
+  --ak-color-border-light: #CBD7DD;
+
+  /* Shared accents */
+  --ak-color-primary: #07D1AF;
+  --ak-color-primary-soft: rgba(7, 209, 175, 0.16);
+  --ak-color-danger: #FF6B6B;
+}
+
