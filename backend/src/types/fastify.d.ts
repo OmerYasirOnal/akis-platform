@@ -1,10 +1,10 @@
-type FastifyHook = (
-  request: FastifyRequest,
-  reply: FastifyReply,
-  ...args: unknown[]
-) => unknown | Promise<unknown>;
-
 declare module 'fastify' {
+  type FastifyHook = (
+    request: FastifyRequest,
+    reply: FastifyReply,
+    done: (...args: unknown[]) => unknown
+  ) => unknown | Promise<unknown>;
+
   export interface FastifyRequest {
     id: string;
     body?: unknown;
@@ -21,7 +21,7 @@ declare module 'fastify' {
   export interface FastifyReply {
     requestId?: string;
     statusCode: number;
-    elapsedTime: number;
+    elapsedTime?: number;
     code(statusCode: number): FastifyReply;
     send(payload?: unknown): FastifyReply;
     type(contentType: string): FastifyReply;
@@ -42,10 +42,8 @@ declare module 'fastify' {
     get(path: string, opts: Record<string, unknown>, handler: FastifyHandler): FastifyInstance;
     post(path: string, handler: FastifyHandler): FastifyInstance;
     post(path: string, opts: Record<string, unknown>, handler: FastifyHandler): FastifyInstance;
-    register(
-      plugin: (instance: FastifyInstance, opts: Record<string, unknown>) => unknown,
-      opts?: Record<string, unknown>
-    ): Promise<void>;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    register(plugin: any, opts?: unknown): Promise<void>;
     addHook(name: string, hook: FastifyHook): FastifyInstance;
     decorate(name: string, value: unknown): FastifyInstance;
     decorateRequest(name: string, value: unknown): FastifyInstance;

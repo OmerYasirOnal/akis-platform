@@ -12,12 +12,32 @@ const envSchema = z
     AKIS_PORT: z.coerce.number().default(3000),
     FRONTEND_URL: z.string().url().default('http://localhost:5173'),
     BACKEND_URL: z.string().url().default('http://localhost:3000'),
+    CORS_ORIGINS: z
+      .string()
+      .default('http://localhost:5173')
+      .transform((value) =>
+        value
+          .split(',')
+          .map((origin) => origin.trim())
+          .filter(Boolean)
+      ),
     DATABASE_URL: z.string().url(),
     POSTGRES_HOST: z.string().default('localhost'),
     POSTGRES_PORT: z.coerce.number().default(5432),
     POSTGRES_DB: z.string().default('akis_v2'),
     POSTGRES_USER: z.string().default('postgres'),
     POSTGRES_PASSWORD: z.string().default('postgres'),
+    AUTH_COOKIE_NAME: z.string().default('akis_sid'),
+    AUTH_COOKIE_MAXAGE: z.coerce.number().default(60 * 60 * 24 * 7), // 7 days in seconds
+    AUTH_COOKIE_SAMESITE: z
+      .enum(['Lax', 'Strict', 'None', 'lax', 'strict', 'none'])
+      .default('Lax')
+      .transform((value) => value.toLowerCase() as 'lax' | 'strict' | 'none'),
+    AUTH_COOKIE_SECURE: z
+      .enum(['true', 'false'])
+      .default('false')
+      .transform((value) => value === 'true'),
+    AUTH_COOKIE_DOMAIN: z.string().optional(),
     GITHUB_MCP_BASE_URL: z.string().url().optional(),
     ATLASSIAN_MCP_BASE_URL: z.string().url().optional(),
     GITHUB_APP_ID: z.string().optional(),
@@ -34,6 +54,22 @@ const envSchema = z
     const isProduction = data.NODE_ENV === 'production';
     const isAtlassianEnabled = data.MCP_ATLASSIAN_ENABLED === 'true';
     const isStrictMode = isProduction || isAtlassianEnabled;
+
+    if (data.AUTH_COOKIE_MAXAGE <= 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'AUTH_COOKIE_MAXAGE must be greater than 0 seconds',
+        path: ['AUTH_COOKIE_MAXAGE'],
+      });
+    }
+
+    if (isProduction && !data.AUTH_COOKIE_SECURE) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'AUTH_COOKIE_SECURE must be true when NODE_ENV=production',
+        path: ['AUTH_COOKIE_SECURE'],
+      });
+    }
 
     if (isStrictMode) {
       // In production or when explicitly enabled, require all Atlassian vars

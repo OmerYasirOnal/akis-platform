@@ -1,7 +1,6 @@
 import 'dotenv/config';
 import Fastify from 'fastify';
 import type { FastifyRequest, FastifyReply } from 'fastify';
-import cors from '@fastify/cors';
 import { randomUUID } from 'crypto';
 import { getEnv } from './config/env.js';
 import { registerAgents } from './core/agents/registry.js';
@@ -11,6 +10,7 @@ import { indexRoutes } from './api/index.js';
 import { healthRoutes } from './api/health.js';
 import { agentsRoutes, setOrchestrator } from './api/agents.js';
 import { metricsRoutes, metrics } from './api/metrics.js';
+import { authRoutes } from './api/auth.js';
 import { AgentOrchestrator } from './core/orchestrator/AgentOrchestrator.js';
 import { createAIService } from './services/ai/AIService.js';
 import type { MCPTools } from './services/mcp/adapters/index.js';
@@ -81,7 +81,7 @@ export async function buildApp() {
 
   app.addHook('onResponse', async (request: FastifyRequest, reply: FastifyReply) => {
     // Phase 7.B: Record HTTP duration metric
-    const duration = reply.elapsedTime / 1000; // Convert to seconds
+    const duration = reply.elapsedTime! / 1000; // Convert to seconds
     const route = request.routerPath || request.url.split('?')[0];
     metrics.httpDuration.observe(
       {
@@ -102,11 +102,6 @@ export async function buildApp() {
         duration,
       }, 'request completed');
     }
-  });
-
-  // Register CORS
-  await app.register(cors, {
-    origin: true,
   });
 
   // Phase 7.C: Register Swagger/OpenAPI
@@ -140,6 +135,7 @@ export async function buildApp() {
   await app.register(indexRoutes);
   await app.register(healthRoutes);
   await app.register(metricsRoutes);
+  await app.register(authRoutes, { prefix: '/auth' });
   await app.register(agentsRoutes);
 
   // Phase 7.C: Expose OpenAPI JSON at /openapi.json (after routes are registered)

@@ -66,6 +66,20 @@ pnpm dev
 # Frontend default port: 5173 (Vite)
 ```
 
+### Ortak Ortam Değişkenleri
+
+| Anahtar | Açıklama | Varsayılan |
+| --- | --- | --- |
+| `FRONTEND_URL` | SPA kök URL'si; CORS ve yönlendirmeler için kullanılır | `http://localhost:5173` |
+| `BACKEND_URL` / `VITE_API_URL` | REST API taban URL'si; frontend istekleri için önerilen `VITE_API_URL` | `http://localhost:3000` |
+| `CORS_ORIGINS` | Virgülle ayrılmış izin verilen origin listesi (credentials=true) | `http://localhost:5173` |
+| `NODE_ENV` | Çalışma modu (`development`, `production`, `test`) | `development` |
+| `AUTH_COOKIE_NAME` | Oturum çerezi adı | `akis_sid` |
+| `AUTH_COOKIE_MAXAGE` | Oturum çerezi max-age (saniye cinsinden) | `604800` (7 gün) |
+| `AUTH_COOKIE_SAMESITE` | SameSite politikası (`Lax` önerildi) | `Lax` |
+| `AUTH_COOKIE_SECURE` | HTTPS üzerinde secure bayrağı (prod ortamında zorunlu) | `false` (yalnızca lokal) |
+| `AUTH_COOKIE_DOMAIN` | Opsiyonel domain sabitlemesi | — |
+
 ### Local Dev Hızlı Komutlar
 
 ```bash
