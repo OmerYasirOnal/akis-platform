@@ -49,5 +49,27 @@ AKIS Platform'un kilometre taşları bu belge üzerinden yönetilir; tek süreç
 
 ---
 
-Diğer faz başlıkları Phase 9.2 tamamlandıktan sonra güncellenecektir. Tüm roadmap kararları, `docs/CONTEXT_SCOPE.md` ve `docs/UI_DESIGN_SYSTEM.md` ile birlikte okunmalıdır.
+## Phase 10 — Next Foundations (Epic #44)
 
+**Why now?** Phase 10, Phase 9.2 sonrası deneyimi sertleştirerek ayakta tutma maliyetini düşürmeyi ve müşteri güvenini artırmayı hedefler. Settings UX iyileştirmeleri, erişilebilirlik öncelikleri, performans bütçeleri ve pazarlama yüzünü güçlendiren ROI/FAQ bileşenleri aynı sprintte planlanır.
+
+**Linked Work**
+
+- #44 Epic — Phase 10: Next Foundations
+- #49 Phase 10 — Settings UX refinement
+- #47 Phase 10 — Accessibility pass
+- #48 Phase 10 — Performance budgets
+- #45 Phase 10 — ROI widget (Pricing)
+- #46 Phase 10 — FAQ accordion (Landing)
+
+### Deliverables & Acceptance Notes
+
+1. **Settings UX refinement** — Kullanıcı ayarları IA'sı gözden geçirilir, formlar doğrulama ile yeniden düzenlenir ve docs/README.md referansları güncellenir.
+2. **Accessibility pass** — Global ARIA landmark'ları, kontrast denetimleri ve klavye erişimi kilit ekranlarda doğrulanır; rehber `docs/ENV_SETUP.md` ve Design System'de not edilir.
+3. **Performance budgets** — Core Web Vitals hedefleri (LCP, CLS, INP) tanımlanır ve CI workflow'una hafif bütçe kontrolleri eklenir.
+4. **ROI widget (Pricing)** — Pricing sayfasında hesaplayıcı destekli ROI bileşeni eklenir; analytics olayları belgelendirilir.
+5. **FAQ accordion (Landing)** — Landing sayfasına erişilebilir akordeon bileşeni eklenir; collapse/expand durumu ekran okuyucu dostu şekilde uygulanır.
+
+---
+
+Diğer faz başlıkları Phase 10 ilerledikçe güncellenecektir. Tüm roadmap kararları, `docs/CONTEXT_SCOPE.md` ve `docs/UI_DESIGN_SYSTEM.md` ile birlikte okunmalıdır.
