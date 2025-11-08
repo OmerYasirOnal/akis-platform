@@ -1,9 +1,11 @@
+import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import AppShell from './app/AppShell';
 import DashboardShell from './app/DashboardShell';
 import { AuthProvider } from './auth/AuthContext';
 import RequireAuth from './auth/RequireAuth';
 import RequireRole from './auth/RequireRole';
+import { useI18n } from './i18n/useI18n';
 import LandingPage from './pages/LandingPage';
 import PlatformPage from './pages/PlatformPage';
 import AgentsIndexPage from './pages/AgentsIndexPage';
@@ -47,6 +49,12 @@ import JobDetailPage from './pages/JobDetailPage';
 import NewJobPage from './pages/NewJobPage';
 
 function App() {
+  const { t } = useI18n();
+
+  useEffect(() => {
+    document.title = t('app.title');
+  }, [t]);
+
   return (
     <BrowserRouter>
       <AuthProvider>
