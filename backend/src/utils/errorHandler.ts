@@ -1,4 +1,4 @@
-import { FastifyReply, FastifyRequest } from 'fastify';
+import { FastifyRequest } from 'fastify';
 import { ZodError } from 'zod';
 import { JobNotFoundError, InvalidStateTransitionError, DatabaseError } from '../core/errors.js';
 
@@ -58,7 +58,6 @@ function mapErrorToCode(error: unknown): { code: ErrorCode; message: string; det
   }
 
   // Unknown error - sanitize message
-  const message = error instanceof Error ? error.message : 'An unexpected error occurred';
   return {
     code: 'INTERNAL_ERROR',
     message: 'Internal server error',

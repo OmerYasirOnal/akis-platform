@@ -1,9 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert';
 import { buildApp } from '../src/server.app.js';
-import { db } from '../src/db/client.js';
-import { jobs } from '../src/db/schema.js';
-import { eq } from 'drizzle-orm';
 
 // Check if DATABASE_URL is set (required for DB-dependent tests)
 const hasDatabase = !!process.env.DATABASE_URL;
