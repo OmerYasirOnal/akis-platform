@@ -8,18 +8,18 @@
 export const brandTokens = {
   // Primary brand color (logo/accents/focus)
   akPrimary: '#07D1AF',
-
+  
   // Background tokens
   akBackground: '#0A1215', // App/page background
-
+  
   // Surface variants for dark UI
   akSurface: '#0F181B', // Near bg, low elevation
   akSurface2: '#141D21', // Slightly lighter for cards/modals
-
+  
   // Text tokens for dark UI
   akTextPrimary: '#F5F5F5', // High-contrast body text (WCAG AA: 15.2:1 on bg)
   akTextSecondary: '#B0B0B0', // Muted text (WCAG AA: 7.1:1 on bg)
-
+  
   // Border token
   akBorder: '#1F2932', // Subtle separators
 } as const;

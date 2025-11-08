@@ -40,10 +40,9 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
             id={inputId}
             className={cn(
               'w-full rounded-xl border border-ak-border bg-ak-surface px-4 py-3 text-base text-ak-text-primary placeholder:text-ak-text-secondary/70 transition-colors duration-150 focus:border-ak-primary focus:outline-none focus:ring-2 focus:ring-ak-primary/70',
-              rightElement ? 'pr-14' : '',
-              hasError
-                ? 'border-red-500 focus:border-red-400 focus:ring-red-400/70'
-                : '',
+              rightElement && 'pr-14',
+              hasError &&
+                'border-red-500 focus:border-red-400 focus:ring-red-400/70',
               className
             )}
             aria-invalid={hasError}

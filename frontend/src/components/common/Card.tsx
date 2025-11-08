@@ -9,7 +9,7 @@ export interface CardProps
 const Card = React.forwardRef<HTMLDivElement, CardProps>(
   ({ as: Component = 'div', className, children, ...rest }, ref) => {
     const mergedClassName = cn(
-      'rounded-2xl border border-ak-border/60 bg-ak-surface-2/80 p-6 shadow-[0_20px_45px_-35px_rgba(7,209,175,0.45)] backdrop-blur-sm transition-transform duration-200 hover:-translate-y-1 hover:shadow-[0_25px_60px_-35px_rgba(7,209,175,0.55)]',
+      'rounded-2xl border border-ak-border bg-ak-surface-2 p-6 shadow-lg transition-transform duration-200 hover:-translate-y-1 hover:shadow-xl',
       className
     );
 
