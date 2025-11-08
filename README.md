@@ -31,7 +31,13 @@ AKIS Platform, yazılım geliştirme süreçlerindeki tekrarlayan görevleri oto
 - `/login` ve `/signup` kartları `ak-surface-2`, focus ring `ak-primary`; demo roller (`admin`, `member`) UI üzerinden doğrulanır.
 - Docs güncellemeleri: IA, Design System, Auth notları Phase 9.1 temasıyla senkron.
 
-## Roadmap
+## Roadmap & Milestones
+
+Phase 9.2 ile i18n ve theming temel katmanları hazırlanarak çok dilli deneyim ve tema varyantları için altyapı kuruluyor.
+Varsayılan koyu tema korunurken light mode ve marka varlıkları için hazırlıklar tamamlanacak; lint temizlikleri geliştirici deneyimini yükseltiyor.
+Güncel kilometre taşları ve kabul notlarının tamamı [docs/ROADMAP.md](docs/ROADMAP.md) belgesinde takip ediliyor.
+
+### Phase 9.2 İzleme
 
 - [Epic] [#24 Phase 9.2 — i18n & Theming Foundations](https://github.com/OmerYasirOnal/akis-platform-devolopment/issues/24)
 - [Frontend] [#25 Phase 9.2 — i18n (TR/EN) enablement](https://github.com/OmerYasirOnal/akis-platform-devolopment/issues/25)
