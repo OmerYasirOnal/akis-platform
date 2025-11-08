@@ -46,6 +46,15 @@ Güncel kilometre taşları ve kabul notlarının tamamı [docs/ROADMAP.md](docs
 - [Frontend] [#28 Phase 9.2 — Subtle cursor/spotlight effects (GPU-friendly)](https://github.com/OmerYasirOnal/akis-platform-devolopment/issues/28)
 - [Quality] [#29 Phase 9.2 — Lint: exhaustive-deps cleanup](https://github.com/OmerYasirOnal/akis-platform-devolopment/issues/29)
 
+### Phase 10 İzleme
+
+- [Epic] [#44 Phase 10 — Next Foundations](https://github.com/OmerYasirOnal/akis-platform-devolopment/issues/44)
+- [Frontend] [#49 Phase 10 — Settings UX refinement](https://github.com/OmerYasirOnal/akis-platform-devolopment/issues/49)
+- [Frontend] [#47 Phase 10 — Accessibility pass](https://github.com/OmerYasirOnal/akis-platform-devolopment/issues/47)
+- [Frontend] [#48 Phase 10 — Performance budgets](https://github.com/OmerYasirOnal/akis-platform-devolopment/issues/48)
+- [Frontend] [#45 Phase 10 — ROI widget (Pricing)](https://github.com/OmerYasirOnal/akis-platform-devolopment/issues/45)
+- [Frontend] [#46 Phase 10 — FAQ accordion (Landing)](https://github.com/OmerYasirOnal/akis-platform-devolopment/issues/46)
+
 ## Geliştirme
 
 ### Backend
