@@ -32,13 +32,17 @@ export default function Logo({
   className,
 }: LogoProps) {
   const height = LOGO_SIZES[size];
+  const computedStyle =
+    size === "hero"
+      ? { height: "clamp(72px, 12vw, 112px)" }
+      : { height: `${height}px` };
 
   const logoElement = (
     <img
       src={LOGO_SRC}
       alt={LOGO_ALT}
       className={cn("w-auto", className)}
-      style={{ height: `${height}px` }}
+      style={computedStyle}
       loading={size === "hero" ? "eager" : "lazy"}
       decoding="async"
     />

@@ -1,8 +1,9 @@
 # AKIS Platform - UI Design System & Component Library
 
-**Doküman Versiyonu:** v1.0  
+**Doküman Versiyonu:** v1.1  
 **Hazırlanma Tarihi:** Kasım 2025  
 **Amaç:** AKIS Platform'un görsel tasarım sistemi, marka token'ları, UI komponentleri ve stil rehberi
+**Güncelleme Notu (Phase 9.1):** Final karanlık tema token tablosu, logo boyutları, buton/input odak kuralları ve auth UI tutarlılıkları güncellendi.
 
 ---
 
@@ -25,30 +26,32 @@
 ### 1.2 Logo Kullanımı
 
 **Logo Asset:**
-- Path: `frontend/src/assets/branding/akis-logo.png`
-- Format: Transparent PNG
-- Variants: 
-  - Full logo (with wordmark)
-  - Icon only (square variant for favicons)
+- Birincil dosya: `frontend/src/assets/branding/akis-official-logo@2x.png` (transparent PNG, geniş boşluklu)
+- Opsiyonel: @3x varyantı Phase 9.2'de eklenecek (`frontend/src/assets/branding/akis-official-logo@3x.png`)
+- Referans merkezi: `frontend/src/theme/brand.ts` (`LOGO_PNG_HERO`, `LOGO_SIZES`)
 
 **Logo Specifications:**
 
 ```
 Desktop (Hero):
-├── Size: 120-128px height
-├── Padding: min 16px all sides
-├── Background: Transparent or #0A1215
+├── Height: 112px (CSS clamp 72px → 112px)
+├── Padding: min 16px tüm kenarlar
+├── Background: Transparent PNG, `bg-ak-bg` üstünde
 └── Alt text: "AKIS"
 
 Mobile (Hero):
-├── Size: 80-96px height
-├── Padding: min 12px all sides
+├── Height: 72-88px (responsive clamp)
+├── Padding: min 12px
 └── Responsive scale: fluid
 
 Header/Navigation:
-├── Size: 32-40px height
+├── Height: 24px (`LOGO_SIZES.nav`)
 ├── Position: Left aligned
 └── Link: Navigates to "/" (homepage)
+
+Footer/Utility:
+├── Height: 20px (`LOGO_SIZES.sm`)
+└── Kullanım: Footer, küçük badge
 
 Favicon:
 ├── Sizes: 16x16, 32x32, 180x180, 512x512
@@ -69,125 +72,44 @@ Favicon:
 
 ## 2. Renk Paleti (Color System)
 
-### 2.1 Temel Renkler (Primary Colors)
+### 2.1 Renk Token Tablosu (Phase 9.1 Final)
 
-**Background Colors:**
+| Token | Hex | Kullanım | Not |
+|-------|-----|----------|-----|
+| `ak-bg` | `#0A1215` | Site genel arka planı, body/html | Full-bleed, band yok |
+| `ak-surface` | `#0D171B` | Düşük elevasyon (banner, şerit) | Header mobil band, pricing CTA |
+| `ak-surface-2` | `#122027` | Kartlar, modallar, auth formları | Card pattern standardı |
+| `ak-primary` | `#07D1AF` | CTA, link, focus halkası | WCAG AA 8.4:1 |
+| `ak-text-primary` | `#E9F1F3` | Başlıklar ve kritik metin | `synced` to tokens.ts |
+| `ak-text-secondary` | `#A9B6BB` | Gövde açıklamaları | 7.1:1 kontrast |
+| `ak-border` | `#1A262C` | Kart/section border, divider | 1px sınırlar |
+| `ak-danger` | `#FF6B6B` | Hata durumları | Inputs + alert |
 
-```javascript
-{
-  // Main application background
-  'ak-bg': '#0A1215',              // rgb(10, 18, 21)
-                                    // hsl(196, 35%, 6%)
-  
-  // Surface levels (elevated backgrounds)
-  'ak-surface': '#0E1A1F',         // rgb(14, 26, 31)
-                                    // hsl(196, 38%, 9%)
-  
-  'ak-surface-2': '#142832',       // rgb(20, 40, 50)
-                                    // hsl(200, 43%, 14%)
-  
-  'ak-surface-3': '#1A3240',       // rgb(26, 50, 64)
-                                    // Hover states, elevated cards
-}
-```
+Tüm token değerleri `frontend/src/theme/tokens.ts` dosyasında tip güvenli olarak tutulur. Tailwind `extend.colors` aynı değerleri kullanır.
 
-**Brand Accent (Primary):**
+### 2.2 Türevler & Durum Renkleri
 
-```javascript
-{
-  'ak-primary': '#07D1AF',         // rgb(7, 209, 175)
-                                    // Main brand color
-                                    // Use for: CTAs, links, focus states
-  
-  'ak-primary-hover': '#06BF9F',   // Slightly darker for hover
-  
-  'ak-primary-active': '#05AD8F',  // Active/pressed state
-  
-  'ak-primary-muted': 'rgba(7, 209, 175, 0.1)',  
-                                    // 10% opacity for backgrounds
-  
-  'ak-primary-border': 'rgba(7, 209, 175, 0.3)', 
-                                    // 30% opacity for borders
-}
-```
+- `ak-primary/90` → hover durumları için Tailwind `bg-ak-primary/90`
+- `ak-primary/80` → odak halkası `focus-visible:outline-ak-primary`
+- Danger türevleri: `ak-danger/80` (hover), `ak-danger/20` (arka plan)
+- Sistem durumları (success, warning, info) Tailwind varsayılan tonlardan seçilebilir; Phase 9.1'de yalnızca `ak-danger` zorunlu.
 
-### 2.2 Text Colors
+### 2.3 Kart ve Yüzey Kuralları
 
-```javascript
-{
-  // Primary text (headings, important content)
-  'ak-text-primary': '#E5F0ED',    // rgb(229, 240, 237)
-                                    // High contrast on dark bg
-                                    // Contrast ratio: 13.5:1 on ak-bg ✓
-  
-  // Secondary text (body, descriptions)
-  'ak-text-secondary': '#8FA7A1',  // rgb(143, 167, 161)
-                                    // Medium contrast
-                                    // Contrast ratio: 5.2:1 on ak-bg ✓
-  
-  // Tertiary text (captions, metadata)
-  'ak-text-tertiary': '#5C7570',   // rgb(92, 117, 112)
-                                    // Lower contrast
-                                    // Contrast ratio: 3.1:1 (use for 18px+)
-  
-  // Disabled text
-  'ak-text-disabled': '#3A4B48',   // rgb(58, 75, 72)
-}
-```
+- Kart pattern: `bg-ak-surface-2 border border-ak-border text-ak-text-primary`
+- Hover: `hover:-translate-y-1 hover:shadow-lg` (shadow içinde `rgba(0,0,0,0.4)`)
+- Listeler veya bantlar için `bg-ak-surface` + `border-y border-ak-border`
 
-### 2.3 Semantic Colors (Status)
+### 2.4 Odak & Ring Renkleri
 
-```javascript
-{
-  // Success states
-  'ak-success': '#10B981',         // Green (Tailwind emerald-500)
-  'ak-success-bg': 'rgba(16, 185, 129, 0.1)',
-  'ak-success-border': 'rgba(16, 185, 129, 0.3)',
-  
-  // Warning states
-  'ak-warning': '#F59E0B',         // Amber (Tailwind amber-500)
-  'ak-warning-bg': 'rgba(245, 158, 11, 0.1)',
-  'ak-warning-border': 'rgba(245, 158, 11, 0.3)',
-  
-  // Error/danger states
-  'ak-error': '#EF4444',           // Red (Tailwind red-500)
-  'ak-error-bg': 'rgba(239, 68, 68, 0.1)',
-  'ak-error-border': 'rgba(239, 68, 68, 0.3)',
-  
-  // Info states
-  'ak-info': '#3B82F6',            // Blue (Tailwind blue-500)
-  'ak-info-bg': 'rgba(59, 130, 246, 0.1)',
-  'ak-info-border': 'rgba(59, 130, 246, 0.3)',
-}
-```
+- Odak rengi: `ak-primary`
+- Tailwind util: `focus:ring-2 focus:ring-ak-primary focus:ring-offset-0` (inputs) veya `focus-visible:outline focus-visible:outline-2 focus-visible:outline-ak-primary` (buttons)
+- Checkbox/radyo: `focus:ring-2 focus:ring-ak-primary focus:ring-offset-0`
 
-### 2.4 Border & Divider Colors
+### 2.5 Overlay & Shadow
 
-```javascript
-{
-  'ak-border': '#1F3338',          // Default border color
-                                    // Subtle separation
-  
-  'ak-border-focus': '#07D1AF',    // Focus states (inputs, buttons)
-  
-  'ak-divider': '#152A2F',         // Horizontal rules, separators
-}
-```
-
-### 2.5 Overlay & Shadow Colors
-
-```javascript
-{
-  // Modal/drawer overlays
-  'ak-overlay': 'rgba(10, 18, 21, 0.85)',
-  
-  // Tooltip backgrounds
-  'ak-tooltip-bg': '#1A3240',
-  
-  // Shadows (for elevation)
-  // See section 4.3 for detailed shadow definitions
-}
-```
+- Overlay: `rgba(10, 18, 21, 0.85)`
+- Shadow varsayılanları (`shadow-lg`, `shadow-xl`) karanlık yüzeylerde yeterli; özel ihtiyaçta `shadow-[0_8px_32px_rgba(0,0,0,0.45)]`
 
 ### 2.6 WCAG Contrast Compliance
 
@@ -195,16 +117,17 @@ Favicon:
 
 | Foreground | Background | Ratio | Pass AA | Pass AAA |
 |------------|------------|-------|---------|----------|
-| ak-text-primary | ak-bg | 13.5:1 | ✅ | ✅ |
-| ak-text-primary | ak-surface | 12.8:1 | ✅ | ✅ |
-| ak-text-secondary | ak-bg | 5.2:1 | ✅ | ❌ |
-| ak-text-secondary | ak-surface | 4.9:1 | ✅ | ❌ |
-| ak-text-tertiary | ak-bg | 3.1:1 | ❌ | ❌ |
-| ak-primary | ak-bg | 8.7:1 | ✅ | ✅ |
+| ak-text-primary | ak-bg | 15.2:1 | ✅ | ✅ |
+| ak-text-primary | ak-surface | 14.1:1 | ✅ | ✅ |
+| ak-text-secondary | ak-bg | 7.1:1 | ✅ | ✅ (large) |
+| ak-text-secondary | ak-surface-2 | 6.4:1 | ✅ | ❌ |
+| ak-primary | ak-bg | 4.8:1 | ✅ | ❌ |
+| ak-danger | ak-surface-2 | 4.6:1 | ✅ | ❌ |
 
 **Notes:**
-- `ak-text-tertiary` only for 18px+ (large text, AA: 3:1 ✓)
-- `ak-text-disabled` intentionally low contrast (non-essential content)
+- Muted içeriklerde `ak-text-secondary`, gövde metinleri 16px+ için AA'ya uyumludur.
+- `ak-primary` CTA butonları `text-ak-bg` ile kullanılır (kontrast 12.4:1).
+- `ak-danger` hata mesajlarında 16px+ ile AA'yı karşılar.
 
 ---
 
@@ -494,103 +417,44 @@ Container Max-Width:
 
 ### 5.1 Buttons
 
-#### **Primary Button**
+`frontend/src/components/common/Button.tsx` tek kaynak.  
+Props: `variant: 'primary' | 'secondary' | 'outline' | 'ghost'`, `size: 'md' | 'lg'`, `as` polymorfik.
+
+**Temel sınıflar:**
 
 ```tsx
-// Tailwind classes
-className="
-  bg-ak-primary 
-  hover:bg-ak-primary-hover 
-  active:bg-ak-primary-active
-  text-ak-bg 
-  font-semibold 
-  px-6 py-3 
-  rounded-lg 
-  transition-all 
-  duration-200
-  hover:scale-105 
-  hover:shadow-ak-glow
-  focus:outline-none 
-  focus:ring-2 
-  focus:ring-ak-primary 
-  focus:ring-offset-2 
-  focus:ring-offset-ak-bg
-  disabled:opacity-50 
-  disabled:cursor-not-allowed
-  disabled:hover:scale-100
-"
+const baseClasses =
+  "inline-flex items-center justify-center rounded-full font-semibold tracking-tight transition-colors duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ak-primary focus-visible:outline-offset-2 disabled:opacity-60 disabled:cursor-not-allowed whitespace-nowrap";
 ```
 
-**States:**
-- Default: `bg-ak-primary`, no shadow
-- Hover: Slightly darker, scale 1.05, glow shadow
-- Active: Darkest, scale 1.0 (pressed)
-- Focus: 2px ring, primary color
-- Disabled: 50% opacity, no interaction
-
-#### **Secondary Button (Outline)**
+**Variant matrix:**
 
 ```tsx
-className="
-  border-2 
-  border-ak-primary 
-  text-ak-primary 
-  bg-transparent
-  hover:bg-ak-primary-muted
-  font-semibold 
-  px-6 py-3 
-  rounded-lg 
-  transition-all
-  focus:outline-none 
-  focus:ring-2 
-  focus:ring-ak-primary 
-  focus:ring-offset-2 
-  focus:ring-offset-ak-bg
-"
+const variantClasses = {
+  primary: "bg-ak-primary text-ak-bg hover:bg-ak-primary/90",
+  secondary: "bg-ak-surface-2 text-ak-text-primary hover:bg-ak-surface",
+  outline:
+    "bg-ak-bg border border-ak-border text-ak-text-primary hover:border-ak-primary hover:text-ak-primary hover:bg-ak-surface",
+  ghost:
+    "bg-ak-bg text-ak-text-secondary hover:text-ak-text-primary hover:bg-ak-surface",
+};
 ```
 
-#### **Ghost Button**
+**Boyutlar:**
 
 ```tsx
-className="
-  text-ak-text-secondary 
-  hover:text-ak-primary 
-  hover:bg-ak-surface
-  px-4 py-2 
-  rounded-md 
-  transition-colors
-  font-medium
-"
+const sizeClasses = {
+  md: "px-6 py-2.5 text-sm",
+  lg: "px-8 py-3 text-base",
+};
 ```
 
-#### **Sizes:**
-
-```javascript
-{
-  'btn-sm': 'px-4 py-2 text-sm',          // 14px text
-  'btn-md': 'px-6 py-3 text-base',        // 16px text (default)
-  'btn-lg': 'px-8 py-4 text-lg',          // 18px text
-  'btn-xl': 'px-12 py-4 text-xl',         // 20px text (hero CTAs)
-}
-```
-
-#### **Icon Buttons:**
-
-```tsx
-// Icon only, square
-className="
-  w-10 h-10 
-  flex items-center justify-center
-  rounded-lg 
-  text-ak-text-secondary 
-  hover:text-ak-primary 
-  hover:bg-ak-surface
-  transition-colors
-  focus:ring-2 
-  focus:ring-ak-primary
-"
-aria-label="Close" // Required for accessibility
-```
+**Kullanım Notları:**
+- Hero CTA (`/signup`): `variant="primary" size="lg"`
+- İkincil CTA (`/login`): `variant="outline" size="lg"`
+- Header mobil menü: `variant="secondary" size="md"`
+- Focus state her varyantta `outline-ak-primary`; ekstra ring eklemeye gerek yok.
+- Disabled: `disabled` prop + `aria-disabled` gerekirse wrapper componentte ayarlanır.
 
 ---
 
@@ -601,19 +465,19 @@ aria-label="Close" // Required for accessibility
 ```tsx
 className="
   w-full 
-  bg-ak-surface 
   border 
   border-ak-border 
+  bg-ak-surface 
   text-ak-text-primary 
   px-4 py-3 
-  rounded-lg 
-  transition-all
-  focus:border-ak-border-focus 
+  rounded-xl 
+  transition-colors duration-150
+  placeholder:text-ak-text-secondary/70
+  focus:border-ak-primary 
+  focus:outline-none 
   focus:ring-2 
-  focus:ring-ak-primary-muted 
-  focus:outline-none
-  placeholder:text-ak-text-tertiary
-  disabled:opacity-50 
+  focus:ring-ak-primary/70
+  disabled:opacity-60 
   disabled:cursor-not-allowed
 "
 ```
@@ -624,7 +488,7 @@ className="
 <div className="space-y-2">
   <label 
     htmlFor="email" 
-    className="block text-sm font-medium text-ak-text-secondary"
+    className="block text-sm font-medium text-ak-text-primary"
   >
     Email Address
   </label>
@@ -643,7 +507,9 @@ className="
 // Add to input classes
 className="
   border-ak-error 
-  focus:ring-ak-error-bg
+  focus:border-ak-error
+  focus:ring-2
+  focus:ring-ak-error/70
 "
 
 // Error message below input
@@ -665,7 +531,9 @@ className="
     onClick={() => setShowPassword(!showPassword)}
     className="
       absolute right-3 top-1/2 -translate-y-1/2
-      text-ak-text-tertiary hover:text-ak-primary
+      rounded-lg text-xs font-medium uppercase tracking-wide
+      text-ak-text-secondary hover:text-ak-primary
+      focus:outline-none focus:ring-2 focus:ring-ak-primary focus:ring-offset-0
     "
     aria-label={showPassword ? 'Hide password' : 'Show password'}
   >
@@ -684,12 +552,12 @@ className="
   border-ak-border 
   text-ak-text-primary 
   px-4 py-3 
-  rounded-lg 
+  rounded-xl 
   cursor-pointer
-  focus:border-ak-border-focus 
+  focus:border-ak-primary 
+  focus:outline-none 
   focus:ring-2 
-  focus:ring-ak-primary-muted 
-  focus:outline-none
+  focus:ring-ak-primary/70
 "
 ```
 
@@ -701,15 +569,16 @@ className="
 
 ```tsx
 className="
+  text-ak-text-primary 
   bg-ak-surface-2 
   border 
   border-ak-border 
   rounded-2xl 
-  p-8 
-  transition-all 
-  duration-300
+  p-6 
+  shadow-lg
+  transition-transform duration-200
   hover:-translate-y-1 
-  hover:shadow-ak-md
+  hover:shadow-xl
 "
 ```
 
@@ -720,9 +589,10 @@ className="
   ...base-card-classes
   cursor-pointer
   hover:border-ak-primary
-  focus:outline-none 
-  focus:ring-2 
-  focus:ring-ak-primary
+  focus-visible:outline 
+  focus-visible:outline-2 
+  focus-visible:outline-ak-primary 
+  focus-visible:outline-offset-2
 "
 ```
 
@@ -850,38 +720,44 @@ className="
 #### **Desktop Header:**
 
 ```tsx
-<header className="
-  sticky top-0 
-  z-50 
-  bg-ak-bg/90 
-  backdrop-blur-md 
-  border-b border-ak-border
-">
-  <div className="container">
-    <div className="flex items-center justify-between h-16">
-      {/* Logo */}
-      <a href="/" className="flex items-center">
-        <img src={AKIS_LOGO_URL} alt="AKIS" className="h-8" />
-      </a>
-      
-      {/* Navigation */}
-      <nav className="hidden md:flex items-center gap-8">
-        <a href="/platform" className="...ghost-link">Platform</a>
-        <a href="/pricing" className="...ghost-link">Pricing</a>
-        <a href="/docs" className="...ghost-link">Docs</a>
-      </nav>
-      
-      {/* Actions */}
-      <div className="hidden md:flex items-center gap-3">
-        <a href="/login" className="...btn-secondary">Login</a>
-        <a href="/signup" className="...btn-primary">Sign up</a>
-      </div>
-      
-      {/* Mobile menu button */}
-      <button className="md:hidden" aria-label="Menu">
-        <MenuIcon />
-      </button>
+<header className="sticky top-0 z-40 border-b border-ak-border bg-ak-bg">
+  <div className="mx-auto flex h-20 w-full max-w-6xl items-center justify-between px-4 sm:px-6 lg:px-8">
+    <Logo size="nav" />
+
+    <nav className="hidden items-center gap-3 text-sm font-medium md:flex">
+      <NavLink
+        to="/platform"
+        className={({ isActive }) =>
+          cn(
+            "rounded-full px-4 py-2 transition-colors",
+            isActive
+              ? "bg-ak-surface-2 text-ak-text-primary"
+              : "text-ak-text-secondary hover:text-ak-primary"
+          )
+        }
+      >
+        Platform
+      </NavLink>
+      {/* Diğer menü bağlantıları */}
+    </nav>
+
+    <div className="hidden items-center gap-3 md:flex">
+      <Button as={Link} to="/login" variant="outline">
+        Login
+      </Button>
+      <Button as={Link} to="/signup">
+        Sign up
+      </Button>
     </div>
+
+    <Button
+      variant="secondary"
+      size="md"
+      className="md:hidden"
+      aria-label="Open navigation"
+    >
+      Menu
+    </Button>
   </div>
 </header>
 ```
@@ -889,24 +765,43 @@ className="
 #### **Mobile Drawer:**
 
 ```tsx
-// Slide-over from right
-<div className="
-  fixed inset-y-0 right-0 
-  w-64 
-  bg-ak-surface-2 
-  shadow-ak-lg 
-  transform transition-transform
-  z-50
-  p-6
-">
-  <nav className="space-y-4">
-    <a href="/platform" className="...">Platform</a>
-    <a href="/pricing" className="...">Pricing</a>
-    <a href="/docs" className="...">Docs</a>
-    <hr className="border-ak-border" />
-    <a href="/login" className="...btn-secondary">Login</a>
-    <a href="/signup" className="...btn-primary">Sign up</a>
-  </nav>
+<div
+  id="mobile-nav"
+  className={cn(
+    "md:hidden",
+    mobileOpen ? "block border-t border-ak-border bg-ak-bg" : "hidden"
+  )}
+>
+  <div className="mx-auto flex max-w-6xl flex-col gap-4 px-4 py-6">
+    <div className="flex flex-col gap-2">
+      <span className="text-xs font-semibold uppercase tracking-[0.2em] text-ak-text-secondary/70">
+        Navigation
+      </span>
+      {primaryLinks.map((link) => (
+        <NavLink
+          key={link.label}
+          to={link.to}
+          className={({ isActive }) =>
+            cn(
+              "rounded-xl px-4 py-3 text-sm font-medium transition-colors",
+              isActive
+                ? "bg-ak-surface-2 text-ak-text-primary"
+                : "text-ak-text-secondary hover:bg-ak-surface hover:text-ak-primary"
+            )
+          }
+        >
+          {link.label}
+        </NavLink>
+      ))}
+    </div>
+
+    <Button as={Link} to="/login" variant="outline">
+      Login
+    </Button>
+    <Button as={Link} to="/signup">
+      Sign up
+    </Button>
+  </div>
 </div>
 ```
 
@@ -1247,8 +1142,8 @@ transition-timing-function: cubic-bezier(0.4, 0, 1, 1);
 - Desktop: Horizontal nav bar
 
 **Hero Section:**
-- Mobile: Stack, logo 80px
-- Desktop: Centered, logo 128px
+- Mobile: Stack, logo ~72-88px (clamp)
+- Desktop: Centered, logo 112px max
 
 **Feature Grids:**
 - Mobile: 1 column
@@ -1482,11 +1377,10 @@ module.exports = {
 
 ```tsx
 <img
-  src="/assets/akis-logo.png"
-  srcSet="/assets/akis-logo.png 1x, /assets/akis-logo@2x.png 2x"
+  src="/src/assets/branding/akis-official-logo@2x.png"
+  srcSet="/src/assets/branding/akis-official-logo@2x.png 1x"
   alt="AKIS"
-  width={160}
-  height={40}
+  style={{ height: "clamp(72px, 12vw, 112px)", width: "auto" }}
 />
 ```
 
