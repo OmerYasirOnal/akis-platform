@@ -3,8 +3,8 @@ import { z } from 'zod';
 import { AgentOrchestrator } from '../core/orchestrator/AgentOrchestrator.js';
 import { db } from '../db/client.js';
 import { jobs, jobPlans, jobAudits } from '../db/schema.js';
-import { eq, desc, and, sql, lt } from 'drizzle-orm';
-import { InvalidStateTransitionError, DatabaseError, JobNotFoundError } from '../core/errors.js';
+import { eq, desc, and, sql } from 'drizzle-orm';
+import { JobNotFoundError } from '../core/errors.js';
 import { metrics } from './metrics.js';
 import { formatErrorResponse, getStatusCodeForError } from '../utils/errorHandler.js';
 
@@ -131,7 +131,7 @@ export async function agentsRoutes(fastify: FastifyInstance) {
               metrics.jobsFailed.inc({ type: body.type });
             }
           }
-        } catch (startError) {
+        } catch (_startError) {
           // If start fails, job is already marked as failed in DB
           // Query state to return accurate status
           try {
