@@ -14,19 +14,25 @@ export function ErrorToast({ error, onClose }: ErrorToastProps) {
   }, [onClose]);
 
   return (
-    <div className="fixed top-4 right-4 bg-red-50 border border-red-200 rounded-lg shadow-lg p-4 max-w-md z-50">
-      <div className="flex justify-between items-start">
+    <div className="fixed right-4 top-4 z-50 max-w-md rounded-xl border border-ak-border bg-ak-surface-2 p-4 shadow-lg shadow-black/40">
+      <div className="flex items-start justify-between">
         <div className="flex-1">
-          <h3 className="text-sm font-medium text-red-800">Error</h3>
-          <p className="mt-1 text-sm text-red-700">{error.message}</p>
-          {error.code && <p className="mt-1 text-xs text-red-600">Code: {error.code}</p>}
-          {error.requestId && (
-            <p className="mt-1 text-xs text-red-600">Request ID: {error.requestId}</p>
-          )}
+          <h3 className="text-xs font-semibold uppercase tracking-[0.2em] text-ak-text-secondary/80">
+            Error
+          </h3>
+          <p className="mt-2 text-sm text-ak-text-primary">{error.message}</p>
+          {error.code ? (
+            <p className="mt-1 text-xs text-ak-text-secondary/90">Code: {error.code}</p>
+          ) : null}
+          {error.requestId ? (
+            <p className="mt-1 text-xs text-ak-text-secondary/80">
+              Request ID: {error.requestId}
+            </p>
+          ) : null}
         </div>
         <button
           onClick={onClose}
-          className="ml-4 text-red-400 hover:text-red-600"
+          className="ml-4 text-ak-text-secondary transition-colors hover:text-ak-text-primary"
           aria-label="Close"
         >
           ×
