@@ -2,9 +2,8 @@ import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import AppShell from './app/AppShell';
 import DashboardShell from './app/DashboardShell';
-import { AuthProvider } from './auth/AuthContext';
-import RequireAuth from './auth/RequireAuth';
-import RequireRole from './auth/RequireRole';
+import { ProtectedRoute, RequireRole } from './app/RouteGuards';
+import { AuthProvider } from './state/auth/AuthContext';
 import { useI18n } from './i18n/useI18n';
 import LandingPage from './pages/LandingPage';
 import PlatformPage from './pages/PlatformPage';
@@ -32,6 +31,7 @@ import LegalTermsPage from './pages/legal/LegalTermsPage';
 import LegalPrivacyPage from './pages/legal/LegalPrivacyPage';
 import StatusPage from './pages/StatusPage';
 import Login from './pages/Login';
+import DevLogin from './pages/auth/Login.dev';
 import Signup from './pages/Signup';
 import DashboardOverviewPage from './pages/dashboard/DashboardOverviewPage';
 import DashboardAgentsIndexPage from './pages/dashboard/DashboardAgentsIndexPage';
@@ -47,6 +47,9 @@ import DashboardSettingsNotificationsPage from './pages/dashboard/settings/Dashb
 import JobsListPage from './pages/JobsListPage';
 import JobDetailPage from './pages/JobDetailPage';
 import NewJobPage from './pages/NewJobPage';
+
+const devLoginEnabled =
+  String(import.meta.env.VITE_ENABLE_DEV_LOGIN ?? '').toLowerCase() === 'true';
 
 function App() {
   const { t } = useI18n();
@@ -95,14 +98,17 @@ function App() {
             <Route path="status" element={<StatusPage />} />
             <Route path="login" element={<Login />} />
             <Route path="signup" element={<Signup />} />
+            {devLoginEnabled ? (
+              <Route path="auth/dev-login" element={<DevLogin />} />
+            ) : null}
           </Route>
 
           <Route
             path="/dashboard"
             element={
-              <RequireAuth>
+              <ProtectedRoute>
                 <DashboardShell />
-              </RequireAuth>
+              </ProtectedRoute>
             }
           >
             <Route index element={<DashboardOverviewPage />} />

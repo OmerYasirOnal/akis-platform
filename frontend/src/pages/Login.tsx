@@ -1,85 +1,21 @@
-import React from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Link, Navigate } from 'react-router-dom';
 import Card from '../components/common/Card';
-import Input from '../components/common/Input';
 import Button from '../components/common/Button';
-import { useAuth } from '../auth/AuthContext';
+import { useAuth } from '../state/auth/AuthContext';
 
-type LoginErrors = {
-  email?: string;
-  password?: string;
-};
-
-const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const devLoginEnabled =
+  String(import.meta.env.VITE_ENABLE_DEV_LOGIN ?? '').toLowerCase() === 'true';
 
 const Login: React.FC = () => {
-  const navigate = useNavigate();
-  const location = useLocation();
-  const { login } = useAuth();
+  const { isAuthenticated } = useAuth();
 
-  const [form, setForm] = React.useState({
-    email: '',
-    password: '',
-  });
-  const [errors, setErrors] = React.useState<LoginErrors>({});
-  const [showPassword, setShowPassword] = React.useState(false);
-  const [isSubmitting, setIsSubmitting] = React.useState(false);
+  if (devLoginEnabled) {
+    return <Navigate to="/auth/dev-login" replace />;
+  }
 
-  type AuthLocationState = {
-    from?: {
-      pathname?: string;
-    };
-    message?: string;
-  };
-
-  const authState = location.state as AuthLocationState | null;
-  const redirectPath = authState?.from?.pathname ?? '/dashboard';
-  const alertMessage = authState?.message ?? null;
-  const [authError, setAuthError] = React.useState<string | null>(null);
-
-  const validate = React.useCallback(() => {
-    const nextErrors: LoginErrors = {};
-
-    if (!form.email.trim()) {
-      nextErrors.email = 'E-posta adresi gerekli';
-    } else if (!emailRegex.test(form.email)) {
-      nextErrors.email = 'Geçerli bir e-posta adresi girin';
-    }
-
-    if (!form.password) {
-      nextErrors.password = 'Şifre gerekli';
-    } else if (form.password.length < 8) {
-      nextErrors.password = 'Şifre en az 8 karakter olmalı';
-    }
-
-    setErrors(nextErrors);
-
-    return Object.keys(nextErrors).length === 0;
-  }, [form.email, form.password]);
-
-  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-
-    if (!validate()) {
-      return;
-    }
-
-    setIsSubmitting(true);
-    setAuthError(null);
-
-    try {
-      const result = await login(form.email, form.password);
-
-      if (!result.success) {
-        setAuthError(result.message);
-        return;
-      }
-
-      navigate(redirectPath, { replace: true });
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
+  if (isAuthenticated) {
+    return <Navigate to="/dashboard" replace />;
+  }
 
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col items-center gap-16 bg-ak-bg px-4 py-16 text-left sm:px-6 lg:px-8">
@@ -88,83 +24,35 @@ const Login: React.FC = () => {
           Hoş geldin
         </p>
         <h1 className="text-3xl font-semibold text-ak-text-primary">
-          Hesabına giriş yap
+          Giriş yakında açılıyor
         </h1>
         <p className="text-sm text-ak-text-secondary">
-          Korunan AKIS iş akışlarına erişebilmek için oturum aç.
+          Kurumsal kimlikle giriş yeteneklerimizi geliştiriyoruz. Beta erişimi için ekibimizle
+          iletişime geçebilirsin.
         </p>
       </div>
 
       <Card className="w-full max-w-lg space-y-6">
-        {[alertMessage, authError].some(Boolean) ? (
-          <div className="rounded-xl border border-ak-border bg-ak-surface-2 px-4 py-3 text-sm text-ak-text-primary">
-            {authError ?? alertMessage}
-          </div>
-        ) : null}
-        <form className="space-y-6" onSubmit={handleSubmit} noValidate>
-          <Input
-            label="E-posta"
-            type="email"
-            placeholder="sen@ekibin.com"
-            autoComplete="email"
-            value={form.email}
-            onChange={(event) =>
-              setForm((prev) => ({
-                ...prev,
-                email: event.target.value,
-              }))
-            }
-            error={errors.email}
-          />
-
-          <Input
-            label="Şifre"
-            type={showPassword ? 'text' : 'password'}
-            placeholder="••••••••"
-            autoComplete="current-password"
-            value={form.password}
-            onChange={(event) =>
-              setForm((prev) => ({
-                ...prev,
-                password: event.target.value,
-              }))
-            }
-            error={errors.password}
-            rightElement={
-              <button
-                type="button"
-                className="rounded-lg text-xs font-medium uppercase tracking-wide text-ak-text-secondary transition-colors hover:text-ak-primary focus:outline-none focus:ring-2 focus:ring-ak-primary focus:ring-offset-0"
-                onClick={() => setShowPassword((prev) => !prev)}
-              >
-                {showPassword ? 'Gizle' : 'Göster'}
-              </button>
-            }
-          />
-
-          <div className="flex items-center justify-between text-sm">
-            <Link
-              to="#"
-              className="text-ak-text-secondary transition-colors hover:text-ak-primary"
-              title="Yakında aktif olacak"
-            >
-              Şifreni mi unuttun?
+        <div className="space-y-4 text-sm text-ak-text-secondary">
+          <p>
+            AKIS’in kapalı betası şu an sınırlı kullanıcılarla ilerliyor. Giriş bağlantıların
+            hazırlandığında sana haber vereceğiz.
+          </p>
+          <p>
+            Betaya katılmak istiyorsan{' '}
+            <Link className="font-medium text-ak-primary hover:text-ak-text-primary" to="/contact">
+              bizimle iletişime geç
+            </Link>{' '}
+            ya da{' '}
+            <Link className="font-medium text-ak-primary hover:text-ak-text-primary" to="/signup">
+              bekleme listesine kaydol
             </Link>
-          </div>
-
-          <Button type="submit" size="lg" disabled={isSubmitting}>
-            {isSubmitting ? 'Giriş yapılıyor...' : 'Giriş yap'}
-          </Button>
-        </form>
-
-        <p className="text-sm text-ak-text-secondary">
-          AKIS’e yeni misin?{' '}
-          <Link
-            to="/signup"
-            className="font-medium text-ak-primary transition-colors hover:text-ak-text-primary focus:outline-none focus:ring-2 focus:ring-ak-primary focus:ring-offset-2 focus:ring-offset-ak-bg"
-          >
-            Hemen hesap oluştur
-          </Link>
-        </p>
+            .
+          </p>
+        </div>
+        <Button as={Link} to="/platform" variant="secondary">
+          Platformu keşfet
+        </Button>
       </Card>
     </div>
   );
