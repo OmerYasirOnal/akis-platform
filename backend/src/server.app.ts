@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import Fastify from 'fastify';
+import type { FastifyRequest, FastifyReply } from 'fastify';
 import cors from '@fastify/cors';
 import { randomUUID } from 'crypto';
 import { getEnv } from './config/env.js';
@@ -65,20 +66,20 @@ export async function buildApp() {
         },
     requestIdHeader: 'request-id',
     requestIdLogLabel: 'requestId',
-    genReqId: (req) => {
+    genReqId: (req: FastifyRequest) => {
       // Accept inbound request-id header if present, else generate UUID
       return (req.headers['request-id'] as string) || randomUUID();
     },
   });
 
   // Phase 7.A: Add request logging hook
-  app.addHook('onRequest', async (request, reply) => {
+  app.addHook('onRequest', async (request: FastifyRequest, reply: FastifyReply) => {
     // Fastify automatically sets request.id from genReqId
     // We can attach it to the reply for later use
     reply.requestId = request.id;
   });
 
-  app.addHook('onResponse', async (request, reply) => {
+  app.addHook('onResponse', async (request: FastifyRequest, reply: FastifyReply) => {
     // Phase 7.B: Record HTTP duration metric
     const duration = reply.elapsedTime / 1000; // Convert to seconds
     const route = request.routerPath || request.url.split('?')[0];
@@ -132,7 +133,7 @@ export async function buildApp() {
       deepLinking: false,
     },
     staticCSP: true,
-    transformStaticCSP: (header) => header,
+    transformStaticCSP: (header: string) => header,
   });
 
   // Register routes (order matters: root first, then specific routes)
@@ -142,13 +143,13 @@ export async function buildApp() {
   await app.register(agentsRoutes);
 
   // Phase 7.C: Expose OpenAPI JSON at /openapi.json (after routes are registered)
-  app.get('/openapi.json', async (_request, reply) => {
+  app.get('/openapi.json', async (_request: FastifyRequest, reply: FastifyReply) => {
     reply.type('application/json');
     return app.swagger();
   });
 
   // 404 handler (must be registered after all routes)
-  app.setNotFoundHandler((request, reply) => {
+  app.setNotFoundHandler((request: FastifyRequest, reply: FastifyReply) => {
     reply.code(404).send({
       error: 'Not Found',
       message: `Route ${request.method} ${request.url} not found`,

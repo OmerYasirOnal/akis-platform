@@ -104,7 +104,7 @@ export class AgentOrchestrator {
     // Transition to running (FSM validates internally)
     try {
       stateMachine.start();
-    } catch (error) {
+    } catch (_error) {
       throw new InvalidStateTransitionError(jobId, currentState, 'start');
     }
 
@@ -259,7 +259,7 @@ export class AgentOrchestrator {
     // Transition to completed (FSM validates internally)
     try {
       stateMachine.complete();
-    } catch (error) {
+    } catch (_error) {
       throw new InvalidStateTransitionError(jobId, currentState, 'complete');
     }
 
@@ -314,7 +314,7 @@ export class AgentOrchestrator {
     // Transition to failed (FSM validates internally)
     try {
       stateMachine.fail();
-    } catch (err) {
+    } catch (_err) {
       throw new InvalidStateTransitionError(jobId, currentState, 'fail');
     }
 
