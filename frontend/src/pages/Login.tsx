@@ -82,7 +82,7 @@ const Login: React.FC = () => {
   };
 
   return (
-    <div className="mx-auto flex max-w-6xl flex-col items-center gap-16 px-4 text-left sm:px-6 lg:px-8">
+    <div className="mx-auto flex max-w-6xl flex-col items-center gap-16 bg-ak-bg px-4 py-16 text-left sm:px-6 lg:px-8">
       <div className="flex w-full max-w-lg flex-col gap-3 text-center">
         <p className="text-xs font-semibold uppercase tracking-[0.25em] text-ak-text-secondary/80">
           Hoş geldin

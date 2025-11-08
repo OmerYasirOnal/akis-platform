@@ -94,7 +94,7 @@ const LandingPage: React.FC = () => {
   }, [location.hash]);
 
   return (
-    <div className="space-y-24">
+    <div className="space-y-24 bg-ak-bg">
       <section className="mx-auto flex max-w-6xl flex-col items-center gap-10 px-4 text-center sm:px-6 lg:px-8">
         <Logo size="hero" />
         <div className="flex flex-col gap-6">
