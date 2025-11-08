@@ -1,39 +1,12 @@
-/**
- * AKIS Brand Asset Registry
- * 
- * Tek bir kaynaktan logo yollarını ve meta verilerini sağlar.
- * Tüm bileşenler bu dosyadan tüketmelidir.
- */
+export const LOGO_PNG_HERO = "/src/assets/branding/akis-official-logo@2x.png";
+export const LOGO_PNG_TRANSPARENT = "/src/assets/branding/akis-official-logo@2x.png";
+export const LOGO_ALT = "AKIS";
 
-import logoPng from '../assets/branding/akis-logo.png';
-
-/**
- * Ana logo (PNG, şeffaf arka plan)
- */
-export const AKIS_LOGO_URL = logoPng;
-
-/**
- * Yüksek DPI varyasyonu hazır olduğunda bu sabite güncellenmelidir.
- * Şimdilik tek çözünürlük kullanılmaktadır.
- */
-export const AKIS_LOGO_2X_URL: string | null = null;
-
-/**
- * Erişilebilirlik için alt metin
- */
-export const AKIS_LOGO_ALT = 'AKIS';
-
-/**
- * Standart yükseklikler (px)
- */
-export const AKIS_LOGO_DEFAULT_HEIGHT = {
-  desktop: 28,
-  mobile: 24,
+export const LOGO_SIZES = {
+  hero: 112,
+  nav: 24,
+  sm: 20,
 } as const;
 
-/**
- * Landing kahraman bölümünde önerilen logo yüksekliği (px).
- * Masaüstünde ~112px (≈ h-28), mobilde daha küçük ölçekte hizalanır.
- */
-export const AKIS_LOGO_HERO_HEIGHT = 112;
+export type LogoSize = keyof typeof LOGO_SIZES;
 

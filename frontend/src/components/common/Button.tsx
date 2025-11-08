@@ -16,13 +16,13 @@ export type ButtonProps<C extends React.ElementType> = ButtonOwnProps<C> &
 
 const variantClasses: Record<ButtonVariant, string> = {
   primary:
-    'bg-ak-primary text-ak-bg hover:bg-ak-primary focus-visible:outline-ak-primary',
+    'bg-ak-primary text-ak-bg hover:bg-ak-primary/90 focus-visible:outline-ak-primary',
   secondary:
-    'bg-ak-surface text-ak-text-primary hover:bg-ak-surface-2 focus-visible:outline-ak-primary',
+    'bg-ak-surface-2 text-ak-text-primary hover:bg-ak-surface focus-visible:outline-ak-primary',
   outline:
-    'bg-transparent border border-ak-border text-ak-text-primary hover:border-ak-primary hover:text-ak-primary',
+    'bg-ak-bg border border-ak-border text-ak-text-primary hover:border-ak-primary hover:text-ak-primary hover:bg-ak-surface',
   ghost:
-    'bg-transparent text-ak-text-secondary hover:text-ak-text-primary hover:bg-ak-surface',
+    'bg-ak-bg text-ak-text-secondary hover:text-ak-text-primary hover:bg-ak-surface',
 };
 
 const sizeClasses: Record<ButtonSize, string> = {

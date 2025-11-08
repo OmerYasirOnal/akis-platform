@@ -36,7 +36,7 @@ const Header: React.FC = () => {
     <header className="sticky top-0 z-40 border-b border-ak-border bg-ak-bg">
       <div className="mx-auto flex h-20 w-full max-w-6xl items-center justify-between px-4 sm:px-6 lg:px-8">
         <div className="flex items-center gap-6">
-          <Logo size="default" />
+          <Logo size="nav" />
         </div>
 
         <nav className="hidden items-center gap-3 text-sm font-medium md:flex">
