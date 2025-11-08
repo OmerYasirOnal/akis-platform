@@ -1,11 +1,11 @@
 import { Outlet } from 'react-router-dom';
-import Header from '../components/common/Header';
+import AppHeader from '../layouts/AppHeader';
 import Footer from '../components/common/Footer';
 
 const AppShell = () => {
   return (
     <div className="flex min-h-screen flex-col bg-ak-bg text-ak-text-primary">
-      <Header />
+      <AppHeader />
       <main className="flex-1 pb-20 pt-24 sm:pb-24">
         <Outlet />
       </main>

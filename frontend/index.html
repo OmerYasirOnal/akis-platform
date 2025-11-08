@@ -1,12 +1,41 @@
 <!doctype html>
-<html lang="en" class="dark">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>AKIS Platform</title>
+    <script>
+      (function () {
+        const storageKey = "akis:theme";
+        const classNameDark = "dark";
+        const root = document.documentElement;
+
+        try {
+          const stored = window.localStorage.getItem(storageKey);
+          const systemPrefersDark = window.matchMedia &&
+            window.matchMedia("(prefers-color-scheme: dark)").matches;
+          const resolved =
+            stored === "dark" || stored === "light"
+              ? stored
+              : systemPrefersDark
+              ? "dark"
+              : "light";
+
+          root.dataset.theme = resolved;
+          if (resolved === "dark") {
+            root.classList.add(classNameDark);
+          } else {
+            root.classList.remove(classNameDark);
+          }
+        } catch {
+          root.dataset.theme = "dark";
+          root.classList.add(classNameDark);
+        }
+      })();
+    </script>
   </head>
-  <body class="bg-ak-bg text-ak-text-primary min-h-screen">
-    <div id="root" class="min-h-screen bg-ak-bg"></div>
+  <body class="min-h-screen">
+    <div id="root" class="min-h-screen"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
