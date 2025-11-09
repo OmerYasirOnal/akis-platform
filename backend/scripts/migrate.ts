@@ -1,4 +1,18 @@
-import 'dotenv/config';
+type ModuleLoadError = Error & { code?: string };
+
+try {
+  await import('dotenv/config');
+} catch (error) {
+  if (!(error instanceof Error)) {
+    throw error;
+  }
+
+  const { code } = error as ModuleLoadError;
+
+  if (code !== 'ERR_MODULE_NOT_FOUND' && code !== 'MODULE_NOT_FOUND') {
+    throw error;
+  }
+}
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import { Client } from 'pg';
