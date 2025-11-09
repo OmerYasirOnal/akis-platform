@@ -168,6 +168,12 @@ jobs:
       - name: Ensure pnpm store directory
         run: mkdir -p "$(pnpm store path --silent)"
 
+      - name: Map postgres hostname
+        run: |
+          if ! grep -q "^127.0.0.1 postgres$" /etc/hosts; then
+            echo "127.0.0.1 postgres" | sudo tee -a /etc/hosts
+          fi
+
       - name: Assert database URLs
         run: |
           if [ -z "${TEST_DATABASE_URL:-}" ]; then
