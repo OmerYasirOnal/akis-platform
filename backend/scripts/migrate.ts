@@ -19,10 +19,13 @@ import { Client } from 'pg';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const databaseUrl = process.env.DATABASE_URL;
+const databaseUrl =
+  process.env.DATABASE_URL ?? process.env.TEST_DATABASE_URL ?? null;
 
 if (!databaseUrl) {
-  console.error('DATABASE_URL environment variable is required');
+  console.error(
+    'DATABASE_URL or TEST_DATABASE_URL environment variable is required',
+  );
   process.exit(1);
 }
 

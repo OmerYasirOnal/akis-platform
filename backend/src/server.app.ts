@@ -23,7 +23,8 @@ import { metricsRoutes, metrics } from './api/metrics.js';
 import { authRoutes } from './api/auth.js';
 import { githubRoutes } from './api/github.js';
 import { AgentOrchestrator } from './core/orchestrator/AgentOrchestrator.js';
-import { AIService, ModelRouter, buildDefaultModelRouter } from './services/ai/AIService.js';
+import { AIService } from './services/mcp/ai/AIService.js';
+import { buildDefaultModelRouter } from './services/mcp/ai/ModelRouter.js';
 import type { MCPTools } from './services/mcp/adapters/index.js';
 import { GitHubInstallationTokenService } from './services/mcp/adapters/GitHubInstallationTokenService.js';
 import { GitHubMCPService } from './services/mcp/adapters/GitHubMCPService.js';
@@ -195,7 +196,7 @@ export async function createApp(options: CreateAppOptions = {}) {
           email: payload.email,
           jti: payload.jti,
         };
-      } catch (error) {
+      } catch (_error) {
         Reflect.deleteProperty(userRequest, 'user');
         if (typeof reply.clearAuthCookie === 'function') {
           reply.clearAuthCookie();

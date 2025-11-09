@@ -1,8 +1,6 @@
 import 'dotenv/config';
 import { z } from 'zod';
 
-type BooleanString = 'true' | 'false';
-
 const booleanString = z
   .enum(['true', 'false'] as const)
   .default('false')

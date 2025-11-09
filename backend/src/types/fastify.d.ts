@@ -1,3 +1,8 @@
+import type { ModelRouter } from '../services/mcp/ai/ModelRouter.js';
+import type { AIService } from '../services/mcp/ai/AIService.js';
+import type { EnvChecklistItem, EnvFeatureFlags } from '../config/envStatus.js';
+import type { GitHubMCPService } from '../services/mcp/adapters/GitHubMCPService.js';
+
 declare module 'fastify' {
   type FastifyHook = (
     request: FastifyRequest,
@@ -16,6 +21,12 @@ declare module 'fastify' {
     routerPath?: string;
     cookies?: Record<string, string>;
     authSessionId?: string | null;
+    authToken?: string | null;
+    user?: {
+      id: string;
+      email: string;
+      jti: string;
+    };
   }
 
   export interface FastifyReply {
@@ -38,6 +49,11 @@ declare module 'fastify' {
 
   export interface FastifyInstance {
     authCookieName?: string;
+    modelRouter: ModelRouter;
+    aiService: AIService;
+    featureFlags: EnvFeatureFlags;
+    envChecklist: EnvChecklistItem[];
+    githubAdapterFactory: (installationId: string) => Promise<GitHubMCPService>;
     get(path: string, handler: FastifyHandler): FastifyInstance;
     get(path: string, opts: Record<string, unknown>, handler: FastifyHandler): FastifyInstance;
     post(path: string, handler: FastifyHandler): FastifyInstance;
@@ -71,6 +87,7 @@ declare module 'fastify' {
     log: {
       info: (...args: unknown[]) => void;
       error: (...args: unknown[]) => void;
+      warn: (...args: unknown[]) => void;
     };
   }
 

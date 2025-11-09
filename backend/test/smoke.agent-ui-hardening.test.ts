@@ -27,7 +27,7 @@ const ensureTestEnv = () => {
   process.env.GITHUB_APP_PRIVATE_KEY ??= TEST_PRIVATE_KEY;
 };
 
-test('agent UI hardening smoke flow', { skip: !hasDatabase }, async (t) => {
+test('agent UI hardening smoke flow', { skip: !hasDatabase }, async () => {
   if (!hasDatabase) {
     console.log('Skipping agent UI smoke tests: DATABASE_URL not set');
     return;
@@ -129,7 +129,7 @@ test('agent UI hardening smoke flow', { skip: !hasDatabase }, async (t) => {
   // Seed GitHub installation record for repo operations
   try {
     await db.delete(oauthAccounts).where(eq(oauthAccounts.providerUserId, '12345'));
-  } catch (error) {
+  } catch (_error) {
     // ignore cleanup errors (table may not exist yet)
   }
 
@@ -144,7 +144,6 @@ test('agent UI hardening smoke flow', { skip: !hasDatabase }, async (t) => {
     const code = (error as { code?: string | number })?.code;
     if (code && String(code) === '23505') {
       // ignore duplicate insert when test re-runs quickly
-      // eslint-disable-next-line no-console
       console.warn('Skipping duplicate oauth_accounts seed for smoke test');
       // continue
     } else {

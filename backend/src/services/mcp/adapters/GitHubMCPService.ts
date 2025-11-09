@@ -6,8 +6,9 @@
  */
 
 export interface GitHubMCPServiceOptions {
-  baseUrl: string;
+  baseUrl?: string;
   token?: string;
+  installationId?: string;
 }
 
 /**
@@ -17,6 +18,33 @@ export interface GitHubMCPServiceOptions {
 export class GitHubMCPService {
   constructor(_opts: GitHubMCPServiceOptions) {
     // Signature-only: no implementation
+  }
+
+  /**
+   * List repositories visible to the installation
+   */
+  async listRepositories(): Promise<
+    Array<{
+      id: number;
+      name: string;
+      fullName: string;
+      private: boolean;
+      defaultBranch: string;
+    }>
+  > {
+    // Signature-only: no implementation
+    throw new Error('Not implemented: signature-only MCP adapter');
+  }
+
+  /**
+   * List branches for a repository
+   */
+  async listBranches(
+    _owner: string,
+    _repo: string
+  ): Promise<Array<{ name: string; commitSha: string; protected: boolean }>> {
+    // Signature-only: no implementation
+    throw new Error('Not implemented: signature-only MCP adapter');
   }
 
   /**

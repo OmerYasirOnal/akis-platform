@@ -56,6 +56,20 @@ async function resolveInstallationId(
   return accounts[0]?.installationId ?? null;
 }
 
+function ensureGitHubAppConfigured(fastify: FastifyInstance, reply: FastifyReply): boolean {
+  if (fastify.featureFlags.githubAppEnabled) {
+    return true;
+  }
+
+  reply.code(503).send({
+    error: {
+      code: 'GITHUB_APP_NOT_CONFIGURED',
+      message: 'GitHub App kimlik bilgileri tanımlanmamış.',
+    },
+  });
+  return false;
+}
+
 export async function githubRoutes(fastify: FastifyInstance) {
   fastify.get('/github/repos', async (request, reply) => {
     const auth = await ensureAuthenticated(request, reply);
@@ -63,13 +77,7 @@ export async function githubRoutes(fastify: FastifyInstance) {
       return;
     }
 
-    if (!fastify.featureFlags.githubAppEnabled) {
-      reply.code(503).send({
-        error: {
-          code: 'GITHUB_APP_NOT_CONFIGURED',
-          message: 'GitHub App kimlik bilgileri tanımlanmamış.',
-        },
-      });
+    if (!ensureGitHubAppConfigured(fastify, reply)) {
       return;
     }
 
@@ -119,7 +127,7 @@ export async function githubRoutes(fastify: FastifyInstance) {
       return;
     }
 
-    if (!ensureGitHubAppConfigured(reply)) {
+    if (!ensureGitHubAppConfigured(fastify, reply)) {
       return;
     }
 

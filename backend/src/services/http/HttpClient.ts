@@ -43,6 +43,13 @@ export class HttpClient {
   }
 
   /**
+   * Generic request helper exposed for arbitrary HTTP methods
+   */
+  async send(url: string, init: RequestInit, token?: string): Promise<Response> {
+    return this.request(url, init, token);
+  }
+
+  /**
    * Generic request with retry/backoff
    */
   private async request(

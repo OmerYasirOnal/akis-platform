@@ -142,15 +142,19 @@ function estimateTokens(agent: AgentKind, params?: Record<string, unknown>): num
   }
   const key = AGENT_PARAM_KEYS[agent];
   if (key && typeof params[key] !== 'undefined') {
-    return extractTextSegments(params[key]).reduce(
+    return extractTextSegments(params[key]).reduce<number>(
       (sum, segment) => sum + tokenEstimateFromText(segment),
-      0
+      0,
     );
   }
-  return Object.values(params).reduce(
+  return Object.values(params).reduce<number>(
     (sum, value) =>
-      sum + extractTextSegments(value).reduce((inner, segment) => inner + tokenEstimateFromText(segment), 0),
-    0
+      sum +
+      extractTextSegments(value).reduce<number>(
+        (inner, segment) => inner + tokenEstimateFromText(segment),
+        0,
+      ),
+    0,
   );
 }
 
@@ -191,7 +195,10 @@ function applyAutoChunk(
 
   clone[key] = segments;
 
-  const nextEstimate = segments.reduce((sum, segment) => sum + tokenEstimateFromText(segment), 0);
+  const nextEstimate = segments.reduce<number>(
+    (sum, segment) => sum + tokenEstimateFromText(segment),
+    0,
+  );
 
   return {
     params: clone,
@@ -428,10 +435,10 @@ export async function agentsRoutes(fastify: FastifyInstance) {
             tokenEstimate: estimatedTokens,
             autoChunk: Boolean(autoChunk),
             plan: model.plan,
+            runId: run.id,
           },
           notes,
         },
-        runId: run.id,
       });
 
       void orchestrator.startJob(jobId).catch((error) => {
