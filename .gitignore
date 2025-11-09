@@ -29,7 +29,6 @@ backend/.env.*.local
 *.swp
 *.swo
 *~
-.DS_Store
 
 # TypeScript
 *.tsbuildinfo
@@ -49,10 +48,11 @@ pnpm-debug.log*
 
 # OS
 Thumbs.db
+*.DS_Store
 
 # Temporary files
 tmp/
 temp/
 .cache/
 
-.DS_Store
+**/* 2.*
