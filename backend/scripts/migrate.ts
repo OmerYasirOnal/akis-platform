@@ -1,7 +1,7 @@
 import 'dotenv/config';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
-import { Pool } from 'pg';
+import { Client } from 'pg';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -12,11 +12,13 @@ if (!databaseUrl) {
   process.exit(1);
 }
 
-const pool = new Pool({
+const client = new Client({
   connectionString: databaseUrl,
 });
 
-const db = drizzle(pool);
+await client.connect();
+
+const db = drizzle(client);
 
 const migrationsPath = resolve(
   dirname(fileURLToPath(import.meta.url)),
@@ -30,7 +32,7 @@ try {
   console.error('Failed to apply database migrations:', error);
   process.exitCode = 1;
 } finally {
-  await pool.end();
+  await client.end();
 }
 
 if (process.exitCode && process.exitCode !== 0) {

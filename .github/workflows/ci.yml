@@ -50,7 +50,7 @@ jobs:
         working-directory: backend
         env:
           DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/akis_v2_test
-        run: pnpm run db:migrate
+        run: pnpm run db:migrate:ci
 
   lint:
     runs-on: ubuntu-latest
@@ -159,15 +159,10 @@ jobs:
         working-directory: backend
         env:
           DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/akis_v2_test
-        run: pnpm run db:migrate
+        run: pnpm run db:migrate:ci
 
-      - name: Test backend
-        working-directory: backend
+      - name: Test
         env:
           DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/akis_v2_test
           NODE_ENV: test
-        run: pnpm test
-
-      - name: Test frontend
-        working-directory: frontend
-        run: pnpm test
+        run: pnpm -r test
