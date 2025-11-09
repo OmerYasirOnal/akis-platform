@@ -7,6 +7,7 @@ export interface CorsPluginOptions {
 }
 
 const LOCALHOST_VITE = 'http://localhost:5173';
+const LOCALHOST_VITE_127 = 'http://127.0.0.1:5173';
 
 export const corsPlugin = fp<CorsPluginOptions>(
   async (fastify: FastifyInstance, options: CorsPluginOptions) => {
@@ -18,6 +19,7 @@ export const corsPlugin = fp<CorsPluginOptions>(
     );
 
     normalizedOrigins.add(LOCALHOST_VITE);
+    normalizedOrigins.add(LOCALHOST_VITE_127);
 
     const allowAll = normalizedOrigins.has('*');
 

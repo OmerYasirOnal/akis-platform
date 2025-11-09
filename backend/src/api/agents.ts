@@ -2,8 +2,8 @@ import { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { AgentOrchestrator } from '../core/orchestrator/AgentOrchestrator.js';
 import { db } from '../db/client.js';
-import { jobs, jobPlans, jobAudits } from '../db/schema.js';
-import { eq, desc, and, sql } from 'drizzle-orm';
+import { jobs, jobPlans, jobAudits, agentRuns } from '../db/schema.js';
+import { eq, desc, and, sql, lt, lte, gte } from 'drizzle-orm';
 import { JobNotFoundError } from '../core/errors.js';
 import { metrics } from './metrics.js';
 import { formatErrorResponse, getStatusCodeForError } from '../utils/errorHandler.js';
@@ -71,6 +71,38 @@ const submitJobSchema = z.object({
   }
 });
 
+const runAgentSchema = z.object({
+  agentType: z.enum(['scribe', 'trace', 'proto']),
+  repoFullName: z.string().min(1),
+  branch: z.string().min(1),
+  modelId: z.string().min(1).optional(),
+  params: z.record(z.string(), z.unknown()).optional(),
+  tokenEstimate: z.number().int().nonnegative().optional(),
+  autoChunk: z.boolean().optional(),
+  consent: z
+    .object({
+      premium: z.boolean().optional(),
+    })
+    .optional(),
+});
+
+const runIdParamsSchema = z.object({
+  id: z.string().uuid(),
+});
+
+const modelsQuerySchema = z.object({
+  plan: z.enum(['free', 'premium', 'all']).default('all').optional(),
+});
+
+const runsListQuerySchema = z.object({
+  agentType: z.enum(['scribe', 'trace', 'proto']).optional(),
+  status: z.enum(['queued', 'running', 'completed', 'failed']).optional(),
+  limit: z.coerce.number().int().min(1).max(50).default(20),
+  cursor: z.string().optional(),
+  from: z.string().optional(),
+  to: z.string().optional(),
+});
+
 const jobIdParamsSchema = z.object({
   id: z.string().uuid(),
 });
@@ -78,6 +110,96 @@ const jobIdParamsSchema = z.object({
 const includeQuerySchema = z.object({
   include: z.string().optional(), // Comma-separated: 'plan,audit'
 });
+
+type AgentKind = 'scribe' | 'trace' | 'proto';
+
+const AGENT_PARAM_KEYS: Record<AgentKind, string> = {
+  scribe: 'doc',
+  trace: 'spec',
+  proto: 'goal',
+};
+
+function tokenEstimateFromText(text: string): number {
+  return Math.ceil(text.length / 4);
+}
+
+function extractTextSegments(value: unknown): string[] {
+  if (typeof value === 'string') {
+    return [value];
+  }
+  if (Array.isArray(value)) {
+    return value.flatMap((item) => extractTextSegments(item));
+  }
+  if (value && typeof value === 'object') {
+    return Object.values(value).flatMap((item) => extractTextSegments(item));
+  }
+  return [];
+}
+
+function estimateTokens(agent: AgentKind, params?: Record<string, unknown>): number {
+  if (!params) {
+    return 0;
+  }
+  const key = AGENT_PARAM_KEYS[agent];
+  if (key && typeof params[key] !== 'undefined') {
+    return extractTextSegments(params[key]).reduce(
+      (sum, segment) => sum + tokenEstimateFromText(segment),
+      0
+    );
+  }
+  return Object.values(params).reduce(
+    (sum, value) =>
+      sum + extractTextSegments(value).reduce((inner, segment) => inner + tokenEstimateFromText(segment), 0),
+    0
+  );
+}
+
+function applyAutoChunk(
+  agent: AgentKind,
+  params: Record<string, unknown> | undefined,
+  contextWindow: number
+): { params: Record<string, unknown>; field: string; chunks: number; tokenEstimate: number } {
+  const key = AGENT_PARAM_KEYS[agent];
+  const clone = structuredClone(params ?? {});
+
+  if (!key) {
+    return {
+      params: clone,
+      field: 'payload',
+      chunks: 1,
+      tokenEstimate: estimateTokens(agent, params),
+    };
+  }
+
+  const source = params?.[key];
+  if (!source || typeof source !== 'string') {
+    return {
+      params: clone,
+      field: key,
+      chunks: 1,
+      tokenEstimate: estimateTokens(agent, params),
+    };
+  }
+
+  const maxTokensPerChunk = Math.max(1, Math.floor(contextWindow * 0.9));
+  const maxCharsPerChunk = maxTokensPerChunk * 4;
+  const segments: string[] = [];
+
+  for (let cursor = 0; cursor < source.length; cursor += maxCharsPerChunk) {
+    segments.push(source.slice(cursor, cursor + maxCharsPerChunk));
+  }
+
+  clone[key] = segments;
+
+  const nextEstimate = segments.reduce((sum, segment) => sum + tokenEstimateFromText(segment), 0);
+
+  return {
+    params: clone,
+    field: key,
+    chunks: segments.length,
+    tokenEstimate: nextEstimate,
+  };
+}
 
 // Initialize orchestrator (will be injected from server.app.ts)
 let orchestrator: AgentOrchestrator;
@@ -87,9 +209,421 @@ export function setOrchestrator(orch: AgentOrchestrator): void {
 }
 
 export async function agentsRoutes(fastify: FastifyInstance) {
-  // POST /api/agents/jobs
+  fastify.get('/agents/run', async (request, reply) => {
+    if (!request.user) {
+      reply.code(401).send({
+        error: {
+          code: 'UNAUTHORIZED',
+          message: 'Oturum açmanız gerekiyor.',
+        },
+      });
+      return;
+    }
+
+    const parseResult = runsListQuerySchema.safeParse(request.query ?? {});
+    if (!parseResult.success) {
+      reply.code(400).send({
+        error: {
+          code: 'INVALID_REQUEST',
+          message: 'Geçersiz agent geçmişi sorgusu.',
+          details: parseResult.error.flatten(),
+        },
+      });
+      return;
+    }
+
+    const { agentType, status, limit, cursor, from, to } = parseResult.data;
+    const conditions = [eq(agentRuns.userId, request.user.id)];
+
+    if (agentType) {
+      conditions.push(eq(agentRuns.agentType, agentType));
+    }
+
+    if (status) {
+      conditions.push(eq(agentRuns.status, status));
+    }
+
+    if (from) {
+      const fromDate = new Date(from);
+      if (!Number.isNaN(fromDate.getTime())) {
+        conditions.push(gte(agentRuns.createdAt, fromDate));
+      }
+    }
+
+    if (to) {
+      const toDate = new Date(to);
+      if (!Number.isNaN(toDate.getTime())) {
+        conditions.push(lte(agentRuns.createdAt, toDate));
+      }
+    }
+
+    if (cursor) {
+      const cursorDate = new Date(cursor);
+      if (!Number.isNaN(cursorDate.getTime())) {
+        conditions.push(lt(agentRuns.createdAt, cursorDate));
+      }
+    }
+
+    const whereClause = and(...conditions);
+
+    const rows = await db
+      .select()
+      .from(agentRuns)
+      .where(whereClause)
+      .orderBy(desc(agentRuns.createdAt))
+      .limit(limit + 1);
+
+    let nextCursor: string | null = null;
+    if (rows.length > limit) {
+      const last = rows[limit - 1];
+      nextCursor = last.createdAt.toISOString();
+      rows.splice(limit);
+    }
+
+    reply.send({
+      items: rows,
+      nextCursor,
+    });
+  });
+
+  fastify.get('/models', async (request, reply) => {
+    const parseResult = modelsQuerySchema.safeParse(request.query ?? {});
+    if (!parseResult.success) {
+      reply.code(400).send({
+        error: {
+          code: 'INVALID_REQUEST',
+          message: 'Geçersiz model sorgusu.',
+        },
+      });
+      return;
+    }
+
+    const planFilter = (parseResult.data?.plan ?? 'all') as 'free' | 'premium' | 'all';
+    const router = fastify.modelRouter;
+    const models =
+      planFilter === 'all' ? router.list('all') : router.list(planFilter as 'free' | 'premium');
+
+    reply.send({ models });
+  });
+
+  fastify.post('/agents/run', async (request, reply) => {
+    if (!request.user) {
+      reply.code(401).send({
+        error: {
+          code: 'UNAUTHORIZED',
+          message: 'Oturum açmanız gerekiyor.',
+        },
+      });
+      return;
+    }
+
+    const parseResult = runAgentSchema.safeParse(request.body);
+    if (!parseResult.success) {
+      reply.code(400).send({
+        error: {
+          code: 'INVALID_REQUEST',
+          message: 'Agent çalıştırma isteği doğrulanamadı.',
+          details: parseResult.error.flatten(),
+        },
+      });
+      return;
+    }
+
+    const { agentType, repoFullName, branch, modelId, params, tokenEstimate, autoChunk, consent } =
+      parseResult.data;
+
+    let model;
+    try {
+      model = fastify.modelRouter.resolve(agentType, modelId);
+    } catch (error) {
+      reply.code(400).send({
+        error: {
+          code: 'MODEL_NOT_ALLOWED',
+          message: error instanceof Error ? error.message : String(error),
+        },
+      });
+      return;
+    }
+
+    const hasPremiumConsent = model.plan === 'premium' && Boolean(consent?.premium);
+
+    if (model.plan === 'premium' && !hasPremiumConsent) {
+      reply.code(412).send({
+        error: {
+          code: 'PREMIUM_CONSENT_REQUIRED',
+          message: 'Premium model kullanımı için bilgilendirilmiş onay gerekiyor.',
+        },
+      });
+      return;
+    }
+
+    let estimatedTokens =
+      typeof tokenEstimate === 'number' && Number.isFinite(tokenEstimate) && tokenEstimate >= 0
+        ? tokenEstimate
+        : estimateTokens(agentType, params);
+
+    const notes: string[] = [];
+    if (!fastify.featureFlags.aiEnabled) {
+      notes.push('AI servis anahtarı eksik olduğu için mock yanıtlar üretilecek.');
+    }
+
+    if (hasPremiumConsent) {
+      notes.push('Premium model için kullanıcı onayı alındı.');
+    }
+
+    if (estimatedTokens >= Math.floor(model.contextWindow * 0.8)) {
+      notes.push(
+        `Token tahmini (${estimatedTokens}) "${model.label}" bağlam sınırının %80 üzerine çıktı (${model.contextWindow}).`
+      );
+    }
+
+    let processedParams: Record<string, unknown> = structuredClone(params ?? {});
+
+    if (estimatedTokens > model.contextWindow) {
+      if (!autoChunk) {
+        reply.code(422).send({
+          error: {
+            code: 'CONTEXT_LIMIT_EXCEEDED',
+            message:
+              'Seçilen model için bağlam sınırı aşılmak üzere. Lütfen girdiyi küçültün ya da otomatik segmentasyonu etkinleştirin.',
+          },
+        });
+        return;
+      }
+
+      const chunkResult = applyAutoChunk(agentType, params, model.contextWindow);
+      processedParams = chunkResult.params;
+      estimatedTokens = chunkResult.tokenEstimate;
+      notes.push(
+        `Otomatik segmentasyon etkin: "${chunkResult.field}" alanı ${chunkResult.chunks} parçada işlendi.`
+      );
+    }
+
+    const [run] = await db
+      .insert(agentRuns)
+      .values({
+        userId: request.user.id,
+        agentType,
+        repoFullName,
+        branch,
+        modelId: model.id,
+        plan: model.plan,
+        premiumConsent: hasPremiumConsent,
+        premiumConsentAt: hasPremiumConsent ? new Date() : null,
+        contextTokens: estimatedTokens,
+        notes,
+      })
+      .returning();
+
+    try {
+      const jobId = await orchestrator.submitJob({
+        type: agentType,
+        payload: {
+          ...processedParams,
+          repoFullName,
+          branch,
+          modelId: model.id,
+          params: processedParams,
+          metadata: {
+            tokenEstimate: estimatedTokens,
+            autoChunk: Boolean(autoChunk),
+            plan: model.plan,
+          },
+          notes,
+        },
+        runId: run.id,
+      });
+
+      void orchestrator.startJob(jobId).catch((error) => {
+        fastify.log.error(
+          {
+            err: error,
+            jobId,
+            runId: run.id,
+          },
+          'agent run execution failed'
+        );
+      });
+
+      reply.code(202).send({
+        run: {
+          id: run.id,
+          status: run.status,
+          agentType: run.agentType,
+          repoFullName: run.repoFullName,
+          branch: run.branch,
+          modelId: run.modelId,
+          plan: run.plan,
+          contextTokens: run.contextTokens,
+          notes,
+        },
+      });
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      await db
+        .update(agentRuns)
+        .set({
+          status: 'failed',
+          error: errorMessage,
+          updatedAt: new Date(),
+        })
+        .where(eq(agentRuns.id, run.id));
+
+      reply.code(500).send({
+        error: {
+          code: 'AGENT_SUBMIT_FAILED',
+          message: errorMessage,
+        },
+      });
+    }
+  });
+
+  fastify.get('/agents/run/:id/status', async (request, reply) => {
+    if (!request.user) {
+      reply.code(401).send({
+        error: {
+          code: 'UNAUTHORIZED',
+          message: 'Oturum açmanız gerekiyor.',
+        },
+      });
+      return;
+    }
+
+    const parseResult = runIdParamsSchema.safeParse(request.params);
+    if (!parseResult.success) {
+      reply.code(400).send({
+        error: {
+          code: 'INVALID_REQUEST',
+          message: 'Geçersiz agent run kimliği.',
+        },
+      });
+      return;
+    }
+
+    const [row] = await db
+      .select({
+        run: agentRuns,
+        job: jobs,
+      })
+      .from(agentRuns)
+      .leftJoin(jobs, eq(agentRuns.jobId, jobs.id))
+      .where(eq(agentRuns.id, parseResult.data.id))
+      .limit(1);
+
+    if (!row || row.run.userId !== request.user.id) {
+      reply.code(404).send({
+        error: {
+          code: 'RUN_NOT_FOUND',
+          message: 'Agent çalıştırması bulunamadı.',
+        },
+      });
+      return;
+    }
+
+    reply.send({
+      run: {
+        id: row.run.id,
+        status: row.run.status,
+        agentType: row.run.agentType,
+        repoFullName: row.run.repoFullName,
+        branch: row.run.branch,
+        modelId: row.run.modelId,
+        plan: row.run.plan,
+        error: row.run.error,
+        inputTokens: row.run.inputTokens,
+        outputTokens: row.run.outputTokens,
+        costUsd: row.run.costUsd,
+        createdAt: row.run.createdAt,
+        updatedAt: row.run.updatedAt,
+        notes: row.run.notes,
+        job: row.job
+          ? {
+              id: row.job.id,
+              state: row.job.state,
+              result: row.job.result,
+              error: row.job.error,
+              updatedAt: row.job.updatedAt,
+            }
+          : null,
+      },
+    });
+  });
+
+  fastify.get('/agents/run/:id/logs', async (request, reply) => {
+    if (!request.user) {
+      reply.code(401).send({
+        error: {
+          code: 'UNAUTHORIZED',
+          message: 'Oturum açmanız gerekiyor.',
+        },
+      });
+      return;
+    }
+
+    const parseResult = runIdParamsSchema.safeParse(request.params);
+    if (!parseResult.success) {
+      reply.code(400).send({
+        error: {
+          code: 'INVALID_REQUEST',
+          message: 'Geçersiz agent run kimliği.',
+        },
+      });
+      return;
+    }
+
+    const [runRow] = await db.select().from(agentRuns).where(eq(agentRuns.id, parseResult.data.id)).limit(1);
+    if (!runRow || runRow.userId !== request.user.id) {
+      reply.code(404).send({
+        error: {
+          code: 'RUN_NOT_FOUND',
+          message: 'Agent çalıştırması bulunamadı.',
+        },
+      });
+      return;
+    }
+
+    if (!runRow.jobId) {
+      reply.send({
+        runId: runRow.id,
+        plan: null,
+        audits: [],
+      });
+      return;
+    }
+
+    const [planRow] = await db
+      .select()
+      .from(jobPlans)
+      .where(eq(jobPlans.jobId, runRow.jobId))
+      .limit(1);
+
+    const audits = await db
+      .select()
+      .from(jobAudits)
+      .where(eq(jobAudits.jobId, runRow.jobId))
+      .orderBy(desc(jobAudits.createdAt));
+
+    reply.send({
+      runId: runRow.id,
+      plan: planRow
+        ? {
+            steps: planRow.steps,
+            rationale: planRow.rationale,
+            createdAt: planRow.createdAt,
+          }
+        : null,
+      audits: audits.map((audit) => ({
+        id: audit.id,
+        phase: audit.phase,
+        payload: audit.payload,
+        createdAt: audit.createdAt,
+      })),
+    });
+  });
+
+  // POST /agents/jobs
   fastify.post(
-    '/api/agents/jobs',
+    '/agents/jobs',
     {
       schema: {
         body: {
@@ -157,9 +691,9 @@ export async function agentsRoutes(fastify: FastifyInstance) {
     }
   );
 
-  // GET /api/agents/jobs/:id
+  // GET /agents/jobs/:id
   fastify.get(
-    '/api/agents/jobs/:id',
+    '/agents/jobs/:id',
     {
       schema: {
         params: {
@@ -279,7 +813,7 @@ export async function agentsRoutes(fastify: FastifyInstance) {
     }
   );
 
-  // Phase 7.D: GET /api/agents/jobs - List jobs with filtering and pagination
+  // Phase 7.D: GET /agents/jobs - List jobs with filtering and pagination
   // Cursor encoding: base64(createdAt|id) for deterministic pagination
   const jobsListQuerySchema = z.object({
     type: z.enum(['scribe', 'trace', 'proto']).optional(),
@@ -289,7 +823,7 @@ export async function agentsRoutes(fastify: FastifyInstance) {
   });
 
   fastify.get(
-    '/api/agents/jobs',
+    '/agents/jobs',
     {
       schema: {
         description: 'List jobs with filtering and cursor pagination',
