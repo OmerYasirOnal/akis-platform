@@ -15,13 +15,13 @@ declare module 'fastify' {
     url: string;
     routerPath?: string;
     cookies?: Record<string, string>;
-    authSessionId?: string;
+    authSessionId?: string | null;
   }
 
   export interface FastifyReply {
     requestId?: string;
     statusCode: number;
-    elapsedTime?: number;
+    elapsedTime: number;
     code(statusCode: number): FastifyReply;
     send(payload?: unknown): FastifyReply;
     type(contentType: string): FastifyReply;
@@ -42,6 +42,10 @@ declare module 'fastify' {
     get(path: string, opts: Record<string, unknown>, handler: FastifyHandler): FastifyInstance;
     post(path: string, handler: FastifyHandler): FastifyInstance;
     post(path: string, opts: Record<string, unknown>, handler: FastifyHandler): FastifyInstance;
+    register<Options = Record<string, unknown>>(
+      plugin: (instance: FastifyInstance, opts: Options) => unknown | Promise<unknown>,
+      opts?: Options
+    ): Promise<void>;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     register(plugin: any, opts?: unknown): Promise<void>;
     addHook(name: string, hook: FastifyHook): FastifyInstance;
@@ -72,4 +76,3 @@ declare module 'fastify' {
 
   export default function fastify(opts?: Record<string, unknown>): FastifyInstance;
 }
-
