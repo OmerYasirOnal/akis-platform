@@ -12,7 +12,12 @@ test('Observability tests: request-id, metrics, openapi', { skip: !hasDatabase }
     return;
   }
 
-  const app = await buildApp();
+  console.log('observability.test.ts: building app');
+  const app = await buildApp().catch((error) => {
+    console.error('observability.test.ts: buildApp failed', error);
+    throw error;
+  });
+  console.log('observability.test.ts: app built');
 
   // T1: Request with custom request-id header
   await t.test('T1: Custom request-id header is preserved', async () => {

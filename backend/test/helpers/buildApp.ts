@@ -14,6 +14,10 @@ export async function buildTestApp(
       ? { level: 'debug' }
       : options.logger;
 
+  if (process.env.TEST_ENABLE_LOGGER === '1') {
+    console.log('buildTestApp: creating Fastify instance');
+  }
+
   const app = await createApp({
     enableDocs: false,
     logger: loggerOption ?? false,
@@ -21,7 +25,13 @@ export async function buildTestApp(
   });
 
   trackTestApp(app);
+  if (process.env.TEST_ENABLE_LOGGER === '1') {
+    console.log('buildTestApp: waiting for app.ready()');
+  }
   await app.ready();
+  if (process.env.TEST_ENABLE_LOGGER === '1') {
+    console.log('buildTestApp: app ready');
+  }
 
   return app;
 }

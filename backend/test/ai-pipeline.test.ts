@@ -14,10 +14,16 @@ test('AI pipeline tests: Planner → Reflector → Execute', { skip: !hasDatabas
     return;
   }
 
-  const app = await buildApp();
+  console.log('ai-pipeline.test.ts: building app');
+  const app = await buildApp().catch((error) => {
+    console.error('ai-pipeline.test.ts: buildApp failed', error);
+    throw error;
+  });
+  console.log('ai-pipeline.test.ts: app built');
 
   // T1: Creating a proto job triggers planning and yields a stored plan row
   await t.test('T1: proto job triggers planning and stores plan', async () => {
+    console.log('ai-pipeline.test.ts: submitting proto job for plan');
     const response = await app.inject({
       method: 'POST',
       url: '/api/agents/jobs',
@@ -86,6 +92,7 @@ test('AI pipeline tests: Planner → Reflector → Execute', { skip: !hasDatabas
   // T3: GET /api/agents/jobs/:id?include=plan,audit returns plan & ≥1 audit items
   await t.test('T3: GET with include=plan,audit returns plan and audits', async () => {
     // First create a proto job
+    console.log('ai-pipeline.test.ts: submitting proto job for include=plan,audit');
     const createResponse = await app.inject({
       method: 'POST',
       url: '/api/agents/jobs',

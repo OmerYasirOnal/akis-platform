@@ -11,10 +11,16 @@ test('smoke tests for agent job flow', { skip: !hasDatabase }, async (t) => {
     return;
   }
 
-  const app = await buildApp();
+  console.log('smoke.jobs.test.ts: building app');
+  const app = await buildApp().catch((error) => {
+    console.error('smoke.jobs.test.ts: buildApp failed', error);
+    throw error;
+  });
+  console.log('smoke.jobs.test.ts: app built');
 
   // Test 1: GET /health → 200 {status:"ok"}
   await t.test('GET /health returns ok', async () => {
+    console.log('smoke.jobs.test.ts: GET /health');
     const response = await app.inject({
       method: 'GET',
       url: '/health',
@@ -27,6 +33,7 @@ test('smoke tests for agent job flow', { skip: !hasDatabase }, async (t) => {
 
   // Test 2: GET / → 200 { name:"AKIS Backend", status:"ok" }
   await t.test('GET / returns app info', async () => {
+    console.log('smoke.jobs.test.ts: GET /');
     const response = await app.inject({
       method: 'GET',
       url: '/',
@@ -40,6 +47,7 @@ test('smoke tests for agent job flow', { skip: !hasDatabase }, async (t) => {
 
   // Test 3: POST /api/agents/jobs (scribe) → 200 with {jobId, state}
   await t.test('POST /api/agents/jobs creates and starts scribe job', async () => {
+    console.log('smoke.jobs.test.ts: POST /api/agents/jobs scribe');
     const response = await app.inject({
       method: 'POST',
       url: '/api/agents/jobs',
@@ -63,6 +71,7 @@ test('smoke tests for agent job flow', { skip: !hasDatabase }, async (t) => {
   // Test 4: GET /api/agents/jobs/:id → 200 with persisted job
   await t.test('GET /api/agents/jobs/:id returns job details', async () => {
     // First create a job
+    console.log('smoke.jobs.test.ts: POST /api/agents/jobs trace');
     const createResponse = await app.inject({
       method: 'POST',
       url: '/api/agents/jobs',
