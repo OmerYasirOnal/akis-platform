@@ -10,11 +10,15 @@ export interface ApiError extends Error {
   requestId?: string;
 }
 
+import { getApiBaseUrlWithPrefix } from '../../config/api';
+
+const DEFAULT_BASE_URL = getApiBaseUrlWithPrefix();
+
 export class HttpClient {
   private baseURL: string;
 
-  constructor(baseURL: string = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000') {
-    this.baseURL = baseURL.replace(/\/$/, ''); // Remove trailing slash
+  constructor(baseURL: string = DEFAULT_BASE_URL) {
+    this.baseURL = baseURL.replace(/\/$/, '');
   }
 
   private async delay(ms: number): Promise<void> {
@@ -161,3 +165,5 @@ export class HttpClient {
     return data as T;
   }
 }
+
+export const apiHttpClient = new HttpClient(DEFAULT_BASE_URL);

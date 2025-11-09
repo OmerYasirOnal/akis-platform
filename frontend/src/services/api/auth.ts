@@ -1,11 +1,8 @@
-import { HttpClient } from './HttpClient';
+import { apiHttpClient } from './HttpClient';
+import { getApiBaseUrlWithPrefix } from '../../config/api';
 
-const apiBaseURL =
-  import.meta.env.VITE_API_URL ||
-  import.meta.env.VITE_BACKEND_URL ||
-  'http://localhost:3000';
-
-const httpClient = new HttpClient(apiBaseURL);
+const httpClient = apiHttpClient;
+const apiBaseUrl = getApiBaseUrlWithPrefix();
 
 const withCredentials = {
   credentials: 'include' as const,
@@ -14,6 +11,15 @@ const withCredentials = {
 export interface AuthUser {
   id: string;
   email: string;
+  username?: string | null;
+  role: 'admin' | 'member';
+  providers?: {
+    github?: string[];
+  };
+}
+
+export interface AuthResponse {
+  user: AuthUser;
 }
 
 export const authApi = {
@@ -21,13 +27,28 @@ export const authApi = {
     return httpClient.get<{ user: AuthUser | null }>('/auth/me', withCredentials);
   },
 
-  devLogin: async (email: string): Promise<{ user: AuthUser }> => {
-    return httpClient.post<{ user: AuthUser }>('/auth/dev-login', { email }, withCredentials);
+  signup: async (payload: { email: string; username: string; password: string }): Promise<AuthResponse> => {
+    return httpClient.post<AuthResponse>('/auth/signup', payload, withCredentials);
+  },
+
+  login: async (payload: { email: string; password: string }): Promise<AuthResponse> => {
+    return httpClient.post<AuthResponse>('/auth/login', payload, withCredentials);
   },
 
   logout: async (): Promise<{ ok: boolean }> => {
     return httpClient.post<{ ok: boolean }>('/auth/logout', undefined, withCredentials);
   },
-};
 
+  devLogin: async (email: string): Promise<AuthResponse> => {
+    return httpClient.post<AuthResponse>('/auth/dev-login', { email }, withCredentials);
+  },
+
+  githubOAuthUrl: (redirect?: string) => {
+    const url = new URL('/auth/github/start', apiBaseUrl);
+    if (redirect) {
+      url.searchParams.set('redirect', redirect);
+    }
+    return url.toString();
+  },
+};
 

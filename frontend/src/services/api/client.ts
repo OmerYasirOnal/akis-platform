@@ -1,7 +1,7 @@
-import { HttpClient } from './HttpClient';
+import { apiHttpClient } from './HttpClient';
 import type { Job, JobsListResponse, CreateJobRequest, CreateJobResponse } from './types';
 
-const httpClient = new HttpClient();
+const httpClient = apiHttpClient;
 
 export const api = {
   // GET /api/agents/jobs
@@ -18,7 +18,7 @@ export const api = {
     if (params?.cursor) searchParams.set('cursor', params.cursor);
 
     const query = searchParams.toString();
-    return httpClient.get<JobsListResponse>(`/api/agents/jobs${query ? `?${query}` : ''}`);
+    return httpClient.get<JobsListResponse>(`/agents/jobs${query ? `?${query}` : ''}`);
   },
 
   // GET /api/agents/jobs/:id
@@ -30,7 +30,7 @@ export const api = {
 
     const query = searchParams.toString();
     return httpClient.get<Job & { requestId?: string }>(
-      `/api/agents/jobs/${id}${query ? `?${query}` : ''}`
+      `/agents/jobs/${id}${query ? `?${query}` : ''}`
     );
   },
 
@@ -38,7 +38,7 @@ export const api = {
   createJob: async (
     request: CreateJobRequest
   ): Promise<CreateJobResponse & { requestId?: string }> => {
-    return httpClient.post<CreateJobResponse & { requestId?: string }>('/api/agents/jobs', request);
+    return httpClient.post<CreateJobResponse & { requestId?: string }>('/agents/jobs', request);
   },
 
   // GET /

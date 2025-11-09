@@ -1,11 +1,6 @@
-import { HttpClient } from './HttpClient';
+import { apiHttpClient } from './HttpClient';
 
-const apiBaseURL =
-  import.meta.env.VITE_API_URL ||
-  import.meta.env.VITE_BACKEND_URL ||
-  'http://localhost:3000';
-
-const httpClient = new HttpClient(apiBaseURL);
+const httpClient = apiHttpClient;
 
 const withCredentials = {
   credentials: 'include' as const,
@@ -80,7 +75,7 @@ export const agentsApi = {
 
   runAgent: async (type: AgentType, payload: unknown): Promise<RunAgentResponse> => {
     return httpClient.post<RunAgentResponse>(
-      '/api/agents/jobs',
+      '/agents/jobs',
       {
         type,
         payload,
@@ -90,7 +85,7 @@ export const agentsApi = {
   },
 
   getJob: async (jobId: string): Promise<JobDetail> => {
-    return httpClient.get<JobDetail>(`/api/agents/jobs/${jobId}`, withCredentials);
+    return httpClient.get<JobDetail>(`/agents/jobs/${jobId}`, withCredentials);
   },
 };
 
