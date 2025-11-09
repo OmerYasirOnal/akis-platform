@@ -11,119 +11,83 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  install:
-    runs-on: ubuntu-latest
-
-    services:
-      postgres:
-        image: postgres:16
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: akis_v2_test
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd="pg_isready -U postgres"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=10
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 9
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
-      - name: Install dependencies
-        run: pnpm -w install --recursive --no-frozen-lockfile
-
-      - name: Run database migrations
-        working-directory: backend
-        env:
-          DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/akis_v2_test
-        run: pnpm run db:migrate:ci
-
   lint:
     runs-on: ubuntu-latest
-    needs: install
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 9
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+          cache: 'pnpm'
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Activate pnpm@9
+        run: corepack prepare pnpm@9 --activate
 
       - name: Install dependencies
-        run: pnpm -w install --recursive --no-frozen-lockfile
+        run: pnpm -w install
 
       - name: Lint
         run: pnpm -r lint
 
   typecheck:
     runs-on: ubuntu-latest
-    needs: install
+    needs: lint
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 9
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+          cache: 'pnpm'
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Activate pnpm@9
+        run: corepack prepare pnpm@9 --activate
 
       - name: Install dependencies
-        run: pnpm -w install --recursive --no-frozen-lockfile
+        run: pnpm -w install
 
       - name: Typecheck
         run: pnpm -r typecheck
 
   build:
     runs-on: ubuntu-latest
-    needs: install
+    needs: typecheck
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 9
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+          cache: 'pnpm'
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Activate pnpm@9
+        run: corepack prepare pnpm@9 --activate
 
       - name: Install dependencies
-        run: pnpm -w install --recursive --no-frozen-lockfile
+        run: pnpm -w install
 
       - name: Build
         run: pnpm -r build
 
-  test:
+  backend-tests:
     runs-on: ubuntu-latest
-    needs: install
+    needs: build
     services:
       postgres:
         image: postgres:16
@@ -135,34 +99,60 @@ jobs:
           - 5432:5432
         options: >-
           --health-cmd="pg_isready -U postgres"
-          --health-interval=10s
+          --health-interval=5s
           --health-timeout=5s
-          --health-retries=10
+          --health-retries=12
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 9
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+          cache: 'pnpm'
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Activate pnpm@9
+        run: corepack prepare pnpm@9 --activate
 
       - name: Install dependencies
-        run: pnpm -w install --recursive --no-frozen-lockfile
+        run: pnpm -w install
 
       - name: Run database migrations
-        working-directory: backend
         env:
           DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/akis_v2_test
-        run: pnpm run db:migrate:ci
+        run: pnpm --filter akis-backend run db:migrate:ci
 
-      - name: Test
+      - name: Backend tests
         env:
           DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/akis_v2_test
           NODE_ENV: test
-        run: pnpm -r test
+        run: pnpm --filter akis-backend test
+
+  frontend-tests:
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Activate pnpm@9
+        run: corepack prepare pnpm@9 --activate
+
+      - name: Install dependencies
+        run: pnpm -w install
+
+      - name: Frontend tests
+        run: pnpm --filter akis-frontend test
