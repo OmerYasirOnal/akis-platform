@@ -42,10 +42,12 @@ declare module 'fastify' {
     get(path: string, opts: Record<string, unknown>, handler: FastifyHandler): FastifyInstance;
     post(path: string, handler: FastifyHandler): FastifyInstance;
     post(path: string, opts: Record<string, unknown>, handler: FastifyHandler): FastifyInstance;
-    register(
-      plugin: (instance: FastifyInstance, opts: Record<string, unknown>) => unknown,
-      opts?: Record<string, unknown>
+    register<Options = Record<string, unknown>>(
+      plugin: (instance: FastifyInstance, opts: Options) => unknown | Promise<unknown>,
+      opts?: Options
     ): Promise<void>;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    register(plugin: any, opts?: unknown): Promise<void>;
     addHook(name: string, hook: FastifyHook): FastifyInstance;
     decorate(name: string, value: unknown): FastifyInstance;
     decorateRequest(name: string, value: unknown): FastifyInstance;
