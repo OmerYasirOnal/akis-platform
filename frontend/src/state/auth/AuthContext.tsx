@@ -8,6 +8,7 @@ import {
   useState,
 } from 'react';
 import { authApi } from '../../services/api/auth';
+import type { ApiError } from '../../services/api/HttpClient';
 
 export type Role = 'admin' | 'member';
 
@@ -45,6 +46,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [status, setStatus] = useState<AuthStatus>('loading');
   const [user, setUser] = useState<AuthUser | null>(null);
   const isMountedRef = useRef(true);
+  const hydrationPromiseRef = useRef<Promise<void> | null>(null);
+  const initialHydrationRef = useRef(false);
 
   useEffect(() => {
     return () => {
@@ -62,24 +65,49 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const refresh = useCallback(async () => {
-    setStatus('loading');
+    if (hydrationPromiseRef.current) {
+      await hydrationPromiseRef.current;
+      return;
+    }
 
-    try {
-      const response = await authApi.me();
-      if (response.user) {
-        applyState(mapUser(response.user), 'authenticated');
-      } else {
+    const hydrate = (async () => {
+      setStatus('loading');
+
+      try {
+        const response = await authApi.me();
+        if (response.user) {
+          applyState(mapUser(response.user), 'authenticated');
+        } else {
+          applyState(null, 'unauthenticated');
+        }
+      } catch (error) {
+        const apiError = error as Partial<ApiError> | undefined;
+        if (apiError?.statusCode === 401 || apiError?.statusCode === 403) {
+          applyState(null, 'unauthenticated');
+          return;
+        }
+
+        console.error('Failed to hydrate auth state', error);
         applyState(null, 'unauthenticated');
       }
-    } catch (error) {
-      console.error('Failed to hydrate auth state', error);
-      applyState(null, 'unauthenticated');
+    })();
+
+    hydrationPromiseRef.current = hydrate;
+
+    try {
+      await hydrate;
+    } finally {
+      hydrationPromiseRef.current = null;
     }
   }, [applyState]);
 
   useEffect(() => {
+    if (initialHydrationRef.current) {
+      return;
+    }
+
+    initialHydrationRef.current = true;
     void refresh();
-    // refresh dependency intentionally stable
   }, [refresh]);
 
   const loginWithDevEmail = useCallback(
