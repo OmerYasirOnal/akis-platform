@@ -38,6 +38,9 @@ jobs:
       - name: Install workspace packages
         run: pnpm install --recursive --frozen-lockfile
 
+      - name: Ensure pnpm store directory
+        run: mkdir -p "$(pnpm store path --silent)"
+
       - name: Lint
         run: pnpm -r lint
 
@@ -69,6 +72,9 @@ jobs:
       - name: Install workspace packages
         run: pnpm install --recursive --frozen-lockfile
 
+      - name: Ensure pnpm store directory
+        run: mkdir -p "$(pnpm store path --silent)"
+
       - name: Typecheck
         run: pnpm -r typecheck
 
@@ -99,6 +105,9 @@ jobs:
 
       - name: Install workspace packages
         run: pnpm install --recursive --frozen-lockfile
+
+      - name: Ensure pnpm store directory
+        run: mkdir -p "$(pnpm store path --silent)"
 
       - name: Build
         run: pnpm -r build
@@ -148,6 +157,9 @@ jobs:
       - name: Install workspace packages
         run: pnpm install --recursive --frozen-lockfile
 
+      - name: Ensure pnpm store directory
+        run: mkdir -p "$(pnpm store path --silent)"
+
       - name: Assert database URLs
         run: |
           if [ -z "${TEST_DATABASE_URL:-}" ]; then
@@ -194,6 +206,9 @@ jobs:
 
       - name: Install workspace packages
         run: pnpm install --recursive --frozen-lockfile
+
+      - name: Ensure pnpm store directory
+        run: mkdir -p "$(pnpm store path --silent)"
 
       - name: Frontend tests
         run: pnpm --filter akis-frontend test
