@@ -47,19 +47,20 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Verify drizzle-kit is available
-        run: pnpm dlx drizzle-kit --version
+        working-directory: backend
+        run: npx drizzle-kit --version
 
       - name: Generate Drizzle migrations
         working-directory: backend
         env:
           DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/akis_v2_test
-        run: pnpm dlx drizzle-kit generate
+        run: npx drizzle-kit generate
 
       - name: Run database migrations
         working-directory: backend
         env:
           DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/akis_v2_test
-        run: pnpm dlx drizzle-kit migrate
+        run: npx drizzle-kit migrate
 
   lint:
     runs-on: ubuntu-latest
@@ -168,7 +169,7 @@ jobs:
         working-directory: backend
         env:
           DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/akis_v2_test
-        run: pnpm dlx drizzle-kit migrate
+        run: npx drizzle-kit migrate
 
       - name: Test backend
         working-directory: backend
