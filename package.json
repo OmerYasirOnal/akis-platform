@@ -1,0 +1,9 @@
+{
+  "name": "devagents-monorepo",
+  "private": true,
+  "scripts": {
+    "lint": "pnpm -r lint",
+    "typecheck": "pnpm -r typecheck",
+    "build": "pnpm -r build"
+  }
+}
