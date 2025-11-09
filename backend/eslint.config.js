@@ -1,13 +1,12 @@
-import js from '@eslint/js';
 import globals from 'globals';
-import tseslint from 'typescript-eslint';
 import { defineConfig, globalIgnores } from 'eslint/config';
+import { baseExtends, baseTsRules } from '../eslint.base.mjs';
 
 export default defineConfig([
   globalIgnores(['dist']),
   {
     files: ['src/**/*.ts', 'test/**/*.ts'],
-    extends: [js.configs.recommended, ...tseslint.configs.recommended],
+    extends: baseExtends,
     languageOptions: {
       parserOptions: {
         ecmaVersion: 2022,
@@ -18,15 +17,7 @@ export default defineConfig([
       },
     },
     rules: {
-      '@typescript-eslint/no-unused-vars': [
-        'error',
-        {
-          argsIgnorePattern: '^_',
-          caughtErrorsIgnorePattern: '^_',
-          varsIgnorePattern: '^_',
-          ignoreRestSiblings: true,
-        },
-      ],
+      ...baseTsRules,
     },
   },
 ]);
