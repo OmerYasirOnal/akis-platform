@@ -9,9 +9,14 @@ export interface BuildTestAppOptions extends CreateAppOptions {
 export async function buildTestApp(
   options: BuildTestAppOptions = {}
 ): Promise<FastifyInstance> {
+  const loggerOption =
+    process.env.TEST_ENABLE_LOGGER === '1'
+      ? { level: 'debug' }
+      : options.logger;
+
   const app = await createApp({
     enableDocs: false,
-    logger: false,
+    logger: loggerOption ?? false,
     ...options,
   });
 
