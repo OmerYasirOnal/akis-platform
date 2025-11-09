@@ -17,6 +17,9 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Prime Corepack for pnpm cache
+        run: corepack enable
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -42,6 +45,9 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Prime Corepack for pnpm cache
+        run: corepack enable
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -66,6 +72,9 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Prime Corepack for pnpm cache
+        run: corepack enable
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -109,6 +118,9 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Prime Corepack for pnpm cache
+        run: corepack enable
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -149,6 +161,9 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Prime Corepack for pnpm cache
+        run: corepack enable
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
