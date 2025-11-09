@@ -45,4 +45,9 @@ process.on('unhandledRejection', (reason) => {
   throw reason instanceof Error ? reason : new Error(String(reason));
 });
 
+process.on('uncaughtException', (error) => {
+  console.error('Uncaught exception in tests:', error);
+  throw error;
+});
+
 
