@@ -44,6 +44,8 @@ jobs:
           node-version: '20'
 
       - name: Install dependencies
+        env:
+          NODE_ENV: development
         run: pnpm -w install --frozen-lockfile
 
       - name: Verify drizzle-kit is available
@@ -52,12 +54,12 @@ jobs:
       - name: Generate Drizzle migrations
         env:
           DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/akis_v2_test
-        run: pnpm --filter akis-backend db:generate
+        run: pnpm --filter akis-backend run db:generate
 
       - name: Run database migrations
         env:
           DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/akis_v2_test
-        run: pnpm --filter akis-backend db:migrate
+        run: pnpm --filter akis-backend run db:migrate
 
   lint:
     runs-on: ubuntu-latest
