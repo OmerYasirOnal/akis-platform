@@ -1,15 +1,11 @@
-# TASK: Quality gates & run check
+---
+description: "Quality Gates — CI & Local"
+---
 
-LOAD:
-@.cursor/checklists/DoD.md
-@.cursor/checklists/Performance.md
-@.cursor/checklists/Security.md
+# TASK
+- Çalıştır: `pnpm -r typecheck && pnpm -r lint && pnpm -r build && pnpm -r test`.
+- Backend test dosyası yoksa test adımı “no tests – skipping” yazsın.
+- CI workflow’da tek install; cache pnpm.
 
-WHAT
-- Ensure scripts work (dev/build/start/lint/typecheck).
-- Add `CONTRIBUTING.md` & `SECURITY.md` referencing checklists.
-- Verify server starts and `/health` returns ok.
-- Optional: smoke test.
-
-EXPECTED COMMIT
-`chore(quality): add contribution/security docs and verify dev startup`
+# COMMIT
+chore(ci): stabilize pnpm install & enforce typecheck/lint/build/test

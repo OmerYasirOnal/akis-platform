@@ -1,23 +1,16 @@
-# TASK: Initialize repo & branch
+---
+description: "Workspace Bootstrap & Sanity"
+---
 
-LOAD:
-@.cursor/rules/rules.mdc
-@.cursor/context/CONTEXT_ARCHITECTURE.md
-@.cursor/context/CONTEXT_SCOPE.md
-@.cursor/checklists/DoD.md
+# TASK
+1) Repo kökünde **tek pnpm lock** olduğundan emin ol; alt lockfile’lar varsa kaldır.
+2) `.gitignore` → `dist/` ve `.pnpm-store/` eklensin.
+3) `pnpm -r typecheck && pnpm -r lint && pnpm -r build && pnpm -r test` lokalde çalışsın.
+4) Backend testleri yoksa `backend test` adımı “no tests – skipping” mesajı basmalı.
 
-GIT
-1) Create and switch to branch: feature/akis-bootstrap
-2) Use small Conventional Commits.
+# ACCEPTANCE
+- Temiz çalışma: tüm komutlar yeşil.
+- Alt lockfile yok; `dist/` ve `.pnpm-store/` track edilmiyor.
 
-WHAT
-- At root: `.editorconfig`, `.gitignore`, `LICENSE` placeholder, `README.md`.
-- `.env.example`:
-  - DATABASE_URL=postgres://user:pass@localhost:5432/akis
-  - MCP_GITHUB_TOKEN=
-  - MCP_JIRA_TOKEN=
-  - MCP_CONFLUENCE_TOKEN=
-- `docs/` with an index referencing checklists.
-
-EXPECTED COMMIT
-`chore(bootstrap): add repo-level scaffolding and env template`
+# COMMIT
+chore(bootstrap): lockfile hygiene, gitignore harden, test skip message

@@ -1,20 +1,25 @@
-# TASK: Backend scaffold (Fastify + Drizzle)
+---
+description: "Backend Security & Health Scaffold"
+---
 
-LOAD:
-@.cursor/rules/rules.mdc
-@.cursor/checklists/Performance.md
-@.cursor/context/CONTEXT_ARCHITECTURE.md
+# TASK
+**Fastify** uygulamasına güvenlik ve sağlık uçları ekle:
+- `server.app.ts` içinde `helmet`,`cors`,`rate-limit` kaydı.
+- `X-Request-Id` header’ını oku; yoksa üret ve `requestId` olarak bağla.
+- Uçlar:
+  - `GET /health` → `{status:"ok"}`
+  - `GET /ready`  → `{ready:true}`
+  - `GET /version` → `{version:"<package.json version>"}`
 
-WHAT
-- Create `backend/` package with TS.
-- Files:
-  - `src/server.ts` (Fastify bootstrap)
-  - `src/api/health.ts`, `src/api/agents.ts` (routes; agents returns 501)
-  - `src/db/schema.ts` (jobs: id, type, state, payload JSON, createdAt, updatedAt)
-  - `src/db/client.ts` (Drizzle client)
-  - `drizzle.config.ts`, migrations/
-  - `package.json` scripts: dev, build, start, lint, typecheck
-  - tsconfig, eslint, prettier
+# FILES
+- `backend/src/server.app.ts` (plugin kayıtları, requestId, pino)
+- `backend/src/routes/health.ts` (opsiyonel modüler dosya)
+- `backend/.env.example` (RATE_LIMIT_* ve CORS_ORIGIN örnekleri)
+- Test: `backend/test/health.test.ts` (fastify.inject)
 
-EXPECTED COMMIT
-`feat(backend): scaffold Fastify server with Drizzle setup`
+# ACCEPTANCE
+- `pnpm -r typecheck && pnpm -r test` yeşil.
+- Testler: `/health 200`, `/version` package.json semver döner.
+
+# COMMIT
+feat(backend): add security plugins and health/ready/version endpoints
