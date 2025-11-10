@@ -11,12 +11,7 @@ test('Jobs listing tests: filters and pagination', { skip: !hasDatabase }, async
     return;
   }
 
-  console.log('jobs.list.test.ts: building app');
-  const app = await buildApp().catch((error) => {
-    console.error('jobs.list.test.ts: buildApp failed', error);
-    throw error;
-  });
-  console.log('jobs.list.test.ts: app built');
+  const app = await buildApp();
 
   // Seed jobs for testing
   const seedJobIds: string[] = [];
@@ -67,7 +62,6 @@ test('Jobs listing tests: filters and pagination', { skip: !hasDatabase }, async
 
   // T1: List all jobs with default limit
   await t.test('T1: List jobs with default limit', async () => {
-    console.log('jobs.list.test.ts: fetching jobs list');
     const response = await app.inject({
       method: 'GET',
       url: '/api/agents/jobs',

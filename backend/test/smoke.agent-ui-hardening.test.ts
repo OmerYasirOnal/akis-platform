@@ -35,12 +35,7 @@ test('agent UI hardening smoke flow', { skip: !hasDatabase }, async () => {
 
   ensureTestEnv();
 
-  console.log('smoke.agent-ui-hardening.test.ts: building app');
-  const app = await buildTestApp().catch((error) => {
-    console.error('smoke.agent-ui-hardening.test.ts: buildTestApp failed', error);
-    throw error;
-  });
-  console.log('smoke.agent-ui-hardening.test.ts: app built');
+  const app = await buildTestApp();
   assert.ok(app.modelRouter, 'modelRouter should be registered on Fastify instance');
 
   // Force-enable GitHub integrations for the test environment
@@ -70,7 +65,6 @@ test('agent UI hardening smoke flow', { skip: !hasDatabase }, async () => {
   const password = 'StrongPass123!';
 
   // Signup flow
-  console.log('smoke.agent-ui-hardening.test.ts: signup');
   const signupResponse = await app.inject({
     method: 'POST',
     url: '/api/auth/signup',
@@ -86,7 +80,6 @@ test('agent UI hardening smoke flow', { skip: !hasDatabase }, async () => {
   const userId = signupBody.user.id;
 
   // Login fail path
-  console.log('smoke.agent-ui-hardening.test.ts: login fail path');
   const loginFailResponse = await app.inject({
     method: 'POST',
     url: '/api/auth/login',
@@ -98,7 +91,6 @@ test('agent UI hardening smoke flow', { skip: !hasDatabase }, async () => {
   assert.strictEqual(loginFailResponse.statusCode, 401);
 
   // Login success path
-  console.log('smoke.agent-ui-hardening.test.ts: login success path');
   const loginResponse = await app.inject({
     method: 'POST',
     url: '/api/auth/login',
@@ -116,7 +108,6 @@ test('agent UI hardening smoke flow', { skip: !hasDatabase }, async () => {
   };
 
   // GitHub OAuth start (should redirect to provider)
-  console.log('smoke.agent-ui-hardening.test.ts: github start');
   const githubStartResponse = await app.inject({
     method: 'GET',
     url: '/api/auth/github/start',
@@ -161,7 +152,6 @@ test('agent UI hardening smoke flow', { skip: !hasDatabase }, async () => {
   }
 
   // /api/models should return allow-listed models
-  console.log('smoke.agent-ui-hardening.test.ts: get models');
   const modelsResponse = await app.inject({
     method: 'GET',
     url: '/api/models?plan=free',
@@ -175,14 +165,12 @@ test('agent UI hardening smoke flow', { skip: !hasDatabase }, async () => {
   const firstModel = modelsList[0];
 
   // GitHub MCP adapter contract via decorated factory (avoids network calls)
-  console.log('smoke.agent-ui-hardening.test.ts: get github service');
   const githubService = await app.githubAdapterFactory('999999');
   const repositories = await githubService.listRepositories();
   assert.ok(Array.isArray(repositories), 'repositories list should be an array');
   assert.strictEqual(repositories[0]?.fullName, 'owner/example-repo');
 
   // Run agent (mock AI + deterministic agent)
-  console.log('smoke.agent-ui-hardening.test.ts: run agent');
   const agentRunResponse = await app.inject({
     method: 'POST',
     url: '/api/agents/run',
@@ -206,7 +194,6 @@ test('agent UI hardening smoke flow', { skip: !hasDatabase }, async () => {
   // Poll run status
   await new Promise((resolve) => setTimeout(resolve, 200));
 
-  console.log('smoke.agent-ui-hardening.test.ts: get run status');
   const statusResponse = await app.inject({
     method: 'GET',
     url: `/api/agents/run/${runId}/status`,
