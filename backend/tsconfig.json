@@ -15,7 +15,7 @@
     "paths": {
       "@/*": ["./src/*"]
     },
-    "typeRoots": ["./src/types", "./node_modules/@types"],
+    "typeRoots": ["./node_modules/@types", "./src/types"],
     "types": ["node"]
   },
   "include": ["src/**/*", "scripts/**/*"],
