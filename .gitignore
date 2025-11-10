@@ -63,3 +63,8 @@ temp/
 frontend/dist/
 backend/dist/
 .pnpm-store/
+
+# build artefacts
+frontend/dist/
+backend/dist/
+.pnpm-store/
