@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useI18n } from '../i18n/useI18n';
 import { cn } from '../utils/cn';
+import { useRouteChangeIndicator } from './RouteChangeIndicator';
 
 interface HeaderProps {
   className?: string;
@@ -18,6 +19,7 @@ export default function Header({ className }: HeaderProps) {
   const { t, locale, setLocale } = useI18n();
   const navigate = useNavigate();
   const [scrolled, setScrolled] = useState(false);
+  const isNavigating = useRouteChangeIndicator();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -48,6 +50,11 @@ export default function Header({ className }: HeaderProps) {
     navigate('/signup');
   };
 
+  // Check for reduced motion preference
+  const prefersReducedMotion = typeof window !== 'undefined' 
+    ? window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    : false;
+
   return (
     <header
       className={cn(
@@ -66,9 +73,16 @@ export default function Header({ className }: HeaderProps) {
             alt="AKIS Platform"
             width={140}
             height={40}
-            className="h-10 w-auto"
+            className={cn(
+              'h-10 w-auto transition-transform duration-[350ms] ease-[cubic-bezier(0.4,0,0.2,1)]',
+              isNavigating && !prefersReducedMotion && 'rotate-[360deg]'
+            )}
             onError={handleLogoError}
             loading="eager"
+            style={{
+              transform: isNavigating && !prefersReducedMotion ? 'rotate(360deg)' : 'rotate(0deg)',
+              willChange: isNavigating && !prefersReducedMotion ? 'transform' : 'auto',
+            }}
           />
         </Link>
 

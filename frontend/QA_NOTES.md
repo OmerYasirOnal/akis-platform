@@ -1,4 +1,26 @@
-# AKIS Homepage — QA Notes
+# AKIS Platform — QA Notes
+
+## Theme Unification (Liquid Glassmorphism)
+
+All routes now use a unified AppShell with consistent Liquid Glassmorphism theme:
+- **AppShell**: Wraps all routes with Header, GlassBackdrop, PageTransition, and Footer
+- **Global backdrop**: GlassBackdrop renders once at the root level, visible on all pages
+- **Consistent spacing**: All pages use the same container widths and spacing rhythm as homepage
+- **Token-based colors**: All pages use CSS variables (`var(--bg)`, `var(--text)`, `var(--accent)`, etc.)
+
+## Route Transitions
+
+### Implementation
+- **PageTransition component**: Lightweight crossfade using opacity transitions (250ms)
+- **Transform/opacity only**: No layout thrash, targets 60fps performance
+- **Reduced motion support**: Transitions disabled when `prefers-reduced-motion: reduce` is detected
+- **RouteChangeIndicator**: Tracks navigation state for UI feedback (e.g., logo spin)
+
+### Logo Spin Animation
+- **Trigger**: Logo rotates 360° on route change (350ms ease)
+- **Transform-only**: Uses CSS `transform: rotate()` for GPU acceleration
+- **Reduced motion aware**: Disabled when `prefers-reduced-motion` is enabled
+- **Subtle and tasteful**: Single rotation, no continuous spinning
 
 ## Color Contrast Rationale (WCAG AA)
 
@@ -18,6 +40,7 @@ All interactive elements (buttons, links) have visible focus states with 2px rin
 - **Reduced motion support**: Animations are disabled when `prefers-reduced-motion: reduce` is detected
 - **Target 60fps**: Animation loop uses `requestAnimationFrame` with ~16ms intervals
 - **Will-change optimization**: Blob elements use `will-change: transform, opacity` for GPU acceleration
+- **Route transitions**: 250ms opacity crossfade, disabled for reduced motion
 
 ## CLS Prevention Steps
 
@@ -27,10 +50,12 @@ All interactive elements (buttons, links) have visible focus states with 2px rin
 2. **No layout thrash**: Animations use `transform` only, no width/height changes
 3. **Stable container heights**: Hero section uses `min-h-[85vh]` for consistent initial layout
 4. **Preload critical assets**: Logo uses `loading="eager"` in header
+5. **Route transitions**: Opacity-only transitions prevent layout shifts
+6. **Explicit page container widths**: All pages use consistent `max-w-*` breakpoints
 
 ## Lighthouse Scores (Mobile)
 
-**Note**: Actual scores will be measured after deployment. Target values:
+**Target values for `/platform` route:**
 
 - **Performance**: ≥ 90
 - **Accessibility**: ≥ 95
@@ -46,6 +71,7 @@ All interactive elements (buttons, links) have visible focus states with 2px rin
 - Semantic HTML structure
 - ARIA labels where appropriate
 - Keyboard navigation support
+- Route transitions use transform/opacity only
 
 ## Asset Fallbacks Applied
 
@@ -63,6 +89,8 @@ All interactive elements (buttons, links) have visible focus states with 2px rin
 - [x] Reduced motion preferences respected
 - [x] Images have alt text
 - [x] No layout shift on first paint
+- [x] Route transitions respect reduced motion
+- [x] Logo spin animation disabled for reduced motion
 
 ## Browser Compatibility
 
@@ -75,4 +103,4 @@ All interactive elements (buttons, links) have visible focus states with 2px rin
 - Glassmorphism effects require `backdrop-filter` support (not available in older browsers)
 - Blob animations disabled on devices with `prefers-reduced-motion` enabled
 - Logo fallback chain may show brief flash if primary asset fails to load
-
+- Route transitions are opacity-only (no blur effect) to maintain performance

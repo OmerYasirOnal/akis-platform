@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import AppShell from './app/AppShell';
+import AppShell from './components/AppShell';
 import DashboardShell from './app/DashboardShell';
 import { ProtectedRoute, RequireRole } from './app/RouteGuards';
 import { AuthProvider } from './state/auth/AuthContext';
