@@ -58,3 +58,8 @@ temp/
 /frontend/pnpm-lock.yaml
 /backend/pnpm-lock.yaml
 /backend/package-lock.json
+
+# build artefacts
+frontend/dist/
+backend/dist/
+.pnpm-store/
