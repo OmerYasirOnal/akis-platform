@@ -21,26 +21,27 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # Not: pnpm cache'i KULLANMIYORUZ, çünkü pnpm henüz kurulu değil.
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
           version: 9
           run_install: false
 
-      - name: Install deps (workspace)
-        run: pnpm -w install --frozen-lockfile
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+          cache-dependency-path: 'pnpm-lock.yaml'
 
-      - name: Typecheck
-        run: pnpm -r typecheck
+      - name: Install deps (workspace)
+        run: pnpm -w install --recursive --frozen-lockfile
 
       - name: Lint
         run: pnpm -r lint
+
+      - name: Typecheck
+        run: pnpm -r typecheck
 
       - name: Build
         run: pnpm -r build
@@ -67,27 +68,30 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
           version: 9
           run_install: false
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+          cache-dependency-path: 'pnpm-lock.yaml'
+
       - name: Install deps (workspace)
-        run: pnpm -w install --frozen-lockfile
+        run: pnpm -w install --recursive --frozen-lockfile
 
       - name: Apply DB migrations (Drizzle, backend only)
-        run: pnpm -C backend run db:migrate:ci
+        working-directory: backend
+        run: pnpm run db:migrate:ci
         env:
           DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/akis_v2_test
 
       - name: Test
         run: pnpm -r test
         env:
-          DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/akis_v2_test
           NODE_ENV: test
+          DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/akis_v2_test
