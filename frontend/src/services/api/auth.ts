@@ -28,6 +28,21 @@ export const authApi = {
   logout: async (): Promise<{ ok: boolean }> => {
     return httpClient.post<{ ok: boolean }>('/auth/logout', undefined, withCredentials);
   },
+
+  /**
+   * Get started flow - checks if user is authenticated
+   * Returns user if authenticated, null otherwise
+   * Safe mock if backend route unavailable
+   */
+  getStarted: async (): Promise<{ user: AuthUser | null }> => {
+    try {
+      return await authApi.me();
+    } catch (error) {
+      // Safe fallback - assume not authenticated
+      console.warn('getStarted: auth check failed, assuming not authenticated', error);
+      return { user: null };
+    }
+  },
 };
 
 
