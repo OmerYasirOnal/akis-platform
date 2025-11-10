@@ -57,7 +57,7 @@ importers:
         specifier: ^3.0.0
         version: 3.0.0
       '@types/node':
-        specifier: ^20.19.24
+        specifier: ^20.11.30
         version: 20.19.24
       '@types/pg':
         specifier: ^8.10.9
@@ -81,10 +81,10 @@ importers:
         specifier: ^3.2.4
         version: 3.6.2
       tsx:
-        specifier: ^4.20.6
+        specifier: ^4.7.0
         version: 4.20.6
       typescript:
-        specifier: ^5.3.3
+        specifier: ^5.4.0
         version: 5.9.3
       typescript-eslint:
         specifier: ^8.46.0
@@ -3327,7 +3327,7 @@ snapshots:
 
   '@types/pg@8.15.6':
     dependencies:
-      '@types/node': 20.19.24
+      '@types/node': 24.10.0
       pg-protocol: 1.10.3
       pg-types: 2.2.0
 
