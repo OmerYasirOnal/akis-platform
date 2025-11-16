@@ -4,14 +4,15 @@ import Card from '../components/common/Card';
 import Button from '../components/common/Button';
 import { agentsApi, type AgentDefinition } from '../services/api/agents';
 import { useI18n } from '../i18n/useI18n';
-import { useAuth } from '../state/auth/AuthContext';
+import { useAuth } from '../contexts/AuthContext';
 
 const agentsEnabled =
   String(import.meta.env.VITE_AGENTS_ENABLED ?? '').toLowerCase() === 'true';
 
 const AgentsIndexPage = () => {
   const { t } = useI18n();
-  const { isAuthenticated } = useAuth();
+  const { user } = useAuth();
+  const isAuthenticated = Boolean(user);
   const [agents, setAgents] = useState<AgentDefinition[]>([]);
 
   useEffect(() => {
@@ -97,4 +98,3 @@ const AgentsIndexPage = () => {
 };
 
 export default AgentsIndexPage;
-

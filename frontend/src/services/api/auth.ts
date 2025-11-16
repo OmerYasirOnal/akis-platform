@@ -1,48 +1,47 @@
-import { HttpClient } from './HttpClient';
-
-const apiBaseURL =
+const BASE =
   import.meta.env.VITE_API_URL ||
   import.meta.env.VITE_BACKEND_URL ||
   'http://localhost:3000';
 
-const httpClient = new HttpClient(apiBaseURL);
+async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const response = await fetch(`${BASE}${path}`, {
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(init?.headers ?? {}),
+    },
+    ...init,
+  });
 
-const withCredentials = {
-  credentials: 'include' as const,
-};
+  if (!response.ok) {
+    const message = (await response.text()) || 'Request failed';
+    throw new Error(message);
+  }
 
-export interface AuthUser {
-  id: string;
-  email: string;
+  if (response.status === 204) {
+    return undefined as T;
+  }
+
+  return response.json() as Promise<T>;
 }
 
-export const authApi = {
-  me: async (): Promise<{ user: AuthUser | null }> => {
-    return httpClient.get<{ user: AuthUser | null }>('/auth/me', withCredentials);
-  },
+export type AuthUser = { id: string; name: string; email: string };
 
-  devLogin: async (email: string): Promise<{ user: AuthUser }> => {
-    return httpClient.post<{ user: AuthUser }>('/auth/dev-login', { email }, withCredentials);
-  },
-
-  logout: async (): Promise<{ ok: boolean }> => {
-    return httpClient.post<{ ok: boolean }>('/auth/logout', undefined, withCredentials);
-  },
-
-  /**
-   * Get started flow - checks if user is authenticated
-   * Returns user if authenticated, null otherwise
-   * Safe mock if backend route unavailable
-   */
-  getStarted: async (): Promise<{ user: AuthUser | null }> => {
-    try {
-      return await authApi.me();
-    } catch (error) {
-      // Safe fallback - assume not authenticated
-      console.warn('getStarted: auth check failed, assuming not authenticated', error);
-      return { user: null };
-    }
-  },
+export const AuthAPI = {
+  signup: (data: { name: string; email: string; password: string }) =>
+    request<AuthUser>('/auth/signup', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  login: (data: { email: string; password: string }) =>
+    request<AuthUser>('/auth/login', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  me: () => request<AuthUser>('/auth/me'),
+  logout: () =>
+    request<{ ok: boolean }>('/auth/logout', {
+      method: 'POST',
+    }),
 };
-
 

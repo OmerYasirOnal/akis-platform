@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useI18n } from '../i18n/useI18n';
+import { useAuth } from '../contexts/AuthContext';
 import { cn } from '../utils/cn';
 import { useRouteChangeIndicator } from './RouteChangeIndicator';
 
@@ -17,9 +18,12 @@ interface HeaderProps {
  */
 export default function Header({ className }: HeaderProps) {
   const { t, locale, setLocale } = useI18n();
+  const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [scrolled, setScrolled] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const isNavigating = useRouteChangeIndicator();
+  const isAuthenticated = Boolean(user);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -48,6 +52,24 @@ export default function Header({ className }: HeaderProps) {
 
   const handleGetStarted = () => {
     navigate('/signup');
+  };
+
+  const handleLogin = () => {
+    navigate('/login');
+  };
+
+  const handleGoDashboard = () => {
+    navigate('/dashboard');
+  };
+
+  const handleLogout = async () => {
+    setIsLoggingOut(true);
+    try {
+      await logout();
+      navigate('/');
+    } finally {
+      setIsLoggingOut(false);
+    }
   };
 
   // Check for reduced motion preference
@@ -142,13 +164,40 @@ export default function Header({ className }: HeaderProps) {
             </button>
           </div>
 
-          {/* CTA */}
-          <button
-            onClick={handleGetStarted}
-            className="rounded-[var(--radius-md)] bg-[var(--accent)] px-6 py-2.5 text-sm font-medium text-[var(--bg)] transition-all hover:shadow-[var(--shadow-glow)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg)]"
-          >
-            {t('header.cta')}
-          </button>
+          <div className="flex items-center gap-2">
+            {isAuthenticated ? (
+              <>
+                <button
+                  onClick={handleGoDashboard}
+                  className="rounded-full border border-transparent px-4 py-2 text-sm font-medium text-[var(--text)] transition-colors hover:text-[var(--accent)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg)]"
+                >
+                  Dashboard
+                </button>
+                <button
+                  onClick={handleLogout}
+                  disabled={isLoggingOut}
+                  className="rounded-full border border-[var(--glass-bdr)] bg-[var(--glass-top)] px-4 py-2 text-sm font-medium text-[var(--text)] transition-all hover:bg-[var(--glass-mid)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg)] disabled:opacity-60"
+                >
+                  {isLoggingOut ? 'Çıkış...' : 'Logout'}
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  onClick={handleLogin}
+                  className="rounded-full border border-[var(--glass-bdr)] bg-transparent px-4 py-2 text-sm font-medium text-[var(--text)] transition-all hover:border-[var(--accent)] hover:text-[var(--accent)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg)]"
+                >
+                  Login
+                </button>
+                <button
+                  onClick={handleGetStarted}
+                  className="rounded-[var(--radius-md)] bg-[var(--accent)] px-6 py-2.5 text-sm font-medium text-[var(--bg)] transition-all hover:shadow-[var(--shadow-glow)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg)]"
+                >
+                  {t('header.cta')}
+                </button>
+              </>
+            )}
+          </div>
         </nav>
 
         {/* Mobile Menu Button */}
@@ -174,15 +223,42 @@ export default function Header({ className }: HeaderProps) {
               TR
             </button>
           </div>
-          <button
-            onClick={handleGetStarted}
-            className="rounded-[var(--radius-md)] bg-[var(--accent)] px-4 py-2 text-xs font-medium text-[var(--bg)]"
-          >
-            {t('header.cta')}
-          </button>
+          <div className="flex items-center gap-2">
+            {isAuthenticated ? (
+              <>
+                <button
+                  onClick={handleGoDashboard}
+                  className="rounded-full border border-[var(--glass-bdr)] bg-[var(--glass-top)] px-3 py-1.5 text-xs font-semibold text-[var(--text)]"
+                >
+                  Dashboard
+                </button>
+                <button
+                  onClick={handleLogout}
+                  disabled={isLoggingOut}
+                  className="rounded-full bg-[var(--accent)] px-3 py-1.5 text-xs font-semibold text-[var(--bg)] disabled:opacity-60"
+                >
+                  {isLoggingOut ? '...' : 'Logout'}
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  onClick={handleLogin}
+                  className="rounded-full border border-[var(--glass-bdr)] bg-[var(--glass-top)] px-3 py-1.5 text-xs font-semibold text-[var(--text)]"
+                >
+                  Login
+                </button>
+                <button
+                  onClick={handleGetStarted}
+                  className="rounded-[var(--radius-md)] bg-[var(--accent)] px-4 py-2 text-xs font-medium text-[var(--bg)]"
+                >
+                  {t('header.cta')}
+                </button>
+              </>
+            )}
+          </div>
         </div>
       </div>
     </header>
   );
 }
-

@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import Logo from '../branding/Logo';
-import { useAuth } from '../../state/auth/AuthContext';
+import { useAuth } from '../../contexts/AuthContext';
 
 const productLinks = [
   { label: 'Platform', to: '/platform' },
@@ -28,8 +28,8 @@ const legalLinks = [
 ];
 
 const Footer: React.FC = () => {
-  const { isAuthenticated, devLoginEnabled } = useAuth();
-  const loginPath = devLoginEnabled ? '/auth/dev-login' : '/login';
+  const { user } = useAuth();
+  const isAuthenticated = Boolean(user);
   const year = new Date().getFullYear();
 
   return (
@@ -83,7 +83,7 @@ const Footer: React.FC = () => {
               ) : (
                 <>
                   <li>
-                  <Link className="transition-colors hover:text-ak-primary" to={loginPath}>
+                  <Link className="transition-colors hover:text-ak-primary" to="/login">
                       Login
                     </Link>
                   </li>
@@ -138,4 +138,3 @@ const Footer: React.FC = () => {
 };
 
 export default Footer;
-

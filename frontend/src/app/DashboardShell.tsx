@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
-import { useAuth } from '../state/auth/AuthContext';
+import { useAuth } from '../contexts/AuthContext';
 import Button from '../components/common/Button';
 
 const dashboardLinks = [
@@ -179,4 +179,3 @@ const DashboardShell = () => {
 };
 
 export default DashboardShell;
-
