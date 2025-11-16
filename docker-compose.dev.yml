@@ -1,0 +1,21 @@
+version: "3.9"
+services:
+  pg:
+    image: postgres:16
+    ports: ["5432:5432"]
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: akis_v2
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+  adminer:
+    image: adminer
+    ports: ["8080:8080"]
+volumes:
+  pgdata:

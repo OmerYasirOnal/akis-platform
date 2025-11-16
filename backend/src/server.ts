@@ -8,29 +8,34 @@ import { helmetPlugin } from './plugins/security/helmet.js';
 const env = getEnv();
 const app = await buildApp();
 
+// Safe JSON parser
 const jsonParser = app.getDefaultJsonParser('error', 'ignore');
 app.addContentTypeParser('application/json', { parseAs: 'string' }, jsonParser);
 
+// Security headers
 await app.register(helmetPlugin, {
   enableCSP: env.NODE_ENV === 'production',
 });
 
+// Soft rate limit
 await app.register(rateLimit, {
-  max: 120, // soft rate limit ~2 RPS
+  max: 120,
   timeWindow: '1 minute',
   hook: 'onSend',
 });
 
+// CORS
 await app.register(corsPlugin, {
   origins: env.CORS_ORIGINS,
 });
 
+// HttpOnly cookie (JWT)
 await app.register(cookiesPlugin, {
   name: env.AUTH_COOKIE_NAME,
   maxAge: env.AUTH_COOKIE_MAXAGE,
-  sameSite: env.AUTH_COOKIE_SAMESITE,
-  secure: env.AUTH_COOKIE_SECURE,
-  domain: env.AUTH_COOKIE_DOMAIN,
+  sameSite: env.AUTH_COOKIE_SAMESITE, // dev: Lax
+  secure: env.AUTH_COOKIE_SECURE,      // dev: false
+  domain: env.AUTH_COOKIE_DOMAIN,      // dev: localhost
 });
 
 const port = env.AKIS_PORT;

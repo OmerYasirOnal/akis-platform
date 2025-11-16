@@ -38,6 +38,7 @@ const envSchema = z
       .default('false')
       .transform((value) => value === 'true'),
     AUTH_COOKIE_DOMAIN: z.string().optional(),
+    AUTH_JWT_SECRET: z.string().min(32, 'AUTH_JWT_SECRET must be at least 32 characters long'),
     GITHUB_MCP_BASE_URL: z.string().url().optional(),
     ATLASSIAN_MCP_BASE_URL: z.string().url().optional(),
     GITHUB_APP_ID: z.string().optional(),
@@ -149,4 +150,3 @@ export function getEnv(): Env {
     throw error;
   }
 }
-

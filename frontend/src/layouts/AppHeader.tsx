@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
 
-import { useAuth } from '../state/auth/AuthContext';
+import { useAuth } from '../contexts/AuthContext';
 import Logo from '../components/branding/Logo';
 import Button from '../components/common/Button';
 import ThemeToggle from '../components/ThemeToggle';
@@ -20,13 +20,13 @@ const primaryLinks = [
 ];
 
 const AppHeader = () => {
-  const { user, isAuthenticated, logout, devLoginEnabled } = useAuth();
+  const { user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const isMountedRef = useRef(true);
-  const loginPath = devLoginEnabled ? '/auth/dev-login' : '/login';
+  const isAuthenticated = Boolean(user);
 
   useEffect(() => {
     setMobileOpen(false);
@@ -84,7 +84,7 @@ const AppHeader = () => {
                 <Button as={Link} to="/dashboard" variant="ghost">
                   Dashboard
                 </Button>
-                {devLoginEnabled && user ? (
+                {user ? (
                   <span className="rounded-full border border-ak-border bg-ak-surface-2 px-3 py-1 text-xs text-ak-text-secondary">
                     {user.email}
                   </span>
@@ -95,7 +95,7 @@ const AppHeader = () => {
               </>
             ) : (
               <>
-                <Button as={Link} to={loginPath} variant="outline">
+                <Button as={Link} to="/login" variant="outline">
                   Login
                 </Button>
                 <Button as={Link} to="/signup">
@@ -162,7 +162,7 @@ const AppHeader = () => {
               </>
             ) : (
               <>
-                <Button as={Link} to={loginPath} variant="outline">
+                <Button as={Link} to="/login" variant="outline">
                   Login
                 </Button>
                 <Button as={Link} to="/signup">
@@ -172,7 +172,7 @@ const AppHeader = () => {
             )}
           </div>
 
-          {devLoginEnabled && user ? (
+          {user ? (
             <div className="rounded-xl border border-ak-border bg-ak-surface px-4 py-3 text-xs text-ak-text-secondary">
               Signed in as <span className="text-ak-text-primary">{user.email}</span>
             </div>
@@ -184,5 +184,4 @@ const AppHeader = () => {
 };
 
 export default AppHeader;
-
 
