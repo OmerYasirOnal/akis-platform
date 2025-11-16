@@ -5,7 +5,7 @@ import Card from '../../components/common/Card';
 import Button from '../../components/common/Button';
 import { JobStatus } from '../../components/agents/JobStatus';
 import { useI18n } from '../../i18n/useI18n';
-import { useAuth } from '../../state/auth/AuthContext';
+import { useAuth } from '../../contexts/AuthContext';
 import { useAgentRunner } from './useAgentRunner';
 
 const agentsEnabled =
@@ -13,7 +13,8 @@ const agentsEnabled =
 
 const ProtoRunPage = () => {
   const { t } = useI18n();
-  const { isAuthenticated } = useAuth();
+  const { user } = useAuth();
+  const isAuthenticated = Boolean(user);
   const [goal, setGoal] = useState('');
   const { runAgent, job, error, isSubmitting, isPolling, reset } = useAgentRunner('proto');
 
@@ -92,5 +93,4 @@ const ProtoRunPage = () => {
 };
 
 export default ProtoRunPage;
-
 

@@ -3,7 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import AppShell from './components/AppShell';
 import DashboardShell from './app/DashboardShell';
 import { ProtectedRoute, RequireRole } from './app/RouteGuards';
-import { AuthProvider } from './state/auth/AuthContext';
+import { AuthProvider } from './contexts/AuthContext';
 import { useI18n } from './i18n/useI18n';
 import LandingPage from './pages/LandingPage';
 import PlatformPage from './pages/PlatformPage';
@@ -30,9 +30,8 @@ import ContactPage from './pages/ContactPage';
 import LegalTermsPage from './pages/legal/LegalTermsPage';
 import LegalPrivacyPage from './pages/legal/LegalPrivacyPage';
 import StatusPage from './pages/StatusPage';
-import Login from './pages/Login';
-import DevLogin from './pages/auth/Login.dev';
-import Signup from './pages/Signup';
+import Login from './pages/auth/Login';
+import Signup from './pages/auth/Signup';
 import DashboardOverviewPage from './pages/dashboard/DashboardOverviewPage';
 import DashboardAgentsIndexPage from './pages/dashboard/DashboardAgentsIndexPage';
 import DashboardAgentScribePage from './pages/dashboard/agents/DashboardAgentScribePage';
@@ -47,9 +46,6 @@ import DashboardSettingsNotificationsPage from './pages/dashboard/settings/Dashb
 import JobsListPage from './pages/JobsListPage';
 import JobDetailPage from './pages/JobDetailPage';
 import NewJobPage from './pages/NewJobPage';
-
-const devLoginEnabled =
-  String(import.meta.env.VITE_ENABLE_DEV_LOGIN ?? '').toLowerCase() === 'true';
 
 function App() {
   const { t } = useI18n();
@@ -98,9 +94,6 @@ function App() {
             <Route path="status" element={<StatusPage />} />
             <Route path="login" element={<Login />} />
             <Route path="signup" element={<Signup />} />
-            {devLoginEnabled ? (
-              <Route path="auth/dev-login" element={<DevLogin />} />
-            ) : null}
           </Route>
 
           <Route

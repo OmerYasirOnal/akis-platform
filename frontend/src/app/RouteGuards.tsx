@@ -1,11 +1,8 @@
 import type { ReactNode } from 'react';
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
-import type { Role } from '../state/auth/AuthContext';
-import { useAuth } from '../state/auth/AuthContext';
+import { useAuth } from '../contexts/AuthContext';
 
-const devLoginEnabled =
-  String(import.meta.env.VITE_ENABLE_DEV_LOGIN ?? '').toLowerCase() === 'true';
-const loginPath = devLoginEnabled ? '/auth/dev-login' : '/login';
+type Role = 'admin' | 'member';
 
 type ProtectedRouteProps = {
   children?: ReactNode;
@@ -13,9 +10,10 @@ type ProtectedRouteProps = {
 
 export function ProtectedRoute({ children }: ProtectedRouteProps) {
   const location = useLocation();
-  const { status, isAuthenticated } = useAuth();
+  const { user, loading } = useAuth();
+  const isAuthenticated = Boolean(user);
 
-  if (status === 'loading') {
+  if (loading) {
     return (
       <div className="flex min-h-[50vh] items-center justify-center text-sm text-ak-text-secondary">
         Yükleniyor...
@@ -26,7 +24,7 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
   if (!isAuthenticated) {
     return (
       <Navigate
-        to={loginPath}
+        to="/login"
         replace
         state={{
           from: location,
@@ -47,9 +45,10 @@ type RequireRoleProps = {
 
 export function RequireRole({ roles, fallbackPath = '/dashboard', children }: RequireRoleProps) {
   const location = useLocation();
-  const { status, user, isAuthenticated } = useAuth();
+  const { user, loading } = useAuth();
+  const isAuthenticated = Boolean(user);
 
-  if (status === 'loading') {
+  if (loading) {
     return (
       <div className="flex min-h-[50vh] items-center justify-center text-sm text-ak-text-secondary">
         Yükleniyor...
@@ -60,7 +59,7 @@ export function RequireRole({ roles, fallbackPath = '/dashboard', children }: Re
   if (!isAuthenticated || !user) {
     return (
       <Navigate
-        to={loginPath}
+        to="/login"
         replace
         state={{
           from: location,
@@ -70,7 +69,9 @@ export function RequireRole({ roles, fallbackPath = '/dashboard', children }: Re
     );
   }
 
-  if (!roles.includes(user.role)) {
+  const role = user.role ?? 'member';
+
+  if (!roles.includes(role)) {
     return (
       <Navigate
         to={fallbackPath}
@@ -85,4 +86,3 @@ export function RequireRole({ roles, fallbackPath = '/dashboard', children }: Re
 
   return children ? <>{children}</> : <Outlet />;
 }
-
