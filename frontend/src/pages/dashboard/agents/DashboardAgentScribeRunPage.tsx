@@ -182,7 +182,14 @@ const DashboardAgentScribeRunPage = () => {
           </div>
         </form>
 
-        <JobStatus job={job} isPolling={isPolling} />
+        {isSubmitting && !job ? (
+          <div className="rounded-xl border border-ak-border bg-ak-surface px-4 py-8 text-center">
+            <p className="text-sm font-medium text-ak-primary">Starting Scribe job...</p>
+            <p className="mt-1 text-xs text-ak-text-secondary">This may take a moment.</p>
+          </div>
+        ) : (
+          <JobStatus job={job} isPolling={isPolling} />
+        )}
       </Card>
     </div>
   );
