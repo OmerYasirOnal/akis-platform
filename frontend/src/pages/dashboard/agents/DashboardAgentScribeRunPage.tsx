@@ -1,17 +1,17 @@
 import type { FormEvent } from 'react';
 import { useMemo, useState } from 'react';
 import { Navigate } from 'react-router-dom';
-import Card from '../../components/common/Card';
-import Button from '../../components/common/Button';
-import { JobStatus } from '../../components/agents/JobStatus';
-import { useI18n } from '../../i18n/useI18n';
-import { useAuth } from '../../contexts/AuthContext';
-import { useAgentRunner } from './useAgentRunner';
+import Card from '../../../components/common/Card';
+import Button from '../../../components/common/Button';
+import { JobStatus } from '../../../components/agents/JobStatus';
+import { useI18n } from '../../../i18n/useI18n';
+import { useAuth } from '../../../contexts/AuthContext';
+import { useAgentRunner } from '../../agents/useAgentRunner';
 
 const agentsEnabled =
   String(import.meta.env.VITE_AGENTS_ENABLED ?? '').toLowerCase() === 'true';
 
-const ScribeRunPage = () => {
+const DashboardAgentScribeRunPage = () => {
   const { t } = useI18n();
   const { user } = useAuth();
   const isAuthenticated = Boolean(user);
@@ -188,4 +188,4 @@ const ScribeRunPage = () => {
   );
 };
 
-export default ScribeRunPage;
+export default DashboardAgentScribeRunPage;

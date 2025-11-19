@@ -1,7 +1,7 @@
 import { BaseAgent } from '../../core/agents/BaseAgent.js';
 import type { AgentDependencies } from '../../core/agents/AgentFactory.js';
 import { GitHubMCPService } from '../../services/mcp/adapters/GitHubMCPService.js';
-import type { AIService, Plan, Planner, Critique, Reflector } from '../../services/ai/AIService.js';
+import type { AIService, Plan, Planner } from '../../services/ai/AIService.js';
 import type { MCPTools } from '../../services/mcp/adapters/index.js';
 
 /**
@@ -80,7 +80,7 @@ export class ScribeAgent extends BaseAgent {
     const results: Record<string, unknown> = { plan };
 
     // Step 1: Branch Management (Simplified)
-    let workingBranch = task.featureBranch || task.baseBranch;
+    const workingBranch = task.featureBranch || task.baseBranch;
     if (task.featureBranch && task.featureBranch !== task.baseBranch) {
         // In real impl, we would check/create branch here
         results.branch = workingBranch;
@@ -93,7 +93,7 @@ export class ScribeAgent extends BaseAgent {
     try {
       const fileData = await this.githubMCP.getFileContent(task.owner, task.repo, workingBranch, filePath);
       currentContent = Buffer.from(fileData.content, 'base64').toString('utf-8');
-    } catch (e) {
+    } catch (_e) {
       console.log('File not found, will create:', filePath);
     }
 

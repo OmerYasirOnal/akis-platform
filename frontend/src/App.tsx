@@ -35,6 +35,7 @@ import Signup from './pages/auth/Signup';
 import DashboardOverviewPage from './pages/dashboard/DashboardOverviewPage';
 import DashboardAgentsIndexPage from './pages/dashboard/DashboardAgentsIndexPage';
 import DashboardAgentScribePage from './pages/dashboard/agents/DashboardAgentScribePage';
+import DashboardAgentScribeRunPage from './pages/dashboard/agents/DashboardAgentScribeRunPage';
 import DashboardAgentTracePage from './pages/dashboard/agents/DashboardAgentTracePage';
 import DashboardAgentProtoPage from './pages/dashboard/agents/DashboardAgentProtoPage';
 import DashboardIntegrationsPage from './pages/dashboard/DashboardIntegrationsPage';
@@ -113,6 +114,7 @@ function App() {
             <Route path="agents">
               <Route index element={<DashboardAgentsIndexPage />} />
               <Route path="scribe" element={<DashboardAgentScribePage />} />
+              <Route path="scribe/run" element={<DashboardAgentScribeRunPage />} />
               <Route path="trace" element={<DashboardAgentTracePage />} />
               <Route path="proto" element={<DashboardAgentProtoPage />} />
             </Route>
