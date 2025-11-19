@@ -15,11 +15,24 @@ const ScribeRunPage = () => {
   const { t } = useI18n();
   const { user } = useAuth();
   const isAuthenticated = Boolean(user);
-  const [doc, setDoc] = useState('');
+  
+  // Form state
+  const [owner, setOwner] = useState('');
+  const [repo, setRepo] = useState('');
+  const [baseBranch, setBaseBranch] = useState('main');
+  const [featureBranch, setFeatureBranch] = useState('');
+  const [taskDescription, setTaskDescription] = useState('');
   const [validationError, setValidationError] = useState<string | null>(null);
+  
   const { runAgent, job, error, isSubmitting, isPolling, reset } = useAgentRunner('scribe');
 
-  const canSubmit = useMemo(() => Boolean(doc.trim()) && isAuthenticated, [doc, isAuthenticated]);
+  const canSubmit = useMemo(() => 
+    Boolean(owner.trim()) && 
+    Boolean(repo.trim()) && 
+    Boolean(baseBranch.trim()) && 
+    isAuthenticated, 
+    [owner, repo, baseBranch, isAuthenticated]
+  );
 
   if (!agentsEnabled) {
     return <Navigate to="/agents" replace />;
@@ -28,13 +41,20 @@ const ScribeRunPage = () => {
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    if (!doc.trim()) {
-      setValidationError(t('agents.scribe.validation.doc'));
+    if (!owner.trim() || !repo.trim() || !baseBranch.trim()) {
+      setValidationError('Owner, Repo, and Base Branch are required');
       return;
     }
 
     setValidationError(null);
-    void runAgent({ doc: doc.trim() });
+    void runAgent({
+      owner: owner.trim(),
+      repo: repo.trim(),
+      baseBranch: baseBranch.trim(),
+      featureBranch: featureBranch.trim() || undefined,
+      taskDescription: taskDescription.trim() || undefined,
+      // doc: taskDescription.trim() // Backward compat if needed
+    });
   };
 
   return (
@@ -53,27 +73,85 @@ const ScribeRunPage = () => {
 
       <Card className="space-y-6 bg-ak-surface">
         <form className="space-y-6" onSubmit={handleSubmit}>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-ak-text-primary" htmlFor="scribe-owner">
+                Repo Owner
+              </label>
+              <input
+                id="scribe-owner"
+                type="text"
+                className="w-full rounded-xl border border-ak-border bg-ak-surface-2 px-4 py-2 text-sm text-ak-text-primary placeholder:text-ak-text-secondary/70 focus:border-ak-primary focus:outline-none focus:ring-2 focus:ring-ak-primary/60"
+                placeholder="e.g. my-org"
+                value={owner}
+                onChange={(e) => setOwner(e.target.value)}
+                disabled={isSubmitting || !isAuthenticated}
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-ak-text-primary" htmlFor="scribe-repo">
+                Repo Name
+              </label>
+              <input
+                id="scribe-repo"
+                type="text"
+                className="w-full rounded-xl border border-ak-border bg-ak-surface-2 px-4 py-2 text-sm text-ak-text-primary placeholder:text-ak-text-secondary/70 focus:border-ak-primary focus:outline-none focus:ring-2 focus:ring-ak-primary/60"
+                placeholder="e.g. my-repo"
+                value={repo}
+                onChange={(e) => setRepo(e.target.value)}
+                disabled={isSubmitting || !isAuthenticated}
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-ak-text-primary" htmlFor="scribe-baseBranch">
+                Base Branch
+              </label>
+              <input
+                id="scribe-baseBranch"
+                type="text"
+                className="w-full rounded-xl border border-ak-border bg-ak-surface-2 px-4 py-2 text-sm text-ak-text-primary placeholder:text-ak-text-secondary/70 focus:border-ak-primary focus:outline-none focus:ring-2 focus:ring-ak-primary/60"
+                value={baseBranch}
+                onChange={(e) => setBaseBranch(e.target.value)}
+                disabled={isSubmitting || !isAuthenticated}
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-ak-text-primary" htmlFor="scribe-featureBranch">
+                Target/Feature Branch (Optional)
+              </label>
+              <input
+                id="scribe-featureBranch"
+                type="text"
+                className="w-full rounded-xl border border-ak-border bg-ak-surface-2 px-4 py-2 text-sm text-ak-text-primary placeholder:text-ak-text-secondary/70 focus:border-ak-primary focus:outline-none focus:ring-2 focus:ring-ak-primary/60"
+                placeholder="e.g. feat/update-docs"
+                value={featureBranch}
+                onChange={(e) => setFeatureBranch(e.target.value)}
+                disabled={isSubmitting || !isAuthenticated}
+              />
+            </div>
+          </div>
+
           <div className="space-y-2">
-            <label className="text-sm font-medium text-ak-text-primary" htmlFor="scribe-doc">
-              {t('agents.scribe.form.docLabel')}
+            <label className="text-sm font-medium text-ak-text-primary" htmlFor="scribe-task">
+              Task Description
             </label>
             <textarea
-              id="scribe-doc"
-              rows={8}
+              id="scribe-task"
+              rows={4}
               className="w-full rounded-xl border border-ak-border bg-ak-surface-2 px-4 py-3 text-sm text-ak-text-primary placeholder:text-ak-text-secondary/70 focus:border-ak-primary focus:outline-none focus:ring-2 focus:ring-ak-primary/60"
-              placeholder={t('agents.scribe.form.docPlaceholder')}
-              value={doc}
-              onChange={(event) => setDoc(event.target.value)}
+              placeholder="Describe what documentation needs to be updated..."
+              value={taskDescription}
+              onChange={(event) => setTaskDescription(event.target.value)}
               disabled={isSubmitting || !isAuthenticated}
             />
-            {validationError ? (
-              <p className="text-xs text-ak-danger">{validationError}</p>
-            ) : (
-              <p className="text-xs text-ak-text-secondary/80">
-                {t('agents.scribe.form.docHint')}
-              </p>
-            )}
           </div>
+
+          {validationError ? (
+            <p className="text-xs text-ak-danger">{validationError}</p>
+          ) : null}
 
           {!isAuthenticated ? (
             <p className="rounded-xl border border-ak-border bg-ak-surface-2 px-4 py-3 text-xs text-ak-text-secondary">
@@ -90,7 +168,10 @@ const ScribeRunPage = () => {
               variant="ghost"
               disabled={isSubmitting && !job}
               onClick={() => {
-                setDoc('');
+                setOwner('');
+                setRepo('');
+                setFeatureBranch('');
+                setTaskDescription('');
                 setValidationError(null);
                 reset();
               }}
@@ -108,4 +189,3 @@ const ScribeRunPage = () => {
 };
 
 export default ScribeRunPage;
-

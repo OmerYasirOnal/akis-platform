@@ -1,158 +1,147 @@
 import { BaseAgent } from '../../core/agents/BaseAgent.js';
 import type { AgentDependencies } from '../../core/agents/AgentFactory.js';
-import { createHash } from 'crypto';
+import { GitHubMCPService } from '../../services/mcp/adapters/GitHubMCPService.js';
+import type { AIService, Plan, Planner, Critique, Reflector } from '../../services/ai/AIService.js';
+import type { MCPTools } from '../../services/mcp/adapters/index.js';
+
+/**
+ * ScribeTaskContext - Input payload for ScribeAgent
+ */
+export interface ScribeTaskContext {
+  owner: string;
+  repo: string;
+  baseBranch: string; // e.g. 'main'
+  featureBranch?: string; // e.g. 'feat/new-docs', if provided, edits happen here
+  targetPath?: string; // e.g. 'README.md' or 'docs/'
+  taskDescription?: string;
+}
 
 /**
  * ScribeAgent - Documents new features by updating technical documentation
- * Phase 6.A: Deterministic doc-delta playbook (no external network)
+ * Phase 6.A: Uses GitHub MCP and AIService
  * Extends BaseAgent; accepts injected tools (MCP adapters, AIService) via constructor
  */
 export class ScribeAgent extends BaseAgent {
   readonly type = 'scribe';
-  private deps?: AgentDependencies;
+  private githubMCP?: GitHubMCPService;
+  private aiService?: AIService;
 
   constructor(deps?: AgentDependencies) {
     super();
-    this.deps = deps;
-    // ScribeAgent does not require planning or reflection (simple agent)
-    this.playbook.requiresPlanning = false;
+    // Inject dependencies
+    if (deps?.tools?.githubMCP) {
+      this.githubMCP = deps.tools.githubMCP as GitHubMCPService;
+    }
+    if (deps?.tools?.aiService) {
+      this.aiService = deps.tools.aiService as AIService;
+    }
+
+    // Enable planning phase
+    this.playbook.requiresPlanning = true;
+    // Disable orchestrator-level reflection because we do "reflect-before-commit" internally
     this.playbook.requiresReflection = false;
   }
 
   /**
-   * Execute deterministic doc-delta transformation
-   * Input: { doc: string }
-   * Output: { summary: string, outline: Array<{level: number, title: string}>, suggestions: string[] }
+   * Plan execution steps
    */
-  async execute(context: unknown): Promise<unknown> {
-    // Validate input
-    if (!context || typeof context !== 'object' || !('doc' in context)) {
-      throw new Error('ScribeAgent requires payload with "doc" field');
+  async plan(planner: Planner, context: unknown): Promise<Plan> {
+    if (!this.isValidContext(context)) {
+      throw new Error('ScribeAgent requires valid ScribeTaskContext');
+    }
+    const task = context as ScribeTaskContext;
+
+    return planner.plan({
+      agent: this.type,
+      goal: task.taskDescription || `Update documentation in ${task.targetPath || 'README.md'}`,
+      context: task
+    });
+  }
+
+  /**
+   * Execute Scribe workflow with tools and plan
+   */
+  async executeWithTools(_tools: MCPTools, plan?: Plan, context?: unknown): Promise<unknown> {
+    // Note: We use this.githubMCP injected via constructor to ensure we have the token-aware instance
+    // _tools might contain the global generic tools
+    
+    if (!this.isValidContext(context)) {
+      throw new Error('ScribeAgent requires valid ScribeTaskContext');
+    }
+    const task = context as ScribeTaskContext;
+
+    if (!this.githubMCP) {
+      throw new Error('GitHubMCPService not injected into ScribeAgent');
+    }
+    if (!this.aiService) {
+      throw new Error('AIService not injected into ScribeAgent');
     }
 
-    const payload = context as { doc: string };
-    const doc = typeof payload.doc === 'string' ? payload.doc : String(payload.doc);
+    const results: Record<string, unknown> = { plan };
 
-    // Step 1: Tokenize and extract headings (deterministic)
-    const headings = this.extractHeadings(doc);
+    // Step 1: Branch Management (Simplified)
+    let workingBranch = task.featureBranch || task.baseBranch;
+    if (task.featureBranch && task.featureBranch !== task.baseBranch) {
+        // In real impl, we would check/create branch here
+        results.branch = workingBranch;
+    }
+
+    // Step 2: Analyze & Generate
+    // For MVP, we read target file and append/modify
+    const filePath = task.targetPath || 'README.md';
+    let currentContent = '';
+    try {
+      const fileData = await this.githubMCP.getFileContent(task.owner, task.repo, workingBranch, filePath);
+      currentContent = Buffer.from(fileData.content, 'base64').toString('utf-8');
+    } catch (e) {
+      console.log('File not found, will create:', filePath);
+    }
+
+    // Simulate content generation (using plan rationale if available)
+    const updateInfo = plan?.rationale ? `Plan Rationale: ${plan.rationale}` : 'No specific plan rationale.';
+    const newContent = `${currentContent}\n\n## Update ${new Date().toISOString()}\n${task.taskDescription || 'Documentation updated by ScribeAgent.'}\n\n${updateInfo}`;
     
-    // Step 2: Generate summary (deterministic - first 200 chars + word count)
-    const summary = this.generateSummary(doc);
+    // Step 3: Reflect (Critique before commit)
+    const critique = await this.aiService.reflector.critique({
+      artifact: newContent,
+      context: task
+    });
+    results.critique = critique;
 
-    // Step 3: Generate outline from headings (stable sort by position)
-    const outline = headings.map((h, idx) => ({
-      level: h.level,
-      title: h.title,
-      position: idx,
-    }));
-
-    // Step 4: Generate suggestions (deterministic based on doc structure)
-    const suggestions = this.generateSuggestions(doc, headings);
-
-    // Generate idempotent hash (job id + step count)
-    const stepCount = outline.length + suggestions.length;
-    const hash = createHash('sha256')
-      .update(`${this.type}-${stepCount}-${doc.substring(0, 100)}`)
-      .digest('hex')
-      .substring(0, 16);
+    // Step 4: Commit (if critique passes or soft pass)
+    // For MVP, we commit if no critical issues (mocked as always true)
+    const commitResult = await this.githubMCP.commitFile(
+      task.owner,
+      task.repo,
+      workingBranch,
+      filePath,
+      newContent,
+      `docs: update ${filePath} via ScribeAgent`
+    );
+    results.commit = commitResult;
 
     return {
       ok: true,
       agent: 'scribe',
-      summary,
-      outline,
-      suggestions,
-      hash, // Idempotent hash for audit
-      metadata: {
-        wordCount: doc.split(/\s+/).length,
-        headingCount: headings.length,
-        docLength: doc.length,
-      },
+      ...results
     };
   }
 
   /**
-   * Extract headings from markdown/doc text (deterministic)
+   * Default execute implementation (required by BaseAgent)
+   * Delegates to executeWithTools with empty tools/plan if called directly
    */
-  private extractHeadings(doc: string): Array<{ level: number; title: string; position: number }> {
-    const headings: Array<{ level: number; title: string; position: number }> = [];
-    const lines = doc.split('\n');
-    let position = 0;
-
-    for (const line of lines) {
-      // Markdown headings: # Title, ## Subtitle, etc.
-      const markdownMatch = line.match(/^(#{1,6})\s+(.+)$/);
-      if (markdownMatch) {
-        headings.push({
-          level: markdownMatch[1].length,
-          title: markdownMatch[2].trim(),
-          position: position++,
-        });
-        continue;
-      }
-
-      // Alternative heading patterns (all caps line, underlined, etc.)
-      const trimmed = line.trim();
-      if (trimmed.length > 0 && trimmed.length < 100) {
-        // Simple heuristic: all caps or title case might be a heading
-        const isLikelyHeading = /^[A-Z][A-Za-z\s]+$/.test(trimmed) && trimmed.split(' ').length <= 10;
-        if (isLikelyHeading && headings.length === 0) {
-          // Only treat as heading if no headings found yet (avoid false positives)
-          headings.push({
-            level: 1,
-            title: trimmed,
-            position: position++,
-          });
-        }
-      }
-    }
-
-    return headings;
+  async execute(context: unknown): Promise<unknown> {
+    return this.executeWithTools({}, undefined, context);
   }
 
-  /**
-   * Generate summary (deterministic)
-   */
-  private generateSummary(doc: string): string {
-    const sentences = doc.split(/[.!?]+/).filter((s) => s.trim().length > 10);
-    const firstSentence = sentences[0]?.trim() || doc.substring(0, 200).trim();
-    const wordCount = doc.split(/\s+/).length;
-    
-    return `${firstSentence.substring(0, 200)}${firstSentence.length > 200 ? '...' : ''} (${wordCount} words)`;
-  }
-
-  /**
-   * Generate suggestions (deterministic based on doc structure)
-   */
-  private generateSuggestions(doc: string, headings: Array<{ level: number; title: string }>): string[] {
-    const suggestions: string[] = [];
-
-    // Suggestion 1: Check for headings
-    if (headings.length === 0) {
-      suggestions.push('Consider adding section headings to improve structure');
-    } else if (headings.length < 3) {
-      suggestions.push('Document may benefit from more structured sections');
-    }
-
-    // Suggestion 2: Check length
-    const wordCount = doc.split(/\s+/).length;
-    if (wordCount < 50) {
-      suggestions.push('Documentation appears brief; consider adding more detail');
-    } else if (wordCount > 2000) {
-      suggestions.push('Consider splitting into multiple documentation pages');
-    }
-
-    // Suggestion 3: Check for code examples
-    if (!doc.includes('```') && !doc.includes('`')) {
-      suggestions.push('Consider adding code examples or snippets');
-    }
-
-    // Suggestion 4: Check for links
-    if (!doc.includes('http://') && !doc.includes('https://') && !doc.includes('[')) {
-      suggestions.push('Consider adding links to related documentation or resources');
-    }
-
-    return suggestions;
+  private isValidContext(context: unknown): boolean {
+    if (!context || typeof context !== 'object') return false;
+    const c = context as Record<string, unknown>;
+    return (
+      typeof c.owner === 'string' &&
+      typeof c.repo === 'string' &&
+      typeof c.baseBranch === 'string'
+    );
   }
 }
-

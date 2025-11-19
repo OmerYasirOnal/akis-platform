@@ -44,6 +44,7 @@ const envSchema = z
     GITHUB_APP_ID: z.string().optional(),
     GITHUB_INSTALLATION_ID: z.string().optional(),
     GITHUB_APP_PRIVATE_KEY_PEM: z.string().optional(),
+    GITHUB_TOKEN: z.string().optional(), // Personal Access Token for MVP/Dev
     MCP_ATLASSIAN_ENABLED: z.string().default('false'),
     ATLASSIAN_ORG_ID: z.string().optional(),
     ATLASSIAN_API_TOKEN: z.string().optional(),
