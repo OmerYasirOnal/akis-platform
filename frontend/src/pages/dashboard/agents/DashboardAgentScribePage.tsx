@@ -1,17 +1,24 @@
+import { Link } from 'react-router-dom';
 import Card from '../../../components/common/Card';
 import Input from '../../../components/common/Input';
 import Button from '../../../components/common/Button';
 
 const DashboardAgentScribePage = () => (
   <div className="space-y-6">
-    <header className="space-y-2">
-      <h1 className="text-2xl font-semibold text-ak-text-primary">
-        Scribe Configuration
-      </h1>
-      <p className="text-sm text-ak-text-secondary">
-        TODO: Bind to real playbook APIs. This placeholder demonstrates the
-        intended layout and theme.
-      </p>
+    <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+      <div className="space-y-2">
+        <h1 className="text-2xl font-semibold text-ak-text-primary">
+          Scribe Configuration
+        </h1>
+        <p className="text-sm text-ak-text-secondary">
+          Configuration editor coming soon. Current Scribe runs are configured by default templates.
+        </p>
+      </div>
+      <div className="flex-shrink-0">
+        <Button as={Link} to="/dashboard/agents/scribe/run">
+          Run Scribe Now
+        </Button>
+      </div>
     </header>
 
     <Card className="space-y-4 bg-ak-surface">

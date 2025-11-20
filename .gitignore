@@ -54,22 +54,10 @@ tmp/
 temp/
 .cache/
 
-.DS_Store
-/frontend/pnpm-lock.yaml
-/backend/pnpm-lock.yaml
-/backend/package-lock.json
+# Nested Lockfiles (Monorepo Rule)
+frontend/pnpm-lock.yaml
+backend/pnpm-lock.yaml
+backend/package-lock.json
 
-# build artefacts
-frontend/dist/
-backend/dist/
-.pnpm-store/
-
-# build artefacts
-frontend/dist/
-backend/dist/
-.pnpm-store/
-
-# build artefacts
-frontend/dist/
-backend/dist/
-.pnpm-store/
+# Build Artifacts (Recursive)
+**/dist

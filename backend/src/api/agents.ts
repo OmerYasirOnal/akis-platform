@@ -10,7 +10,14 @@ import { formatErrorResponse, getStatusCodeForError } from '../utils/errorHandle
 
 // Request validation schemas
 const scribePayloadSchema = z.object({
-  doc: z.string().min(1, 'doc field is required and must be a non-empty string'),
+  owner: z.string().min(1, 'owner field is required'),
+  repo: z.string().min(1, 'repo field is required'),
+  baseBranch: z.string().min(1, 'baseBranch field is required'),
+  featureBranch: z.string().optional(),
+  targetPath: z.string().optional(),
+  taskDescription: z.string().optional(),
+  // Maintain backward compatibility for legacy tests if needed, or remove 'doc'
+  doc: z.string().optional(),
 });
 
 const tracePayloadSchema = z.object({

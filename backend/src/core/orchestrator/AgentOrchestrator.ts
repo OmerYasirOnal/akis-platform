@@ -8,6 +8,8 @@ import { JobNotFoundError, InvalidStateTransitionError, DatabaseError } from '..
 import type { AIService } from '../../services/ai/AIService.js';
 import type { Plan } from '../../services/ai/AIService.js';
 import type { MCPTools } from '../../services/mcp/adapters/index.js';
+import { getEnv } from '../../config/env.js';
+import { GitHubMCPService } from '../../services/mcp/adapters/GitHubMCPService.js';
 
 /**
  * AgentOrchestrator - Central coordinator for agent workflows
@@ -125,7 +127,27 @@ export class AgentOrchestrator {
         job = result[0];
       }
 
-      const agent = AgentFactory.create(job.type, this.tools);
+      // Prepare dependencies (DI)
+      const env = getEnv();
+      const resolvedTools: AgentDependencies = { 
+        ...this.tools,
+        tools: {
+          ...(this.tools.tools || {}),
+          aiService: this.aiService, // Inject AIService
+        }
+      };
+      
+      // Ensure GitHubMCPService is available (MVP: Use global token/URL)
+      if (!resolvedTools.tools?.githubMCP && env.GITHUB_MCP_BASE_URL) {
+        // In a real app, we'd resolve the token based on job.payload.owner/repo
+        const token = env.GITHUB_TOKEN || ''; 
+        resolvedTools.tools!.githubMCP = new GitHubMCPService({
+          baseUrl: env.GITHUB_MCP_BASE_URL,
+          token: token
+        });
+      }
+
+      const agent = AgentFactory.create(job.type, resolvedTools);
       const playbook = agent.getPlaybook();
       const context = job.payload || {};
 
@@ -344,7 +366,25 @@ export class AgentOrchestrator {
    * @returns Execution result
    */
   async executeAgent(agentType: string, context: unknown): Promise<unknown> {
-    const agent = AgentFactory.create(agentType, this.tools);
+    // Prepare dependencies (DI) similar to startJob
+    const env = getEnv();
+    const resolvedTools: AgentDependencies = { 
+      ...this.tools,
+      tools: {
+        ...(this.tools.tools || {}),
+        aiService: this.aiService,
+      }
+    };
+    
+    if (!resolvedTools.tools?.githubMCP && env.GITHUB_MCP_BASE_URL) {
+      const token = env.GITHUB_TOKEN || ''; 
+      resolvedTools.tools!.githubMCP = new GitHubMCPService({
+        baseUrl: env.GITHUB_MCP_BASE_URL,
+        token: token
+      });
+    }
+
+    const agent = AgentFactory.create(agentType, resolvedTools);
     const stateMachine = new AgentStateMachine('pending');
     const executionId = this.generateExecutionId();
 
@@ -398,4 +438,3 @@ export class AgentOrchestrator {
     return randomUUID();
   }
 }
-
