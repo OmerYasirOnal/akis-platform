@@ -1,4 +1,6 @@
+import { Link } from 'react-router-dom';
 import Card from '../../components/common/Card';
+import Button from '../../components/common/Button';
 
 const AgentScribePage = () => (
   <div className="mx-auto max-w-5xl space-y-8 px-4 pb-16 pt-6 sm:px-6 lg:px-8">
@@ -9,10 +11,16 @@ const AgentScribePage = () => (
       <h1 className="text-3xl font-semibold text-ak-text-primary sm:text-4xl">
         AKIS Scribe — Documentation Automation
       </h1>
-      <p className="max-w-3xl text-base text-ak-text-secondary">
-        TODO: expand with full feature copy, demo media, and CTA buttons per
-        information architecture.
-      </p>
+      <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
+        <p className="max-w-3xl text-base text-ak-text-secondary">
+          Automate your software documentation workflow. AKIS Scribe monitors your changes, generates comprehensive documentation, and syncs it with Confluence and GitHub.
+        </p>
+        <div className="flex-shrink-0">
+          <Button as={Link} to="/dashboard/agents/scribe/run">
+            Run Scribe in Dashboard
+          </Button>
+        </div>
+      </div>
     </header>
 
     <Card className="bg-ak-surface">
@@ -20,9 +28,9 @@ const AgentScribePage = () => (
         How It Works
       </h2>
       <ul className="mt-4 space-y-2 text-sm text-ak-text-secondary">
-        <li>TODO: PR monitoring and diff analysis workflow.</li>
-        <li>TODO: Smart merge with Confluence and wiki targets.</li>
-        <li>TODO: Release note generation pipeline.</li>
+        <li>• Automated PR analysis and documentation generation.</li>
+        <li>• Seamless integration with GitHub and Confluence.</li>
+        <li>• Consistent, up-to-date technical specifications.</li>
       </ul>
     </Card>
 

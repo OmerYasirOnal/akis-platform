@@ -1,96 +1,183 @@
+import { HttpClient } from '../../http/HttpClient.js';
+
 /**
- * GitHubMCPService - MCP client adapter for GitHub (signature-only)
- * Phase 5.B: Method signatures only, no HTTP implementation
+ * GitHubMCPService - MCP client adapter for GitHub
+ * Phase 5.B: Implements MCP JSON-RPC 2.0 calls
  * Provides high-level methods that internally use JSON-RPC 2.0 to GitHub MCP endpoint
- * FORBIDDEN: Direct REST SDK usage (e.g., Octokit) from business code
  */
 
 export interface GitHubMCPServiceOptions {
   baseUrl: string;
   token?: string;
+  httpClient?: HttpClient;
+}
+
+interface JsonRpcRequest {
+  jsonrpc: '2.0';
+  method: string;
+  params: unknown;
+  id: string | number;
+}
+
+interface JsonRpcResponse<T> {
+  jsonrpc: '2.0';
+  result?: T;
+  error?: {
+    code: number;
+    message: string;
+    data?: unknown;
+  };
+  id: string | number;
 }
 
 /**
- * GitHub MCP Service - signature-only adapter
+ * GitHub MCP Service - adapter for GitHub MCP server
  * Used by Scribe, Trace, Proto agents
  */
 export class GitHubMCPService {
-  constructor(_opts: GitHubMCPServiceOptions) {
-    // Signature-only: no implementation
+  private baseUrl: string;
+  private token?: string;
+  private httpClient: HttpClient;
+  private requestId: number = 1;
+
+  constructor(opts: GitHubMCPServiceOptions) {
+    this.baseUrl = opts.baseUrl.replace(/\/$/, ''); // Remove trailing slash
+    this.token = opts.token;
+    this.httpClient = opts.httpClient || new HttpClient();
+  }
+
+  private async callMcp<T>(method: string, params: unknown): Promise<T> {
+    const payload: JsonRpcRequest = {
+      jsonrpc: '2.0',
+      method: `github/${method}`, // Namespaced method
+      params,
+      id: this.requestId++,
+    };
+
+    const response = await this.httpClient.post(this.baseUrl, payload, this.token);
+
+    if (!response.ok) {
+      throw new Error(`MCP Request failed: ${response.status} ${response.statusText}`);
+    }
+
+    const json = (await response.json()) as JsonRpcResponse<T>;
+
+    if (json.error) {
+      throw new Error(`MCP Error [${json.error.code}]: ${json.error.message}`);
+    }
+
+    return json.result as T;
   }
 
   /**
    * Create a branch in GitHub repository
-   * @param owner - Repository owner
-   * @param repo - Repository name
-   * @param branchName - New branch name
-   * @param baseSha - Base commit SHA
    */
   async createBranch(
-    _owner: string,
-    _repo: string,
-    _branchName: string,
-    _baseSha: string
+    owner: string,
+    repo: string,
+    branchName: string,
+    baseSha: string
   ): Promise<{ branch: string; sha: string }> {
-    // Signature-only: no implementation
-    throw new Error('Not implemented: signature-only MCP adapter');
+    return this.callMcp<{ branch: string; sha: string }>('createBranch', {
+      owner,
+      repo,
+      branchName,
+      baseSha,
+    });
   }
 
   /**
    * Commit a file to GitHub repository
-   * @param owner - Repository owner
-   * @param repo - Repository name
-   * @param branch - Branch name
-   * @param filePath - File path
-   * @param content - File content
-   * @param commitMessage - Commit message
    */
   async commitFile(
-    _owner: string,
-    _repo: string,
-    _branch: string,
-    _filePath: string,
-    _content: string,
-    _commitMessage: string
+    owner: string,
+    repo: string,
+    branch: string,
+    filePath: string,
+    content: string,
+    commitMessage: string
   ): Promise<{ commitSha: string; filePath: string }> {
-    // Signature-only: no implementation
-    throw new Error('Not implemented: signature-only MCP adapter');
+    return this.callMcp<{ commitSha: string; filePath: string }>('commitFile', {
+      owner,
+      repo,
+      branch,
+      filePath,
+      content,
+      commitMessage,
+    });
+  }
+
+  /**
+   * Get content of a file
+   */
+  async getFileContent(
+    owner: string,
+    repo: string,
+    branch: string,
+    filePath: string
+  ): Promise<{ content: string; encoding: string; sha: string }> {
+    return this.callMcp<{ content: string; encoding: string; sha: string }>('getFile', {
+      owner,
+      repo,
+      ref: branch,
+      path: filePath,
+    });
+  }
+
+  /**
+   * Get changed files between two refs (or for a PR)
+   * Used by Scribe to analyze changes
+   */
+  async getChangedFiles(
+    owner: string,
+    repo: string,
+    base: string,
+    head: string
+  ): Promise<Array<{ filename: string; status: string; patch?: string }>> {
+    // This might map to a 'compareCommits' or similar MCP method
+    // Assuming 'compare' method exists in the MCP server
+    return this.callMcp<Array<{ filename: string; status: string; patch?: string }>>('compareCommits', {
+      owner,
+      repo,
+      base,
+      head,
+    });
   }
 
   /**
    * List repository issues (for Trace agent)
-   * @param owner - Repository owner
-   * @param repo - Repository name
-   * @param state - Issue state ('open' | 'closed' | 'all')
    */
   async listIssues(
-    _owner: string,
-    _repo: string,
-    _state?: 'open' | 'closed' | 'all'
+    owner: string,
+    repo: string,
+    state: 'open' | 'closed' | 'all' = 'open'
   ): Promise<Array<{ number: number; title: string; body?: string }>> {
-    // Signature-only: no implementation
-    throw new Error('Not implemented: signature-only MCP adapter');
+    return this.callMcp<Array<{ number: number; title: string; body?: string }>>('listIssues', {
+      owner,
+      repo,
+      state,
+    });
   }
 
   /**
    * Create a PR draft (for Proto agent)
-   * @param owner - Repository owner
-   * @param repo - Repository name
-   * @param title - PR title
-   * @param body - PR body
-   * @param head - Head branch
-   * @param base - Base branch
    */
   async createPRDraft(
-    _owner: string,
-    _repo: string,
-    _title: string,
-    _body: string,
-    _head: string,
-    _base: string
+    owner: string,
+    repo: string,
+    title: string,
+    body: string,
+    head: string,
+    base: string
   ): Promise<{ prNumber: number; url: string }> {
-    // Signature-only: no implementation
-    throw new Error('Not implemented: signature-only MCP adapter');
+    return this.callMcp<{ prNumber: number; url: string }>('createPullRequest', {
+      owner,
+      repo,
+      title,
+      body,
+      head,
+      base,
+      draft: true,
+    });
   }
 }
-

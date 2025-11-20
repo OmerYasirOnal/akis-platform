@@ -76,7 +76,7 @@ const AgentsIndexPage = () => {
                 {t('agents.index.viewDetails')}
               </Button>
               {agentsEnabled ? (
-                <Button as={Link} to={`/agents/${agent.id}/run`}>
+                <Button as={Link} to={`/dashboard/agents/${agent.id}/run`}>
                   {t('agents.index.runCta')}
                 </Button>
               ) : (

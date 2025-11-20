@@ -90,13 +90,14 @@ export const useAgentRunner = (type: AgentType) => {
         }
 
         setJobId(response.jobId);
-        setJob({
+        const newJob: JobDetail = {
           id: response.jobId,
           type,
           state: response.state,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
-        });
+        };
+        setJob(newJob);
 
         startPolling(response.jobId);
       } catch (err) {
