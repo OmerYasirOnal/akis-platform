@@ -8,9 +8,33 @@ import { helmetPlugin } from './plugins/security/helmet.js';
 const env = getEnv();
 const app = await buildApp();
 
-// Safe JSON parser
-const jsonParser = app.getDefaultJsonParser('error', 'ignore');
-app.addContentTypeParser('application/json', { parseAs: 'string' }, jsonParser);
+// Safe JSON parser that handles empty bodies
+// Type assertion needed due to loose typings in custom fastify.d.ts
+type ContentParserFn = (
+  req: unknown,
+  body: string,
+  done: (err: Error | null, result?: unknown) => void
+) => void;
+
+const emptyBodyParser: ContentParserFn = (_req, body, done) => {
+  // Handle empty body - return empty object instead of throwing
+  if (!body || body.trim() === '') {
+    done(null, {});
+    return;
+  }
+  try {
+    const json = JSON.parse(body);
+    done(null, json);
+  } catch (err) {
+    done(err as Error, undefined);
+  }
+};
+
+app.addContentTypeParser(
+  'application/json',
+  { parseAs: 'string' },
+  emptyBodyParser as (...args: unknown[]) => unknown
+);
 
 // Security headers
 await app.register(helmetPlugin, {

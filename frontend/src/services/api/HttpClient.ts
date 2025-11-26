@@ -46,12 +46,19 @@ export class HttpClient {
 
     for (let attempt = 0; attempt <= retries; attempt++) {
       try {
+        // Only set Content-Type: application/json if there's a body
+        const headers: Record<string, string> = {
+          ...((fetchOptions.headers as Record<string, string>) || {}),
+        };
+        
+        // Add Content-Type only when body is present and not already set
+        if (fetchOptions.body && !headers['Content-Type'] && !headers['content-type']) {
+          headers['Content-Type'] = 'application/json';
+        }
+
         const response = await fetch(url, {
           ...fetchOptions,
-          headers: {
-            'Content-Type': 'application/json',
-            ...fetchOptions.headers,
-          },
+          headers,
         });
 
         // Don't retry on client errors (4xx) except 429 (rate limit)

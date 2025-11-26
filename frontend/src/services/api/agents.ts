@@ -36,6 +36,10 @@ export interface JobDetail {
   payload?: unknown;
   result?: unknown;
   error?: unknown;
+  /** Structured error code for classification (e.g., AI_RATE_LIMITED) */
+  errorCode?: string | null;
+  /** User-friendly error message */
+  errorMessage?: string | null;
   plan?: unknown;
   audit?: unknown[];
 }

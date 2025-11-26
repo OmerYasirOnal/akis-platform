@@ -29,17 +29,40 @@ export class HttpClient {
 
   /**
    * POST request with timeout and retry
+   * Only sets Content-Type: application/json if body is provided
    */
-  async post(url: string, body: unknown, token?: string): Promise<Response> {
-    return this.request(
-      url,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      },
-      token
-    );
+  async post(url: string, body?: unknown, token?: string): Promise<Response> {
+    const init: RequestInit = { method: 'POST' };
+    
+    // Only set Content-Type and body if body is provided
+    if (body !== undefined && body !== null) {
+      init.headers = { 'Content-Type': 'application/json' };
+      init.body = JSON.stringify(body);
+    }
+    
+    return this.request(url, init, token);
+  }
+  
+  /**
+   * PUT request with timeout and retry
+   * Only sets Content-Type: application/json if body is provided
+   */
+  async put(url: string, body?: unknown, token?: string): Promise<Response> {
+    const init: RequestInit = { method: 'PUT' };
+    
+    if (body !== undefined && body !== null) {
+      init.headers = { 'Content-Type': 'application/json' };
+      init.body = JSON.stringify(body);
+    }
+    
+    return this.request(url, init, token);
+  }
+  
+  /**
+   * DELETE request with timeout and retry
+   */
+  async delete(url: string, token?: string): Promise<Response> {
+    return this.request(url, { method: 'DELETE' }, token);
   }
 
   /**

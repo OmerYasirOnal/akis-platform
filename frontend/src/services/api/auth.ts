@@ -4,12 +4,19 @@ const BASE =
   'http://localhost:3000';
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  // Only set Content-Type: application/json if there's a body
+  const headers: Record<string, string> = {
+    ...(init?.headers as Record<string, string> ?? {}),
+  };
+  
+  // Add Content-Type only when body is present
+  if (init?.body) {
+    headers['Content-Type'] = 'application/json';
+  }
+
   const response = await fetch(`${BASE}${path}`, {
     credentials: 'include',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(init?.headers ?? {}),
-    },
+    headers,
     ...init,
   });
 
@@ -42,6 +49,7 @@ export const AuthAPI = {
   logout: () =>
     request<{ ok: boolean }>('/auth/logout', {
       method: 'POST',
+      // No body - server accepts empty POST for logout
     }),
 };
 
