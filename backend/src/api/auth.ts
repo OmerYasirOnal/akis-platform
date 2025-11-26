@@ -110,10 +110,7 @@ export async function authRoutes(fastify: FastifyInstance) {
       schema: {
         tags: ['auth'],
         description: 'Logout current user by clearing session cookie',
-        body: {
-          type: 'object',
-          additionalProperties: true, // Accept empty body or any object
-        },
+        // No body validation - logout accepts empty body
         response: {
           200: {
             type: 'object',
@@ -122,10 +119,6 @@ export async function authRoutes(fastify: FastifyInstance) {
             },
           },
         },
-      },
-      // Allow empty body - don't parse if no content
-      config: {
-        rawBody: false,
       },
     },
     async (_request, reply) => {
