@@ -38,7 +38,7 @@ const envSchema = z
       .default('false')
       .transform((value) => value === 'true'),
     AUTH_COOKIE_DOMAIN: z.string().optional(),
-    AUTH_JWT_SECRET: z.string().min(32, 'AUTH_JWT_SECRET must be at least 32 characters long'),
+    AUTH_JWT_SECRET: z.string().min(32, 'AUTH_JWT_SECRET must be at least 32 characters long').optional(),
     GITHUB_MCP_BASE_URL: z.string().url().optional(),
     ATLASSIAN_MCP_BASE_URL: z.string().url().optional(),
     GITHUB_APP_ID: z.string().optional(),
@@ -74,8 +74,18 @@ const envSchema = z
   })
   .superRefine((data, ctx) => {
     const isProduction = data.NODE_ENV === 'production';
+    const isTestMode = data.NODE_ENV === 'test' || process.env.CI === 'true';
     const isAtlassianEnabled = data.MCP_ATLASSIAN_ENABLED === 'true';
     const isStrictMode = isProduction || isAtlassianEnabled;
+
+    // AUTH_JWT_SECRET is required except in test/CI mode
+    if (!isTestMode && !data.AUTH_JWT_SECRET) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'AUTH_JWT_SECRET is required and must be at least 32 characters long',
+        path: ['AUTH_JWT_SECRET'],
+      });
+    }
 
     if (data.AUTH_COOKIE_MAXAGE <= 0) {
       ctx.addIssue({
@@ -213,8 +223,16 @@ export function getEnv(): Env {
     return validatedEnv;
   }
 
+  // Prepare env with test fallbacks for CI/test mode
+  const isTestMode = process.env.NODE_ENV === 'test' || process.env.CI === 'true';
+  const envWithFallbacks = {
+    ...process.env,
+    // Provide test fallback for AUTH_JWT_SECRET in CI/test mode
+    AUTH_JWT_SECRET: process.env.AUTH_JWT_SECRET || (isTestMode ? 'test-jwt-secret-at-least-32-chars-long' : undefined),
+  };
+
   try {
-    validatedEnv = envSchema.parse(process.env);
+    validatedEnv = envSchema.parse(envWithFallbacks);
     return validatedEnv;
   } catch (error) {
     if (error instanceof z.ZodError) {
