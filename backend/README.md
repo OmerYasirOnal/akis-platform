@@ -2,155 +2,166 @@
 
 [![CI](https://github.com/YOUR_USERNAME/YOUR_REPO/actions/workflows/ci.yml/badge.svg)](https://github.com/YOUR_USERNAME/YOUR_REPO/actions/workflows/ci.yml)
 
-Fastify + TypeScript backend for AKIS Platform.
+Fastify + TypeScript backend for AKIS Platform - Autonomous Agent System with AI-powered Plan → Execute → Reflect → Validate pipeline.
 
-## Setup
+## Architecture
 
-1. Install dependencies:
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    Fastify HTTP Layer                           │
+│         /health  /ready  /version  /api/agents/*                │
+└──────────────────────────┬──────────────────────────────────────┘
+                           │
+┌──────────────────────────┴──────────────────────────────────────┐
+│                    AgentOrchestrator                            │
+│  Plan → Execute → Reflect (tool-augmented) → Validate          │
+└──────────────────────────┬──────────────────────────────────────┘
+                           │
+    ┌──────────────────────┼──────────────────────┐
+    ▼                      ▼                      ▼
+┌────────┐          ┌────────────┐          ┌─────────┐
+│ Scribe │          │   Trace    │          │  Proto  │
+│ Agent  │          │   Agent    │          │  Agent  │
+└────────┘          └────────────┘          └─────────┘
+    │                      │                      │
+    └──────────────────────┼──────────────────────┘
+                           ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                      Services Layer                             │
+│  AIService (OpenRouter/OpenAI) │ StaticCheckRunner │ MCP Tools │
+└─────────────────────────────────────────────────────────────────┘
+                           │
+┌──────────────────────────┴──────────────────────────────────────┐
+│              PostgreSQL (Drizzle ORM)                           │
+│        jobs │ job_plans │ job_audits │ users                   │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+## Features
+
+- **Three Autonomous Agents**: Scribe (docs), Trace (requirements), Proto (code)
+- **Multi-Model AI Strategy**: Different models for planning, generation, validation
+- **Tool-Augmented Reflection**: Static checks (lint/typecheck) integrated into LLM feedback
+- **MCP Adapters**: GitHub, Jira, Confluence integration via JSON-RPC 2.0
+- **FSM Job Lifecycle**: Pending → Running → Completed/Failed
+- **Full Audit Trail**: All phases logged to `job_audits` table
+
+## Quick Start
+
 ```bash
+# 1. Install dependencies
 pnpm install
-```
 
-2. Set up environment:
-```bash
+# 2. Set up environment
 cp .env.example .env
-# Edit .env with your values (especially DATABASE_URL)
-```
+# Edit .env with your DATABASE_URL and AI credentials
 
-3. Run database migrations:
-```bash
-# Generate migration from schema changes (after modifying src/db/schema.ts)
-pnpm db:generate
-
-# Apply migrations to database (runs SQL migrations in migrations/ folder)
+# 3. Run database migrations
 pnpm db:migrate
-```
 
-**Note:** Drizzle uses `DATABASE_URL` from `.env` for migrations. Ensure your database is running and accessible.
-
-**Initial Migration:** The `jobs` table includes:
-- `id` (uuid, primary key)
-- `type` (varchar(50), not null)
-- `state` (job_state enum: pending|running|completed|failed)
-- `payload` (jsonb, nullable)
-- `result` (jsonb, nullable)
-- `error` (varchar(1000), nullable)
-- `createdAt` (timestamp, not null)
-- `updatedAt` (timestamp, not null)
-
-4. Start development server:
-```bash
+# 4. Start development server
 pnpm dev
 ```
 
-Server will start on `http://localhost:3000` (default port).
-
-## Database CLI Usage
-
-### Generate Migration
-After modifying `src/db/schema.ts`, generate a migration:
-```bash
-pnpm db:generate
-```
-
-This creates SQL migration files in `migrations/` directory.
-
-### Apply Migrations
-Apply pending migrations to your database:
-```bash
-pnpm db:migrate
-```
-
-### Drizzle Studio
-Open Drizzle Studio (database GUI):
-```bash
-pnpm db:studio
-```
+Server runs on `http://localhost:3000`.
 
 ## Scripts
 
-- `pnpm dev` - Development server with watch mode
-- `pnpm build` - Build TypeScript to JavaScript
-- `pnpm start` - Start production server
-- `pnpm lint` - Run ESLint
-- `pnpm typecheck` - TypeScript type checking
-- `pnpm format` - Format code with Prettier
-- `pnpm db:generate` - Generate Drizzle migrations
-- `pnpm db:migrate` - Run database migrations
-- `pnpm db:studio` - Open Drizzle Studio
+| Script | Description |
+|--------|-------------|
+| `pnpm dev` | Development server with watch mode |
+| `pnpm build` | Build TypeScript to JavaScript |
+| `pnpm start` | Start production server |
+| `pnpm lint` | Run ESLint |
+| `pnpm typecheck` | TypeScript type checking |
+| `pnpm test` | Run test suite |
+| `pnpm db:generate` | Generate Drizzle migrations |
+| `pnpm db:migrate` | Run database migrations |
+| `pnpm db:studio` | Open Drizzle Studio |
 
 ## Environment Variables
 
-See `.env.example` for all available environment variables.
+See `.env.example` for complete list. Key variables:
 
 ### Required
 - `DATABASE_URL` - PostgreSQL connection string
 
-### Optional (for features)
-- `GITHUB_APP_ID`, `GITHUB_INSTALLATION_ID`, `GITHUB_APP_PRIVATE_KEY_PEM` - GitHub integration
-- `AI_API_KEY` - AI service API key
+### AI Configuration
+- `AI_PROVIDER` - `openrouter` | `openai` | `mock`
+- `AI_API_KEY` - API key for the provider
+- `AI_MODEL_DEFAULT` - Default model for generation
+- `AI_MODEL_PLANNER` - Model for planning phase
+- `AI_MODEL_VALIDATION` - Stronger model for validation
 
-### Atlassian Integration (Conditional)
+### Optional Integrations
+- `GITHUB_*` - GitHub App credentials
+- `ATLASSIAN_*` - Jira/Confluence credentials
 
-Atlassian variables (`ATLASSIAN_ORG_ID`, `ATLASSIAN_API_TOKEN`, `ATLASSIAN_EMAIL`) are:
-- **Optional in development** (default) - Set `MCP_ATLASSIAN_ENABLED=false` (default)
-- **Required in production** - Automatically enforced when `NODE_ENV=production`
-- **Required when enabled** - Set `MCP_ATLASSIAN_ENABLED=true` to enable in development
+## API Endpoints
 
-**To enable Atlassian integration:**
-1. Set `MCP_ATLASSIAN_ENABLED=true` in your `.env`
-2. Provide all three Atlassian variables:
-   - `ATLASSIAN_ORG_ID` - Your Atlassian organization ID
-   - `ATLASSIAN_API_TOKEN` - API token from Atlassian account settings
-   - `ATLASSIAN_EMAIL` - Valid email address (must pass email validation)
+### Health Checks
+- `GET /health` → `{ "status": "ok" }`
+- `GET /ready` → `{ "ready": true }` (checks DB)
+- `GET /version` → `{ "version": "0.1.0" }`
 
-**Default behavior:**
-- `MCP_ATLASSIAN_ENABLED=false` in `.env.example` (development-friendly)
-- No Atlassian credentials needed to start the server in development mode
-
-## Database Pool Configuration
-
-The database client uses conservative pooling for OCI Free Tier:
-- Max connections: 10
-- Configured in `src/db/client.ts`
-
-## API Examples
-
-### Create Agent Job
-
+### Agent Jobs
 ```bash
+# Create job
 curl -X POST http://localhost:3000/api/agents/jobs \
   -H "Content-Type: application/json" \
-  -d '{"type":"scribe","payload":{"doc":"hello"}}'
-```
+  -d '{"type":"scribe","payload":{"doc":"API documentation"}}'
 
-Response:
-```json
-{
-  "jobId": "uuid-here",
-  "status": "pending"
-}
-```
+# Response: { "jobId": "uuid", "state": "pending" }
 
-### Get Job Status
-
-```bash
+# Get job status
 curl http://localhost:3000/api/agents/jobs/<JOB_ID>
 ```
 
-Response:
-```json
-{
-  "id": "uuid-here",
-  "type": "scribe",
-  "state": "completed",
-  "payload": {"doc": "hello"},
-  "result": {"ok": true, "agent": "scribe", "message": "..."},
-  "error": null,
-  "createdAt": "2025-11-05T...",
-  "updatedAt": "2025-11-05T..."
-}
+For complete API documentation, see [docs/API_SPEC.md](docs/API_SPEC.md).
+
+## Agent Workflows
+
+The system implements a **Plan → Execute → Reflect → Validate** pipeline:
+
+1. **Plan** - AI generates execution strategy (`AI_MODEL_PLANNER`)
+2. **Execute** - Agent performs task with MCP tools
+3. **Reflect** - Tool-augmented critique with static check results
+4. **Validate** - Optional strong model validation (`AI_MODEL_VALIDATION`)
+
+For detailed workflow documentation, see [docs/AGENT_WORKFLOWS.md](docs/AGENT_WORKFLOWS.md).
+
+## Testing
+
+```bash
+# Run all tests
+pnpm test
+
+# Tests include:
+# - Unit: AgentStateMachine, AIService, StaticCheckRunner
+# - Integration: Health endpoints, Fastify inject
 ```
 
-**Note:** Planner/reflector hooks and MCP calls are NOT implemented yet. Agents return stub responses for now.
+Test coverage: 46 tests across unit and integration suites.
 
+## Documentation
+
+- [API Specification](docs/API_SPEC.md) - Endpoint documentation
+- [Agent Workflows](docs/AGENT_WORKFLOWS.md) - Architecture and workflows
+- [Test README](test/README.md) - Test suite documentation
+
+## Technology Stack
+
+- **Runtime**: Node.js 20+
+- **Framework**: Fastify
+- **Language**: TypeScript (strict)
+- **Database**: PostgreSQL with Drizzle ORM
+- **AI**: OpenRouter/OpenAI compatible APIs
+- **Testing**: Node.js test runner with tsx
+
+## OCI Free Tier Optimization
+
+The backend is designed for resource-constrained environments:
+- Conservative database pooling (max 10 connections)
+- Lightweight HTTP client with retry/backoff
+- Mock AI provider for development
+- Efficient static check execution

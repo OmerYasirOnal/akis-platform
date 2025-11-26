@@ -1,7 +1,6 @@
 import type { IAgent } from './IAgent.js';
 import { AgentPlaybook } from '../contracts/AgentPlaybook.js';
-import type { Plan } from '../../services/ai/AIService.js';
-import type { Critique } from '../../services/ai/AIService.js';
+import type { Plan, Critique, ReflectionInput } from '../../services/ai/AIService.js';
 import type { MCPTools } from '../../services/mcp/adapters/index.js';
 
 /**
@@ -41,10 +40,14 @@ export abstract class BaseAgent implements IAgent {
   /**
    * Optional reflection phase for complex agents
    * Override in subclasses if reflection is needed
+   * @param reflector - Reflector instance with critique method
+   * @param artifact - The artifact to reflect on
+   * @param checkResults - Optional static check results for tool-augmented reflection
    */
   async reflect?(
-    reflector: { critique(input: { artifact: unknown; context?: unknown }): Promise<Critique> },
-    artifact: unknown
+    reflector: { critique(input: { artifact: unknown; context?: unknown; checkResults?: ReflectionInput['checkResults'] }): Promise<Critique> },
+    artifact: unknown,
+    checkResults?: ReflectionInput['checkResults']
   ): Promise<Critique> {
     // Default: no reflection
     throw new Error('Reflection not implemented for this agent');
