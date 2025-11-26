@@ -2,7 +2,7 @@ import type { FastifyInstance, FastifyReply } from 'fastify';
 import { z } from 'zod';
 import { eq } from 'drizzle-orm';
 import { db } from '../db/client.js';
-import { users } from '../db/schema/users.js';
+import { users } from '../db/schema.js';
 import { hashPassword, verifyPassword } from '../services/auth/password.js';
 import { sign, verify } from '../services/auth/jwt.js';
 import { cookieOpts, env } from '../lib/env.js';
@@ -104,10 +104,35 @@ export async function authRoutes(fastify: FastifyInstance) {
     return sanitizeUser(user);
   });
 
-  fastify.post('/logout', async (_request, reply) => {
-    clearSessionCookie(reply);
-    return { ok: true };
-  });
+  fastify.post(
+    '/logout',
+    {
+      schema: {
+        tags: ['auth'],
+        description: 'Logout current user by clearing session cookie',
+        body: {
+          type: 'object',
+          additionalProperties: true, // Accept empty body or any object
+        },
+        response: {
+          200: {
+            type: 'object',
+            properties: {
+              ok: { type: 'boolean' },
+            },
+          },
+        },
+      },
+      // Allow empty body - don't parse if no content
+      config: {
+        rawBody: false,
+      },
+    },
+    async (_request, reply) => {
+      clearSessionCookie(reply);
+      return { ok: true };
+    }
+  );
 
   fastify.get('/me', async (request, reply) => {
     const token = request.cookies?.[env.AUTH_COOKIE_NAME];

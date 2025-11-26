@@ -114,6 +114,7 @@ export default function JobsListPage() {
                 <TableHead>ID</TableHead>
                 <TableHead>Type</TableHead>
                 <TableHead>State</TableHead>
+                <TableHead>Error</TableHead>
                 <TableHead>Created At</TableHead>
                 <TableHead>Updated At</TableHead>
               </TableRow>
@@ -131,6 +132,24 @@ export default function JobsListPage() {
                   </TableCell>
                   <TableCell>
                     <Badge state={job.state} />
+                  </TableCell>
+                  <TableCell className="text-sm">
+                    {job.state === 'failed' && (job.errorCode || job.errorMessage) ? (
+                      <div className="max-w-xs">
+                        {job.errorCode && (
+                          <span className="inline-block rounded bg-ak-danger/20 px-1.5 py-0.5 text-xs font-medium text-ak-danger">
+                            {job.errorCode}
+                          </span>
+                        )}
+                        {job.errorMessage && (
+                          <p className="mt-1 truncate text-xs text-ak-text-secondary" title={job.errorMessage}>
+                            {job.errorMessage}
+                          </p>
+                        )}
+                      </div>
+                    ) : (
+                      <span className="text-ak-text-secondary">—</span>
+                    )}
                   </TableCell>
                   <TableCell className="text-sm text-ak-text-secondary">
                     {new Date(job.createdAt).toLocaleString()}

@@ -10,6 +10,7 @@
  */
 
 import { getEnv, getAIConfig, type AIConfig } from '../../config/env.js';
+import { AIRateLimitedError, AIProviderError } from '../../core/errors.js';
 
 // =============================================================================
 // Types and Interfaces
@@ -158,9 +159,17 @@ class RealAIService implements AIService {
   private config: AIConfig;
   public planner: Planner;
   public reflector: Reflector;
+  
+  // Retry configuration - can be overridden via environment
+  private readonly maxRetries: number;
+  private readonly baseRetryDelay: number;
 
   constructor(config: AIConfig) {
     this.config = config;
+    
+    // Configure retry behavior from environment or use defaults
+    this.maxRetries = parseInt(process.env.AI_PLANNER_MAX_RETRIES || '3', 10);
+    this.baseRetryDelay = parseInt(process.env.AI_RETRY_BASE_DELAY_MS || '1000', 10);
 
     // Create legacy interfaces that delegate to new methods
     this.planner = {
@@ -185,7 +194,35 @@ class RealAIService implements AIService {
   }
 
   /**
-   * Make a chat completion request to the AI API
+   * Delay helper for retry backoff
+   */
+  private delay(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
+  /**
+   * Parse retry-after header from response
+   */
+  private parseRetryAfter(response: Response): number | undefined {
+    const retryAfter = response.headers.get('retry-after');
+    if (!retryAfter) return undefined;
+    
+    // Could be seconds (integer) or HTTP-date
+    const seconds = parseInt(retryAfter, 10);
+    if (!isNaN(seconds)) return seconds * 1000; // Convert to ms
+    
+    // Try parsing as date
+    const date = Date.parse(retryAfter);
+    if (!isNaN(date)) {
+      const delayMs = date - Date.now();
+      return delayMs > 0 ? delayMs : undefined;
+    }
+    
+    return undefined;
+  }
+
+  /**
+   * Make a chat completion request to the AI API with retry logic
    */
   private async chatCompletion(
     messages: ChatMessage[],
@@ -193,7 +230,11 @@ class RealAIService implements AIService {
     options: { temperature?: number; maxTokens?: number } = {}
   ): Promise<string> {
     if (!this.config.apiKey) {
-      throw new Error(`AI API key not configured for provider: ${this.config.provider}`);
+      throw new AIProviderError(
+        'AI_AUTH_ERROR',
+        `AI API key not configured for provider: ${this.config.provider}`,
+        this.config.provider
+      );
     }
 
     const endpoint = `${this.config.baseUrl}/chat/completions`;
@@ -205,36 +246,114 @@ class RealAIService implements AIService {
       max_tokens: options.maxTokens ?? 2048,
     };
 
-    try {
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${this.config.apiKey}`,
-          // OpenRouter specific headers (ignored by OpenAI)
-          'HTTP-Referer': 'https://akis.dev',
-          'X-Title': 'AKIS Platform',
-        },
-        body: JSON.stringify(body),
-      });
+    let lastError: Error | null = null;
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`AI API error (${response.status}): ${errorText}`);
+    for (let attempt = 0; attempt <= this.maxRetries; attempt++) {
+      try {
+        const response = await fetch(endpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${this.config.apiKey}`,
+            // OpenRouter specific headers (ignored by OpenAI)
+            'HTTP-Referer': 'https://akis.dev',
+            'X-Title': 'AKIS Platform',
+          },
+          body: JSON.stringify(body),
+        });
+
+        // Handle rate limiting (429)
+        if (response.status === 429) {
+          const retryAfterMs = this.parseRetryAfter(response) || this.baseRetryDelay * Math.pow(2, attempt);
+          const errorText = await response.text().catch(() => 'Rate limited');
+          
+          console.warn(
+            `[AIService] Rate limited by ${this.config.provider} (attempt ${attempt + 1}/${this.maxRetries + 1}), ` +
+            `retrying in ${retryAfterMs}ms: ${errorText.substring(0, 200)}`
+          );
+          
+          // If this is the last attempt, throw the error
+          if (attempt >= this.maxRetries) {
+            throw new AIRateLimitedError(
+              this.config.provider,
+              Math.ceil(retryAfterMs / 1000),
+              errorText.substring(0, 500)
+            );
+          }
+          
+          // Wait and retry
+          await this.delay(Math.min(retryAfterMs, 30000)); // Cap at 30s
+          continue;
+        }
+
+        // Handle other errors
+        if (!response.ok) {
+          const errorText = await response.text().catch(() => 'Unknown error');
+          
+          // Auth errors (401, 403)
+          if (response.status === 401 || response.status === 403) {
+            throw new AIProviderError(
+              'AI_AUTH_ERROR',
+              `AI API authentication failed (${response.status}): ${errorText.substring(0, 200)}`,
+              this.config.provider,
+              response.status
+            );
+          }
+          
+          // Server errors (5xx) - retry
+          if (response.status >= 500 && attempt < this.maxRetries) {
+            console.warn(
+              `[AIService] Server error from ${this.config.provider} (${response.status}), ` +
+              `retrying in ${this.baseRetryDelay * Math.pow(2, attempt)}ms`
+            );
+            await this.delay(this.baseRetryDelay * Math.pow(2, attempt));
+            continue;
+          }
+          
+          throw new AIProviderError(
+            'AI_PROVIDER_ERROR',
+            `AI API error (${response.status}): ${errorText.substring(0, 500)}`,
+            this.config.provider,
+            response.status
+          );
+        }
+
+        const data = (await response.json()) as ChatCompletionResponse;
+
+        if (!data.choices || data.choices.length === 0) {
+          throw new AIProviderError(
+            'AI_INVALID_RESPONSE',
+            'AI API returned no choices',
+            this.config.provider
+          );
+        }
+
+        return data.choices[0].message.content;
+      } catch (error) {
+        // If it's already our custom error, rethrow
+        if (error instanceof AIProviderError) {
+          throw error;
+        }
+        
+        // Network errors - retry
+        lastError = error instanceof Error ? error : new Error(String(error));
+        
+        if (attempt < this.maxRetries) {
+          console.warn(
+            `[AIService] Network error (attempt ${attempt + 1}/${this.maxRetries + 1}): ${lastError.message}`
+          );
+          await this.delay(this.baseRetryDelay * Math.pow(2, attempt));
+          continue;
+        }
       }
-
-      const data = (await response.json()) as ChatCompletionResponse;
-
-      if (!data.choices || data.choices.length === 0) {
-        throw new Error('AI API returned no choices');
-      }
-
-      return data.choices[0].message.content;
-    } catch (error) {
-      // Re-throw with context but never expose the API key
-      const message = error instanceof Error ? error.message : 'Unknown error';
-      throw new Error(`AI chat completion failed: ${message}`);
     }
+
+    // All retries exhausted
+    throw new AIProviderError(
+      'AI_NETWORK_ERROR',
+      `AI chat completion failed after ${this.maxRetries + 1} attempts: ${lastError?.message || 'Unknown error'}`,
+      this.config.provider
+    );
   }
 
   /**

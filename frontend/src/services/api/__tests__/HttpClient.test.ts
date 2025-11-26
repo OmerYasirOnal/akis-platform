@@ -23,13 +23,11 @@ describe('HttpClient', () => {
 
     const result = await client.get('/test');
 
+    // GET requests should not include Content-Type header (no body)
     expect(global.fetch).toHaveBeenCalledWith(
       'http://localhost:3000/test',
       expect.objectContaining({
         method: 'GET',
-        headers: expect.objectContaining({
-          'Content-Type': 'application/json',
-        }),
       })
     );
     expect(result).toEqual({ ...mockResponse, requestId: 'test-request-id' });

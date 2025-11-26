@@ -166,11 +166,30 @@ export default function JobDetailPage() {
         </div>
       )}
 
-      {job.error && (
+      {(job.error || job.errorCode || job.errorMessage) && (
         <div className="mb-6">
           <h2 className="mb-2 text-lg font-semibold text-ak-danger">Error</h2>
-          <div className="rounded-lg border border-ak-danger/70 bg-ak-surface p-4">
-            <p className="text-ak-danger">{job.error}</p>
+          <div className="rounded-lg border border-ak-danger/70 bg-ak-surface p-4 space-y-3">
+            {job.errorCode && (
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-ak-text-secondary">Code:</span>
+                <span className="inline-block rounded bg-ak-danger/20 px-2 py-0.5 text-sm font-medium text-ak-danger">
+                  {job.errorCode}
+                </span>
+              </div>
+            )}
+            {job.errorMessage && (
+              <div>
+                <span className="text-sm font-medium text-ak-text-secondary">Message:</span>
+                <p className="mt-1 text-ak-danger">{job.errorMessage}</p>
+              </div>
+            )}
+            {job.error && job.error !== job.errorMessage && (
+              <div>
+                <span className="text-sm font-medium text-ak-text-secondary">Details:</span>
+                <p className="mt-1 text-sm text-ak-danger/80">{job.error}</p>
+              </div>
+            )}
           </div>
         </div>
       )}
