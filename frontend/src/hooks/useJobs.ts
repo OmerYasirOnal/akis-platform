@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { api } from '../services/api';
 import type { Job, JobsListResponse } from '../services/api';
 
@@ -14,13 +14,19 @@ export function useJobs(options: UseJobsOptions = {}) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
-  const loadJobs = async (cursor?: string) => {
+  // Use refs for options to avoid unnecessary re-renders
+  const optionsRef = useRef(options);
+  optionsRef.current = options;
+
+  const loadJobs = useCallback(async (cursor?: string) => {
     try {
       setIsLoading(true);
       setError(null);
+      const currentOptions = optionsRef.current;
       const response: JobsListResponse = await api.getJobs({
-        ...options,
-        limit: options.limit || 20,
+        type: currentOptions.type,
+        state: currentOptions.state,
+        limit: currentOptions.limit || 20,
         cursor,
       });
       if (cursor) {
@@ -34,17 +40,19 @@ export function useJobs(options: UseJobsOptions = {}) {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     loadJobs();
-  }, [options.type, options.state]);
+  }, [loadJobs, options.type, options.state]);
 
-  const loadMore = () => {
+  const loadMore = useCallback(() => {
     if (nextCursor) {
       loadJobs(nextCursor);
     }
-  };
+  }, [nextCursor, loadJobs]);
+
+  const refetch = useCallback(() => loadJobs(), [loadJobs]);
 
   return {
     jobs,
@@ -52,6 +60,6 @@ export function useJobs(options: UseJobsOptions = {}) {
     isLoading,
     error,
     loadMore,
-    refetch: () => loadJobs(),
+    refetch,
   };
 }

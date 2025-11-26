@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../services/api';
 import type { Job } from '../services/api';
@@ -27,13 +27,19 @@ export default function JobsListPage() {
     'pending' | 'running' | 'completed' | 'failed' | ''
   >('');
 
-  const loadJobs = async (cursor?: string) => {
+  // Use refs for filters to avoid closure issues
+  const filterTypeRef = useRef(filterType);
+  const filterStateRef = useRef(filterState);
+  filterTypeRef.current = filterType;
+  filterStateRef.current = filterState;
+
+  const loadJobs = useCallback(async (cursor?: string) => {
     try {
       setIsLoading(true);
       setError(null);
       const response = await api.getJobs({
-        type: filterType || undefined,
-        state: filterState || undefined,
+        type: filterTypeRef.current || undefined,
+        state: filterStateRef.current || undefined,
         limit: 20,
         cursor,
       });
@@ -53,17 +59,17 @@ export default function JobsListPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     loadJobs();
-  }, [filterType, filterState]);
+  }, [loadJobs, filterType, filterState]);
 
-  const handleLoadMore = () => {
+  const handleLoadMore = useCallback(() => {
     if (nextCursor) {
       loadJobs(nextCursor);
     }
-  };
+  }, [nextCursor, loadJobs]);
 
   return (
     <div className="mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8">

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { api } from '../services/api';
 import type { Job } from '../services/api';
 
@@ -14,15 +14,25 @@ export function useJob(jobId: string | undefined, options: UseJobOptions = {}) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
-  const loadJob = async () => {
+  // Use refs for options to avoid unnecessary re-renders
+  const includePlanRef = useRef(options.includePlan);
+  const includeAuditRef = useRef(options.includeAudit);
+  const autoRefreshRef = useRef(options.autoRefresh);
+
+  // Update refs when options change
+  includePlanRef.current = options.includePlan;
+  includeAuditRef.current = options.includeAudit;
+  autoRefreshRef.current = options.autoRefresh;
+
+  const loadJob = useCallback(async () => {
     if (!jobId) return;
 
     try {
       setIsLoading(true);
       setError(null);
       const include: string[] = [];
-      if (options.includePlan) include.push('plan');
-      if (options.includeAudit) include.push('audit');
+      if (includePlanRef.current) include.push('plan');
+      if (includeAuditRef.current) include.push('audit');
 
       const response = await api.getJob(jobId, include.length > 0 ? include : undefined);
       setJob(response);
@@ -32,15 +42,15 @@ export function useJob(jobId: string | undefined, options: UseJobOptions = {}) {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [jobId]);
 
   useEffect(() => {
     loadJob();
-  }, [jobId, options.includePlan, options.includeAudit]);
+  }, [loadJob]);
 
   // Auto-refresh if job is not in terminal state
   useEffect(() => {
-    if (!options.autoRefresh || !job || job.state === 'completed' || job.state === 'failed') {
+    if (!autoRefreshRef.current || !job || job.state === 'completed' || job.state === 'failed') {
       return;
     }
 
@@ -49,7 +59,7 @@ export function useJob(jobId: string | undefined, options: UseJobOptions = {}) {
     }, 2000); // Poll every 2 seconds
 
     return () => clearInterval(interval);
-  }, [job?.state, options.autoRefresh]);
+  }, [job, loadJob]);
 
   return {
     job,

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { api } from '../services/api';
 import type { Job } from '../services/api';
@@ -18,15 +18,21 @@ export default function JobDetailPage() {
   const [includeAudit, setIncludeAudit] = useState(false);
   const [requestId, setRequestId] = useState<string | undefined>();
 
-  const loadJob = async () => {
+  // Use refs for options to avoid closure issues
+  const includePlanRef = useRef(includePlan);
+  const includeAuditRef = useRef(includeAudit);
+  includePlanRef.current = includePlan;
+  includeAuditRef.current = includeAudit;
+
+  const loadJob = useCallback(async () => {
     if (!id) return;
 
     try {
       setIsLoading(true);
       setError(null);
       const include: string[] = [];
-      if (includePlan) include.push('plan');
-      if (includeAudit) include.push('audit');
+      if (includePlanRef.current) include.push('plan');
+      if (includeAuditRef.current) include.push('audit');
 
       const response = await api.getJob(id, include.length > 0 ? include : undefined);
       setJob(response);
@@ -41,11 +47,11 @@ export default function JobDetailPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [id]);
 
   useEffect(() => {
     loadJob();
-  }, [id, includePlan, includeAudit]);
+  }, [loadJob, includePlan, includeAudit]);
 
   // Auto-refresh if job is not in terminal state
   useEffect(() => {
@@ -58,7 +64,7 @@ export default function JobDetailPage() {
     }, 2000); // Poll every 2 seconds
 
     return () => clearInterval(interval);
-  }, [job?.state]);
+  }, [job, loadJob]);
 
   const containerClass = 'mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8';
 

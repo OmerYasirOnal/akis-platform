@@ -1,5 +1,7 @@
+import { Link } from 'react-router-dom';
 import Card from '../../components/common/Card';
 import Button from '../../components/common/Button';
+import HealthPanel from '../../components/health/HealthPanel';
 
 const DashboardOverviewPage = () => (
   <div className="space-y-6">
@@ -8,8 +10,7 @@ const DashboardOverviewPage = () => (
         Overview
       </h1>
       <p className="text-sm text-ak-text-secondary">
-        Snapshot of recent jobs, time saved, and active automations. TODO: wire
-        metrics once backend endpoints are available.
+        Snapshot of recent jobs, time saved, and active automations.
       </p>
     </div>
 
@@ -21,37 +22,58 @@ const DashboardOverviewPage = () => (
               {metric}
             </p>
             <p className="mt-3 text-2xl font-semibold text-ak-text-primary">
-              TODO
+              —
             </p>
           </Card>
         )
       )}
     </div>
 
-    <Card className="bg-ak-surface">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h2 className="text-lg font-semibold text-ak-text-primary">
-            Quick Actions
-          </h2>
-          <p className="text-sm text-ak-text-secondary">
-            Launch an agent or configure integrations in seconds.
-          </p>
+    <div className="grid gap-4 lg:grid-cols-3">
+      <Card className="bg-ak-surface lg:col-span-2">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="text-lg font-semibold text-ak-text-primary">
+              Quick Actions
+            </h2>
+            <p className="text-sm text-ak-text-secondary">
+              Launch an agent or configure integrations in seconds.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-3">
+            <Button as={Link} to="/dashboard/agents/scribe/run" variant="primary">
+              Run Scribe
+            </Button>
+            <Button as={Link} to="/dashboard/agents/trace" variant="secondary">
+              Run Trace
+            </Button>
+            <Button as={Link} to="/dashboard/jobs/new" variant="outline">
+              Create Job
+            </Button>
+          </div>
         </div>
-        <div className="flex flex-wrap gap-3">
-          <Button variant="primary">Run Scribe</Button>
-          <Button variant="secondary">Run Trace</Button>
-          <Button variant="outline">Create Job</Button>
-        </div>
+      </Card>
+
+      {/* System Status Panel */}
+      <div className="lg:col-span-1">
+        <HealthPanel />
       </div>
-    </Card>
+    </div>
 
     <Card className="bg-ak-surface">
-      <h2 className="text-lg font-semibold text-ak-text-primary">
-        Recent Jobs
-      </h2>
-      <p className="mt-3 text-sm text-ak-text-secondary">
-        TODO: render responsive table / card list using jobs data from API.
+      <div className="flex items-center justify-between mb-3">
+        <h2 className="text-lg font-semibold text-ak-text-primary">
+          Recent Jobs
+        </h2>
+        <Link
+          to="/dashboard/jobs"
+          className="text-sm text-ak-primary hover:text-ak-text-primary transition-colors"
+        >
+          View all →
+        </Link>
+      </div>
+      <p className="text-sm text-ak-text-secondary">
+        Latest job activity will appear here.
       </p>
     </Card>
   </div>
