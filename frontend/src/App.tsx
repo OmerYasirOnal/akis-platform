@@ -25,7 +25,7 @@ import DocsApiReferencePage from './pages/docs/DocsApiReferencePage';
 import DocsArchitecturePage from './pages/docs/DocsArchitecturePage';
 import DocsTroubleshootingPage from './pages/docs/DocsTroubleshootingPage';
 import ChangelogPage from './pages/ChangelogPage';
-import AboutPage from './pages/AboutPage';
+import AboutAKIS from './pages/about/AboutAKIS';
 import ContactPage from './pages/ContactPage';
 import LegalTermsPage from './pages/legal/LegalTermsPage';
 import LegalPrivacyPage from './pages/legal/LegalPrivacyPage';
@@ -86,7 +86,7 @@ function App() {
               <Route path="troubleshooting" element={<DocsTroubleshootingPage />} />
             </Route>
             <Route path="changelog" element={<ChangelogPage />} />
-            <Route path="about" element={<AboutPage />} />
+            <Route path="about" element={<AboutAKIS />} />
             <Route path="contact" element={<ContactPage />} />
             <Route path="legal">
               <Route path="terms" element={<LegalTermsPage />} />
