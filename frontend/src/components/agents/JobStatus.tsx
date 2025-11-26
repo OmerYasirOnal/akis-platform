@@ -89,14 +89,24 @@ export const JobStatus = ({ job, isPolling }: JobStatusProps) => {
           </div>
         ) : null}
 
-        {job.error ? (
+        {job.error || job.errorMessage ? (
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-ak-text-secondary/70">
               {t('agents.status.error')}
             </p>
-            <pre className="mt-2 overflow-x-auto rounded-xl bg-ak-danger/10 p-3 text-xs text-ak-danger">
-              {typeof job.error === 'string' ? job.error : JSON.stringify(job.error, null, 2)}
-            </pre>
+            {job.errorCode && (
+              <span className="mt-2 inline-block rounded-md bg-ak-danger/20 px-2 py-0.5 text-xs font-medium text-ak-danger">
+                {job.errorCode}
+              </span>
+            )}
+            {job.errorMessage && (
+              <p className="mt-2 text-sm text-ak-danger">{job.errorMessage}</p>
+            )}
+            {job.error && job.error !== job.errorMessage && (
+              <pre className="mt-2 overflow-x-auto rounded-xl bg-ak-danger/10 p-3 text-xs text-ak-danger">
+                {typeof job.error === 'string' ? job.error : JSON.stringify(job.error, null, 2)}
+              </pre>
+            )}
           </div>
         ) : null}
       </div>

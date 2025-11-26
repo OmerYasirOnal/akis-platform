@@ -4,7 +4,7 @@ import { db } from '../../db/client.js';
 import { jobs, jobPlans, jobAudits, type NewJob, type NewJobPlan, type NewJobAudit } from '../../db/schema.js';
 import { eq } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
-import { JobNotFoundError, InvalidStateTransitionError, DatabaseError } from '../errors.js';
+import { JobNotFoundError, InvalidStateTransitionError, DatabaseError, AIProviderError } from '../errors.js';
 import type { AIService } from '../../services/ai/AIService.js';
 import type { Plan, Critique } from '../../services/ai/AIService.js';
 import type { MCPTools } from '../../services/mcp/adapters/index.js';
@@ -459,9 +459,22 @@ export class AgentOrchestrator {
       throw new InvalidStateTransitionError(jobId, currentState, 'fail');
     }
 
-    // Stringify error for storage
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    const truncatedError = errorMessage.length > 1000 ? errorMessage.substring(0, 997) + '...' : errorMessage;
+    // Extract structured error information
+    let errorCode: string | null = null;
+    let errorMsg: string | null = null;
+    let rawError: string;
+
+    if (error instanceof AIProviderError) {
+      // AI-specific error - extract structured info
+      errorCode = error.code;
+      errorMsg = this.getHumanReadableErrorMessage(error);
+      rawError = error.message;
+    } else {
+      rawError = error instanceof Error ? error.message : String(error);
+    }
+
+    const truncatedError = rawError.length > 1000 ? rawError.substring(0, 997) + '...' : rawError;
+    const truncatedErrorMsg = errorMsg && errorMsg.length > 500 ? errorMsg.substring(0, 497) + '...' : errorMsg;
 
     // Update database with error
     try {
@@ -470,11 +483,33 @@ export class AgentOrchestrator {
         .set({
           state: 'failed',
           error: truncatedError,
+          errorCode: errorCode,
+          errorMessage: truncatedErrorMsg,
           updatedAt: new Date(),
         })
         .where(eq(jobs.id, jobId));
     } catch (err) {
       throw new DatabaseError(`Failed to update job: ${err instanceof Error ? err.message : String(err)}`, err);
+    }
+  }
+
+  /**
+   * Get human-readable error message for AI errors
+   */
+  private getHumanReadableErrorMessage(error: AIProviderError): string {
+    switch (error.code) {
+      case 'AI_RATE_LIMITED':
+        return 'AI provider is temporarily rate-limited. Please try again later or configure your own API key.';
+      case 'AI_AUTH_ERROR':
+        return 'AI provider authentication failed. Please check your API key configuration.';
+      case 'AI_PROVIDER_ERROR':
+        return 'AI provider returned an error. Please try again later.';
+      case 'AI_NETWORK_ERROR':
+        return 'Unable to connect to AI provider. Please check your network connection.';
+      case 'AI_INVALID_RESPONSE':
+        return 'AI provider returned an invalid response. Please try again.';
+      default:
+        return 'An unexpected AI error occurred. Please try again.';
     }
   }
 

@@ -1,6 +1,6 @@
 import { FastifyRequest } from 'fastify';
 import { ZodError } from 'zod';
-import { JobNotFoundError, InvalidStateTransitionError, DatabaseError } from '../core/errors.js';
+import { JobNotFoundError, InvalidStateTransitionError, DatabaseError, AIProviderError, type AIErrorCode } from '../core/errors.js';
 
 /**
  * Phase 7.E: Unified error model
@@ -12,7 +12,8 @@ export type ErrorCode =
   | 'NOT_FOUND'
   | 'INVALID_STATE'
   | 'DATABASE_ERROR'
-  | 'INTERNAL_ERROR';
+  | 'INTERNAL_ERROR'
+  | AIErrorCode;
 
 export interface ErrorEnvelope {
   error: {
@@ -57,6 +58,18 @@ function mapErrorToCode(error: unknown): { code: ErrorCode; message: string; det
     };
   }
 
+  // AI Provider errors - include code and user-friendly message
+  if (error instanceof AIProviderError) {
+    return {
+      code: error.code,
+      message: error.message,
+      details: {
+        provider: error.provider,
+        retryAfter: error.retryAfter,
+      },
+    };
+  }
+
   // Unknown error - sanitize message
   return {
     code: 'INTERNAL_ERROR',
@@ -93,6 +106,14 @@ export function getStatusCodeForError(code: ErrorCode): number {
       return 409;
     case 'DATABASE_ERROR':
       return 500;
+    case 'AI_RATE_LIMITED':
+      return 429; // Pass through rate limit status
+    case 'AI_AUTH_ERROR':
+      return 502; // Bad gateway - upstream auth failed
+    case 'AI_PROVIDER_ERROR':
+    case 'AI_NETWORK_ERROR':
+    case 'AI_INVALID_RESPONSE':
+      return 503; // Service unavailable - AI service issue
     case 'INTERNAL_ERROR':
     default:
       return 500;

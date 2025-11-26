@@ -280,6 +280,8 @@ export async function agentsRoutes(fastify: FastifyInstance) {
           payload: job.payload,
           result: job.result,
           error: job.error,
+          errorCode: job.errorCode,
+          errorMessage: job.errorMessage,
           createdAt: job.createdAt,
           updatedAt: job.updatedAt,
         };
@@ -337,6 +339,8 @@ export async function agentsRoutes(fastify: FastifyInstance) {
                     id: { type: 'string', format: 'uuid' },
                     type: { type: 'string' },
                     state: { type: 'string' },
+                    errorCode: { type: 'string', nullable: true },
+                    errorMessage: { type: 'string', nullable: true },
                     createdAt: { type: 'string', format: 'date-time' },
                     updatedAt: { type: 'string', format: 'date-time' },
                   },
@@ -386,6 +390,8 @@ export async function agentsRoutes(fastify: FastifyInstance) {
             id: jobs.id,
             type: jobs.type,
             state: jobs.state,
+            errorCode: jobs.errorCode,
+            errorMessage: jobs.errorMessage,
             createdAt: jobs.createdAt,
             updatedAt: jobs.updatedAt,
           })

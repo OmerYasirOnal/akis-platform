@@ -12,6 +12,10 @@ export const jobs = pgTable('jobs', {
   payload: jsonb('payload'),
   result: jsonb('result'),
   error: varchar('error', { length: 1000 }),
+  /** Structured error code for classification (e.g., AI_RATE_LIMITED) */
+  errorCode: varchar('error_code', { length: 50 }),
+  /** User-friendly error message */
+  errorMessage: varchar('error_message', { length: 500 }),
   /** Whether this job requires strong-model validation before completion */
   requiresStrictValidation: boolean('requires_strict_validation').default(false).notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
@@ -54,6 +58,21 @@ export const jobAudits = pgTable('job_audits', {
 export type JobAudit = typeof jobAudits.$inferSelect;
 export type NewJobAudit = typeof jobAudits.$inferInsert;
 
+/**
+ * Users table - stores user accounts for authentication
+ */
+export const users = pgTable('users', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  name: text('name').notNull(),
+  email: text('email').notNull().unique(),
+  passwordHash: text('password_hash').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: false }).defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: false }).defaultNow(),
+});
+
+export type User = typeof users.$inferSelect;
+export type NewUser = typeof users.$inferInsert;
+
 // Relations (optional, for query convenience)
 export const jobsRelations = relations(jobs, ({ many }) => ({
   plans: many(jobPlans),
@@ -74,4 +93,5 @@ export const jobAuditsRelations = relations(jobAudits, ({ one }) => ({
   }),
 }));
 
-export * from './schema/users.js';
+// Users relations (empty for now, can be extended later)
+export const usersRelations = relations(users, () => ({}));

@@ -11,6 +11,10 @@ export interface Job {
   payload?: unknown;
   result?: unknown;
   error?: string;
+  /** Structured error code for classification (e.g., AI_RATE_LIMITED) */
+  errorCode?: string | null;
+  /** User-friendly error message */
+  errorMessage?: string | null;
   createdAt: string;
   updatedAt: string;
   plan?: JobPlan;
