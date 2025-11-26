@@ -8,10 +8,12 @@ import ScribeRunPage from '../pages/agents/ScribeRun';
 import TraceRunPage from '../pages/agents/TraceRun';
 import ProtoRunPage from '../pages/agents/ProtoRun';
 
-const agentsEnabled =
+/** Helper to check if agents feature is enabled (evaluated at runtime for testability) */
+const isAgentsEnabled = () =>
   String(import.meta.env.VITE_AGENTS_ENABLED ?? '').toLowerCase() === 'true';
 
 export const buildAgentRoutes = (): ReactNode[] => {
+  const agentsEnabled = isAgentsEnabled();
   const routes: ReactNode[] = [
     <Route index element={<AgentsIndexPage />} key="agents-index" />,
     <Route path="scribe" element={<AgentScribePage />} key="agents-scribe" />,

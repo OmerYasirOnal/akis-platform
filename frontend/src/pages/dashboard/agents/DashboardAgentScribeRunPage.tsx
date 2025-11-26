@@ -8,10 +8,12 @@ import { useI18n } from '../../../i18n/useI18n';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useAgentRunner } from '../../agents/useAgentRunner';
 
-const agentsEnabled =
+/** Helper to check if agents feature is enabled (evaluated at runtime for testability) */
+const isAgentsEnabled = () =>
   String(import.meta.env.VITE_AGENTS_ENABLED ?? '').toLowerCase() === 'true';
 
 const DashboardAgentScribeRunPage = () => {
+  const agentsEnabled = isAgentsEnabled();
   const { t } = useI18n();
   const { user } = useAuth();
   const isAuthenticated = Boolean(user);

@@ -47,7 +47,17 @@ export const api = {
   },
 
   // GET /health
-  getHealth: async (): Promise<{ status: string; timestamp: string }> => {
+  getHealth: async (): Promise<{ status: string; timestamp?: string }> => {
     return httpClient.get('/health');
+  },
+
+  // GET /ready
+  getReady: async (): Promise<{ ready: boolean }> => {
+    return httpClient.get('/ready');
+  },
+
+  // GET /version
+  getVersion: async (): Promise<{ version: string }> => {
+    return httpClient.get('/version');
   },
 };
