@@ -1,9 +1,9 @@
-import { pgTable, uuid, varchar, jsonb, timestamp, pgEnum, text, index } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, varchar, jsonb, timestamp, pgEnum, text, index, boolean } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 
 export const jobStateEnum = pgEnum('job_state', ['pending', 'running', 'completed', 'failed']);
 
-export const auditPhaseEnum = pgEnum('audit_phase', ['plan', 'execute', 'reflect']);
+export const auditPhaseEnum = pgEnum('audit_phase', ['plan', 'execute', 'reflect', 'validate']);
 
 export const jobs = pgTable('jobs', {
   id: uuid('id').defaultRandom().primaryKey(),
@@ -12,6 +12,8 @@ export const jobs = pgTable('jobs', {
   payload: jsonb('payload'),
   result: jsonb('result'),
   error: varchar('error', { length: 1000 }),
+  /** Whether this job requires strong-model validation before completion */
+  requiresStrictValidation: boolean('requires_strict_validation').default(false).notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 }, (table) => ({
@@ -72,4 +74,4 @@ export const jobAuditsRelations = relations(jobAudits, ({ one }) => ({
   }),
 }));
 
-export * from './schema/users.ts';
+export * from './schema/users.js';

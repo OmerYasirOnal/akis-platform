@@ -6,10 +6,11 @@ import { eq } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
 import { JobNotFoundError, InvalidStateTransitionError, DatabaseError } from '../errors.js';
 import type { AIService } from '../../services/ai/AIService.js';
-import type { Plan } from '../../services/ai/AIService.js';
+import type { Plan, Critique } from '../../services/ai/AIService.js';
 import type { MCPTools } from '../../services/mcp/adapters/index.js';
 import { getEnv } from '../../config/env.js';
 import { GitHubMCPService } from '../../services/mcp/adapters/GitHubMCPService.js';
+import { StaticCheckRunner } from '../../services/checks/index.js';
 
 /**
  * AgentOrchestrator - Central coordinator for agent workflows
@@ -22,20 +23,26 @@ export class AgentOrchestrator {
   private tools: AgentDependencies;
   private aiService?: AIService;
   private mcpTools?: MCPTools;
+  private checkRunner: StaticCheckRunner;
 
   constructor(tools: AgentDependencies = {}, aiService?: AIService, mcpTools?: MCPTools) {
     this.tools = tools;
     this.aiService = aiService;
     this.mcpTools = mcpTools;
+    this.checkRunner = new StaticCheckRunner();
   }
 
   /**
    * Submit a new job (creates job row with pending state)
-   * @param input - Job input (type, payload)
+   * @param input - Job input (type, payload, requiresStrictValidation)
    * @returns Job ID
    * @throws DatabaseError if DB write fails
    */
-  async submitJob(input: { type: string; payload?: unknown }): Promise<string> {
+  async submitJob(input: { 
+    type: string; 
+    payload?: unknown; 
+    requiresStrictValidation?: boolean;
+  }): Promise<string> {
     // Validate input type against registered agents
     const registeredTypes = AgentFactory.listTypes();
     if (!registeredTypes.includes(input.type)) {
@@ -52,6 +59,7 @@ export class AgentOrchestrator {
       payload: input.payload || null,
       result: null,
       error: null,
+      requiresStrictValidation: input.requiresStrictValidation ?? false,
     };
 
     // Write to database (wrap DB errors)
@@ -205,17 +213,42 @@ export class AgentOrchestrator {
         console.error(`Failed to write execute audit for job ${jobId}:`, auditError);
       }
 
-      // Phase 5.D: Reflection phase (if required)
+      // Phase 5.D + Phase 10: Tool-Augmented Reflection phase (if required)
       let finalResult = executionResult;
+      let critique: Critique | undefined;
+      let reflectionCheckResults: Awaited<ReturnType<typeof this.checkRunner.runCriticalChecks>> | undefined;
+      
       if (playbook.requiresReflection && this.aiService && agent.reflect) {
         try {
-          const critique = await agent.reflect(this.aiService.reflector, executionResult);
+          // Run critical checks before reflection for tool-augmented feedback
+          reflectionCheckResults = await this.checkRunner.runCriticalChecks();
+          
+          // Convert check results to the format expected by ReflectionInput
+          const checkResultsForReflection = {
+            lint: reflectionCheckResults.lint ? { 
+              passed: reflectionCheckResults.lint.passed, 
+              errors: reflectionCheckResults.lint.passed ? undefined : (reflectionCheckResults.lint.stderr || reflectionCheckResults.lint.stdout).split('\n').filter(Boolean),
+            } : undefined,
+            typecheck: reflectionCheckResults.typecheck ? { 
+              passed: reflectionCheckResults.typecheck.passed, 
+              errors: reflectionCheckResults.typecheck.passed ? undefined : (reflectionCheckResults.typecheck.stderr || reflectionCheckResults.typecheck.stdout).split('\n').filter(Boolean),
+            } : undefined,
+          };
 
-          // Persist critique/audit to DB
+          // Pass check results to reflection for tool-augmented feedback
+          critique = await agent.reflect(this.aiService.reflector, executionResult, checkResultsForReflection);
+
+          // Persist critique/audit to DB (including check results summary)
           const reflectAudit: NewJobAudit = {
             jobId,
             phase: 'reflect',
-            payload: critique as unknown as Record<string, unknown>,
+            payload: {
+              ...critique,
+              checkResults: {
+                lint: { passed: reflectionCheckResults.lint?.passed },
+                typecheck: { passed: reflectionCheckResults.typecheck?.passed },
+              },
+            } as unknown as Record<string, unknown>,
           };
           await db.insert(jobAudits).values(reflectAudit);
 
@@ -223,11 +256,97 @@ export class AgentOrchestrator {
           finalResult = {
             ...(executionResult && typeof executionResult === 'object' ? executionResult : { result: executionResult }),
             critique,
+            reflectionChecks: {
+              lint: reflectionCheckResults.lint?.passed,
+              typecheck: reflectionCheckResults.typecheck?.passed,
+            },
           };
         } catch (reflectError) {
           // If reflection fails, log but don't fail job
           console.error(`Reflection failed for job ${jobId}:`, reflectError);
           // Continue with execution result
+        }
+      }
+
+      // Phase 10: Validation phase (if requiresStrictValidation is true)
+      if (job.requiresStrictValidation && this.aiService) {
+        try {
+          // Run static checks (lint, typecheck) as part of validation
+          const checkResults = await this.checkRunner.runCriticalChecks();
+          
+          // Use strong model for final validation
+          const validationResult = await this.aiService.validateWithStrongModel({
+            artifact: finalResult,
+            plan: plan,
+            reflection: critique,
+            checkResults: {
+              lint: checkResults.lint ? { 
+                passed: checkResults.lint.passed, 
+                errors: checkResults.lint.passed ? undefined : (checkResults.lint.stderr || checkResults.lint.stdout).split('\n').filter(Boolean),
+              } : undefined,
+              typecheck: checkResults.typecheck ? { 
+                passed: checkResults.typecheck.passed, 
+                errors: checkResults.typecheck.passed ? undefined : (checkResults.typecheck.stderr || checkResults.typecheck.stdout).split('\n').filter(Boolean),
+              } : undefined,
+            },
+          });
+
+          // Persist validation audit
+          const validateAudit: NewJobAudit = {
+            jobId,
+            phase: 'validate',
+            payload: {
+              validationResult,
+              checkResults: {
+                lint: { passed: checkResults.lint?.passed, exitCode: checkResults.lint?.exitCode },
+                typecheck: { passed: checkResults.typecheck?.passed, exitCode: checkResults.typecheck?.exitCode },
+              },
+              allChecksPassed: checkResults.allPassed,
+            } as unknown as Record<string, unknown>,
+          };
+          await db.insert(jobAudits).values(validateAudit);
+
+          // If validation fails, include feedback in result
+          if (!validationResult.passed) {
+            finalResult = {
+              ...(finalResult && typeof finalResult === 'object' ? finalResult : { result: finalResult }),
+              validation: {
+                passed: false,
+                summary: validationResult.summary,
+                issues: validationResult.issues,
+                suggestions: validationResult.suggestions,
+                confidence: validationResult.confidence,
+                checkResults: {
+                  lint: checkResults.lint?.passed,
+                  typecheck: checkResults.typecheck?.passed,
+                },
+              },
+            };
+            console.warn(`Validation failed for job ${jobId}: ${validationResult.summary}`);
+          } else {
+            finalResult = {
+              ...(finalResult && typeof finalResult === 'object' ? finalResult : { result: finalResult }),
+              validation: {
+                passed: true,
+                summary: validationResult.summary,
+                confidence: validationResult.confidence,
+                checkResults: {
+                  lint: checkResults.lint?.passed,
+                  typecheck: checkResults.typecheck?.passed,
+                },
+              },
+            };
+          }
+        } catch (validationError) {
+          // If validation fails, log but don't fail job (unless critical)
+          console.error(`Validation phase failed for job ${jobId}:`, validationError);
+          finalResult = {
+            ...(finalResult && typeof finalResult === 'object' ? finalResult : { result: finalResult }),
+            validation: {
+              passed: false,
+              error: validationError instanceof Error ? validationError.message : String(validationError),
+            },
+          };
         }
       }
 
