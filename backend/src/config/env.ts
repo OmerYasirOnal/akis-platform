@@ -49,8 +49,28 @@ const envSchema = z
     ATLASSIAN_ORG_ID: z.string().optional(),
     ATLASSIAN_API_TOKEN: z.string().optional(),
     ATLASSIAN_EMAIL: z.string().optional(),
-    AI_PROVIDER: z.string().default('openrouter'),
+    // AI Provider configuration
+    AI_PROVIDER: z.enum(['openrouter', 'openai', 'mock']).default('mock'),
+    
+    // API Keys - supports both new names and legacy OPENROUTER_*/OPENAI_* names
     AI_API_KEY: z.string().optional(),
+    OPENROUTER_API_KEY: z.string().optional(),
+    OPENAI_API_KEY: z.string().optional(),
+    
+    // Base URLs - supports legacy names
+    AI_BASE_URL: z.string().url().optional(),
+    OPENROUTER_BASE_URL: z.string().url().optional(),
+    OPENAI_BASE_URL: z.string().url().optional(),
+    
+    // Model names - supports legacy OPENROUTER_MODEL/OPENAI_MODEL
+    AI_MODEL_DEFAULT: z.string().optional(),
+    AI_MODEL_PLANNER: z.string().optional(),
+    AI_MODEL_VALIDATION: z.string().optional(),
+    OPENROUTER_MODEL: z.string().optional(),
+    OPENAI_MODEL: z.string().optional(),
+    
+    // GitHub private key (base64 encoded)
+    GITHUB_PRIVATE_KEY_BASE64: z.string().optional(),
   })
   .superRefine((data, ctx) => {
     const isProduction = data.NODE_ENV === 'production';
@@ -114,6 +134,73 @@ const envSchema = z
   });
 
 export type Env = z.infer<typeof envSchema>;
+
+/**
+ * Resolved AI configuration with fallbacks for legacy variable names
+ */
+export interface AIConfig {
+  provider: 'openrouter' | 'openai' | 'mock';
+  apiKey: string | undefined;
+  baseUrl: string;
+  modelDefault: string;
+  modelPlanner: string;
+  modelValidation: string;
+}
+
+/**
+ * Get resolved AI configuration with legacy variable fallbacks.
+ * Priority: AI_* variables take precedence over legacy OPENROUTER_* or OPENAI_* variables.
+ */
+export function getAIConfig(env: Env): AIConfig {
+  const provider = env.AI_PROVIDER;
+  
+  // Resolve API key based on provider
+  let apiKey: string | undefined;
+  if (provider === 'openrouter') {
+    apiKey = env.AI_API_KEY || env.OPENROUTER_API_KEY;
+  } else if (provider === 'openai') {
+    apiKey = env.AI_API_KEY || env.OPENAI_API_KEY;
+  } else {
+    apiKey = env.AI_API_KEY;
+  }
+  
+  // Resolve base URL based on provider
+  let baseUrl: string;
+  if (provider === 'openrouter') {
+    baseUrl = env.AI_BASE_URL || env.OPENROUTER_BASE_URL || 'https://openrouter.ai/api/v1';
+  } else if (provider === 'openai') {
+    baseUrl = env.AI_BASE_URL || env.OPENAI_BASE_URL || 'https://api.openai.com/v1';
+  } else {
+    baseUrl = env.AI_BASE_URL || 'https://openrouter.ai/api/v1';
+  }
+  
+  // Resolve models with legacy fallbacks
+  // Default model for worker/generation tasks
+  const legacyModel = provider === 'openrouter' 
+    ? env.OPENROUTER_MODEL 
+    : provider === 'openai' 
+      ? env.OPENAI_MODEL 
+      : undefined;
+  
+  const defaultModel = provider === 'openrouter'
+    ? 'meta-llama/llama-3.3-70b-instruct:free'
+    : provider === 'openai'
+      ? 'gpt-4o-mini'
+      : 'mock-model';
+  
+  const modelDefault = env.AI_MODEL_DEFAULT || legacyModel || defaultModel;
+  const modelPlanner = env.AI_MODEL_PLANNER || legacyModel || defaultModel;
+  const modelValidation = env.AI_MODEL_VALIDATION || legacyModel || defaultModel;
+  
+  return {
+    provider,
+    apiKey,
+    baseUrl,
+    modelDefault,
+    modelPlanner,
+    modelValidation,
+  };
+}
 
 let validatedEnv: Env | null = null;
 

@@ -2,7 +2,7 @@ import 'dotenv/config';
 import Fastify from 'fastify';
 import type { FastifyRequest, FastifyReply } from 'fastify';
 import { randomUUID } from 'crypto';
-import { getEnv } from './config/env.js';
+import { getEnv, getAIConfig } from './config/env.js';
 import { registerAgents } from './core/agents/registry.js';
 import swagger from '@fastify/swagger';
 import swaggerUi from '@fastify/swagger-ui';
@@ -27,11 +27,15 @@ export async function buildApp() {
   // Register all agents with the factory
   registerAgents();
 
-  // Phase 5.D: Create AIService from env (falls back to mock if not configured)
-  const aiService = createAIService(
-    (env.AI_PROVIDER as 'openrouter' | 'openai' | 'mock') || 'mock',
-    env.AI_API_KEY
-  );
+  // Phase 10: Create AIService with resolved configuration
+  // Uses getAIConfig() which handles legacy OPENROUTER_*/OPENAI_* variable fallbacks
+  const aiConfig = getAIConfig(env);
+  const aiService = createAIService(aiConfig);
+
+  // Log AI service configuration (without secrets)
+  const configSummary = aiService.getConfigSummary();
+  console.log(`[buildApp] AI Provider: ${configSummary.provider}`);
+  console.log(`[buildApp] AI Models: default=${configSummary.models.default}, planner=${configSummary.models.planner}, validation=${configSummary.models.validation}`);
 
   // Phase 5.D: Create MCPTools (signature-only adapters for now)
   // In production, these would be initialized with real tokens/baseUrls

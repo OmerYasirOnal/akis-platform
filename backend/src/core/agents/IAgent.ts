@@ -1,6 +1,5 @@
 import type { AgentPlaybook } from '../contracts/AgentPlaybook.js';
-import type { Plan } from '../../services/ai/AIService.js';
-import type { Critique } from '../../services/ai/AIService.js';
+import type { Plan, Critique, ReflectionInput } from '../../services/ai/AIService.js';
 import type { MCPTools } from '../../services/mcp/adapters/index.js';
 
 /**
@@ -37,9 +36,14 @@ export interface IAgent {
    * Optional: Reflect on execution results (for complex agents)
    * @param reflector - Reflector instance injected by orchestrator
    * @param artifact - Execution artifact to critique
+   * @param checkResults - Optional static check results for tool-augmented reflection
    * @returns Critique with issues and recommendations
    */
-  reflect?(reflector: { critique(input: { artifact: unknown; context?: unknown }): Promise<Critique> }, artifact: unknown): Promise<Critique>;
+  reflect?(
+    reflector: { critique(input: { artifact: unknown; context?: unknown; checkResults?: ReflectionInput['checkResults'] }): Promise<Critique> }, 
+    artifact: unknown,
+    checkResults?: ReflectionInput['checkResults']
+  ): Promise<Critique>;
 
   /**
    * Execute with tools (MCP adapters) and optional plan

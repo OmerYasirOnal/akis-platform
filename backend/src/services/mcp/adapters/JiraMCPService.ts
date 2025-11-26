@@ -1,48 +1,152 @@
+import { HttpClient } from '../../http/HttpClient.js';
+
 /**
- * JiraMCPService - MCP client adapter for Jira (signature-only)
- * Phase 5.B: Method signatures only, no HTTP implementation
- * Provides high-level methods that internally use RESTful HTTP to Jira MCP endpoints
+ * JiraMCPService - MCP client adapter for Jira
+ * Phase 10: Full MCP JSON-RPC 2.0 implementation
+ * Provides high-level methods that internally use JSON-RPC 2.0 to Jira MCP endpoint
  */
 
 export interface JiraMCPServiceOptions {
   baseUrl: string;
   token?: string;
+  httpClient?: HttpClient;
 }
 
+interface JsonRpcRequest {
+  jsonrpc: '2.0';
+  method: string;
+  params: unknown;
+  id: string | number;
+}
+
+interface JsonRpcResponse<T> {
+  jsonrpc: '2.0';
+  result?: T;
+  error?: {
+    code: number;
+    message: string;
+    data?: unknown;
+  };
+  id: string | number;
+}
+
+// =============================================================================
+// Jira Types
+// =============================================================================
+
+export interface JiraIssue {
+  key: string;
+  id: string;
+  summary: string;
+  description?: string;
+  acceptanceCriteria?: string;
+  status?: string;
+  issueType?: string;
+  priority?: string;
+  assignee?: string;
+  reporter?: string;
+  created?: string;
+  updated?: string;
+}
+
+export interface JiraIssueCreateFields {
+  summary: string;
+  description?: string;
+  issueType: string;
+  priority?: string;
+  assignee?: string;
+  labels?: string[];
+  customFields?: Record<string, unknown>;
+}
+
+export interface JiraComment {
+  id: string;
+  author: string;
+  body: string;
+  created: string;
+  updated?: string;
+}
+
+// =============================================================================
+// JiraMCPService Class
+// =============================================================================
+
 /**
- * Jira MCP Service - signature-only adapter
- * Used by Trace agent
+ * Jira MCP Service - adapter for Jira MCP server
+ * Used by Trace agent for issue tracking
  */
 export class JiraMCPService {
-  constructor(_opts: JiraMCPServiceOptions) {
-    // Signature-only: no implementation
+  private baseUrl: string;
+  private token?: string;
+  private httpClient: HttpClient;
+  private requestId: number = 1;
+
+  constructor(opts: JiraMCPServiceOptions) {
+    this.baseUrl = opts.baseUrl.replace(/\/$/, ''); // Remove trailing slash
+    this.token = opts.token;
+    this.httpClient = opts.httpClient || new HttpClient();
+  }
+
+  /**
+   * Make a JSON-RPC 2.0 call to the Jira MCP server
+   */
+  private async callMcp<T>(method: string, params: unknown): Promise<T> {
+    const payload: JsonRpcRequest = {
+      jsonrpc: '2.0',
+      method: `jira/${method}`, // Namespaced method
+      params,
+      id: this.requestId++,
+    };
+
+    const response = await this.httpClient.post(this.baseUrl, payload, this.token);
+
+    if (!response.ok) {
+      throw new Error(`Jira MCP Request failed: ${response.status} ${response.statusText}`);
+    }
+
+    const json = (await response.json()) as JsonRpcResponse<T>;
+
+    if (json.error) {
+      throw new Error(`Jira MCP Error [${json.error.code}]: ${json.error.message}`);
+    }
+
+    return json.result as T;
   }
 
   /**
    * Get a Jira issue by key
    * @param issueKey - Issue key (e.g., PROJ-123)
    */
-  async getIssue(_issueKey: string): Promise<{
-    key: string;
-    summary: string;
-    description?: string;
-    acceptanceCriteria?: string;
-  }> {
-    // Signature-only: no implementation
-    throw new Error('Not implemented: signature-only MCP adapter');
+  async getIssue(issueKey: string): Promise<JiraIssue> {
+    return this.callMcp<JiraIssue>('getIssue', { issueKey });
   }
 
   /**
-   * List issues for a project (for Trace agent)
+   * List issues for a project
    * @param projectKey - Project key
-   * @param jql - Optional JQL query
+   * @param options - Query options
    */
   async listIssues(
-    _projectKey: string,
-    _jql?: string
-  ): Promise<Array<{ key: string; summary: string; acceptanceCriteria?: string }>> {
-    // Signature-only: no implementation
-    throw new Error('Not implemented: signature-only MCP adapter');
+    projectKey: string,
+    options?: {
+      jql?: string;
+      maxResults?: number;
+      startAt?: number;
+      fields?: string[];
+    }
+  ): Promise<{ issues: JiraIssue[]; total: number; startAt: number; maxResults: number }> {
+    // Build JQL if not provided
+    const jql = options?.jql || `project = ${projectKey} ORDER BY created DESC`;
+    
+    return this.callMcp<{ issues: JiraIssue[]; total: number; startAt: number; maxResults: number }>(
+      'searchIssues',
+      {
+        jql,
+        maxResults: options?.maxResults || 50,
+        startAt: options?.startAt || 0,
+        fields: options?.fields || ['summary', 'description', 'status', 'assignee', 'priority'],
+      }
+    );
   }
 
   /**
@@ -50,13 +154,23 @@ export class JiraMCPService {
    * @param projectKey - Project key
    * @param fields - Issue fields
    */
-  async createIssue(_projectKey: string, _fields: {
-    summary: string;
-    description?: string;
-    issueType: string;
-  }): Promise<{ key: string; id: string }> {
-    // Signature-only: no implementation
-    throw new Error('Not implemented: signature-only MCP adapter');
+  async createIssue(projectKey: string, fields: JiraIssueCreateFields): Promise<{ key: string; id: string }> {
+    return this.callMcp<{ key: string; id: string }>('createIssue', {
+      projectKey,
+      fields,
+    });
+  }
+
+  /**
+   * Update a Jira issue
+   * @param issueKey - Issue key
+   * @param fields - Fields to update
+   */
+  async updateIssue(issueKey: string, fields: Partial<JiraIssueCreateFields>): Promise<{ success: boolean }> {
+    return this.callMcp<{ success: boolean }>('updateIssue', {
+      issueKey,
+      fields,
+    });
   }
 
   /**
@@ -64,9 +178,56 @@ export class JiraMCPService {
    * @param issueKey - Issue key
    * @param comment - Comment text
    */
-  async addComment(_issueKey: string, _comment: string): Promise<{ commentId: string }> {
-    // Signature-only: no implementation
-    throw new Error('Not implemented: signature-only MCP adapter');
+  async addComment(issueKey: string, comment: string): Promise<JiraComment> {
+    return this.callMcp<JiraComment>('addComment', {
+      issueKey,
+      body: comment,
+    });
+  }
+
+  /**
+   * Get comments for a Jira issue
+   * @param issueKey - Issue key
+   */
+  async getComments(issueKey: string): Promise<{ comments: JiraComment[] }> {
+    return this.callMcp<{ comments: JiraComment[] }>('getComments', { issueKey });
+  }
+
+  /**
+   * Transition an issue to a new status
+   * @param issueKey - Issue key
+   * @param transitionId - Transition ID or name
+   */
+  async transitionIssue(issueKey: string, transitionId: string): Promise<{ success: boolean }> {
+    return this.callMcp<{ success: boolean }>('transitionIssue', {
+      issueKey,
+      transitionId,
+    });
+  }
+
+  /**
+   * Get available transitions for an issue
+   * @param issueKey - Issue key
+   */
+  async getTransitions(issueKey: string): Promise<{ transitions: Array<{ id: string; name: string }> }> {
+    return this.callMcp<{ transitions: Array<{ id: string; name: string }> }>('getTransitions', { issueKey });
+  }
+
+  /**
+   * Link two issues
+   * @param inwardIssueKey - Source issue
+   * @param outwardIssueKey - Target issue
+   * @param linkType - Link type (e.g., "blocks", "relates to")
+   */
+  async linkIssues(
+    inwardIssueKey: string,
+    outwardIssueKey: string,
+    linkType: string
+  ): Promise<{ success: boolean }> {
+    return this.callMcp<{ success: boolean }>('linkIssues', {
+      inwardIssueKey,
+      outwardIssueKey,
+      linkType,
+    });
   }
 }
-

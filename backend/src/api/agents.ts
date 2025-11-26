@@ -31,6 +31,8 @@ const protoPayloadSchema = z.object({
 const submitJobSchema = z.object({
   type: z.enum(['scribe', 'trace', 'proto']),
   payload: z.unknown().optional(),
+  /** If true, the job will use a stronger model for final validation */
+  requiresStrictValidation: z.boolean().optional().default(false),
 }).superRefine((data, ctx) => {
   // Validate payload based on agent type
   if (data.payload && typeof data.payload === 'object') {
@@ -99,12 +101,24 @@ export async function agentsRoutes(fastify: FastifyInstance) {
     '/api/agents/jobs',
     {
       schema: {
+        description: 'Create and start a new agent job',
+        tags: ['agents'],
         body: {
           type: 'object',
           required: ['type'],
           properties: {
-            type: { type: 'string', minLength: 1, maxLength: 50 },
+            type: { type: 'string', enum: ['scribe', 'trace', 'proto'] },
             payload: { type: 'object' },
+            requiresStrictValidation: { type: 'boolean', default: false },
+          },
+        },
+        response: {
+          200: {
+            type: 'object',
+            properties: {
+              jobId: { type: 'string', format: 'uuid' },
+              state: { type: 'string', enum: ['pending', 'running', 'completed', 'failed'] },
+            },
           },
         },
       },
@@ -118,6 +132,7 @@ export async function agentsRoutes(fastify: FastifyInstance) {
         const jobId = await orchestrator.submitJob({
           type: body.type,
           payload: body.payload,
+          requiresStrictValidation: body.requiresStrictValidation,
         });
 
         // Phase 7.B: Record job created metric
