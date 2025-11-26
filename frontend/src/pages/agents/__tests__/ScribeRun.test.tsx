@@ -25,8 +25,7 @@ vi.mock('../../../services/api/auth', () => ({
   },
 }));
 
-// Enable agents for tests
-vi.stubEnv('VITE_AGENTS_ENABLED', 'true');
+// Note: VITE_AGENTS_ENABLED is set in vite.config.ts test.env for CI compatibility
 
 const renderWithProviders = (ui: React.ReactElement) => {
   return render(
