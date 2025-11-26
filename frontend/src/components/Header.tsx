@@ -134,6 +134,12 @@ export default function Header({ className }: HeaderProps) {
           >
             {t('header.nav.contact')}
           </Link>
+          <Link
+            to="/about"
+            className="text-sm font-medium text-[var(--text)]/70 transition-colors hover:text-[var(--accent)]"
+          >
+            {t('header.nav.about')}
+          </Link>
 
           {/* Locale Switcher */}
           <div className="flex items-center gap-2 rounded-full border border-[var(--glass-bdr)] bg-[var(--glass-top)] px-3 py-1.5">

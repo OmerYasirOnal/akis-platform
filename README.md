@@ -21,6 +21,8 @@ AKIS Platform, yazılım geliştirme süreçlerindeki tekrarlayan görevleri oto
 
 - Phase 8: Frontend SPA ✓
 - Phase 9.1: Dark Theme Unification & Auth UI ✓
+- Phase 9.2: i18n & Theming Foundations ✓
+- Feat: About AKIS sayfası eklendi (isim hikâyesi, vizyon, misyon ve ajan kartları).
 - Phase 9: Auth & RBAC ▶
 
 ## Phase 9.1 – Dark Theme Unification & Auth UI
