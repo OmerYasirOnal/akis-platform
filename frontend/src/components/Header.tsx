@@ -1,10 +1,9 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { useI18n } from '../i18n/useI18n';
 import { useAuth } from '../contexts/AuthContext';
 import { cn } from '../utils/cn';
 import Button from './common/Button';
-import Logo from './branding/Logo';
 
 interface HeaderProps {
   className?: string;
@@ -12,7 +11,7 @@ interface HeaderProps {
 
 /**
  * Main Header with Navigation
- * Design system: sticky, bg-ak-bg, border-b border-ak-border
+ * Frosted glass effect on scroll with smooth transitions
  * Includes mobile drawer pattern
  */
 export default function Header({ className }: HeaderProps) {
@@ -21,7 +20,17 @@ export default function Header({ className }: HeaderProps) {
   const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
   const isAuthenticated = Boolean(user);
+
+  // Track scroll for frosted glass effect
+  useEffect(() => {
+    const handleScroll = () => {
+      setScrolled(window.scrollY > 24);
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   const handleLogout = async () => {
     setIsLoggingOut(true);
@@ -47,13 +56,28 @@ export default function Header({ className }: HeaderProps) {
   return (
     <header
       className={cn(
-        'sticky top-0 z-40 border-b border-ak-border bg-ak-bg',
+        'sticky top-0 z-50 w-full transition-all duration-300',
+        scrolled
+          ? 'border-b border-[var(--glass-bdr)] bg-[var(--bg)]/80 backdrop-blur-xl'
+          : 'bg-transparent',
         className
       )}
     >
       <div className="mx-auto flex h-20 w-full max-w-6xl items-center justify-between px-4 sm:px-6 lg:px-8">
         {/* Logo */}
-        <Logo size="nav" />
+        <Link to="/" className="flex items-center">
+          <img
+            src="/brand/akis-logo-horizontal.png"
+            alt="AKIS Platform"
+            className="h-7 w-auto object-contain"
+            onError={(e) => {
+              const img = e.currentTarget;
+              if (img.src.includes('akis-logo-horizontal.png')) {
+                img.src = '/brand/akis-logo.png';
+              }
+            }}
+          />
+        </Link>
 
         {/* Desktop Navigation */}
         <nav className="hidden items-center gap-3 text-sm font-medium md:flex">
@@ -63,10 +87,10 @@ export default function Header({ className }: HeaderProps) {
               to={link.to}
               className={({ isActive }) =>
                 cn(
-                  'rounded-full px-4 py-2 transition-colors',
+                  'rounded-full px-4 py-2 transition-colors duration-200',
                   isActive
-                    ? 'bg-ak-surface-2 text-ak-text-primary'
-                    : 'text-ak-text-secondary hover:text-ak-primary'
+                    ? 'bg-[var(--glass-top)] text-[var(--text)]'
+                    : 'text-[var(--muted)] hover:text-[var(--accent)]'
                 )
               }
             >
@@ -75,27 +99,27 @@ export default function Header({ className }: HeaderProps) {
           ))}
 
           {/* Locale Switcher */}
-          <div className="flex items-center gap-2 rounded-full border border-ak-border bg-ak-surface px-3 py-1.5">
+          <div className="flex items-center gap-2 rounded-full border border-[var(--glass-bdr)] bg-[var(--glass-top)] px-3 py-1.5">
             <button
               onClick={() => setLocale('en')}
               className={cn(
                 'text-xs font-medium transition-colors',
                 locale === 'en'
-                  ? 'text-ak-primary'
-                  : 'text-ak-text-secondary hover:text-ak-text-primary'
+                  ? 'text-[var(--accent)]'
+                  : 'text-[var(--muted)] hover:text-[var(--text)]'
               )}
               aria-label="Switch to English"
             >
               EN
             </button>
-            <span className="text-ak-text-secondary">/</span>
+            <span className="text-[var(--muted)]">/</span>
             <button
               onClick={() => setLocale('tr')}
               className={cn(
                 'text-xs font-medium transition-colors',
                 locale === 'tr'
-                  ? 'text-ak-primary'
-                  : 'text-ak-text-secondary hover:text-ak-text-primary'
+                  ? 'text-[var(--accent)]'
+                  : 'text-[var(--muted)] hover:text-[var(--text)]'
               )}
               aria-label="Switch to Turkish"
             >
@@ -150,13 +174,15 @@ export default function Header({ className }: HeaderProps) {
         id="mobile-nav"
         className={cn(
           'md:hidden',
-          mobileOpen ? 'block border-t border-ak-border bg-ak-bg' : 'hidden'
+          mobileOpen
+            ? 'block border-t border-[var(--glass-bdr)] bg-[var(--bg)]/95 backdrop-blur-xl'
+            : 'hidden'
         )}
       >
         <div className="mx-auto flex max-w-6xl flex-col gap-4 px-4 py-6">
           {/* Navigation Links */}
           <div className="flex flex-col gap-2">
-            <span className="text-xs font-semibold uppercase tracking-[0.2em] text-ak-text-secondary/70">
+            <span className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--muted)]/70">
               Navigation
             </span>
             {primaryLinks.map((link) => (
@@ -168,8 +194,8 @@ export default function Header({ className }: HeaderProps) {
                   cn(
                     'rounded-xl px-4 py-3 text-sm font-medium transition-colors',
                     isActive
-                      ? 'bg-ak-surface-2 text-ak-text-primary'
-                      : 'text-ak-text-secondary hover:bg-ak-surface hover:text-ak-primary'
+                      ? 'bg-[var(--glass-top)] text-[var(--text)]'
+                      : 'text-[var(--muted)] hover:bg-[var(--glass-mid)] hover:text-[var(--accent)]'
                   )
                 }
               >
@@ -180,29 +206,29 @@ export default function Header({ className }: HeaderProps) {
 
           {/* Locale Switcher (Mobile) */}
           <div className="flex items-center gap-3 px-4 py-2">
-            <span className="text-xs font-semibold uppercase tracking-[0.2em] text-ak-text-secondary/70">
+            <span className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--muted)]/70">
               Language
             </span>
-            <div className="flex items-center gap-2 rounded-full border border-ak-border bg-ak-surface px-3 py-1.5">
+            <div className="flex items-center gap-2 rounded-full border border-[var(--glass-bdr)] bg-[var(--glass-top)] px-3 py-1.5">
               <button
                 onClick={() => setLocale('en')}
                 className={cn(
                   'text-xs font-medium transition-colors',
                   locale === 'en'
-                    ? 'text-ak-primary'
-                    : 'text-ak-text-secondary hover:text-ak-text-primary'
+                    ? 'text-[var(--accent)]'
+                    : 'text-[var(--muted)] hover:text-[var(--text)]'
                 )}
               >
                 EN
               </button>
-              <span className="text-ak-text-secondary">/</span>
+              <span className="text-[var(--muted)]">/</span>
               <button
                 onClick={() => setLocale('tr')}
                 className={cn(
                   'text-xs font-medium transition-colors',
                   locale === 'tr'
-                    ? 'text-ak-primary'
-                    : 'text-ak-text-secondary hover:text-ak-text-primary'
+                    ? 'text-[var(--accent)]'
+                    : 'text-[var(--muted)] hover:text-[var(--text)]'
                 )}
               >
                 TR
@@ -211,7 +237,7 @@ export default function Header({ className }: HeaderProps) {
           </div>
 
           {/* Auth Buttons (Mobile) */}
-          <div className="flex flex-col gap-3 border-t border-ak-border pt-4">
+          <div className="flex flex-col gap-3 border-t border-[var(--glass-bdr)] pt-4">
             {isAuthenticated ? (
               <>
                 <Button as={Link} to="/dashboard" variant="outline" onClick={closeMobileMenu}>

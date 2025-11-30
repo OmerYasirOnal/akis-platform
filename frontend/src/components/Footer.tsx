@@ -1,28 +1,34 @@
 import { Link } from 'react-router-dom';
-import Logo from './branding/Logo';
 
 /**
  * Footer Component
- * Design system: 3-column adaptive grid
- * - Column 1: Brand
- * - Column 2: Product Links
- * - Column 3: Legal & Resources
+ * 3-column adaptive grid with glass styling
  */
 export default function Footer() {
   const year = new Date().getFullYear();
 
   return (
-    <footer className="border-t border-ak-border bg-ak-bg">
+    <footer className="border-t border-[var(--glass-bdr)] bg-[var(--bg)]">
       <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6 lg:px-8 lg:py-16">
         {/* Main Footer Grid */}
         <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-4">
           {/* Column 1: Brand */}
           <div className="lg:col-span-1">
             <div className="flex items-center gap-2">
-              <Logo size="sm" linkToHome />
-              <span className="text-sm text-ak-text-secondary">Platform</span>
+              <Link to="/" className="flex items-center">
+                <img
+                  src="/brand/akis-logo.png"
+                  alt="AKIS"
+                  className="h-8 w-auto"
+                  onError={(e) => {
+                    const img = e.currentTarget;
+                    img.src = '/brand/akis-icon.png';
+                  }}
+                />
+              </Link>
+              <span className="text-sm text-[var(--muted)]">Platform</span>
             </div>
-            <p className="mt-4 text-xs leading-relaxed text-ak-text-secondary">
+            <p className="mt-4 text-xs leading-relaxed text-[var(--muted)]">
               Autonomous AI agents for software development workflows. Save time,
               ship faster.
             </p>
@@ -30,7 +36,7 @@ export default function Footer() {
 
           {/* Column 2: Product */}
           <div>
-            <h3 className="mb-4 text-xs font-semibold uppercase tracking-widest text-ak-text-secondary/70">
+            <h3 className="mb-4 text-xs font-semibold uppercase tracking-[0.2em] text-[var(--muted)]/70">
               Product
             </h3>
             <ul className="space-y-3">
@@ -57,7 +63,7 @@ export default function Footer() {
 
           {/* Column 3: Resources */}
           <div>
-            <h3 className="mb-4 text-xs font-semibold uppercase tracking-widest text-ak-text-secondary/70">
+            <h3 className="mb-4 text-xs font-semibold uppercase tracking-[0.2em] text-[var(--muted)]/70">
               Resources
             </h3>
             <ul className="space-y-3">
@@ -81,7 +87,7 @@ export default function Footer() {
 
           {/* Column 4: Company & Legal */}
           <div>
-            <h3 className="mb-4 text-xs font-semibold uppercase tracking-widest text-ak-text-secondary/70">
+            <h3 className="mb-4 text-xs font-semibold uppercase tracking-[0.2em] text-[var(--muted)]/70">
               Company
             </h3>
             <ul className="space-y-3">
@@ -102,18 +108,18 @@ export default function Footer() {
         </div>
 
         {/* Bottom Bar */}
-        <div className="mt-12 flex flex-col items-center justify-between gap-4 border-t border-ak-border pt-8 md:flex-row">
-          <p className="text-xs text-ak-text-secondary">
+        <div className="mt-12 flex flex-col items-center justify-between gap-4 border-t border-[var(--glass-bdr)] pt-8 md:flex-row">
+          <p className="text-xs text-[var(--muted)]">
             © {year} AKIS Platform. All rights reserved.
           </p>
 
-          {/* Social links placeholder */}
+          {/* Social links */}
           <div className="flex items-center gap-4">
             <a
               href="https://github.com/akis-platform"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-ak-text-secondary transition-colors hover:text-ak-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ak-primary focus-visible:ring-offset-2 focus-visible:ring-offset-ak-bg"
+              className="text-[var(--muted)] transition-colors hover:text-[var(--accent)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg)]"
               aria-label="GitHub"
             >
               <GitHubIcon />
@@ -122,7 +128,7 @@ export default function Footer() {
               href="https://twitter.com/akisplatform"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-ak-text-secondary transition-colors hover:text-ak-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ak-primary focus-visible:ring-offset-2 focus-visible:ring-offset-ak-bg"
+              className="text-[var(--muted)] transition-colors hover:text-[var(--accent)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg)]"
               aria-label="Twitter"
             >
               <TwitterIcon />
@@ -147,7 +153,7 @@ function FooterLink({
   return (
     <Link
       to={to}
-      className="text-sm text-ak-text-secondary transition-colors hover:text-ak-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ak-primary focus-visible:ring-offset-2 focus-visible:ring-offset-ak-bg"
+      className="text-sm text-[var(--muted)] transition-colors hover:text-[var(--accent)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg)]"
     >
       {children}
     </Link>
