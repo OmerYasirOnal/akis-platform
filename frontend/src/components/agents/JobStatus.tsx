@@ -102,7 +102,7 @@ export const JobStatus = ({ job, isPolling }: JobStatusProps) => {
             {job.errorMessage && (
               <p className="mt-2 text-sm text-ak-danger">{job.errorMessage}</p>
             )}
-            {job.error && job.error !== job.errorMessage && (
+            {Boolean(job.error) && String(job.error) !== job.errorMessage && (
               <pre className="mt-2 overflow-x-auto rounded-xl bg-ak-danger/10 p-3 text-xs text-ak-danger">
                 {typeof job.error === 'string' ? job.error : JSON.stringify(job.error, null, 2)}
               </pre>
