@@ -90,13 +90,13 @@ export default function Header({ className }: HeaderProps) {
       <div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
         {/* Logo */}
         <Link to="/" className="flex items-center">
-          <img
+        <img
             src={getLogoSource()}
             alt="AKIS Platform"
-            width={140}
-            height={40}
+            width={112}
+            height={28}
             className={cn(
-              'h-10 w-auto transition-transform duration-[350ms] ease-[cubic-bezier(0.4,0,0.2,1)]',
+              'h-7 w-28 object-cover transition-transform duration-[350ms] ease-[cubic-bezier(0.4,0,0.2,1)]',
               isNavigating && !prefersReducedMotion && 'rotate-[360deg]'
             )}
             onError={handleLogoError}
@@ -104,6 +104,7 @@ export default function Header({ className }: HeaderProps) {
             style={{
               transform: isNavigating && !prefersReducedMotion ? 'rotate(360deg)' : 'rotate(0deg)',
               willChange: isNavigating && !prefersReducedMotion ? 'transform' : 'auto',
+              objectPosition: 'center 45%',
             }}
           />
         </Link>

@@ -12,9 +12,9 @@ export default function Footer() {
             <img
               src="/brand/akis-logo.png"
               alt="AKIS"
-              width={80}
-              height={24}
-              className="h-6 w-auto"
+              width={120}
+              height={32}
+              className="h-8 w-auto"
               onError={(e) => {
                 const img = e.currentTarget;
                 img.src = '/brand/akis-icon.png';
