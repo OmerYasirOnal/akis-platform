@@ -2,8 +2,42 @@ import { useEffect, useState } from 'react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { useI18n } from '../i18n/useI18n';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../theme/useTheme';
 import { cn } from '../utils/cn';
 import Button from './common/Button';
+
+// Theme toggle icon component
+function ThemeToggleIcon({ isDark }: { isDark: boolean }) {
+  return isDark ? (
+    <svg
+      className="h-4 w-4"
+      fill="none"
+      viewBox="0 0 24 24"
+      stroke="currentColor"
+      strokeWidth={2}
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"
+      />
+    </svg>
+  ) : (
+    <svg
+      className="h-4 w-4"
+      fill="none"
+      viewBox="0 0 24 24"
+      stroke="currentColor"
+      strokeWidth={2}
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"
+      />
+    </svg>
+  );
+}
 
 interface HeaderProps {
   className?: string;
@@ -17,6 +51,7 @@ interface HeaderProps {
 export default function Header({ className }: HeaderProps) {
   const { t, locale, setLocale } = useI18n();
   const { user, logout } = useAuth();
+  const { isDark, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
@@ -126,6 +161,15 @@ export default function Header({ className }: HeaderProps) {
               TR
             </button>
           </div>
+
+          {/* Theme Toggle */}
+          <button
+            onClick={toggleTheme}
+            className="flex items-center justify-center rounded-full border border-[var(--glass-bdr)] bg-[var(--glass-top)] p-2 text-[var(--muted)] transition-colors hover:text-[var(--accent)]"
+            aria-label={isDark ? t('header.theme.light') : t('header.theme.dark')}
+          >
+            <ThemeToggleIcon isDark={isDark} />
+          </button>
         </nav>
 
         {/* Desktop Auth Buttons */}
@@ -133,20 +177,20 @@ export default function Header({ className }: HeaderProps) {
           {isAuthenticated ? (
             <>
               <Button as={Link} to="/dashboard" variant="ghost">
-                Dashboard
+                {t('header.dashboard')}
               </Button>
               <Button
                 onClick={handleLogout}
                 disabled={isLoggingOut}
                 variant="outline"
               >
-                {isLoggingOut ? 'Logging out...' : 'Logout'}
+                {isLoggingOut ? t('header.loggingOut') : t('header.logout')}
               </Button>
             </>
           ) : (
             <>
               <Button as={Link} to="/login" variant="outline">
-                Login
+                {t('header.login')}
               </Button>
               <Button as={Link} to="/signup" variant="primary">
                 {t('header.cta')}
@@ -165,7 +209,7 @@ export default function Header({ className }: HeaderProps) {
           aria-expanded={mobileOpen}
           aria-controls="mobile-nav"
         >
-          {mobileOpen ? 'Close' : 'Menu'}
+          {mobileOpen ? t('header.close') : t('header.menu')}
         </Button>
       </div>
 
@@ -183,7 +227,7 @@ export default function Header({ className }: HeaderProps) {
           {/* Navigation Links */}
           <div className="flex flex-col gap-2">
             <span className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--muted)]/70">
-              Navigation
+              {t('header.navigation')}
             </span>
             {primaryLinks.map((link) => (
               <NavLink
@@ -204,36 +248,47 @@ export default function Header({ className }: HeaderProps) {
             ))}
           </div>
 
-          {/* Locale Switcher (Mobile) */}
-          <div className="flex items-center gap-3 px-4 py-2">
-            <span className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--muted)]/70">
-              Language
-            </span>
-            <div className="flex items-center gap-2 rounded-full border border-[var(--glass-bdr)] bg-[var(--glass-top)] px-3 py-1.5">
-              <button
-                onClick={() => setLocale('en')}
-                className={cn(
-                  'text-xs font-medium transition-colors',
-                  locale === 'en'
-                    ? 'text-[var(--accent)]'
-                    : 'text-[var(--muted)] hover:text-[var(--text)]'
-                )}
-              >
-                EN
-              </button>
-              <span className="text-[var(--muted)]">/</span>
-              <button
-                onClick={() => setLocale('tr')}
-                className={cn(
-                  'text-xs font-medium transition-colors',
-                  locale === 'tr'
-                    ? 'text-[var(--accent)]'
-                    : 'text-[var(--muted)] hover:text-[var(--text)]'
-                )}
-              >
-                TR
-              </button>
+          {/* Locale & Theme Switcher (Mobile) */}
+          <div className="flex items-center justify-between gap-3 px-4 py-2">
+            <div className="flex items-center gap-3">
+              <span className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--muted)]/70">
+                {t('header.language')}
+              </span>
+              <div className="flex items-center gap-2 rounded-full border border-[var(--glass-bdr)] bg-[var(--glass-top)] px-3 py-1.5">
+                <button
+                  onClick={() => setLocale('en')}
+                  className={cn(
+                    'text-xs font-medium transition-colors',
+                    locale === 'en'
+                      ? 'text-[var(--accent)]'
+                      : 'text-[var(--muted)] hover:text-[var(--text)]'
+                  )}
+                >
+                  EN
+                </button>
+                <span className="text-[var(--muted)]">/</span>
+                <button
+                  onClick={() => setLocale('tr')}
+                  className={cn(
+                    'text-xs font-medium transition-colors',
+                    locale === 'tr'
+                      ? 'text-[var(--accent)]'
+                      : 'text-[var(--muted)] hover:text-[var(--text)]'
+                  )}
+                >
+                  TR
+                </button>
+              </div>
             </div>
+
+            {/* Theme Toggle (Mobile) */}
+            <button
+              onClick={toggleTheme}
+              className="flex items-center justify-center rounded-full border border-[var(--glass-bdr)] bg-[var(--glass-top)] p-2 text-[var(--muted)] transition-colors hover:text-[var(--accent)]"
+              aria-label={isDark ? t('header.theme.light') : t('header.theme.dark')}
+            >
+              <ThemeToggleIcon isDark={isDark} />
+            </button>
           </div>
 
           {/* Auth Buttons (Mobile) */}
@@ -241,7 +296,7 @@ export default function Header({ className }: HeaderProps) {
             {isAuthenticated ? (
               <>
                 <Button as={Link} to="/dashboard" variant="outline" onClick={closeMobileMenu}>
-                  Dashboard
+                  {t('header.dashboard')}
                 </Button>
                 <Button
                   onClick={() => {
@@ -251,13 +306,13 @@ export default function Header({ className }: HeaderProps) {
                   disabled={isLoggingOut}
                   variant="secondary"
                 >
-                  {isLoggingOut ? 'Logging out...' : 'Logout'}
+                  {isLoggingOut ? t('header.loggingOut') : t('header.logout')}
                 </Button>
               </>
             ) : (
               <>
                 <Button as={Link} to="/login" variant="outline" onClick={closeMobileMenu}>
-                  Login
+                  {t('header.login')}
                 </Button>
                 <Button as={Link} to="/signup" variant="primary" onClick={closeMobileMenu}>
                   {t('header.cta')}
