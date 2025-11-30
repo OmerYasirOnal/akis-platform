@@ -7,6 +7,10 @@ interface ModuleCardProps {
   className?: string;
 }
 
+/**
+ * Agent Module Card
+ * Glass morphism effect with mint-glow hover transitions
+ */
 export default function ModuleCard({ module, className }: ModuleCardProps) {
   const { t } = useI18n();
 
@@ -21,27 +25,36 @@ export default function ModuleCard({ module, className }: ModuleCardProps) {
   return (
     <div
       className={cn(
-        'group relative rounded-[var(--radius-lg)] border border-[var(--glass-bdr)] bg-gradient-to-b from-[var(--glass-top)] to-[var(--glass-mid)] p-8 backdrop-blur-[var(--blur-card)] transition-all duration-[var(--transition-smooth)] hover:border-[var(--accent)]/40 hover:shadow-[0_0_24px_var(--edge-glow)]',
+        'group relative rounded-[var(--radius-lg)] border border-[var(--glass-bdr)] bg-gradient-to-b from-[var(--glass-top)] to-[var(--glass-mid)] p-8 backdrop-blur-[var(--blur-card)] transition-all duration-300',
+        'hover:-translate-y-1 hover:border-[var(--accent)]/40 hover:shadow-[0_0_24px_var(--edge-glow)]',
         className
       )}
     >
       {/* Subtle edge glow on hover */}
-      <div className="absolute inset-0 rounded-[var(--radius-lg)] opacity-0 shadow-[var(--shadow-glow)] transition-opacity duration-[var(--transition-smooth)] group-hover:opacity-30" />
+      <div className="pointer-events-none absolute inset-0 rounded-[var(--radius-lg)] opacity-0 shadow-[var(--shadow-glow)] transition-opacity duration-300 group-hover:opacity-30" />
 
       <div className="relative z-10">
-        <h3 className="mb-3 text-[clamp(28px,3vw,32px)] font-semibold text-[var(--text)]">
+        {/* Agent label */}
+        <span className="mb-2 block text-xs font-semibold uppercase tracking-widest text-[var(--muted)]/70">
+          AGENT
+        </span>
+
+        {/* Title */}
+        <h3 className="mb-4 text-2xl font-semibold text-[var(--text)]">
           {t(titleKey)}
         </h3>
-        
-        <p className="mb-6 text-[clamp(14px,1.5vw,16px)] leading-relaxed text-[var(--muted)]">
+
+        {/* Description */}
+        <p className="mb-6 text-sm leading-relaxed text-[var(--muted)]">
           {t(subKey)}
         </p>
 
+        {/* Feature bullets */}
         <ul className="mb-8 space-y-3">
           {bullets.map((bulletKey, index) => (
             <li
               key={index}
-              className="flex items-start gap-3 text-[clamp(14px,1.5vw,16px)] text-[var(--text)]/90"
+              className="flex items-start gap-3 text-sm text-[var(--text)]/90"
             >
               <span className="mt-1.5 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-[var(--accent)]" />
               <span>{t(bulletKey)}</span>
@@ -49,14 +62,22 @@ export default function ModuleCard({ module, className }: ModuleCardProps) {
           ))}
         </ul>
 
-        <Link
-          to={`/agents/${module}`}
-          className="inline-block rounded-[var(--radius-md)] border border-[var(--glass-bdr)] bg-[var(--glass-top)] px-6 py-2.5 text-sm font-medium text-[var(--text)] transition-all duration-[var(--transition-base)] hover:bg-[var(--glass-mid)] hover:border-[var(--accent)]/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg)]"
-        >
-          Explore
-        </Link>
+        {/* Action links */}
+        <div className="flex flex-col gap-3">
+          <Link
+            to={`/agents/${module}`}
+            className="text-sm font-medium text-[var(--accent)] transition-colors hover:text-[var(--accent)]/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg)]"
+          >
+            View details
+          </Link>
+          <Link
+            to={`/dashboard/agents/${module}/run`}
+            className="text-sm font-medium text-[var(--accent)] transition-colors hover:text-[var(--accent)]/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg)]"
+          >
+            Run agent
+          </Link>
+        </div>
       </div>
     </div>
   );
 }
-
