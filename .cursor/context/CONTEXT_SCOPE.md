@@ -45,6 +45,8 @@ Bu amacı gerçekleştirmek üzere belirlenen somut, ölçülebilir ve izlenebil
 Bu proje, yazılım geliştirme süreçlerinde (SDLC) sıklıkla karşılaşılan dokümantasyon güncelleme, test otomasyonu üretimi ve MVP prototipleme gibi görevlerdeki verimsizlikleri azaltmayı amaçlamaktadır. Platform, “AKIS Platform” adıyla modüler olarak tasarlanmış bir Yapay Zekâ Ajanı İş Akışı Motoru (AI Agent Workflow Engine) temelinde geliştirilecektir. Amaç, yazılım ekiplerine zaman kazandırmak ve yüksek katma değerli işler için kapasite açmak olduğundan, işlevsellik, ölçeklenebilirlik ve kullanıcı deneyimi bir arada gözetilecektir.
 Bu kapsam ifadesi, projenin ne yapılacağını, kimin için, hangi sınırlar içinde yapılacağını açıklar. Ürün kapsamının yanı sıra, yöntem, teslimatlar, kısıtlar ve başarı kriterleri de bu bölümde yer almalıdır.
 
+> Uygulama ayrıntıları için `.cursor/context/CONTEXT_ARCHITECTURE.md` (mimari/teknoloji), `backend/docs/API_SPEC.md` (Fastify uçları), `backend/docs/AGENT_WORKFLOWS.md` (ajan yaşam döngüsü) ve `docs/UI_DESIGN_SYSTEM.md` + `docs/WEB_INFORMATION_ARCHITECTURE.md` (UI & IA) belgelerini referans alın.
+
 #### 2.2 Kapsama Dahil Olanlar (In-Scope)
 Proje kapsamında gerçekleştirilecek başlıca öğeler şunlardır:
 
@@ -89,20 +91,8 @@ Projenin başarıyla tamamlanabilmesi ve kaynak/zaman kısıtlarının yönetile
 * **Değişim yönetimi:** Proje kapsamı “Kapsama Dahil Olanlar” ile “Kapsam Dışı Olanlar” çerçevesinde netleştirilmiş olup, kapsam kaymasını (scope creep) önlemek amacıyla herhangi bir ek özellik ancak resmi değişim (change-request) süreciyle değerlendirilecektir.
 
 #### 2.5 Kullanılacak Teknolojiler (Technology Stack)
-*(Not: Bu bölüm `CONTEXT_ARCHITECTURE.md` tarafından geçersiz kılınmıştır (override). O belge, Fastify ve Drizzle'ı zorunlu kılar.)*
 
-| Kategori | Teknoloji / Araç | Durum | Seçim Gerekçesi | Proje Kısıtları |
-| :--- | :--- | :--- | :--- | :--- |
-| Front-end | Next.js, React, Tailwind CSS | Değişebilir | Modern, reaktif arayüzler ve hızlı UI geliştirme sağlar. | Belirgin bir kısıt yok. |
-| Back-end | TypeScript, Node.js (API Routes) | Değişebilir | Front-end ile birleşik kod tabanı, tip güvenliği (TypeScript) ve sunucusuz API yetenekleri sağlar. | Belirgin bir kısıt yok. |
-| Veri Tabanı / ORM | PostgreSQL, Prisma ORM | Değişebilir | Güçlü ilişkisel veri bütünlüğü ve tip-güvenli veritabanı erişimi sağlar. | Belirgin bir kısıt yok. |
-| Kimlik Doğrulama | NextAuth.js / GitHub OAuth | Kesin | GitHub entegrasyonu (proje gereksinimi) ve çoklu sağlayıcı (Google vb.) desteği için gereklidir. | Belirgin bir kısıt yok. |
-| AI Entegrasyonu | OpenRouter (veya eşdeğeri) | Kesin | Geniş AI model yelpazesine (Llama 3.3, Gemini 2.0 Flash vb.) esnek erişim sağlar. | Yalnızca ücretsiz (free tier) AI modellerinin kullanımına izin verilmektedir. |
-| Veri Doğrulama | Zod | Kesin | API katmanında ve ajan girdilerinde katı şema doğrulaması ve tip güvenliği sağlar. | Belirgin bir kısıt yok. |
-| Hosting / Dağıtım | Oracle OCI (Free tier) | Kesin | Geliştirme ve test için ücretsiz bir ortam sağlar. | Ücretsiz katman sunucunun sağladığı sınırlı CPU, RAM ve ağ kaynakları ile çalışmak zorundadır. |
-| İzleme / Loglama | Grafana, Prometheus (Free Tier) | Değişebilir | Performans takibi ve hata tespiti için açık kaynaklı ve ücretsiz bir çözüm sunar. | Sadece ücretsiz katman (free tier) ve açık kaynak (open-source) araçlar kullanılacaktır. |
-| Geliştirme Ortamı | VS Code, Git | Kesin | Geniş topluluk desteği, güçlü entegrasyonlar ve standart versiyon kontrolü sunar. | Her geliştiricinin kendi tercihine göre yapılandırmasına izin verilir. |
-| Dokümantasyon | Swagger/OpenAPI, Markdown | Kesin | API'lerin kolay anlaşılması ve iş birliği için standartlaşmış bir yapı sağlar. | Tüm API uç noktaları ve veri modelleri bu standartlara uygun olarak belgelendirilecektir. |
+Bu bölüm artık ayrı bir tablo barındırmamaktadır. Teknik stack kararlarının tek doğruluk kaynağı `.cursor/context/CONTEXT_ARCHITECTURE.md` dosyasıdır (SSOT). Lütfen mimari, teknoloji seçimi veya yapı klasörleriyle ilgili her türlü soruda söz konusu dokümana başvurun.
 
 #### 2.6 Beklenen Çıktılar (Deliverables)
 1.  Web tabanlı çalışan bir prototip: Platformun temel iş akışlarını (ajan yönetimi, entegrasyon, ajanın işlevselliği) gerçekleştirebilir olması.

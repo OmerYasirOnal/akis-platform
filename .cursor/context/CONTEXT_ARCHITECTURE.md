@@ -26,6 +26,8 @@ In summary, the architecture will be a **modular monolithic backend** where **ea
 
 ### 2\. Optimal Technology Stack Proposal (OCI Constraints)
 
+> Detaylı platform/OCI Free Tier kısıtları için `docs/constraints.md` dokümanını referans alın; aşağıdaki kararlar bu ilkeler doğrultusunda alındı.
+
 Considering the above architecture on an **ARM-based OCI Free Tier** instance, we need a stack that is **efficient, ARM-compatible, and lightweight**. Let’s evaluate the current prototype stack and then propose optimizations:
 
   * **Runtime / Framework – Current:** Next.js 16 (Node 18) with API Routes. Next.js is a full-stack framework primarily aimed at building React UIs with SSR/CSR. Using Next.js for the backend API means carrying the weight of the Next framework even for non-UI tasks. This can be **resource-heavy** – Next.js starts multiple Node processes for its routing (App vs Pages router) and includes webpack bundles, etc., increasing memory usage. In a free-tier server with limited CPU, running a Next.js server just to serve APIs is not optimal. Next’s overhead (multiple worker processes, in-memory caches) can consume hundreds of MB of RAM and additional CPU, even under light load.

@@ -19,7 +19,7 @@ const DashboardAgentProtoPage = () => (
         Blueprint Inputs
       </h2>
       <Input label="Spec Repository Path" placeholder="docs/specs/mvp.yaml" />
-      <Input label="Default Framework" placeholder="Next.js + Fastify" />
+      <Input label="Default Framework" placeholder="Vite + Fastify" />
       <Input label="Database Target" placeholder="PostgreSQL" />
     </Card>
 

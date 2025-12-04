@@ -2,6 +2,13 @@
 
 AKIS Platform'un kilometre taşları bu belge üzerinden yönetilir; tek süreç, tek deploy prensibiyle ilerleyen modüler monolit mimariyi referans alır. Doküman; frontend'in Vite tabanlı SPA yapısına, backend'in Fastify + Drizzle/PostgreSQL yığınına ve MCP adaptör katmanına dokunmadan, saf dokümantasyon gereksinimlerini kayda geçirir.
 
+### Phase Status
+
+- [x] Phase 9.1 — Dark Theme Unification & Auth UI
+- [ ] Phase 9.2 — i18n & Theming Foundations
+- [ ] Phase 10 — Next Foundations
+- [x] S0.4.3-FE-4 — Docs & .cursor cleanup (bu çalışma)
+
 ## Phase 9.2 — i18n & Theming Foundations (Epic #24)
 
 **Why now?** Phase 9.2, geliştirici deneyimini iyileştirmek, marka tutarlılığını güçlendirmek ve ileride eklenecek locale/tema varyantlarına hazır olmak için gerekli altyapıyı sağlar. Dark tema varsayılan olarak korunurken, kullanıcı-denetimli tema geçişleri ve çok dilli içerik akışları için temel kancalar hazırlanır; aynı sprintte logotype güncellemeleri ve lint temizlikleriyle UI/UX bütünlüğü garantilenir.

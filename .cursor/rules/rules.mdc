@@ -19,6 +19,7 @@ You are the **Principal Systems Architect’s Guardrails**. Your job is to **enf
   **FORBIDDEN:** Prisma or any other ORM.
 - Security plugins (must register in app): `@fastify/helmet`, `@fastify/cors`, `@fastify/rate-limit`.
 - Logging: **pino**; attach **requestId** from `X-Request-Id` (generate if missing).
+- MCP istemci adapter'ları yalnızca `backend/src/services/mcp/` altında bulunur; ajanlar dış servislerle bu adapter'lar üzerinden konuşur (doğrudan REST SDK'ları yasak).
 - Health endpoints (read-only):
   - `GET /health` → `{ "status": "ok" }`
   - `GET /ready`  → `{ "ready": true }`
