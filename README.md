@@ -10,6 +10,17 @@ AKIS Platform, yazılım geliştirme süreçlerindeki tekrarlayan görevleri oto
 - **AKIS Trace**: Test otomasyonu üretimi
 - **AKIS Proto**: MVP prototipleme
 
+## Canonical Docs
+
+- [CONTEXT_SCOPE (.cursor)](.cursor/context/CONTEXT_SCOPE.md) – problemin tanımı ve hedefler
+- [CONTEXT_ARCHITECTURE (.cursor)](.cursor/context/CONTEXT_ARCHITECTURE.md) – mimari kararlar ve teknoloji yığını
+- [UI_DESIGN_SYSTEM](docs/UI_DESIGN_SYSTEM.md) – tasarım token'ları ve komponent kuralları
+- [WEB_INFORMATION_ARCHITECTURE](docs/WEB_INFORMATION_ARCHITECTURE.md) – site yapısı ve kullanıcı akışları
+- [ROADMAP](docs/ROADMAP.md) – faz ve teslimat planı
+- [constraints](docs/constraints.md) – OCI Free Tier ve platform kısıtları
+- [Backend API Spec](backend/docs/API_SPEC.md) – Fastify uç noktaları ve sözleşmeler
+- [Agent Workflows](backend/docs/AGENT_WORKFLOWS.md) – Plan→Execute→Reflect→Validate yaşam döngüsü
+
 ## Teknoloji Stack
 
 - **Backend**: Fastify + TypeScript (Node ≥ 20)
@@ -57,7 +68,7 @@ Güncel kilometre taşları ve kabul notlarının tamamı [docs/ROADMAP.md](docs
 - [Frontend] [#45 Phase 10 — ROI widget (Pricing)](https://github.com/OmerYasirOnal/akis-platform-devolopment/issues/45)
 - [Frontend] [#46 Phase 10 — FAQ accordion (Landing)](https://github.com/OmerYasirOnal/akis-platform-devolopment/issues/46)
 
-## Geliştirme
+## Quickstart
 
 ### Backend
 
