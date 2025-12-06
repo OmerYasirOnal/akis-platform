@@ -39,6 +39,11 @@ const envSchema = z
       .transform((value) => value === 'true'),
     AUTH_COOKIE_DOMAIN: z.string().optional(),
     AUTH_JWT_SECRET: z.string().min(32, 'AUTH_JWT_SECRET must be at least 32 characters long').optional(),
+    // Email configuration
+    EMAIL_PROVIDER: z.enum(['mock', 'resend']).default('mock'),
+    RESEND_API_KEY: z.string().optional(),
+    RESEND_FROM_EMAIL: z.string().email().optional(),
+    EMAIL_VERIFICATION_TOKEN_TTL_MINUTES: z.coerce.number().default(15),
     GITHUB_MCP_BASE_URL: z.string().url().optional(),
     ATLASSIAN_MCP_BASE_URL: z.string().url().optional(),
     GITHUB_APP_ID: z.string().optional(),
@@ -101,6 +106,24 @@ const envSchema = z
         message: 'AUTH_COOKIE_SECURE must be true when NODE_ENV=production',
         path: ['AUTH_COOKIE_SECURE'],
       });
+    }
+
+    // Email provider validation
+    if (data.EMAIL_PROVIDER === 'resend') {
+      if (!data.RESEND_API_KEY) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'RESEND_API_KEY is required when EMAIL_PROVIDER=resend',
+          path: ['RESEND_API_KEY'],
+        });
+      }
+      if (!data.RESEND_FROM_EMAIL) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'RESEND_FROM_EMAIL is required when EMAIL_PROVIDER=resend',
+          path: ['RESEND_FROM_EMAIL'],
+        });
+      }
     }
 
     if (isStrictMode) {

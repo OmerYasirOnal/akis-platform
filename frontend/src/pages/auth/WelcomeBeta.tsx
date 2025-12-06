@@ -1,10 +1,24 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Button from '../../components/common/Button';
 
 export default function WelcomeBeta() {
   const navigate = useNavigate();
+  const [submitting, setSubmitting] = useState(false);
 
-  function handleContinue() {
+  async function handleContinue() {
+    setSubmitting(true);
+    
+    try {
+      const { AuthAPI } = await import('../../services/api/auth');
+      await AuthAPI.updatePreferences({ hasSeenBetaWelcome: true });
+    } catch (error) {
+      console.error('Failed to update preferences:', error);
+      // Continue anyway - don't block user flow
+    } finally {
+      setSubmitting(false);
+    }
+    
     // Navigate to data sharing consent
     navigate('/auth/privacy-consent');
   }
@@ -52,8 +66,8 @@ export default function WelcomeBeta() {
         </div>
 
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
-          <Button onClick={handleContinue} className="justify-center px-8">
-            Continue to AKIS Dashboard →
+          <Button onClick={handleContinue} disabled={submitting} className="justify-center px-8">
+            {submitting ? 'Loading...' : 'Continue to AKIS Dashboard →'}
           </Button>
           <Button onClick={handleLearnMore} variant="outline" className="justify-center px-8">
             Learn more about pricing

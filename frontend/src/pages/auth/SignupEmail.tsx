@@ -16,27 +16,36 @@ export default function SignupEmail() {
     setSubmitting(true);
 
     try {
-      // TODO: Replace with real API call to /api/auth/signup/start
-      // For now, simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      const { AuthAPI } = await import('../../services/api/auth');
+      const response = await AuthAPI.signupStart({
+        firstName,
+        lastName,
+        email,
+      });
 
-      // Store signup data in sessionStorage for next steps
+      // Store signup data for next step
       sessionStorage.setItem(
         'akis_signup_data',
         JSON.stringify({
+          userId: response.userId,
           firstName,
           lastName,
-          email,
-          userId: 'temp-user-id', // Would come from API response
+          email: response.email,
         })
       );
 
       // Navigate to password step
       navigate('/signup/password');
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : 'Unable to create account. Please try again.'
-      );
+      const errorMessage = err instanceof Error ? err.message : 'Unable to create account. Please try again.';
+      
+      // Try to parse error JSON for better messages
+      try {
+        const errorData = JSON.parse(errorMessage);
+        setError(errorData.error || errorData.message || errorMessage);
+      } catch {
+        setError(errorMessage);
+      }
     } finally {
       setSubmitting(false);
     }

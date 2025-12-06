@@ -5,22 +5,25 @@ import Button from '../../components/common/Button';
 
 export default function LoginPassword() {
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { setUser } = useAuth();
   const [email, setEmail] = useState('');
+  const [userId, setUserId] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    // Get email from sessionStorage (set in LoginEmail step)
-    const storedEmail = sessionStorage.getItem('akis_login_email');
-    if (!storedEmail) {
-      // No email found, redirect back to step 1
+    // Get login data from sessionStorage (set in LoginEmail step)
+    const storedData = sessionStorage.getItem('akis_login_data');
+    if (!storedData) {
+      // No data found, redirect back to step 1
       navigate('/login');
       return;
     }
-    setEmail(storedEmail);
+    const data = JSON.parse(storedData);
+    setEmail(data.email);
+    setUserId(data.userId);
   }, [navigate]);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -29,17 +32,36 @@ export default function LoginPassword() {
     setSubmitting(true);
 
     try {
-      // Use existing login function (which calls the legacy /api/auth/login endpoint)
-      // In future, this should call /api/auth/login/complete
-      await login(email, password);
+      const { AuthAPI } = await import('../../services/api/auth');
+      const response = await AuthAPI.loginComplete({
+        userId,
+        password,
+      });
 
-      // Clear stored email
-      sessionStorage.removeItem('akis_login_email');
+      // Update auth context with user data
+      setUser(response.user);
 
-      // Navigate to dashboard
-      navigate('/dashboard');
-    } catch {
-      setError('Incorrect password. Please try again.');
+      // Clear stored login data
+      sessionStorage.removeItem('akis_login_data');
+
+      // Check if user needs to see data sharing consent
+      if (response.needsDataSharingConsent) {
+        navigate('/auth/privacy-consent');
+      } else if (!response.user.hasSeenBetaWelcome) {
+        navigate('/auth/welcome-beta');
+      } else {
+        navigate('/dashboard');
+      }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Incorrect password. Please try again.';
+      
+      // Try to parse error JSON for better messages
+      try {
+        const errorData = JSON.parse(errorMessage);
+        setError(errorData.error || errorData.message || errorMessage);
+      } catch {
+        setError(errorMessage);
+      }
     } finally {
       setSubmitting(false);
     }

@@ -14,19 +14,39 @@ export default function LoginEmail() {
     setSubmitting(true);
 
     try {
-      // TODO: Replace with real API call to /api/auth/login/start
-      // For now, simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      const { AuthAPI } = await import('../../services/api/auth');
+      const response = await AuthAPI.loginStart({ email });
 
-      // Store email in sessionStorage for next step
-      sessionStorage.setItem('akis_login_email', email);
+      // Store login data for next step
+      sessionStorage.setItem('akis_login_data', JSON.stringify({
+        userId: response.userId,
+        email: response.email,
+      }));
 
       // Navigate to password step
       navigate('/login/password');
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : 'Unable to proceed. Please try again.'
-      );
+      const errorMessage = err instanceof Error ? err.message : 'Unable to proceed. Please try again.';
+      
+      // Try to parse error JSON for better messages
+      try {
+        const errorData = JSON.parse(errorMessage);
+        
+        // Special handling for email not verified
+        if (errorData.code === 'EMAIL_NOT_VERIFIED' && errorData.userId) {
+          sessionStorage.setItem('akis_signup_data', JSON.stringify({
+            userId: errorData.userId,
+            email,
+          }));
+          setError('Email not verified. Redirecting to verification...');
+          setTimeout(() => navigate('/signup/verify-email'), 2000);
+          return;
+        }
+        
+        setError(errorData.error || errorData.message || errorMessage);
+      } catch {
+        setError(errorMessage);
+      }
     } finally {
       setSubmitting(false);
     }

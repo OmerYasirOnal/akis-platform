@@ -11,9 +11,8 @@ export default function PrivacyConsent() {
     setSubmitting(true);
 
     try {
-      // TODO: Replace with real API call to /api/auth/update-preferences
-      // For now, simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      const { AuthAPI } = await import('../../services/api/auth');
+      await AuthAPI.updatePreferences({ dataSharingConsent: consent });
 
       // Navigate to dashboard
       navigate('/dashboard');

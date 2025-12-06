@@ -453,21 +453,55 @@ CREATE TABLE oauth_accounts (
 
 ```bash
 # Required
-JWT_SECRET=<random-256-bit-string>
+AUTH_JWT_SECRET=<random-256-bit-string>  # Min 32 chars, use: openssl rand -base64 32
 DATABASE_URL=postgresql://...
 
-# Optional (with defaults)
-JWT_EXPIRES_IN=7d
-AUTH_COOKIE_NAME=akis_session
+# Authentication & Session
+AUTH_COOKIE_NAME=akis_sid
+AUTH_COOKIE_MAXAGE=604800  # 7 days in seconds
+AUTH_COOKIE_SAMESITE=Lax
+AUTH_COOKIE_SECURE=false  # Set to true in production with HTTPS
+# AUTH_COOKIE_DOMAIN=localhost
+
+# Email Configuration
+EMAIL_PROVIDER=mock  # 'mock' for dev/test, 'resend' for production
+EMAIL_VERIFICATION_TOKEN_TTL_MINUTES=15
+
+# Resend Email Service (required when EMAIL_PROVIDER=resend)
+# Get API key from: https://resend.com/api-keys
+# Verify your domain or use Resend's test domain
+RESEND_API_KEY=<your_resend_api_key>
+RESEND_FROM_EMAIL=noreply@yourdomain.com
+
+# Other
 NODE_ENV=development
 CORS_ORIGINS=http://localhost:5173
+FRONTEND_URL=http://localhost:5173
 
-# Future
-SENDGRID_API_KEY=...
-GOOGLE_OAUTH_CLIENT_ID=...
-GOOGLE_OAUTH_CLIENT_SECRET=...
-GITHUB_OAUTH_CLIENT_ID=...
-GITHUB_OAUTH_CLIENT_SECRET=...
+# Future (OAuth - planned for S0.4.2)
+# GOOGLE_OAUTH_CLIENT_ID=...
+# GOOGLE_OAUTH_CLIENT_SECRET=...
+# GITHUB_OAUTH_CLIENT_ID=...
+# GITHUB_OAUTH_CLIENT_SECRET=...
+```
+
+### Email Provider Setup
+
+**For Development (Mock):**
+```bash
+EMAIL_PROVIDER=mock
+```
+Verification codes are logged to console. No external service needed.
+
+**For Production (Resend):**
+1. Create account at https://resend.com
+2. Navigate to **API Keys** and create a new key
+3. Add and verify your domain (or use Resend's test domain for staging)
+4. Set environment variables:
+```bash
+EMAIL_PROVIDER=resend
+RESEND_API_KEY=re_xxxxxxxxxxxxx
+RESEND_FROM_EMAIL=noreply@yourdomain.com
 ```
 
 ---

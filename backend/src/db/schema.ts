@@ -59,6 +59,16 @@ export type JobAudit = typeof jobAudits.$inferSelect;
 export type NewJobAudit = typeof jobAudits.$inferInsert;
 
 /**
+ * User status enum - tracks account state
+ */
+export const userStatusEnum = pgEnum('user_status', [
+  'pending_verification',
+  'active',
+  'disabled',
+  'deleted',
+]);
+
+/**
  * Users table - stores user accounts for authentication
  */
 export const users = pgTable('users', {
@@ -66,9 +76,16 @@ export const users = pgTable('users', {
   name: text('name').notNull(),
   email: text('email').notNull().unique(),
   passwordHash: text('password_hash').notNull(),
+  status: userStatusEnum('status').default('pending_verification').notNull(),
+  emailVerified: boolean('email_verified').default(false).notNull(),
+  dataSharingConsent: boolean('data_sharing_consent'),
+  hasSeenBetaWelcome: boolean('has_seen_beta_welcome').default(false).notNull(),
   createdAt: timestamp('created_at', { withTimezone: false }).defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: false }).defaultNow(),
-});
+}, (table) => ({
+  emailIdx: index('idx_users_email').on(table.email),
+  statusIdx: index('idx_users_status').on(table.status),
+}));
 
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
@@ -93,5 +110,32 @@ export const jobAuditsRelations = relations(jobAudits, ({ one }) => ({
   }),
 }));
 
+/**
+ * Email verification tokens - stores verification codes for email confirmation
+ */
+export const emailVerificationTokens = pgTable('email_verification_tokens', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  email: text('email').notNull(),
+  code: varchar('code', { length: 6 }).notNull(),
+  expiresAt: timestamp('expires_at', { withTimezone: false }).notNull(),
+  usedAt: timestamp('used_at', { withTimezone: false }),
+  createdAt: timestamp('created_at', { withTimezone: false }).defaultNow().notNull(),
+}, (table) => ({
+  userIdIdx: index('idx_email_tokens_user_id').on(table.userId),
+  emailIdx: index('idx_email_tokens_email').on(table.email),
+  codeIdx: index('idx_email_tokens_code').on(table.code),
+}));
+
+export type EmailVerificationToken = typeof emailVerificationTokens.$inferSelect;
+export type NewEmailVerificationToken = typeof emailVerificationTokens.$inferInsert;
+
 // Users relations (empty for now, can be extended later)
 export const usersRelations = relations(users, () => ({}));
+
+export const emailVerificationTokensRelations = relations(emailVerificationTokens, ({ one }) => ({
+  user: one(users, {
+    fields: [emailVerificationTokens.userId],
+    references: [users.id],
+  }),
+}));

@@ -5,6 +5,7 @@ import Button from '../../components/common/Button';
 export default function SignupVerifyEmail() {
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
+  const [userId, setUserId] = useState('');
   const [code, setCode] = useState(['', '', '', '', '', '']);
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -21,6 +22,7 @@ export default function SignupVerifyEmail() {
     }
     const data = JSON.parse(storedData);
     setEmail(data.email);
+    setUserId(data.userId);
 
     // Focus first input
     inputRefs.current[0]?.focus();
@@ -73,17 +75,28 @@ export default function SignupVerifyEmail() {
     setSubmitting(true);
 
     try {
-      // TODO: Replace with real API call to /api/auth/verify-email
-      // For now, simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      const { AuthAPI } = await import('../../services/api/auth');
+      await AuthAPI.verifyEmail({
+        userId,
+        code: fullCode,
+      });
 
       // Clear signup data
       sessionStorage.removeItem('akis_signup_data');
 
       // Navigate to beta welcome screen
       navigate('/auth/welcome-beta');
-    } catch {
-      setError('Code is incorrect or expired. Please try again.');
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Code is incorrect or expired. Please try again.';
+      
+      // Try to parse error JSON for better messages
+      try {
+        const errorData = JSON.parse(errorMessage);
+        setError(errorData.error || errorData.message || errorMessage);
+      } catch {
+        setError(errorMessage);
+      }
+      
       // Clear code inputs
       setCode(['', '', '', '', '', '']);
       inputRefs.current[0]?.focus();
@@ -97,13 +110,21 @@ export default function SignupVerifyEmail() {
     setResending(true);
 
     try {
-      // TODO: Replace with real API call to /api/auth/resend-code
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      const { AuthAPI } = await import('../../services/api/auth');
+      await AuthAPI.resendCode({ userId });
 
       // Show success message
       alert('Verification code resent to your email');
-    } catch {
-      setError('Unable to resend code. Please try again.');
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Unable to resend code. Please try again.';
+      
+      // Try to parse error JSON for better messages
+      try {
+        const errorData = JSON.parse(errorMessage);
+        setError(errorData.error || errorData.message || errorMessage);
+      } catch {
+        setError(errorMessage);
+      }
     } finally {
       setResending(false);
     }

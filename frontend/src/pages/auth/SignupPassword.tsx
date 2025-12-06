@@ -43,26 +43,31 @@ export default function SignupPassword() {
     setSubmitting(true);
 
     try {
-      // TODO: Replace with real API call to /api/auth/signup/password
-      // For now, simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 500));
-
-      // Store password in session data
       const storedData = sessionStorage.getItem('akis_signup_data');
-      if (storedData) {
-        const data = JSON.parse(storedData);
-        sessionStorage.setItem(
-          'akis_signup_data',
-          JSON.stringify({ ...data, password })
-        );
+      if (!storedData) {
+        throw new Error('Signup session expired. Please start again.');
       }
+
+      const data = JSON.parse(storedData);
+      const { AuthAPI } = await import('../../services/api/auth');
+      
+      await AuthAPI.signupPassword({
+        userId: data.userId,
+        password,
+      });
 
       // Navigate to verification step
       navigate('/signup/verify-email');
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : 'Unable to set password. Please try again.'
-      );
+      const errorMessage = err instanceof Error ? err.message : 'Unable to set password. Please try again.';
+      
+      // Try to parse error JSON for better messages
+      try {
+        const errorData = JSON.parse(errorMessage);
+        setError(errorData.error || errorData.message || errorMessage);
+      } catch {
+        setError(errorMessage);
+      }
     } finally {
       setSubmitting(false);
     }
