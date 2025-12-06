@@ -168,7 +168,7 @@ AKIS uses a **multi-step authentication flow** for improved UX and security. All
 
 These endpoints are kept for backward compatibility but will be removed in a future version.
 
-#### POST /api/auth/signup
+#### POST /auth/signup
 
 Single-step signup (deprecated).
 
@@ -193,7 +193,7 @@ Single-step signup (deprecated).
 **Errors**:
 - `409 Conflict`: `{ "error": "Email in use" }`
 
-#### POST /api/auth/login
+#### POST /auth/login
 
 Single-step login (deprecated).
 
@@ -221,7 +221,7 @@ Single-step login (deprecated).
 
 ### Multi-Step Sign Up (New Flow)
 
-#### POST /api/auth/signup/start
+#### POST /auth/signup/start
 
 **Step 1: Name + Email**
 
@@ -257,7 +257,7 @@ Creates a new user in `PENDING_VERIFICATION` state and sends a 6-digit verificat
 
 ---
 
-#### POST /api/auth/signup/password
+#### POST /auth/signup/password
 
 **Step 2: Set Password**
 
@@ -286,7 +286,7 @@ Sets the password for a user in `PENDING_VERIFICATION` state.
 
 ---
 
-#### POST /api/auth/verify-email
+#### POST /auth/verify-email
 
 **Step 3: Verify Email Code**
 
@@ -325,7 +325,7 @@ Verifies the 6-digit code and activates the user account.
 
 ---
 
-#### POST /api/auth/resend-code
+#### POST /auth/resend-code
 
 Resends verification code.
 
@@ -353,7 +353,7 @@ Resends verification code.
 
 ### Multi-Step Sign In (New Flow)
 
-#### POST /api/auth/login/start
+#### POST /auth/login/start
 
 **Step 1: Email Check**
 
@@ -382,7 +382,7 @@ Validates if user exists and returns user info (without sensitive data).
 
 ---
 
-#### POST /api/auth/login/complete
+#### POST /auth/login/complete
 
 **Step 2: Password Verification**
 
@@ -422,7 +422,7 @@ Verifies password and issues JWT session.
 
 ### User Preferences
 
-#### POST /api/auth/update-preferences
+#### POST /auth/update-preferences
 
 Updates user consent and preferences.
 
@@ -451,7 +451,7 @@ Updates user consent and preferences.
 
 ### Session Management
 
-#### POST /api/auth/logout
+#### POST /auth/logout
 
 Clears session cookie.
 
@@ -469,7 +469,7 @@ Clears session cookie.
 
 ---
 
-#### GET /api/auth/me
+#### GET /auth/me
 
 Get current authenticated user.
 
@@ -496,7 +496,7 @@ Get current authenticated user.
 
 ### OAuth (Future – S0.4.2)
 
-#### GET /api/auth/oauth/:provider
+#### GET /auth/oauth/:provider
 
 Initiates OAuth flow (redirects to provider).
 
@@ -507,13 +507,13 @@ Initiates OAuth flow (redirects to provider).
 
 **Example**:
 ```
-GET /api/auth/oauth/google
+GET /auth/oauth/google
 → Redirects to https://accounts.google.com/o/oauth2/v2/auth?...
 ```
 
 ---
 
-#### GET /api/auth/oauth/:provider/callback
+#### GET /auth/oauth/:provider/callback
 
 Handles OAuth callback from provider.
 

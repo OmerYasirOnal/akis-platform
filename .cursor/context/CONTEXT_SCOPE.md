@@ -51,10 +51,37 @@ Bu kapsam ifadesi, projenin ne yapılacağını, kimin için, hangi sınırlar i
 Proje kapsamında gerçekleştirilecek başlıca öğeler şunlardır:
 
 **A. Platform Çekirdeği ve Temel Özellikler**
-* **A1.** Kullanıcı yönetimi ve kimlik doğrulama: Kullanıcıların sistemde güvenli şekilde oturum açmaları ve profillerini yönetebilmeleri.
+* **A1.** Kullanıcı yönetimi ve kimlik doğrulama: Kullanıcıların sistemde güvenli şekilde oturum açmaları ve profillerini yönetebilmeleri (S0.4.2, S0.4.4 ile tamamlandı - çok adımlı e-posta doğrulamalı kayıt/giriş sistemi).
 * **A2.** Web tabanlı yönetim arayüzü: Kullanıcının dashboard üzerinden GitHub deposu listeleme, ajan görev geçmişi görüntüleme ve ayarlarını yapılandırabilme.
 * **A3.** Ajan görev izleme modülü: Çalıştırılan ajanların durumları (başarılı, başarısız, beklemede) ve log kayıtlarının erişilebilir olması.
 * **A4.** Ajan ayarları paneli: Kullanıcıların, projede yer alan ajanların (Scribe, Trace, Proto) temel parametrelerini (örn. otomasyon onayı, branch stratejisi) belirleyebilmesi.
+
+**A1. Kimlik Doğrulama ve Kullanıcı Kaydı Detayları (S0.4.2 + S0.4.4)**
+
+AKIS Platform, Cursor tarzı bir çok adımlı kimlik doğrulama akışı kullanır. Bu yaklaşım, kullanıcı deneyimini iyileştirmek ve güvenliği artırmak için her adımı ayrı bir ekranda sunar.
+
+**Çok Adımlı Kayıt Akışı (5 Adım):**
+1. **Ad + E-posta** (`/signup` → `POST /auth/signup/start`): Kullanıcı adını ve e-posta adresini girer. Sistem 6 haneli doğrulama kodu gönderir.
+2. **Şifre Oluştur** (`/signup/password` → `POST /auth/signup/password`): Kullanıcı şifresini belirler (minimum 8 karakter).
+3. **E-posta Doğrulama** (`/signup/verify-email` → `POST /auth/verify-email`): 6 haneli kodu girerek e-postasını doğrular. Bu adımda hesap aktif hale gelir ve JWT oturum çerezi oluşturulur.
+4. **Beta Hoşgeldin Ekranı** (`/auth/welcome-beta`): Kullanıcıya beta sürümü hakkında bilgi verilir (sadece frontend, backend çağrısı yok).
+5. **Veri Paylaşım Onayı** (`/auth/privacy-consent` → `POST /auth/update-preferences`): Kullanıcı isteğe bağlı olarak anonim kullanım verilerinin paylaşımına izin verir.
+
+**Çok Adımlı Giriş Akışı (2 Adım):**
+1. **E-posta Kontrolü** (`/login` → `POST /auth/login/start`): Kullanıcı e-posta adresini girer. Sistem hesabın var olup olmadığını ve doğrulanmış olduğunu kontrol eder.
+2. **Şifre Girişi** (`/login/password` → `POST /auth/login/complete`): Şifre doğrulanır ve JWT oturum çerezi oluşturulur. Eğer kullanıcı veri paylaşım onayını daha önce vermediyse, `/auth/privacy-consent` sayfasına yönlendirilir.
+
+**Güvenlik ve Oturum Modeli:**
+- **JWT Tabanlı Oturumlar:** Stateless JWT tokenları HTTP-only çerezlerde saklanır (7 gün geçerlilik).
+- **E-posta Doğrulama:** 6 haneli kodlar 15 dakika geçerlidir ve kullanımdan sonra geçersiz olur.
+- **Hız Sınırlaması:** 15 dakikada en fazla 3 doğrulama denemesi (rate limiting).
+- **Şifre Güvenliği:** bcrypt ile hash'leme (12 rounds), ARM uyumlu `@node-rs/bcrypt` kullanılır.
+
+**Gelecek Özellikler (Kapsam Dışı - S0.4.2 sonrası):**
+- **OAuth Entegrasyonu:** Google ve GitHub ile oturum açma (OAuth, e-posta/şifre sisteminin üzerine katman olarak eklenecek; e-posta birincil kimlik olarak kalacak).
+- **Şifre Sıfırlama:** Unutulan şifre için e-posta ile sıfırlama akışı.
+- **E-posta Değiştirme:** Mevcut kullanıcıların e-posta adreslerini güncelleyebilmesi.
+- **İki Faktörlü Kimlik Doğrulama (2FA):** TOTP tabanlı ek güvenlik katmanı (isteğe bağlı).
 
 **B. Otonom Ajanlar**
 * **B1. AKIS Scribe:** Kod değişikliklerini analiz ederek ilgili teknik dokümantasyonu (örneğin Confluence sayfaları) güncelleyen ajan.

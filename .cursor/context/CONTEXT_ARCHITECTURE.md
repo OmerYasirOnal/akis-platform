@@ -267,7 +267,7 @@ In essence, our **proposed architecture is both more efficient and more robust**
 
 AKIS Platform implements a **JWT-based authentication system** with a **multi-step user onboarding flow** inspired by Cursor's sign-in/sign-up experience. This design prioritizes **UX clarity**, **security**, and **future OAuth extensibility** while maintaining minimal resource overhead on OCI Free Tier.
 
-#### 7.1 Authentication Strategy
+#### 7.1 Authentication Strategy & Backend Components
 
 **Primary Method:** Email + Password
 
@@ -275,6 +275,28 @@ AKIS Platform implements a **JWT-based authentication system** with a **multi-st
 - **Password Security:** bcrypt hashing (12 rounds) via `@node-rs/bcrypt` (ARM-compatible Rust binary)
 - **Token Management:** Stateless JWT stored in HTTP-only cookies (`akis_session`)
 - **Session Duration:** 7 days (configurable via `JWT_EXPIRES_IN` env var)
+
+**Backend Components:**
+
+- **Routes:** `backend/src/api/auth.multi-step.ts` (multi-step flows) + `auth.ts` (legacy endpoints)
+- **Services:**
+  - `backend/src/services/auth/verification.ts` → `VerificationService` (generates & validates 6-digit codes)
+  - `backend/src/services/auth/password.ts` → `hashPassword()`, `verifyPassword()` (bcrypt wrappers)
+  - `backend/src/services/auth/jwt.ts` → `sign()`, `verify()` (JWT creation & validation)
+  - `backend/src/services/email/` → `EmailService` interface + `MockEmailService` (dev) / `ResendEmailService` (prod)
+- **Database Tables:**
+  - `users` (id, name, email, passwordHash, status, emailVerified, dataSharingConsent, hasSeenBetaWelcome, timestamps)
+  - `email_verification_tokens` (id, userId FK, email, code, expiresAt, usedAt, createdAt)
+
+**Frontend Components:**
+
+- **Context:** `frontend/src/contexts/AuthContext.tsx` (global auth state via React Context)
+- **Pages:** 
+  - `/signup` → `SignupEmail.tsx`, `SignupPassword.tsx`, `SignupVerifyEmail.tsx`
+  - `/login` → `LoginEmail.tsx`, `LoginPassword.tsx`
+  - `/auth/welcome-beta` → `WelcomeBeta.tsx`
+  - `/auth/privacy-consent` → `PrivacyConsent.tsx`
+- **Protected Route Guards:** Check `AuthContext.user` before rendering dashboard routes
 
 **Future Methods (S0.4.2+):**
 
@@ -289,19 +311,19 @@ Unlike traditional single-page signup, AKIS adopts a **progressive disclosure** 
 **Signup Flow (5 steps):**
 
 ```
-1. Name + Email         → POST /api/auth/signup/start
-2. Create Password      → POST /api/auth/signup/password
-3. Email Verification   → POST /api/auth/verify-email (6-digit code)
+1. Name + Email         → POST /auth/signup/start
+2. Create Password      → POST /auth/signup/password
+3. Email Verification   → POST /auth/verify-email (6-digit code)
 4. Beta Notice          → (Frontend-only informational screen)
-5. Data Sharing Consent → POST /api/auth/update-preferences
+5. Data Sharing Consent → POST /auth/update-preferences
 ```
 
 **Login Flow (2 steps):**
 
 ```
-1. Email Check          → POST /api/auth/login/start
+1. Email Check          → POST /auth/login/start
    (Backend validates user exists, returns userId)
-2. Password Entry       → POST /api/auth/login/complete
+2. Password Entry       → POST /auth/login/complete
    (Backend verifies password, issues JWT)
 ```
 
@@ -395,11 +417,11 @@ src/services/auth/
 
 ```
 1. User clicks "Continue with Google"
-   → GET /api/auth/oauth/google
+   → GET /auth/oauth/google
    → Redirect to Google consent screen
 
 2. User approves
-   → Callback: GET /api/auth/oauth/google/callback?code=...
+   → Callback: GET /auth/oauth/google/callback?code=...
    → Backend exchanges code for access token
    → Fetch user profile (email, name)
    → If email exists: link account; else: create user

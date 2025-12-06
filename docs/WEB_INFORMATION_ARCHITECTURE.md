@@ -185,6 +185,11 @@ AKIS Platform (Public + Private Areas)
 
 AKIS Platform, **Cursor-style multi-step authentication** kullanır: Her adım tek bir karar/eylem içerir, kullanıcı yükünü azaltır ve hata yönetimini iyileştirir.
 
+> **Teknik Referanslar:**
+> - Backend implementasyon detayları: `backend/docs/Auth.md`
+> - Mimari ve veri modeli: `.cursor/context/CONTEXT_ARCHITECTURE.md` (Section 7)
+> - API endpoint dokümantasyonu: `backend/docs/API_SPEC.md` (Auth API bölümü)
+
 #### **A. Sign In Flow (2 Steps)**
 
 **Route:** `/login`
@@ -219,7 +224,7 @@ AKIS Platform, **Cursor-style multi-step authentication** kullanır: Her adım t
 **Behaviour:**
 - Social buttons: Görünür ama disabled (toast: "OAuth coming soon, use email for now")
 - Email validation: Format check (frontend + backend)
-- On submit → `POST /api/auth/login/start { email }`
+- On submit → `POST /auth/login/start { email }`
   - User exists → Navigate to Step 2
   - User not found → Error: "No account with this email. [Sign up?]"
 
@@ -246,7 +251,7 @@ AKIS Platform, **Cursor-style multi-step authentication** kullanır: Her adım t
 **Behaviour:**
 - Email shown (non-editable, from Step 1 state)
 - Password toggle: "SHOW"/"HIDE" button
-- On submit → `POST /api/auth/login/complete { userId, password }`
+- On submit → `POST /auth/login/complete { userId, password }`
   - Success:
     - If `dataSharingConsent === null` → `/auth/privacy-consent`
     - Else → `/dashboard`
@@ -296,7 +301,7 @@ AKIS Platform, **Cursor-style multi-step authentication** kullanır: Her adım t
 
 **Behaviour:**
 - Social buttons: disabled (same toast as login)
-- On submit → `POST /api/auth/signup/start { firstName, lastName, email }`
+- On submit → `POST /auth/signup/start { firstName, lastName, email }`
   - Success: Store userId in state, navigate to Step 2
   - Email in use: "This email is already registered. [Sign in?]"
 
@@ -323,7 +328,7 @@ AKIS Platform, **Cursor-style multi-step authentication** kullanır: Her adım t
 
 **Behaviour:**
 - Client-side validation: Min 8 chars, passwords match
-- On submit → `POST /api/auth/signup/password { userId, password }`
+- On submit → `POST /auth/signup/password { userId, password }`
   - Success: Generate & send verification code, navigate to Step 3
   - Failure: Show error
 
@@ -351,10 +356,10 @@ AKIS Platform, **Cursor-style multi-step authentication** kullanır: Her adım t
 **Behaviour:**
 - Auto-focus first digit input
 - Auto-advance to next input on digit entry
-- On submit → `POST /api/auth/verify-email { userId, code }`
+- On submit → `POST /auth/verify-email { userId, code }`
   - Success: Mark user as `ACTIVE`, issue JWT, navigate to Step 4
   - Invalid code: "Code is incorrect or expired. Try again."
-- "Resend code" → `POST /api/auth/resend-code { userId }`
+- "Resend code" → `POST /auth/resend-code { userId }`
   - Max 3 attempts per 15min
 
 **Route:** `/auth/welcome-beta`
@@ -423,7 +428,7 @@ AKIS Platform, **Cursor-style multi-step authentication** kullanır: Her adım t
 
 **Behaviour:**
 - Checkbox optional (can continue without checking)
-- On "Continue" → `POST /api/auth/update-preferences { dataSharingConsent: <true/false> }`
+- On "Continue" → `POST /auth/update-preferences { dataSharingConsent: <true/false> }`
 - Then navigate to `/dashboard`
 - "Learn more" → Link to `/legal/privacy-policy`
 
@@ -439,7 +444,7 @@ AKIS Platform, **Cursor-style multi-step authentication** kullanır: Her adım t
 
 **Route:** `/logout` (or handled in header)
 
-- Calls `POST /api/auth/logout`
+- Calls `POST /auth/logout`
 - Clears cookie, redirects to `/login`
 
 ---

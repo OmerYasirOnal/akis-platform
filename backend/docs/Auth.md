@@ -70,7 +70,7 @@ interface User {
 
 ### 3.1 Sign Up (Multi-Step)
 
-**Step 1: Name + Email (`POST /api/auth/signup/start`)**
+**Step 1: Name + Email (`POST /auth/signup/start`)**
 
 - Input: `{ firstName, lastName, email }`
 - Backend:
@@ -80,7 +80,7 @@ interface User {
   4. Send email with code (dev: log to console)
   5. Return: `{ userId, email, message: "Verification code sent" }`
 
-**Step 2: Set Password (`POST /api/auth/signup/password`)**
+**Step 2: Set Password (`POST /auth/signup/password`)**
 
 - Input: `{ userId, password }` (min 8 chars)
 - Backend:
@@ -89,7 +89,7 @@ interface User {
   3. Store `passwordHash`
   4. Return: `{ ok: true }`
 
-**Step 3: Verify Email (`POST /api/auth/verify-email`)**
+**Step 3: Verify Email (`POST /auth/verify-email`)**
 
 - Input: `{ userId, code }` (6 digits)
 - Backend:
@@ -103,7 +103,7 @@ interface User {
 
 - These are **frontend-only** flows initially
 - User preferences stored via:
-  - `POST /api/auth/update-preferences`
+  - `POST /auth/update-preferences`
   - Input: `{ dataSharingConsent, hasSeenBetaWelcome }`
 
 **Future: Email Delivery**
@@ -116,7 +116,7 @@ interface User {
 
 ### 3.2 Sign In (Multi-Step)
 
-**Step 1: Email Check (`POST /api/auth/login/start`)**
+**Step 1: Email Check (`POST /auth/login/start`)**
 
 - Input: `{ email }`
 - Backend:
@@ -125,7 +125,7 @@ interface User {
   3. If found but `PENDING_VERIFICATION`: `403 { error: "Please verify your email first", userId }`
   4. If found and `ACTIVE`: `200 { userId, email, requiresPassword: true }`
 
-**Step 2: Password (`POST /api/auth/login/complete`)**
+**Step 2: Password (`POST /auth/login/complete`)**
 
 - Input: `{ userId, password }`
 - Backend:
@@ -147,7 +147,7 @@ interface User {
 
 ### 3.3 Sign Out
 
-**Endpoint:** `POST /api/auth/logout`
+**Endpoint:** `POST /auth/logout`
 
 - Clears `akis_session` cookie (set maxAge=0)
 - Returns: `{ ok: true }`
@@ -285,8 +285,8 @@ enum Role {
 
 **Endpoints:**
 
-- `GET /api/auth/oauth/:provider` → Redirect to provider
-- `GET /api/auth/oauth/:provider/callback` → Handle OAuth callback
+- `GET /auth/oauth/:provider` → Redirect to provider
+- `GET /auth/oauth/:provider/callback` → Handle OAuth callback
 
 **Process:**
 
@@ -338,24 +338,24 @@ enum Role {
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| POST | `/api/auth/signup` | Single-step signup (legacy) |
-| POST | `/api/auth/login` | Single-step login (legacy) |
-| POST | `/api/auth/logout` | Clear session cookie |
-| GET | `/api/auth/me` | Get current user |
+| POST | `/auth/signup` | Single-step signup (legacy) |
+| POST | `/auth/login` | Single-step login (legacy) |
+| POST | `/auth/logout` | Clear session cookie |
+| GET | `/auth/me` | Get current user |
 
 ### 9.2 Planned (Multi-Step)
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| POST | `/api/auth/signup/start` | Step 1: Name + email |
-| POST | `/api/auth/signup/password` | Step 2: Set password |
-| POST | `/api/auth/verify-email` | Step 3: Verify 6-digit code |
-| POST | `/api/auth/resend-code` | Resend verification email |
-| POST | `/api/auth/login/start` | Step 1: Email check |
-| POST | `/api/auth/login/complete` | Step 2: Password |
-| POST | `/api/auth/update-preferences` | Update consent flags |
-| GET | `/api/auth/oauth/:provider` | OAuth redirect |
-| GET | `/api/auth/oauth/:provider/callback` | OAuth callback |
+| POST | `/auth/signup/start` | Step 1: Name + email |
+| POST | `/auth/signup/password` | Step 2: Set password |
+| POST | `/auth/verify-email` | Step 3: Verify 6-digit code |
+| POST | `/auth/resend-code` | Resend verification email |
+| POST | `/auth/login/start` | Step 1: Email check |
+| POST | `/auth/login/complete` | Step 2: Password |
+| POST | `/auth/update-preferences` | Update consent flags |
+| GET | `/auth/oauth/:provider` | OAuth redirect |
+| GET | `/auth/oauth/:provider/callback` | OAuth callback |
 
 ---
 
@@ -517,5 +517,210 @@ RESEND_FROM_EMAIL=noreply@yourdomain.com
 
 ---
 
-**Status:** This document describes the **target state** for S0.4.4. Implementation is in progress.
+## 15. Developer Guide
+
+### 15.1 Local Development Setup
+
+**Prerequisites:**
+- Docker & Docker Compose (for PostgreSQL)
+- Node.js 20.x
+- pnpm
+
+**Steps:**
+
+1. **Start PostgreSQL via Docker Compose:**
+```bash
+cd devagents
+docker-compose -f docker-compose.dev.yml up -d
+```
+
+2. **Set up environment variables:**
+```bash
+cd backend
+cp .env.example .env
+# Edit .env and set DATABASE_URL to match Docker Compose config
+# Example: DATABASE_URL=postgresql://postgres:postgres@localhost:5432/akis_dev
+```
+
+3. **Run database migrations:**
+```bash
+pnpm db:migrate
+```
+
+4. **Start backend server:**
+```bash
+pnpm dev
+```
+
+### 15.2 Email Verification in Development
+
+**MockEmailService Behavior:**
+
+In development (`EMAIL_PROVIDER=mock`), verification codes are **not sent via email**. Instead, they are logged to the console:
+
+```
+[VerificationService] Sending verification code to user@example.com
+[MockEmailService] Would send email to user@example.com
+[MockEmailService] Subject: Verify your AKIS email
+[MockEmailService] Code: 123456
+```
+
+**How to test signup flow:**
+
+1. Call `POST /auth/signup/start` with name + email
+2. Check console logs for the 6-digit code
+3. Copy the code
+4. Call `POST /auth/verify-email` with userId + code
+
+**Inspecting Database:**
+
+Use Adminer (included in docker-compose.dev.yml) to inspect tables:
+
+```
+http://localhost:8080
+System: PostgreSQL
+Server: postgres
+Username: postgres
+Password: postgres
+Database: akis_dev
+```
+
+Navigate to:
+- `users` table → Check `status`, `email_verified`, `data_sharing_consent`, etc.
+- `email_verification_tokens` table → Check `code`, `expires_at`, `used_at`
+
+### 15.3 Testing Auth Flows with curl
+
+**Example: Complete Signup Flow**
+
+```bash
+# Step 1: Start signup
+curl -X POST http://localhost:3000/auth/signup/start \
+  -H "Content-Type: application/json" \
+  -d '{"firstName":"John","lastName":"Doe","email":"john@example.com"}'
+# Response: {"userId":"<uuid>","email":"john@example.com",...}
+# Check console for 6-digit code
+
+# Step 2: Set password
+curl -X POST http://localhost:3000/auth/signup/password \
+  -H "Content-Type: application/json" \
+  -d '{"userId":"<uuid>","password":"password123"}'
+# Response: {"ok":true}
+
+# Step 3: Verify email
+curl -X POST http://localhost:3000/auth/verify-email \
+  -H "Content-Type: application/json" \
+  -d '{"userId":"<uuid>","code":"123456"}' \
+  -c cookies.txt
+# Response: {"user":{...},"message":"Email verified successfully"}
+# Cookie akis_session is set
+
+# Step 4: Update preferences
+curl -X POST http://localhost:3000/auth/update-preferences \
+  -H "Content-Type: application/json" \
+  -b cookies.txt \
+  -d '{"dataSharingConsent":true,"hasSeenBetaWelcome":true}'
+# Response: {"ok":true}
+```
+
+**Example: Complete Login Flow**
+
+```bash
+# Step 1: Email check
+curl -X POST http://localhost:3000/auth/login/start \
+  -H "Content-Type: application/json" \
+  -d '{"email":"john@example.com"}'
+# Response: {"userId":"<uuid>","email":"john@example.com","requiresPassword":true}
+
+# Step 2: Password verification
+curl -X POST http://localhost:3000/auth/login/complete \
+  -H "Content-Type: application/json" \
+  -d '{"userId":"<uuid>","password":"password123"}' \
+  -c cookies.txt
+# Response: {"user":{...},"needsDataSharingConsent":false}
+# Cookie akis_session is set
+```
+
+### 15.4 Common Errors and Troubleshooting
+
+| Error | Cause | Solution |
+|-------|-------|----------|
+| `409 EMAIL_IN_USE` | Email already registered | Use different email or test login flow |
+| `400 INVALID_CODE` | Wrong code or expired | Check console logs for correct code; codes expire after 15 min |
+| `429 RATE_LIMITED` | Too many verification attempts | Wait 15 minutes or reset `email_verification_tokens` table |
+| `404 USER_NOT_FOUND` | userId doesn't exist | Check userId from signup/start response |
+| `401 INVALID_CREDENTIALS` | Wrong password | Verify password matches what was set in signup/password step |
+| Database connection error | PostgreSQL not running | Check `docker ps` and restart container if needed |
+
+**Reset verification tokens (for testing):**
+```sql
+-- Connect to DB via Adminer or psql
+DELETE FROM email_verification_tokens WHERE user_id = '<uuid>';
+```
+
+### 15.5 Extensibility and Future Work
+
+**Switching from Mock to Real Email Provider:**
+
+1. Sign up for Resend (https://resend.com)
+2. Get API key and verify domain
+3. Update `.env`:
+```bash
+EMAIL_PROVIDER=resend
+RESEND_API_KEY=re_xxxxx
+RESEND_FROM_EMAIL=noreply@yourdomain.com
+```
+4. Restart backend → emails will be sent via Resend
+
+**Adding OAuth Providers:**
+
+1. Create adapter class in `backend/src/services/auth/oauth/`:
+```typescript
+// GoogleOAuthAdapter.ts
+export class GoogleOAuthAdapter implements IOAuthAdapter {
+  async initiateFlow(redirectUri: string): Promise<string> { /* ... */ }
+  async handleCallback(code: string): Promise<OAuthUserProfile> { /* ... */ }
+}
+```
+
+2. Register routes in `auth.ts`:
+```typescript
+fastify.get('/oauth/google', async (request, reply) => {
+  const adapter = new GoogleOAuthAdapter(env.GOOGLE_CLIENT_ID, env.GOOGLE_CLIENT_SECRET);
+  const authUrl = await adapter.initiateFlow(env.FRONTEND_URL + '/auth/callback');
+  reply.redirect(authUrl);
+});
+```
+
+3. Add environment variables:
+```bash
+GOOGLE_CLIENT_ID=...
+GOOGLE_CLIENT_SECRET=...
+```
+
+**Adding New User Preference Fields:**
+
+1. Update `users` table schema in `backend/src/db/schema.ts`:
+```typescript
+export const users = pgTable('users', {
+  // ... existing fields
+  newPreference: boolean('new_preference').default(false),
+});
+```
+
+2. Generate migration:
+```bash
+pnpm db:generate
+```
+
+3. Run migration:
+```bash
+pnpm db:migrate
+```
+
+4. Update `/auth/update-preferences` endpoint to accept new field
+
+---
+
+**Status:** This document describes the **implemented state** for S0.4.4 (as of PR #90). OAuth integration is planned for future releases.
 
