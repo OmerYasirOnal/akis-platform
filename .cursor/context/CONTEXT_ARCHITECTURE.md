@@ -259,6 +259,345 @@ Finally, let’s justify why this proposed architecture and stack are superior f
 
 In essence, our **proposed architecture is both more efficient and more robust**. Efficiency comes from using **lightweight components** and **structured design** that avoids wasteful practices. Manageability (governance, modularity) ensures the system can be tuned and extended without devolving into inefficient hacks. On OCI Free Tier, where we can’t just scale up hardware at will, this careful design is the difference between a system that runs smoothly and one that constantly hits resource ceilings.
 
-**Conclusion:** By following this architecture and stack, AKIS Platform’s backend will be a well-oiled machine running within the tight OCI Free Tier budget. It leverages efficient use of CPU through asynchronous orchestration, keeps memory usage in check by eliminating bloat, and remains flexible for future growth. This approach will outperform a naive implementation that might squander CPU cycles and memory – making it not just a cleaner solution, but a **practical necessity** to meet the project’s ambitious goals on minimal infrastructure.
+**Conclusion:** By following this architecture and stack, AKIS Platform's backend will be a well-oiled machine running within the tight OCI Free Tier budget. It leverages efficient use of CPU through asynchronous orchestration, keeps memory usage in check by eliminating bloat, and remains flexible for future growth. This approach will outperform a naive implementation that might squander CPU cycles and memory – making it not just a cleaner solution, but a **practical necessity** to meet the project's ambitious goals on minimal infrastructure.
+
+-----
+
+### 7. Authentication & Authorization Architecture
+
+AKIS Platform implements a **JWT-based authentication system** with a **multi-step user onboarding flow** inspired by Cursor's sign-in/sign-up experience. This design prioritizes **UX clarity**, **security**, and **future OAuth extensibility** while maintaining minimal resource overhead on OCI Free Tier.
+
+#### 7.1 Authentication Strategy
+
+**Primary Method:** Email + Password
+
+- **Rationale:** Simple, no external dependencies, works offline-first for dev
+- **Password Security:** bcrypt hashing (12 rounds) via `@node-rs/bcrypt` (ARM-compatible Rust binary)
+- **Token Management:** Stateless JWT stored in HTTP-only cookies (`akis_session`)
+- **Session Duration:** 7 days (configurable via `JWT_EXPIRES_IN` env var)
+
+**Future Methods (S0.4.2+):**
+
+- **Google OAuth 2.0:** For users preferring social login
+- **GitHub OAuth:** Aligned with developer-centric product positioning
+- **Apple Sign In:** Optional, if iOS/macOS audience grows
+
+#### 7.2 Multi-Step User Flows
+
+Unlike traditional single-page signup, AKIS adopts a **progressive disclosure** pattern:
+
+**Signup Flow (5 steps):**
+
+```
+1. Name + Email         → POST /api/auth/signup/start
+2. Create Password      → POST /api/auth/signup/password
+3. Email Verification   → POST /api/auth/verify-email (6-digit code)
+4. Beta Notice          → (Frontend-only informational screen)
+5. Data Sharing Consent → POST /api/auth/update-preferences
+```
+
+**Login Flow (2 steps):**
+
+```
+1. Email Check          → POST /api/auth/login/start
+   (Backend validates user exists, returns userId)
+2. Password Entry       → POST /api/auth/login/complete
+   (Backend verifies password, issues JWT)
+```
+
+**Design Benefits:**
+
+- **Reduced Cognitive Load:** One decision per screen (Hick's Law)
+- **Graceful Error Handling:** Step 1 login can guide users to signup if email not found
+- **Email Verification Decoupled:** Users aren't blocked from setting password before verifying
+- **Consent Clarity:** Data sharing presented after account creation, not buried in TOS
+
+#### 7.3 User Account States
+
+```typescript
+enum UserStatus {
+  PENDING_VERIFICATION = 'pending_verification',  // Email not yet verified
+  ACTIVE = 'active',                              // Can use platform
+  DISABLED = 'disabled',                          // Admin-disabled
+  DELETED = 'deleted'                             // Soft-deleted
+}
+```
+
+**State Machine:**
+
+```
+[Signup Start] → PENDING_VERIFICATION
+                      ↓ (email code verified)
+                   ACTIVE
+                      ↓ (admin or self-action)
+                 DISABLED / DELETED
+```
+
+**Critical Rules:**
+
+- Users in `PENDING_VERIFICATION` cannot log in (redirect to verification flow)
+- `DISABLED` users see "Account suspended" message
+- `DELETED` users are soft-deleted (data retained for audit, marked as deleted)
+
+#### 7.4 JWT Structure & Security
+
+**Token Payload:**
+
+```json
+{
+  "sub": "user-uuid",        // Subject (user ID)
+  "email": "user@example.com",
+  "name": "User Name",
+  "iat": 1638360000,         // Issued at
+  "exp": 1638964800          // Expires at (7 days)
+}
+```
+
+**Signing:** HMAC-SHA256 with `JWT_SECRET` (256-bit minimum, from env)
+
+**Cookie Configuration:**
+
+```typescript
+{
+  httpOnly: true,        // No JS access (XSS mitigation)
+  secure: true,          // HTTPS only (prod)
+  sameSite: 'lax',       // CSRF protection
+  path: '/',
+  maxAge: 7 * 24 * 3600 * 1000  // 7 days
+}
+```
+
+**Validation on Every Request:**
+
+- Protected routes use `requireAuth` middleware
+- Middleware verifies:
+  1. Cookie exists
+  2. JWT signature valid
+  3. Token not expired
+  4. User exists in DB and status is `ACTIVE`
+- If any check fails → 401 Unauthorized, cookie cleared
+
+#### 7.5 OAuth Integration (Future State – S0.4.2)
+
+**Architecture Pattern:** **Adapter per Provider**
+
+```
+src/services/auth/
+  ├── oauth/
+  │   ├── GoogleOAuthAdapter.ts   # Handles Google-specific flow
+  │   ├── GitHubOAuthAdapter.ts   # Handles GitHub-specific flow
+  │   └── IOAuthAdapter.ts         # Interface for OAuth providers
+  ├── password.ts                   # bcrypt utilities
+  └── jwt.ts                        # JWT sign/verify
+```
+
+**OAuth Flow (Planned):**
+
+```
+1. User clicks "Continue with Google"
+   → GET /api/auth/oauth/google
+   → Redirect to Google consent screen
+
+2. User approves
+   → Callback: GET /api/auth/oauth/google/callback?code=...
+   → Backend exchanges code for access token
+   → Fetch user profile (email, name)
+   → If email exists: link account; else: create user
+   → Generate JWT, set cookie
+   → Redirect to /dashboard
+```
+
+**Account Linking Logic:**
+
+- If OAuth email matches existing user email (verified): Link accounts
+- If email unverified: Require verification before linking
+- Store OAuth tokens in separate `oauth_accounts` table (refresh tokens for future API calls)
+
+**Why Not Now?**
+
+- Adds dependency on external OAuth servers (complicates dev environment)
+- Requires managing OAuth app credentials (secrets, redirect URIs)
+- Multi-step email/password flow is sufficient for MVP
+- OAuth tokens need secure storage + refresh logic → deferred to avoid scope creep
+
+#### 7.6 Authorization Model (Current & Future)
+
+**Current (S0.4.4):** **No RBAC**
+
+- All authenticated users have equal permissions
+- Can create/view their own jobs and agents
+- No admin-only features yet
+
+**Future (S0.5+):** **Role-Based Access Control (RBAC)**
+
+```typescript
+enum Role {
+  USER = 'user',       // Default: can use agents, view own jobs
+  ADMIN = 'admin'      // Can view all jobs, manage users, configure system
+}
+
+// Middleware: requireRole('admin')
+async function requireRole(role: Role) {
+  // Check request.user.role >= role
+}
+```
+
+**Planned Permissions:**
+
+- `USER`: Create jobs, view own jobs, configure own agents
+- `ADMIN`: View all jobs, delete jobs, disable users, view system metrics
+
+#### 7.7 Security Hardening
+
+**Current Measures:**
+
+- **Rate Limiting:** 100 req/min global (via `@fastify/rate-limit`)
+- **CORS:** Locked to `CORS_ORIGINS` env (prod: specific frontend domain)
+- **Helmet:** Security headers via `@fastify/helmet`
+- **HTTPS-only cookies** in production
+- **Password strength:** Min 8 chars (enforced at API + UI)
+
+**Future Hardening (S0.5+):**
+
+- **Per-endpoint rate limits:** 5 login attempts per 15min per IP
+- **Refresh tokens:** Rotate JWT every 1 hour (stored in DB, revocable)
+- **2FA (optional):** TOTP-based (Google Authenticator)
+- **Session revocation:** Add `sessions` table for centralized logout
+- **Audit logging:** Log all auth events (login, failed attempts, logouts)
+
+#### 7.8 Integration with Agent Orchestrator
+
+**Auth Context in Agent Execution:**
+
+When a user triggers an agent job (e.g., "Run Scribe on my repo"):
+
+1. API endpoint validates JWT → extracts `userId`
+2. Orchestrator receives `userId` in job context
+3. Orchestrator fetches user's linked integrations (GitHub token, Jira token)
+4. Orchestrator passes integration tokens to agent's MCP adapters
+5. Agent executes with user's permissions (e.g., commits to GitHub as user's GitHub App installation)
+
+**Token Storage for Integrations:**
+
+- GitHub: Installation token (short-lived, generated per job via GitHub App)
+- Jira/Confluence: User-provided API token (stored encrypted in `integration_credentials` table)
+- OpenRouter: Platform-wide API key (not per-user, for now)
+
+**Future:** Per-user AI budgets (track token usage per user, rate limit heavy users)
+
+#### 7.9 Data Privacy & Consent
+
+**Data Sharing Consent Flag:**
+
+- `dataSharingConsent: boolean | null` on User model
+- `null` = not yet asked (new users)
+- `true` = user opted in to telemetry/improvement data
+- `false` = user opted out
+
+**Consent Flow:**
+
+- Shown **after email verification** (during first login or signup)
+- Full-screen or modal: "Help improve AKIS by sharing anonymized usage data"
+- User can change preference later in Settings → Privacy
+
+**What Data is Shared (if consented):**
+
+- Agent job types and counts (no code content)
+- Feature usage (which pages visited, buttons clicked)
+- Error logs (anonymized stack traces)
+
+**Never Shared (even with consent):**
+
+- User code/repositories
+- Jira ticket content
+- Confluence page content
+- Integration tokens
+
+#### 7.10 Error Handling & User Messaging
+
+**Auth Errors (Human-Readable):**
+
+| Scenario | Backend Response | Frontend Message |
+|----------|------------------|------------------|
+| Email already registered | `409 EMAIL_IN_USE` | "This email is already in use. [Sign in instead?]" |
+| Wrong password | `401 INVALID_CREDENTIALS` | "Incorrect email or password." |
+| Email not verified | `403 EMAIL_NOT_VERIFIED` | "Please verify your email. [Resend code?]" |
+| Invalid verification code | `400 INVALID_CODE` | "Code is incorrect or expired. Try again." |
+| Too many attempts | `429 TOO_MANY_ATTEMPTS` | "Too many attempts. Wait 15 minutes." |
+| Session expired | `401 UNAUTHORIZED` | (Auto-redirect to login) |
+
+**No Information Leakage:**
+
+- Login step 1: If email not found → "No account with this email" (clear, not "invalid")
+- Login step 2: If password wrong → "Incorrect email or password" (generic, to avoid user enumeration)
+
+#### 7.11 Technology Choices (Auth-Specific)
+
+| Component | Library | Rationale |
+|-----------|---------|-----------|
+| Password Hashing | `@node-rs/bcrypt` | Fast Rust binding, ARM-compatible, secure defaults (12 rounds) |
+| JWT | `jose` (Node built-in as of v19) or `jsonwebtoken` | Lightweight, standard-compliant, no dependencies |
+| Cookie Management | `@fastify/cookie` | Built-in to Fastify, minimal overhead |
+| Email Verification | Console log (dev), SendGrid (prod future) | Dev-friendly now, scalable later |
+| Rate Limiting | `@fastify/rate-limit` | Memory-efficient, IP-based, easy config |
+
+**No Heavy Auth Frameworks:**
+
+- Avoided NextAuth (tightly coupled to Next.js, which we dropped)
+- Avoided Passport (overkill for our needs, adds complexity)
+- Custom implementation ensures full control and minimal footprint (critical for OCI constraints)
+
+#### 7.12 Testing Strategy (Auth)
+
+**Unit Tests:**
+
+- `hashPassword()` + `verifyPassword()` correctness
+- `sign()` + `verify()` JWT roundtrip
+- Email validation regex
+
+**Integration Tests:**
+
+- Signup flow: start → password → verify → login
+- Login flow: email check → password → dashboard
+- Session validation (valid/expired/missing token)
+- Logout clears cookie
+
+**E2E Tests (Future):**
+
+- Full user journey: Signup → verify email → beta notice → consent → dashboard
+- OAuth flow with mocked provider
+
+#### 7.13 Migration Plan (Existing → Target)
+
+**Phase 1 (S0.4.4 – This PR):**
+
+- ✅ Create new multi-step endpoints
+- ✅ Keep legacy `/signup` and `/login` for backward compatibility
+- ✅ Update frontend to use new flow
+- ✅ Add email verification stub (console log codes)
+
+**Phase 2 (S0.4.2 – OAuth):**
+
+- Remove legacy endpoints
+- Implement Google/GitHub OAuth adapters
+- Add real email delivery (SendGrid)
+- Per-endpoint rate limiting
+
+**Phase 3 (S0.5 – Advanced Security):**
+
+- Refresh tokens
+- RBAC (roles)
+- 2FA (optional)
+- Session revocation
+
+#### 7.14 References
+
+- **Auth Documentation:** `backend/docs/Auth.md` (detailed implementation guide)
+- **API Spec:** `backend/docs/API_SPEC.md` (endpoint definitions)
+- **Frontend IA:** `docs/WEB_INFORMATION_ARCHITECTURE.md` (auth page flows)
+- **UI Design:** `docs/UI_DESIGN_SYSTEM.md` (auth form patterns)
+- **JWT Standard:** RFC 7519
+- **OAuth 2.0:** RFC 6749
+- **bcrypt:** USENIX '99 paper on adaptive hashing
 
 -----

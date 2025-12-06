@@ -162,9 +162,40 @@ List all jobs (paginated).
 
 ## Authentication
 
-### POST /api/auth/login
+AKIS uses a **multi-step authentication flow** for improved UX and security. All auth endpoints return consistent error formats.
 
-Authenticate user and receive session token.
+### Current (Single-Step – Legacy, deprecated)
+
+These endpoints are kept for backward compatibility but will be removed in a future version.
+
+#### POST /api/auth/signup
+
+Single-step signup (deprecated).
+
+**Request Body**:
+```json
+{
+  "name": "User Name",
+  "email": "user@example.com",
+  "password": "password123"
+}
+```
+
+**Response (201)**:
+```json
+{
+  "id": "uuid",
+  "email": "user@example.com",
+  "name": "User Name"
+}
+```
+
+**Errors**:
+- `409 Conflict`: `{ "error": "Email in use" }`
+
+#### POST /api/auth/login
+
+Single-step login (deprecated).
 
 **Request Body**:
 ```json
@@ -177,34 +208,351 @@ Authenticate user and receive session token.
 **Response (200)**:
 ```json
 {
-  "token": "jwt-token",
-  "user": {
-    "id": "uuid",
-    "email": "user@example.com",
-    "name": "User Name"
-  }
-}
-```
-
-### POST /api/auth/register
-
-Register a new user account.
-
-**Request Body**:
-```json
-{
+  "id": "uuid",
   "email": "user@example.com",
-  "password": "password123",
   "name": "User Name"
 }
 ```
 
-### POST /api/auth/logout
+**Errors**:
+- `401 Unauthorized`: `{ "error": "Invalid credentials" }`
 
-Invalidate current session.
+---
+
+### Multi-Step Sign Up (New Flow)
+
+#### POST /api/auth/signup/start
+
+**Step 1: Name + Email**
+
+Creates a new user in `PENDING_VERIFICATION` state and sends a 6-digit verification code.
+
+**Request Body**:
+```json
+{
+  "firstName": "John",
+  "lastName": "Doe",
+  "email": "john.doe@example.com"
+}
+```
+
+**Response (201)**:
+```json
+{
+  "userId": "uuid",
+  "email": "john.doe@example.com",
+  "message": "Verification code sent to your email",
+  "status": "pending_verification"
+}
+```
+
+**Errors**:
+- `400 Bad Request`: Invalid email format
+- `409 Conflict`: `{ "error": "Email already registered" }`
+
+**Notes**:
+- Verification code is 6 digits, valid for 15 minutes
+- Dev mode: Code logged to console
+- Prod mode: Code sent via email (SendGrid)
+
+---
+
+#### POST /api/auth/signup/password
+
+**Step 2: Set Password**
+
+Sets the password for a user in `PENDING_VERIFICATION` state.
+
+**Request Body**:
+```json
+{
+  "userId": "uuid",
+  "password": "securePassword123"
+}
+```
+
+**Response (200)**:
+```json
+{
+  "ok": true,
+  "message": "Password set successfully"
+}
+```
+
+**Errors**:
+- `400 Bad Request`: Password < 8 characters
+- `404 Not Found`: `{ "error": "User not found" }`
+- `403 Forbidden`: `{ "error": "User already verified" }`
+
+---
+
+#### POST /api/auth/verify-email
+
+**Step 3: Verify Email Code**
+
+Verifies the 6-digit code and activates the user account.
+
+**Request Body**:
+```json
+{
+  "userId": "uuid",
+  "code": "123456"
+}
+```
+
+**Response (200)**:
+```json
+{
+  "user": {
+    "id": "uuid",
+    "email": "john.doe@example.com",
+    "name": "John Doe",
+    "status": "active"
+  },
+  "token": "jwt-token",
+  "message": "Email verified successfully"
+}
+```
+
+**Sets Cookie**: `akis_session` with JWT (HTTP-only, 7 days)
+
+**Errors**:
+- `400 Bad Request`: `{ "error": "Invalid or expired code" }`
+- `404 Not Found`: `{ "error": "User not found" }`
+- `429 Too Many Requests`: `{ "error": "Too many attempts. Wait 15 minutes." }`
+
+**Rate Limit**: 3 attempts per 15 minutes per user
+
+---
+
+#### POST /api/auth/resend-code
+
+Resends verification code.
+
+**Request Body**:
+```json
+{
+  "userId": "uuid"
+}
+```
+
+**Response (200)**:
+```json
+{
+  "ok": true,
+  "message": "Verification code resent"
+}
+```
+
+**Errors**:
+- `404 Not Found`: User not found
+- `403 Forbidden`: User already verified
+- `429 Too Many Requests`: Max 3 resends per 15 minutes
+
+---
+
+### Multi-Step Sign In (New Flow)
+
+#### POST /api/auth/login/start
+
+**Step 1: Email Check**
+
+Validates if user exists and returns user info (without sensitive data).
+
+**Request Body**:
+```json
+{
+  "email": "john.doe@example.com"
+}
+```
+
+**Response (200)**:
+```json
+{
+  "userId": "uuid",
+  "email": "john.doe@example.com",
+  "requiresPassword": true,
+  "status": "active"
+}
+```
+
+**Errors**:
+- `404 Not Found`: `{ "error": "No account found with this email" }`
+- `403 Forbidden`: `{ "error": "Email not verified", "userId": "uuid" }` (redirects to verification)
+
+---
+
+#### POST /api/auth/login/complete
+
+**Step 2: Password Verification**
+
+Verifies password and issues JWT session.
+
+**Request Body**:
+```json
+{
+  "userId": "uuid",
+  "password": "securePassword123"
+}
+```
+
+**Response (200)**:
+```json
+{
+  "user": {
+    "id": "uuid",
+    "email": "john.doe@example.com",
+    "name": "John Doe"
+  },
+  "needsDataSharingConsent": false
+}
+```
+
+**Sets Cookie**: `akis_session` with JWT
+
+**Errors**:
+- `401 Unauthorized`: `{ "error": "Incorrect password" }`
+- `404 Not Found`: `{ "error": "User not found" }`
+- `429 Too Many Requests`: `{ "error": "Too many attempts" }` (5 per 15min)
+
+**Notes**:
+- `needsDataSharingConsent: true` if user hasn't seen consent screen yet (frontend redirects to `/auth/privacy-consent`)
+
+---
+
+### User Preferences
+
+#### POST /api/auth/update-preferences
+
+Updates user consent and preferences.
+
+**Request Body**:
+```json
+{
+  "dataSharingConsent": true,
+  "hasSeenBetaWelcome": true
+}
+```
 
 **Headers**:
-- `Authorization: Bearer <token>`
+- `Cookie: akis_session=<jwt>`
+
+**Response (200)**:
+```json
+{
+  "ok": true
+}
+```
+
+**Errors**:
+- `401 Unauthorized`: Invalid or missing token
+
+---
+
+### Session Management
+
+#### POST /api/auth/logout
+
+Clears session cookie.
+
+**Headers**:
+- `Cookie: akis_session=<jwt>` (optional)
+
+**Response (200)**:
+```json
+{
+  "ok": true
+}
+```
+
+**Clears Cookie**: `akis_session` (maxAge=0)
+
+---
+
+#### GET /api/auth/me
+
+Get current authenticated user.
+
+**Headers**:
+- `Cookie: akis_session=<jwt>`
+
+**Response (200)**:
+```json
+{
+  "id": "uuid",
+  "email": "john.doe@example.com",
+  "name": "John Doe",
+  "status": "active",
+  "emailVerified": true,
+  "dataSharingConsent": true,
+  "hasSeenBetaWelcome": true
+}
+```
+
+**Errors**:
+- `401 Unauthorized`: `{ "user": null }` (invalid/expired token)
+
+---
+
+### OAuth (Future – S0.4.2)
+
+#### GET /api/auth/oauth/:provider
+
+Initiates OAuth flow (redirects to provider).
+
+**Params**:
+- `provider`: `google` | `github` | `apple`
+
+**Response**: `302 Redirect` to provider's OAuth consent screen
+
+**Example**:
+```
+GET /api/auth/oauth/google
+→ Redirects to https://accounts.google.com/o/oauth2/v2/auth?...
+```
+
+---
+
+#### GET /api/auth/oauth/:provider/callback
+
+Handles OAuth callback from provider.
+
+**Query Params**:
+- `code`: Authorization code from provider
+- `state`: CSRF token (optional)
+
+**Response**: `302 Redirect` to `/dashboard` with session cookie set
+
+**Errors**:
+- `400 Bad Request`: `{ "error": "Invalid OAuth code" }`
+- `409 Conflict`: `{ "error": "Email already linked to another account" }`
+
+---
+
+### Auth Error Response Format
+
+All auth errors follow this structure:
+
+```json
+{
+  "error": "Human-readable error message",
+  "code": "ERROR_CODE",
+  "details": {}
+}
+```
+
+**Common Error Codes**:
+
+| Code | HTTP | Description |
+|------|------|-------------|
+| `EMAIL_IN_USE` | 409 | Email already registered |
+| `INVALID_CREDENTIALS` | 401 | Wrong email or password |
+| `EMAIL_NOT_VERIFIED` | 403 | User must verify email first |
+| `INVALID_CODE` | 400 | Verification code wrong/expired |
+| `TOO_MANY_ATTEMPTS` | 429 | Rate limit exceeded |
+| `UNAUTHORIZED` | 401 | Missing or invalid token |
+| `USER_NOT_FOUND` | 404 | User doesn't exist |
+| `USER_DISABLED` | 403 | Account suspended |
 
 ---
 

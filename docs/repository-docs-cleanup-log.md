@@ -36,7 +36,29 @@ Bu iterasyonda README ve `.cursor` context dosyaları tam hizaya getirildi; `doc
 **.cursor updates:**
 - Scope/Architecture dosyaları arasında yönlendirmeler tamamlandı; MCP scaffold promptu doğru klasörü gösteriyor.
 
-**Open questions / TODO’lar:**
+**Open questions / TODO'lar:**
 - `backend/docs/PROJECT_DEEP_AUDIT_REPORT.md` hâlâ bulunamıyor; varsa eski içerik arşive eklenmeli.
-- Frontend içerik TODO’ları (FAQ, ROI widget vb.) roadmap’e göre insan ekibi tarafından planlanmalı.
+- Frontend içerik TODO'ları (FAQ, ROI widget vb.) roadmap'e göre insan ekibi tarafından planlanmalı.
+
+## [2025-12-06] S0.4.4-FE-Auth – Cursor-style multi-step auth flows (planning phase)
+
+**Mevcut Durum (Baseline):**
+- Backend auth endpoints: `/api/auth/signup`, `/api/auth/login`, `/api/auth/logout`, `/api/auth/me`
+- Backend: Tek adımlı signup (name+email+password) ve login (email+password)
+- Frontend: `frontend/src/pages/auth/Login.tsx` ve `Signup.tsx` - tek sayfalık formlar
+- OAuth entegrasyonu yok, email doğrulama yok, data sharing consent yok
+- `backend/docs/Auth.md` mevcut değil
+
+**Hedef:**
+Cursor tarzı çok adımlı auth deneyimi:
+- **Login:** Email adımı → Password adımı
+- **Signup:** Name+Email → Password → Email verification (6 digit) → Beta notice → Data sharing consent
+- OAuth butonları (Google/GitHub) UI'da var ama disabled/placeholder
+- Yeni rotalar: `/auth/login/password`, `/auth/signup/password`, `/auth/signup/verify-email`, `/auth/welcome-beta`, `/auth/privacy-consent`
+
+**Yapılacaklar:**
+1. Dokümantasyon güncellemeleri (CONTEXT_ARCHITECTURE, CONTEXT_SCOPE, IA, API_SPEC, yeni Auth.md)
+2. Frontend multi-step UI implementasyonu
+3. Backend: yeni endpoints tasarımı (başlangıçta stub olabilir)
+4. Quality gates (lint, typecheck, test)
 
