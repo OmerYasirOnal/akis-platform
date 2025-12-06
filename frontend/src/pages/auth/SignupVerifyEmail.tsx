@@ -1,9 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../contexts/AuthContext';
 import Button from '../../components/common/Button';
 
 export default function SignupVerifyEmail() {
   const navigate = useNavigate();
+  const { setUser } = useAuth();
   const [email, setEmail] = useState('');
   const [userId, setUserId] = useState('');
   const [code, setCode] = useState(['', '', '', '', '', '']);
@@ -76,10 +78,13 @@ export default function SignupVerifyEmail() {
 
     try {
       const { AuthAPI } = await import('../../services/api/auth');
-      await AuthAPI.verifyEmail({
+      const response = await AuthAPI.verifyEmail({
         userId,
         code: fullCode,
       });
+
+      // Update auth context with user data
+      setUser(response.user);
 
       // Clear signup data
       sessionStorage.removeItem('akis_signup_data');

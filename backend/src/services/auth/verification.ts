@@ -5,7 +5,7 @@
 
 import { db } from '../../db/client.js';
 import { emailVerificationTokens, users } from '../../db/schema.js';
-import { eq, and, gte, isNull } from 'drizzle-orm';
+import { eq, and, gte, lt, isNull } from 'drizzle-orm';
 import type { EmailService } from '../email/EmailService.js';
 
 export interface VerificationCodeOptions {
@@ -114,10 +114,9 @@ export class VerificationService {
   async cleanupExpiredTokens(): Promise<number> {
     const result = await db
       .delete(emailVerificationTokens)
-      .where(and(
-        gte(emailVerificationTokens.expiresAt, new Date()),
-        isNull(emailVerificationTokens.usedAt)
-      ))
+      .where(
+        lt(emailVerificationTokens.expiresAt, new Date())
+      )
       .returning();
 
     return result.length;
