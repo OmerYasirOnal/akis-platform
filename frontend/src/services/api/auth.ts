@@ -32,9 +32,42 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return response.json() as Promise<T>;
 }
 
-export type AuthUser = { id: string; name: string; email: string };
+export type AuthUser = { 
+  id: string; 
+  name: string; 
+  email: string;
+  status?: string;
+  emailVerified?: boolean;
+  dataSharingConsent?: boolean | null;
+  hasSeenBetaWelcome?: boolean;
+};
+
+export type SignupStartResponse = {
+  userId: string;
+  email: string;
+  message: string;
+  status: string;
+};
+
+export type LoginStartResponse = {
+  userId: string;
+  email: string;
+  requiresPassword: boolean;
+  status: string;
+};
+
+export type LoginCompleteResponse = {
+  user: AuthUser;
+  needsDataSharingConsent: boolean;
+};
+
+export type VerifyEmailResponse = {
+  user: AuthUser;
+  message: string;
+};
 
 export const AuthAPI = {
+  // Legacy single-step methods (deprecated)
   signup: (data: { name: string; email: string; password: string }) =>
     request<AuthUser>('/auth/signup', {
       method: 'POST',
@@ -45,6 +78,49 @@ export const AuthAPI = {
       method: 'POST',
       body: JSON.stringify(data),
     }),
+  
+  // Multi-step signup flow
+  signupStart: (data: { firstName: string; lastName: string; email: string }) =>
+    request<SignupStartResponse>('/auth/signup/start', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  signupPassword: (data: { userId: string; password: string }) =>
+    request<{ ok: boolean; message: string }>('/auth/signup/password', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  verifyEmail: (data: { userId: string; code: string }) =>
+    request<VerifyEmailResponse>('/auth/verify-email', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  resendCode: (data: { userId: string }) =>
+    request<{ ok: boolean; message: string }>('/auth/resend-code', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  
+  // Multi-step login flow
+  loginStart: (data: { email: string }) =>
+    request<LoginStartResponse>('/auth/login/start', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  loginComplete: (data: { userId: string; password: string }) =>
+    request<LoginCompleteResponse>('/auth/login/complete', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  
+  // User preferences
+  updatePreferences: (data: { dataSharingConsent?: boolean; hasSeenBetaWelcome?: boolean }) =>
+    request<{ ok: boolean }>('/auth/update-preferences', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  
+  // Session management
   me: () => request<AuthUser>('/auth/me'),
   logout: () =>
     request<{ ok: boolean }>('/auth/logout', {

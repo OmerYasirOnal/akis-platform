@@ -43,6 +43,13 @@
       "when": 1764166395085,
       "tag": "0005_workable_loners",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1765015271175,
+      "tag": "0006_shiny_micromacro",
+      "breakpoints": true
     }
   ]
 }

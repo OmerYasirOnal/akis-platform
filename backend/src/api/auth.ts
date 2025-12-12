@@ -6,6 +6,9 @@ import { users } from '../db/schema.js';
 import { hashPassword, verifyPassword } from '../services/auth/password.js';
 import { sign, verify } from '../services/auth/jwt.js';
 import { cookieOpts, env } from '../lib/env.js';
+import { getEnv } from '../config/env.js';
+import { createEmailService } from '../services/email/index.js';
+import { registerMultiStepAuthRoutes } from './auth.multi-step.js';
 
 type User = typeof users.$inferSelect;
 
@@ -31,6 +34,18 @@ function clearSessionCookie(reply: FastifyReply) {
 }
 
 export async function authRoutes(fastify: FastifyInstance) {
+  // Initialize email service
+  const config = getEnv();
+  const emailService = createEmailService({
+    provider: config.EMAIL_PROVIDER,
+    apiKey: config.RESEND_API_KEY,
+    fromEmail: config.RESEND_FROM_EMAIL,
+  });
+
+  // Register multi-step auth routes
+  await registerMultiStepAuthRoutes(fastify, emailService);
+
+  // Legacy routes (deprecated - kept for backwards compatibility)
   fastify.get(
     '/health',
     {
@@ -55,6 +70,7 @@ export async function authRoutes(fastify: FastifyInstance) {
     }
   );
 
+  // DEPRECATED: Single-step signup (kept for backwards compatibility)
   fastify.post('/signup', async (request, reply) => {
     const body = SignupSchema.parse(request.body);
 
@@ -82,6 +98,7 @@ export async function authRoutes(fastify: FastifyInstance) {
     return reply.code(201).send(sanitizeUser(created));
   });
 
+  // DEPRECATED: Single-step login (kept for backwards compatibility)
   fastify.post('/login', async (request, reply) => {
     const body = LoginSchema.parse(request.body);
 
