@@ -1,6 +1,39 @@
-# Docs NEXT — Gap Audit (2025-01-08)
+# Docs NEXT — Gap Audit & Changelog
 
-## Summary
+## Recent Updates
+
+### ✅ [S0.4.2-DOC-2] Auth Documentation Sync Completed (2025-12-06)
+
+**Status:** DONE  
+**Scope:** Synced all canonical documentation with email-based multi-step authentication flow (implemented in PR #90)
+
+**Files Updated:**
+- `.cursor/context/CONTEXT_SCOPE.md` → Added "Authentication & Onboarding" section (Section 2.2: A1 with 5-step signup, 2-step login details)
+- `.cursor/context/CONTEXT_ARCHITECTURE.md` → Updated Section 7 "Auth Architecture" (backend components, data model, sequence flows, future OAuth strategy)
+- `docs/WEB_INFORMATION_ARCHITECTURE.md` → Fixed all `/api/auth/*` paths to `/auth/*`, added cross-references to backend docs
+- `backend/docs/API_SPEC.md` → Fixed all auth endpoint paths from `/api/auth/*` to `/auth/*` (14 endpoints updated)
+- `backend/docs/Auth.md` → Added Section 15 "Developer Guide" (local dev setup, MockEmailService debugging, curl examples, troubleshooting, extensibility)
+- `docs/NEXT.md` → Added this changelog entry
+
+**Key Changes:**
+- Documented multi-step signup flow: `email → password → 6-digit verification → beta welcome → privacy consent`
+- Documented multi-step login flow: `email check → password → dashboard (or privacy consent if not set)`
+- Explained email verification: 6-digit codes, 15min expiry, rate limiting (3 attempts per 15min)
+- Clarified future OAuth strategy: OAuth will be layered on top of email/password core; email remains primary user identity
+- Added developer debugging guide: MockEmailService console logs, Adminer database inspection, curl test examples
+- Fixed all auth endpoint paths: `/api/auth/*` → `/auth/*` (aligning with Fastify `prefix: '/auth'` registration)
+
+**Verification:**
+- All endpoint paths match `backend/src/server.app.ts` line 142: `app.register(authRoutes, { prefix: '/auth' })`
+- Database schema documented matches `backend/src/db/schema.ts` (users, email_verification_tokens tables)
+- Auth flow sequences match implementation in `backend/src/api/auth.multi-step.ts` and `backend/src/services/auth/verification.ts`
+- Frontend pages match `frontend/src/pages/auth/` directory structure
+
+---
+
+## Original Audit (2025-01-08)
+
+### Summary
 
 Documentation audit focused on completeness, accuracy, and developer onboarding experience. Core findings: Strong foundation exists (ROADMAP, UI_DESIGN_SYSTEM, Auth, WEB_INFORMATION_ARCHITECTURE) but missing critical guides (ENV_SETUP, TESTING, PERFORMANCE), CI/DX documentation incomplete, and accessibility guidelines not actionable enough.
 

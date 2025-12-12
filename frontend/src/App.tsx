@@ -32,6 +32,13 @@ import LegalPrivacyPage from './pages/legal/LegalPrivacyPage';
 import StatusPage from './pages/StatusPage';
 import Login from './pages/auth/Login';
 import Signup from './pages/auth/Signup';
+import LoginEmail from './pages/auth/LoginEmail';
+import LoginPassword from './pages/auth/LoginPassword';
+import SignupEmail from './pages/auth/SignupEmail';
+import SignupPassword from './pages/auth/SignupPassword';
+import SignupVerifyEmail from './pages/auth/SignupVerifyEmail';
+import WelcomeBeta from './pages/auth/WelcomeBeta';
+import PrivacyConsent from './pages/auth/PrivacyConsent';
 import DashboardOverviewPage from './pages/dashboard/DashboardOverviewPage';
 import DashboardAgentsIndexPage from './pages/dashboard/DashboardAgentsIndexPage';
 import DashboardAgentScribePage from './pages/dashboard/agents/DashboardAgentScribePage';
@@ -93,8 +100,25 @@ function App() {
               <Route path="privacy" element={<LegalPrivacyPage />} />
             </Route>
             <Route path="status" element={<StatusPage />} />
-            <Route path="login" element={<Login />} />
-            <Route path="signup" element={<Signup />} />
+
+            {/* Auth Routes - Multi-Step Flow (New) */}
+            <Route path="login">
+              <Route index element={<LoginEmail />} />
+              <Route path="password" element={<LoginPassword />} />
+            </Route>
+            <Route path="signup">
+              <Route index element={<SignupEmail />} />
+              <Route path="password" element={<SignupPassword />} />
+              <Route path="verify-email" element={<SignupVerifyEmail />} />
+            </Route>
+            <Route path="auth">
+              <Route path="welcome-beta" element={<WelcomeBeta />} />
+              <Route path="privacy-consent" element={<PrivacyConsent />} />
+            </Route>
+
+            {/* Legacy Auth Routes (Deprecated, kept for backwards compatibility) */}
+            <Route path="auth/login-legacy" element={<Login />} />
+            <Route path="auth/signup-legacy" element={<Signup />} />
           </Route>
 
           <Route

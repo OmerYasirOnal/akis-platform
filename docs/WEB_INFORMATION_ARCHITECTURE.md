@@ -144,8 +144,13 @@ AKIS Platform (Public + Private Areas)
 │   │   ├── privacy-policy                                    │
 │   │   └── security                                          │
 │   │                                                          │
-│   ├── /login                                                │
-│   └── /signup                                               │
+│   ├── /login (multi-step auth)                              │
+│   │   ├── /login/password (Step 2: password entry)         │
+│   ├── /signup (multi-step auth)                            │
+│   │   ├── /signup/password (Step 2: set password)          │
+│   │   ├── /signup/verify-email (Step 3: 6-digit code)      │
+│   ├── /auth/welcome-beta (Beta tier notice)                │
+│   └── /auth/privacy-consent (Data sharing consent)         │
 │                                                              │
 └── [AUTHENTICATED DASHBOARD] ────────────────────────────────┘
     │
@@ -175,6 +180,274 @@ AKIS Platform (Public + Private Areas)
 ---
 
 ## 3. Detaylı Sayfa İçerikleri
+
+### 3.0 Authentication Pages (Multi-Step Flows)
+
+AKIS Platform, **Cursor-style multi-step authentication** kullanır: Her adım tek bir karar/eylem içerir, kullanıcı yükünü azaltır ve hata yönetimini iyileştirir.
+
+> **Teknik Referanslar:**
+> - Backend implementasyon detayları: `backend/docs/Auth.md`
+> - Mimari ve veri modeli: `.cursor/context/CONTEXT_ARCHITECTURE.md` (Section 7)
+> - API endpoint dokümantasyonu: `backend/docs/API_SPEC.md` (Auth API bölümü)
+
+#### **A. Sign In Flow (2 Steps)**
+
+**Route:** `/login`
+
+**Step 1: Email Entry**
+
+```
+┌──────────────────────────────────────────────────────────────┐
+│  [AKIS Logo - Small]                                         │
+│                                                               │
+│  Welcome back                                                │
+│  Sign in to continue to AKIS                                 │
+│                                                               │
+│  ┌────────────────────────────────────────────────────────┐  │
+│  │ Continue with Google              [Google Icon]        │  │
+│  └────────────────────────────────────────────────────────┘  │
+│  ┌────────────────────────────────────────────────────────┐  │
+│  │ Continue with GitHub              [GitHub Icon]        │  │
+│  └────────────────────────────────────────────────────────┘  │
+│                                                               │
+│  ─────────────── or ───────────────                          │
+│                                                               │
+│  Email address                                               │
+│  [_______________________________________________]            │
+│                                                               │
+│  [Continue →]                                                │
+│                                                               │
+│  Don't have an account? [Sign up]                           │
+└──────────────────────────────────────────────────────────────┘
+```
+
+**Behaviour:**
+- Social buttons: Görünür ama disabled (toast: "OAuth coming soon, use email for now")
+- Email validation: Format check (frontend + backend)
+- On submit → `POST /auth/login/start { email }`
+  - User exists → Navigate to Step 2
+  - User not found → Error: "No account with this email. [Sign up?]"
+
+**Route:** `/login/password`
+
+**Step 2: Password Entry**
+
+```
+┌──────────────────────────────────────────────────────────────┐
+│  [← Back]                           [AKIS Logo - Small]      │
+│                                                               │
+│  Enter your password                                         │
+│  Signing in as user@example.com                              │
+│                                                               │
+│  Password                                                    │
+│  [_______________________________________________] [SHOW]     │
+│                                                               │
+│  [Forgot password?]                                          │
+│                                                               │
+│  [Sign in →]                                                 │
+└──────────────────────────────────────────────────────────────┘
+```
+
+**Behaviour:**
+- Email shown (non-editable, from Step 1 state)
+- Password toggle: "SHOW"/"HIDE" button
+- On submit → `POST /auth/login/complete { userId, password }`
+  - Success:
+    - If `dataSharingConsent === null` → `/auth/privacy-consent`
+    - Else → `/dashboard`
+  - Failure: "Incorrect password"
+
+**"Forgot password?" link:**
+- Goes to `/auth/reset-password` (placeholder for now, shows "Password reset not yet implemented")
+
+---
+
+#### **B. Sign Up Flow (5 Steps)**
+
+**Route:** `/signup`
+
+**Step 1: Name + Email**
+
+```
+┌──────────────────────────────────────────────────────────────┐
+│  [AKIS Logo - Small]                                         │
+│                                                               │
+│  Create your account                                         │
+│  Start building with AKIS agents                             │
+│                                                               │
+│  ┌────────────────────────────────────────────────────────┐  │
+│  │ Continue with Google              [Google Icon]        │  │
+│  └────────────────────────────────────────────────────────┘  │
+│  ┌────────────────────────────────────────────────────────┐  │
+│  │ Continue with GitHub              [GitHub Icon]        │  │
+│  └────────────────────────────────────────────────────────┘  │
+│                                                               │
+│  ─────────────── or ───────────────                          │
+│                                                               │
+│  First name                                                  │
+│  [_______________________________________________]            │
+│                                                               │
+│  Last name                                                   │
+│  [_______________________________________________]            │
+│                                                               │
+│  Email address                                               │
+│  [_______________________________________________]            │
+│                                                               │
+│  [Continue →]                                                │
+│                                                               │
+│  Already have an account? [Sign in]                         │
+└──────────────────────────────────────────────────────────────┘
+```
+
+**Behaviour:**
+- Social buttons: disabled (same toast as login)
+- On submit → `POST /auth/signup/start { firstName, lastName, email }`
+  - Success: Store userId in state, navigate to Step 2
+  - Email in use: "This email is already registered. [Sign in?]"
+
+**Route:** `/signup/password`
+
+**Step 2: Create Password**
+
+```
+┌──────────────────────────────────────────────────────────────┐
+│  [← Back]                           [AKIS Logo - Small]      │
+│                                                               │
+│  Create a password                                           │
+│  For user@example.com                                        │
+│                                                               │
+│  Password (min. 8 characters)                                │
+│  [_______________________________________________] [SHOW]     │
+│                                                               │
+│  Confirm password                                            │
+│  [_______________________________________________] [SHOW]     │
+│                                                               │
+│  [Continue →]                                                │
+└──────────────────────────────────────────────────────────────┘
+```
+
+**Behaviour:**
+- Client-side validation: Min 8 chars, passwords match
+- On submit → `POST /auth/signup/password { userId, password }`
+  - Success: Generate & send verification code, navigate to Step 3
+  - Failure: Show error
+
+**Route:** `/signup/verify-email`
+
+**Step 3: Email Verification (6-digit Code)**
+
+```
+┌──────────────────────────────────────────────────────────────┐
+│  [AKIS Logo - Small]                                         │
+│                                                               │
+│  Verify your email                                           │
+│  We sent a 6-digit code to user@example.com                  │
+│                                                               │
+│  Verification code                                           │
+│  [___] [___] [___] [___] [___] [___]                         │
+│  (6 separate inputs or single input with pattern)            │
+│                                                               │
+│  Didn't receive it? [Resend code]                            │
+│                                                               │
+│  [Verify →]                                                  │
+└──────────────────────────────────────────────────────────────┘
+```
+
+**Behaviour:**
+- Auto-focus first digit input
+- Auto-advance to next input on digit entry
+- On submit → `POST /auth/verify-email { userId, code }`
+  - Success: Mark user as `ACTIVE`, issue JWT, navigate to Step 4
+  - Invalid code: "Code is incorrect or expired. Try again."
+- "Resend code" → `POST /auth/resend-code { userId }`
+  - Max 3 attempts per 15min
+
+**Route:** `/auth/welcome-beta`
+
+**Step 4: Beta Welcome Notice**
+
+```
+┌──────────────────────────────────────────────────────────────┐
+│  [AKIS Logo - Large]                                         │
+│                                                               │
+│  🎉 Welcome to AKIS!                                         │
+│                                                               │
+│  You're in early access                                      │
+│                                                               │
+│  AKIS is currently in beta. You have free access to all     │
+│  agents (Scribe, Trace, Proto) with some usage limits:      │
+│                                                               │
+│  • 100 jobs per month                                        │
+│  • Community support (Discord)                               │
+│  • 7-day log retention                                       │
+│                                                               │
+│  Paid plans with unlimited jobs and priority support will   │
+│  launch in Q2 2026. Early users get lifetime discounts!     │
+│                                                               │
+│  [Continue to AKIS Dashboard →]                              │
+│                                                               │
+│  [Learn more about pricing]                                  │
+└──────────────────────────────────────────────────────────────┘
+```
+
+**Behaviour:**
+- On "Continue" → Update `hasSeenBetaWelcome: true`, navigate to Step 5
+- On "Learn more" → Open `/pricing` in new tab, stay on this screen
+
+**Route:** `/auth/privacy-consent`
+
+**Step 5: Data Sharing Consent**
+
+```
+┌──────────────────────────────────────────────────────────────┐
+│  [AKIS Logo - Small]                                         │
+│                                                               │
+│  Help improve AKIS                                           │
+│                                                               │
+│  AKIS may collect anonymized usage data to improve the      │
+│  platform. This includes:                                    │
+│                                                               │
+│  ✓ Agent job types and success rates                        │
+│  ✓ Feature usage (which pages you visit)                    │
+│  ✓ Error logs (anonymized stack traces)                     │
+│                                                               │
+│  We never collect:                                           │
+│  ✗ Your code or repository contents                         │
+│  ✗ Jira/Confluence data                                      │
+│  ✗ Integration tokens or credentials                        │
+│                                                               │
+│  ☐ I'm okay with AKIS using my anonymized usage data to     │
+│     improve the product. I can change this anytime in        │
+│     Settings → Privacy.                                      │
+│                                                               │
+│  [Continue to Dashboard →]                                   │
+│                                                               │
+│  [Learn more about privacy]                                  │
+└──────────────────────────────────────────────────────────────┘
+```
+
+**Behaviour:**
+- Checkbox optional (can continue without checking)
+- On "Continue" → `POST /auth/update-preferences { dataSharingConsent: <true/false> }`
+- Then navigate to `/dashboard`
+- "Learn more" → Link to `/legal/privacy-policy`
+
+---
+
+#### **C. Post-Auth Routes (Standalone)**
+
+**Route:** `/auth/reset-password`
+
+- **Status:** Planned (not implemented yet)
+- **Flow:** Email → Code → New Password
+- **For now:** Shows placeholder: "Password reset coming soon. Contact support."
+
+**Route:** `/logout` (or handled in header)
+
+- Calls `POST /auth/logout`
+- Clears cookie, redirects to `/login`
+
+---
 
 ### 3.1 Landing Page (Homepage) - "/"
 
