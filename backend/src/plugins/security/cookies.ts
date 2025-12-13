@@ -30,24 +30,47 @@ export const cookiesPlugin = fp<CookiesPluginOptions>(
     fastify.decorateReply(
       'setAuthCookie',
       function setAuthCookie(this: FastifyReply, sessionId: string) {
-        this.setCookie(options.name, sessionId, {
+        // Build cookie options, only including domain if explicitly set
+        // For localhost development, omitting domain is correct behavior
+        const cookieOptions: {
+          httpOnly: boolean;
+          path: string;
+          maxAge: number;
+          sameSite: 'lax' | 'strict' | 'none';
+          secure: boolean;
+          domain?: string;
+        } = {
           httpOnly: true,
           path: '/',
           maxAge: options.maxAge,
           sameSite: options.sameSite,
           secure: options.secure,
-          domain: options.domain,
-        });
+        };
+        
+        if (options.domain && options.domain.length > 0) {
+          cookieOptions.domain = options.domain;
+        }
+        
+        this.setCookie(options.name, sessionId, cookieOptions);
         return this;
       }
     );
 
     fastify.decorateReply('clearAuthCookie', function clearAuthCookie(this: FastifyReply) {
-      this.clearCookie(options.name, {
+      const clearOptions: {
+        path: string;
+        sameSite: 'lax' | 'strict' | 'none';
+        domain?: string;
+      } = {
         path: '/',
         sameSite: options.sameSite,
-        domain: options.domain,
-      });
+      };
+      
+      if (options.domain && options.domain.length > 0) {
+        clearOptions.domain = options.domain;
+      }
+      
+      this.clearCookie(options.name, clearOptions);
       return this;
     });
   }
