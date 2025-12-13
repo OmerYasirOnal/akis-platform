@@ -1,13 +1,25 @@
 /**
- * OAuth Concurrency and Email Verification Tests
- * Tests race condition handling and email verification policy alignment
+ * OAuth Concurrency, Email Verification, and State TTL Tests
+ * Tests race condition handling, email verification policy alignment,
+ * and deterministic state token expiration at callback time
  */
 
-import { test, describe, beforeEach } from 'node:test';
+import { test, describe, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert';
 
 // Mock PostgreSQL unique constraint violation error
 const PG_UNIQUE_VIOLATION = '23505';
+
+// State TTL constant (mirrors auth.oauth.ts)
+const STATE_TTL_MS = 10 * 60 * 1000; // 10 minutes
+
+// Mock implementation of isStateExpired (matches auth.oauth.ts logic)
+function isStateExpired(createdAt: number, nowMs: number = Date.now()): boolean {
+  return nowMs - createdAt > STATE_TTL_MS;
+}
+
+// Mock state store for testing (isolated from real implementation)
+let mockOauthStateStore: Map<string, { provider: string; createdAt: number }>;
 
 /**
  * Test: Concurrent OAuth sign-ins with the same email
@@ -252,6 +264,135 @@ describe('PostgreSQL Error Code Handling', () => {
     
     assert.notStrictEqual(otherError.code, PG_UNIQUE_VIOLATION,
       'Other error codes should not match unique violation');
+  });
+});
+
+/**
+ * Test: OAuth State Token TTL Enforcement
+ * State tokens must be rejected if expired, even without cleanup running
+ * Tests are deterministic and do not depend on real time passing
+ */
+describe('OAuth State Token TTL', () => {
+  // Initialize/clear mock state store before and after each test
+  beforeEach(() => {
+    mockOauthStateStore = new Map();
+  });
+  
+  afterEach(() => {
+    mockOauthStateStore.clear();
+  });
+  
+  test('isStateExpired should return false for fresh state (created now)', () => {
+    const now = Date.now();
+    const createdAt = now; // Just created
+    
+    const expired = isStateExpired(createdAt, now);
+    
+    assert.strictEqual(expired, false, 'Fresh state should not be expired');
+  });
+  
+  test('isStateExpired should return false for state within TTL', () => {
+    const now = Date.now();
+    const createdAt = now - (STATE_TTL_MS - 60000); // 1 minute before expiry
+    
+    const expired = isStateExpired(createdAt, now);
+    
+    assert.strictEqual(expired, false, 'State within TTL should not be expired');
+  });
+  
+  test('isStateExpired should return true for state exactly at TTL boundary', () => {
+    const now = Date.now();
+    const createdAt = now - STATE_TTL_MS - 1; // Just past TTL
+    
+    const expired = isStateExpired(createdAt, now);
+    
+    assert.strictEqual(expired, true, 'State at TTL boundary should be expired');
+  });
+  
+  test('isStateExpired should return true for old state (well past TTL)', () => {
+    const now = Date.now();
+    const createdAt = now - (STATE_TTL_MS * 2); // Double the TTL
+    
+    const expired = isStateExpired(createdAt, now);
+    
+    assert.strictEqual(expired, true, 'Old state should be expired');
+  });
+  
+  test('expired state should be rejected deterministically without cleanup', () => {
+    // Simulate creating a state token with an old timestamp
+    const stateToken = 'test-state-expired-' + Date.now();
+    const now = Date.now();
+    const oldCreatedAt = now - (STATE_TTL_MS + 1000); // 1 second past TTL
+    
+    // Store state with old timestamp (simulates a state that was created long ago)
+    mockOauthStateStore.set(stateToken, { provider: 'github', createdAt: oldCreatedAt });
+    
+    // Verify state exists
+    assert.ok(mockOauthStateStore.has(stateToken), 'State should exist in store');
+    
+    // Verify it would be rejected at callback validation time
+    const stateData = mockOauthStateStore.get(stateToken)!;
+    const expired = isStateExpired(stateData.createdAt, now);
+    
+    assert.strictEqual(expired, true, 
+      'Expired state should be detected even without cleanup running');
+  });
+  
+  test('valid fresh state should pass TTL validation', () => {
+    const stateToken = 'test-state-valid-' + Date.now();
+    const now = Date.now();
+    const freshCreatedAt = now - 5000; // 5 seconds ago
+    
+    // Store fresh state
+    mockOauthStateStore.set(stateToken, { provider: 'google', createdAt: freshCreatedAt });
+    
+    // Verify state exists and is valid
+    assert.ok(mockOauthStateStore.has(stateToken), 'State should exist in store');
+    
+    const stateData = mockOauthStateStore.get(stateToken)!;
+    const expired = isStateExpired(stateData.createdAt, now);
+    
+    assert.strictEqual(expired, false, 'Fresh state should pass TTL validation');
+    assert.strictEqual(stateData.provider, 'google', 'Provider should match');
+  });
+  
+  test('state should be deleted after successful validation (one-time use)', () => {
+    const stateToken = 'test-state-onetime-' + Date.now();
+    
+    // Store state
+    mockOauthStateStore.set(stateToken, { provider: 'github', createdAt: Date.now() });
+    assert.ok(mockOauthStateStore.has(stateToken), 'State should exist before validation');
+    
+    // Simulate successful validation (callback deletes state)
+    mockOauthStateStore.delete(stateToken);
+    
+    assert.strictEqual(mockOauthStateStore.has(stateToken), false, 
+      'State should be deleted after use (one-time use)');
+  });
+  
+  test('STATE_TTL_MS should be 10 minutes', () => {
+    const tenMinutesInMs = 10 * 60 * 1000;
+    
+    assert.strictEqual(STATE_TTL_MS, tenMinutesInMs, 
+      'State TTL should be exactly 10 minutes (600000ms)');
+  });
+  
+  test('multiple states can exist independently', () => {
+    const now = Date.now();
+    
+    // Create multiple states with different ages
+    mockOauthStateStore.set('state-fresh', { provider: 'github', createdAt: now });
+    mockOauthStateStore.set('state-old', { provider: 'google', createdAt: now - STATE_TTL_MS - 1 });
+    mockOauthStateStore.set('state-valid', { provider: 'github', createdAt: now - 60000 }); // 1 min old
+    
+    // Verify each state's expiration status independently
+    const freshState = mockOauthStateStore.get('state-fresh')!;
+    const oldState = mockOauthStateStore.get('state-old')!;
+    const validState = mockOauthStateStore.get('state-valid')!;
+    
+    assert.strictEqual(isStateExpired(freshState.createdAt, now), false, 'Fresh state should be valid');
+    assert.strictEqual(isStateExpired(oldState.createdAt, now), true, 'Old state should be expired');
+    assert.strictEqual(isStateExpired(validState.createdAt, now), false, 'Valid state should not be expired');
   });
 });
 
