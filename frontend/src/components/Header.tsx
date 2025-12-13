@@ -5,6 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../theme/useTheme';
 import { cn } from '../utils/cn';
 import Button from './common/Button';
+import Logo from './branding/Logo';
 
 // Theme toggle icon component
 function ThemeToggleIcon({ isDark }: { isDark: boolean }) {
@@ -100,19 +101,7 @@ export default function Header({ className }: HeaderProps) {
     >
       <div className="mx-auto flex h-20 w-full max-w-6xl items-center justify-between px-4 sm:px-6 lg:px-8">
         {/* Logo */}
-        <Link to="/" className="flex items-center">
-          <img
-            src="/brand/akis-logo-horizontal.png"
-            alt="AKIS Platform"
-            className="h-7 w-auto object-contain"
-            onError={(e) => {
-              const img = e.currentTarget;
-              if (img.src.includes('akis-logo-horizontal.png')) {
-                img.src = '/brand/akis-logo.png';
-              }
-            }}
-          />
-        </Link>
+        <Logo size="nav" />
 
         {/* Desktop Navigation */}
         <nav className="hidden items-center gap-3 text-sm font-medium md:flex">

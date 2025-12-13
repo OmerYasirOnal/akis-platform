@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import Logo from './branding/Logo';
 
 /**
  * Footer Component
@@ -15,17 +16,7 @@ export default function Footer() {
           {/* Column 1: Brand */}
           <div className="lg:col-span-1">
             <div className="flex items-center gap-2">
-              <Link to="/" className="flex items-center">
-                <img
-                  src="/brand/akis-logo.png"
-                  alt="AKIS"
-                  className="h-8 w-auto"
-                  onError={(e) => {
-                    const img = e.currentTarget;
-                    img.src = '/brand/akis-icon.png';
-                  }}
-                />
-              </Link>
+              <Logo size="sm" />
               <span className="text-sm text-[var(--muted)]">Platform</span>
             </div>
             <p className="mt-4 text-xs leading-relaxed text-[var(--muted)]">
