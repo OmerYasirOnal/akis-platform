@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Button from '../../components/common/Button';
+import Logo from '../../components/branding/Logo';
 
 export default function PrivacyConsent() {
   const navigate = useNavigate();
@@ -28,6 +29,10 @@ export default function PrivacyConsent() {
   return (
     <main className="min-h-screen bg-ak-bg text-ak-text-primary flex items-center justify-center px-4">
       <div className="w-full max-w-2xl bg-ak-surface-2 border border-ak-border rounded-2xl p-8 shadow-ak-md">
+        <div className="mb-6 flex justify-center">
+          <Logo size="sm" linkToHome={false} />
+        </div>
+
         <h1 className="text-h2 mb-4">Help improve AKIS</h1>
 
         <div className="space-y-6 mb-8 text-ak-text-secondary">

@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { useI18n } from '../i18n/useI18n';
 import Button from './common/Button';
 import GlassBackdrop from './GlassBackdrop';
+import Logo from './branding/Logo';
 
 /**
  * Hero Section
@@ -19,17 +20,7 @@ export default function Hero() {
       <div className="relative z-10 mx-auto max-w-5xl text-center">
         {/* Hero Logo */}
         <div className="mb-8 flex justify-center">
-          <img
-            src="/brand/akis-logo-horizontal.png"
-            alt="AKIS"
-            className="h-[clamp(72px,12vw,112px)] w-auto"
-            onError={(e) => {
-              const img = e.currentTarget;
-              if (img.src.includes('akis-logo-horizontal.png')) {
-                img.src = '/brand/akis-logo.png';
-              }
-            }}
-          />
+          <Logo size="hero" linkToHome={false} />
         </div>
 
         {/* Main Headline */}

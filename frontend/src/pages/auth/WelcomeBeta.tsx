@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Button from '../../components/common/Button';
+import Logo from '../../components/branding/Logo';
 
 export default function WelcomeBeta() {
   const navigate = useNavigate();
@@ -32,7 +33,9 @@ export default function WelcomeBeta() {
     <main className="min-h-screen bg-ak-bg text-ak-text-primary flex items-center justify-center px-4">
       <div className="w-full max-w-2xl bg-ak-surface-2 border border-ak-border rounded-2xl p-12 shadow-ak-md text-center">
         <div className="mb-6">
-          {/* Logo would go here */}
+          <div className="mb-4 flex justify-center">
+            <Logo size="sm" linkToHome={false} />
+          </div>
           <div className="text-6xl mb-4">🎉</div>
           <h1 className="text-3xl font-bold mb-2">Welcome to AKIS!</h1>
           <p className="text-xl text-ak-primary font-semibold">You're in early access</p>
