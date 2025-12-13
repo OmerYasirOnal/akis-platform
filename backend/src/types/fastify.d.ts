@@ -25,6 +25,7 @@ declare module 'fastify' {
     code(statusCode: number): FastifyReply;
     send(payload?: unknown): FastifyReply;
     type(contentType: string): FastifyReply;
+    header(name: string, value: string): FastifyReply;
     setCookie(name: string, value: string, options?: Record<string, unknown>): FastifyReply;
     clearCookie(name: string, options?: Record<string, unknown>): FastifyReply;
     setAuthCookie(sessionId: string): FastifyReply;

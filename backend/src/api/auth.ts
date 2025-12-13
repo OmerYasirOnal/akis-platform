@@ -9,6 +9,7 @@ import { cookieOpts, env } from '../lib/env.js';
 import { getEnv } from '../config/env.js';
 import { createEmailService } from '../services/email/index.js';
 import { registerMultiStepAuthRoutes } from './auth.multi-step.js';
+import { registerOAuthRoutes } from './auth.oauth.js';
 
 type User = typeof users.$inferSelect;
 
@@ -44,6 +45,9 @@ export async function authRoutes(fastify: FastifyInstance) {
 
   // Register multi-step auth routes
   await registerMultiStepAuthRoutes(fastify, emailService);
+
+  // Register OAuth routes (S0.4.2)
+  await registerOAuthRoutes(fastify);
 
   // Legacy routes (deprecated - kept for backwards compatibility)
   fastify.get(

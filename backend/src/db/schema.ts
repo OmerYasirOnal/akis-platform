@@ -130,8 +130,45 @@ export const emailVerificationTokens = pgTable('email_verification_tokens', {
 export type EmailVerificationToken = typeof emailVerificationTokens.$inferSelect;
 export type NewEmailVerificationToken = typeof emailVerificationTokens.$inferInsert;
 
-// Users relations (empty for now, can be extended later)
-export const usersRelations = relations(users, () => ({}));
+/**
+ * OAuth provider enum - supported OAuth providers
+ */
+export const oauthProviderEnum = pgEnum('oauth_provider', ['github', 'google']);
+
+/**
+ * OAuth accounts - stores linked OAuth provider accounts
+ * Links external OAuth identities to internal users
+ */
+export const oauthAccounts = pgTable('oauth_accounts', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  provider: oauthProviderEnum('provider').notNull(),
+  providerAccountId: text('provider_account_id').notNull(),
+  accessToken: text('access_token'),
+  refreshToken: text('refresh_token'),
+  tokenExpiresAt: timestamp('token_expires_at', { withTimezone: false }),
+  createdAt: timestamp('created_at', { withTimezone: false }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: false }).defaultNow().notNull(),
+}, (table) => ({
+  userIdIdx: index('idx_oauth_accounts_user_id').on(table.userId),
+  providerAccountIdx: index('idx_oauth_accounts_provider_account').on(table.provider, table.providerAccountId),
+}));
+
+export type OAuthAccount = typeof oauthAccounts.$inferSelect;
+export type NewOAuthAccount = typeof oauthAccounts.$inferInsert;
+
+// Users relations - includes oauth accounts
+export const usersRelations = relations(users, ({ many }) => ({
+  oauthAccounts: many(oauthAccounts),
+}));
+
+// OAuth accounts relations
+export const oauthAccountsRelations = relations(oauthAccounts, ({ one }) => ({
+  user: one(users, {
+    fields: [oauthAccounts.userId],
+    references: [users.id],
+  }),
+}));
 
 export const emailVerificationTokensRelations = relations(emailVerificationTokens, ({ one }) => ({
   user: one(users, {
