@@ -273,15 +273,33 @@ enum Role {
 
 ---
 
-## 7. OAuth Integration (Future State)
+## 7. OAuth Integration (S0.4.2)
 
-### 7.1 Planned Providers
+### 7.1 Supported Providers
 
-- Google
-- GitHub
-- (Optional: Apple)
+- Google OAuth
+- GitHub OAuth
+- (Future: Apple Sign In)
 
-### 7.2 OAuth Flow (Planned for S0.4.2)
+### 7.2 OAuth Configuration
+
+**Environment Variables:**
+
+OAuth credentials are configured via environment variables (see [Section 13.1](#131-environment-variable-mapping-checklist)):
+- `GITHUB_OAUTH_CLIENT_ID` / `GITHUB_OAUTH_CLIENT_SECRET`
+- `GOOGLE_OAUTH_CLIENT_ID` / `GOOGLE_OAUTH_CLIENT_SECRET`
+
+**Important:** These are **separate** from GitHub App credentials (`GITHUB_APP_ID`, etc.) which are used for MCP integration.
+
+**Redirect URLs:**
+
+OAuth providers require callback URLs to be configured:
+- GitHub: `{BACKEND_URL}/auth/oauth/github/callback`
+- Google: `{BACKEND_URL}/auth/oauth/google/callback`
+
+Where `BACKEND_URL` is the value from your environment variables.
+
+### 7.3 OAuth Flow (Planned Implementation)
 
 **Endpoints:**
 
@@ -290,8 +308,8 @@ enum Role {
 
 **Process:**
 
-1. User clicks "Continue with Google"
-2. Redirect to Google OAuth consent screen
+1. User clicks "Continue with Google/GitHub"
+2. Redirect to provider OAuth consent screen
 3. Callback returns authorization code
 4. Backend exchanges code for access token
 5. Fetch user profile (email, name)
@@ -304,6 +322,7 @@ enum Role {
 - OAuth providers will be implemented via **Fastify plugins**
 - User linking logic: Match by email (if verified)
 - Store provider tokens in `oauth_accounts` table (separate from users)
+- OAuth is **optional** - email/password auth remains canonical
 
 ---
 
@@ -463,6 +482,11 @@ AUTH_COOKIE_SAMESITE=Lax
 AUTH_COOKIE_SECURE=false  # Set to true in production with HTTPS
 # AUTH_COOKIE_DOMAIN=localhost
 
+# Base URLs (used for OAuth redirects and CORS)
+BACKEND_URL=http://localhost:3000
+FRONTEND_URL=http://localhost:5173
+CORS_ORIGINS=http://localhost:5173
+
 # Email Configuration
 EMAIL_PROVIDER=mock  # 'mock' for dev/test, 'resend' for production
 EMAIL_VERIFICATION_TOKEN_TTL_MINUTES=15
@@ -473,17 +497,63 @@ EMAIL_VERIFICATION_TOKEN_TTL_MINUTES=15
 RESEND_API_KEY=<your_resend_api_key>
 RESEND_FROM_EMAIL=noreply@yourdomain.com
 
+# OAuth Configuration (S0.4.2)
+# OAuth credentials for user login (separate from GitHub App credentials)
+# These are OPTIONAL - email/password auth remains canonical
+GITHUB_OAUTH_CLIENT_ID=<your_github_oauth_client_id>
+GITHUB_OAUTH_CLIENT_SECRET=<your_github_oauth_client_secret>
+GOOGLE_OAUTH_CLIENT_ID=<your_google_oauth_client_id>
+GOOGLE_OAUTH_CLIENT_SECRET=<your_google_oauth_client_secret>
+
 # Other
 NODE_ENV=development
-CORS_ORIGINS=http://localhost:5173
-FRONTEND_URL=http://localhost:5173
-
-# Future (OAuth - planned for S0.4.2)
-# GOOGLE_OAUTH_CLIENT_ID=...
-# GOOGLE_OAUTH_CLIENT_SECRET=...
-# GITHUB_OAUTH_CLIENT_ID=...
-# GITHUB_OAUTH_CLIENT_SECRET=...
 ```
+
+### 13.1 Environment Variable Mapping Checklist
+
+**OAuth vs GitHub App Credentials:**
+
+| Credential Set | Variables | Purpose | Used For |
+|----------------|-----------|---------|----------|
+| **OAuth Login** | `GITHUB_OAUTH_CLIENT_ID`<br>`GITHUB_OAUTH_CLIENT_SECRET`<br>`GOOGLE_OAUTH_CLIENT_ID`<br>`GOOGLE_OAUTH_CLIENT_SECRET` | User authentication | "Continue with GitHub/Google" login buttons<br>Callback: `{BACKEND_URL}/auth/oauth/{provider}/callback` |
+| **GitHub App** | `GITHUB_APP_ID`<br>`GITHUB_INSTALLATION_ID`<br>`GITHUB_APP_PRIVATE_KEY_PEM` | MCP integration | GitHub API access via MCP adapter<br>Repository operations, PR creation, etc. |
+
+⚠️ **Important:** These are **SEPARATE** credential sets with different purposes:
+- **OAuth credentials** → User login/authentication
+- **GitHub App credentials** → Agent/MCP integration
+
+### 13.2 OAuth Setup Instructions
+
+**GitHub OAuth:**
+1. Go to https://github.com/settings/developers
+2. Click "New OAuth App"
+3. Set Authorization callback URL: `{BACKEND_URL}/auth/oauth/github/callback`
+4. Copy Client ID and generate Client Secret
+5. Set in `.env`: `GITHUB_OAUTH_CLIENT_ID` and `GITHUB_OAUTH_CLIENT_SECRET`
+
+**Google OAuth:**
+1. Go to https://console.cloud.google.com/apis/credentials
+2. Create OAuth 2.0 Client ID
+3. Add authorized redirect URI: `{BACKEND_URL}/auth/oauth/google/callback`
+4. Copy Client ID and Client Secret
+5. Set in `.env`: `GOOGLE_OAUTH_CLIENT_ID` and `GOOGLE_OAUTH_CLIENT_SECRET`
+
+### 13.3 Production vs Development Behavior
+
+**Required in Production:**
+- `AUTH_JWT_SECRET` (min 32 chars)
+- `AUTH_COOKIE_SECURE=true` (HTTPS only)
+- `DATABASE_URL`
+- `BACKEND_URL` and `FRONTEND_URL` (for OAuth redirects)
+
+**Optional (can be omitted):**
+- OAuth credentials (email/password auth works without them)
+- GitHub App credentials (unless using MCP integration)
+- Atlassian credentials (unless `MCP_ATLASSIAN_ENABLED=true`)
+
+**Validation Rules:**
+- If a provider's `CLIENT_ID` is set, the corresponding `CLIENT_SECRET` must also be set (and vice versa)
+- OAuth credentials are validated at startup but are not required for the app to run
 
 ### Email Provider Setup
 
