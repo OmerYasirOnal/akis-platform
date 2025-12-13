@@ -34,15 +34,23 @@ interface OAuthUserProfile {
   emailVerified: boolean;
 }
 
+// OAuth state TTL configuration
+const STATE_TTL_MS = 10 * 60 * 1000; // 10 minutes
+
 // State storage for CSRF protection (in-memory for now, could use Redis in production)
 const oauthStateStore = new Map<string, { provider: string; createdAt: number }>();
 
-// Cleanup expired states (older than 10 minutes)
+// Check if a state token has expired based on TTL
+function isStateExpired(createdAt: number, nowMs: number = Date.now()): boolean {
+  return nowMs - createdAt > STATE_TTL_MS;
+}
+
+// Cleanup expired states (background maintenance - not for correctness)
+// Note: TTL is enforced at callback time via isStateExpired(), cleanup is just housekeeping
 function cleanupExpiredStates() {
   const now = Date.now();
-  const maxAge = 10 * 60 * 1000; // 10 minutes
   for (const [state, data] of oauthStateStore.entries()) {
-    if (now - data.createdAt > maxAge) {
+    if (isStateExpired(data.createdAt, now)) {
       oauthStateStore.delete(state);
     }
   }
@@ -322,14 +330,23 @@ export async function registerOAuthRoutes(fastify: FastifyInstance) {
       return redirect(reply, `${frontendUrl}/login?error=${encodedError}`);
     }
     
-    // Validate state
+    // Validate state exists
     if (!state || !oauthStateStore.has(state)) {
       console.warn(`[OAuth] Invalid or missing state for provider: ${provider}`);
       return redirect(reply, `${frontendUrl}/login?error=oauth_invalid_state`);
     }
     
     const stateData = oauthStateStore.get(state)!;
-    oauthStateStore.delete(state); // One-time use
+    
+    // Enforce state TTL at callback time (not just via cleanup)
+    // This ensures expired states are rejected deterministically
+    if (isStateExpired(stateData.createdAt)) {
+      oauthStateStore.delete(state); // Clean up expired state
+      console.warn(`[OAuth] State expired for provider: ${provider}, age: ${Date.now() - stateData.createdAt}ms`);
+      return redirect(reply, `${frontendUrl}/login?error=oauth_invalid_state`);
+    }
+    
+    oauthStateStore.delete(state); // One-time use (delete after successful validation)
     
     // Verify state matches provider
     if (stateData.provider !== provider) {
