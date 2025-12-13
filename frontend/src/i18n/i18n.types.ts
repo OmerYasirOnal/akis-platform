@@ -396,6 +396,48 @@ export const MESSAGE_KEYS = [
   'footer.company',
   'footer.legal',
   'footer.copyright',
+
+  // Auth - Login
+  'auth.login.title',
+  'auth.login.subtitle',
+  'auth.login.continue',
+  'auth.login.checking',
+  'auth.login.noAccount',
+  'auth.login.signUp',
+
+  // Auth - Signup
+  'auth.signup.title',
+  'auth.signup.subtitle',
+  'auth.signup.continue',
+  'auth.signup.creating',
+  'auth.signup.hasAccount',
+  'auth.signup.signIn',
+
+  // Auth - Form Fields
+  'auth.email.label',
+  'auth.email.placeholder',
+  'auth.firstName.label',
+  'auth.firstName.placeholder',
+  'auth.lastName.label',
+  'auth.lastName.placeholder',
+
+  // Auth - OAuth
+  'auth.oauth.google',
+  'auth.oauth.github',
+  'auth.oauth.or',
+
+  // Auth - OAuth Errors
+  'auth.oauth.error.invalidState',
+  'auth.oauth.error.missingCode',
+  'auth.oauth.error.notConfigured',
+  'auth.oauth.error.failed',
+  'auth.oauth.error.accountDisabled',
+  'auth.oauth.error.accountNotFound',
+  'auth.oauth.error.emailNotVerified',
+  'auth.oauth.error.providerError',
+  'auth.oauth.error.generic',
+  'auth.oauth.error.tryAgain',
+  'auth.oauth.error.dismiss',
 ] as const;
 
 export type MessageKey = (typeof MESSAGE_KEYS)[number];

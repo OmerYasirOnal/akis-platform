@@ -368,5 +368,42 @@
   "footer.resources": "Resources",
   "footer.company": "Company",
   "footer.legal": "Legal",
-  "footer.copyright": "© 2025 AKIS Platform. All rights reserved."
+  "footer.copyright": "© 2025 AKIS Platform. All rights reserved.",
+
+  "auth.login.title": "Welcome back",
+  "auth.login.subtitle": "Sign in to continue to AKIS",
+  "auth.login.continue": "Continue",
+  "auth.login.checking": "Checking...",
+  "auth.login.noAccount": "Don't have an account?",
+  "auth.login.signUp": "Sign up",
+
+  "auth.signup.title": "Create your account",
+  "auth.signup.subtitle": "Start building with AKIS agents",
+  "auth.signup.continue": "Continue",
+  "auth.signup.creating": "Creating account...",
+  "auth.signup.hasAccount": "Already have an account?",
+  "auth.signup.signIn": "Sign in",
+
+  "auth.email.label": "Email address",
+  "auth.email.placeholder": "you@example.com",
+  "auth.firstName.label": "First name",
+  "auth.firstName.placeholder": "John",
+  "auth.lastName.label": "Last name",
+  "auth.lastName.placeholder": "Doe",
+
+  "auth.oauth.google": "Continue with Google",
+  "auth.oauth.github": "Continue with GitHub",
+  "auth.oauth.or": "or",
+
+  "auth.oauth.error.invalidState": "Your sign-in session expired. Please try again.",
+  "auth.oauth.error.missingCode": "Authorization was not completed. Please try again.",
+  "auth.oauth.error.notConfigured": "This sign-in method is not available at the moment.",
+  "auth.oauth.error.failed": "Sign-in failed. Please try again or use email.",
+  "auth.oauth.error.accountDisabled": "Your account has been disabled. Please contact support.",
+  "auth.oauth.error.accountNotFound": "No account found. Please sign up first.",
+  "auth.oauth.error.emailNotVerified": "Please verify your email address to continue.",
+  "auth.oauth.error.providerError": "The sign-in provider returned an error. Please try again.",
+  "auth.oauth.error.generic": "Something went wrong during sign-in. Please try again.",
+  "auth.oauth.error.tryAgain": "You can try again or use email sign-in.",
+  "auth.oauth.error.dismiss": "Dismiss"
 }

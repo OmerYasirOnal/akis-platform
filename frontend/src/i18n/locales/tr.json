@@ -368,5 +368,42 @@
   "footer.resources": "Kaynaklar",
   "footer.company": "Şirket",
   "footer.legal": "Yasal",
-  "footer.copyright": "© 2025 AKIS Platform. Tüm hakları saklıdır."
+  "footer.copyright": "© 2025 AKIS Platform. Tüm hakları saklıdır.",
+
+  "auth.login.title": "Tekrar hoş geldiniz",
+  "auth.login.subtitle": "AKIS'e devam etmek için giriş yapın",
+  "auth.login.continue": "Devam et",
+  "auth.login.checking": "Kontrol ediliyor...",
+  "auth.login.noAccount": "Hesabınız yok mu?",
+  "auth.login.signUp": "Kayıt ol",
+
+  "auth.signup.title": "Hesabınızı oluşturun",
+  "auth.signup.subtitle": "AKIS ajanlarıyla inşa etmeye başlayın",
+  "auth.signup.continue": "Devam et",
+  "auth.signup.creating": "Hesap oluşturuluyor...",
+  "auth.signup.hasAccount": "Zaten hesabınız var mı?",
+  "auth.signup.signIn": "Giriş yap",
+
+  "auth.email.label": "E-posta adresi",
+  "auth.email.placeholder": "siz@ornek.com",
+  "auth.firstName.label": "Ad",
+  "auth.firstName.placeholder": "Ahmet",
+  "auth.lastName.label": "Soyad",
+  "auth.lastName.placeholder": "Yılmaz",
+
+  "auth.oauth.google": "Google ile devam et",
+  "auth.oauth.github": "GitHub ile devam et",
+  "auth.oauth.or": "veya",
+
+  "auth.oauth.error.invalidState": "Giriş oturumunuz sona erdi. Lütfen tekrar deneyin.",
+  "auth.oauth.error.missingCode": "Yetkilendirme tamamlanmadı. Lütfen tekrar deneyin.",
+  "auth.oauth.error.notConfigured": "Bu giriş yöntemi şu anda kullanılamıyor.",
+  "auth.oauth.error.failed": "Giriş başarısız oldu. Lütfen tekrar deneyin veya e-posta kullanın.",
+  "auth.oauth.error.accountDisabled": "Hesabınız devre dışı bırakılmış. Lütfen destek ile iletişime geçin.",
+  "auth.oauth.error.accountNotFound": "Hesap bulunamadı. Lütfen önce kayıt olun.",
+  "auth.oauth.error.emailNotVerified": "Devam etmek için lütfen e-posta adresinizi doğrulayın.",
+  "auth.oauth.error.providerError": "Giriş sağlayıcısı bir hata döndürdü. Lütfen tekrar deneyin.",
+  "auth.oauth.error.generic": "Giriş sırasında bir hata oluştu. Lütfen tekrar deneyin.",
+  "auth.oauth.error.tryAgain": "Tekrar deneyebilir veya e-posta ile giriş yapabilirsiniz.",
+  "auth.oauth.error.dismiss": "Kapat"
 }

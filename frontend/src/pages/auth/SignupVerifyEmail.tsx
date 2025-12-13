@@ -160,7 +160,7 @@ export default function SignupVerifyEmail() {
               {code.map((digit, index) => (
                 <input
                   key={index}
-                  ref={(el) => (inputRefs.current[index] = el)}
+                  ref={(el) => { inputRefs.current[index] = el; }}
                   className="w-12 h-14 text-center text-2xl font-semibold border border-ak-border bg-ak-surface text-ak-text-primary rounded-xl focus:border-ak-primary focus:ring-2 focus:ring-ak-primary/70 outline-none transition-colors"
                   type="text"
                   inputMode="numeric"
