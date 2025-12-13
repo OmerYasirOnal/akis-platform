@@ -144,12 +144,23 @@ async function fetchGoogleProfile(accessToken: string, httpClient: HttpClient): 
   if (!response.ok) {
     throw new Error(`Google userinfo API failed: ${response.status}`);
   }
-  const data = await response.json() as { id: string; email: string; name: string; verified_email: boolean };
+  const data = await response.json() as { id: string; email: string; name?: string; given_name?: string; family_name?: string; verified_email: boolean };
+  
+  // Build name with fallbacks: name > given_name + family_name > email prefix
+  const email = data.email.toLowerCase();
+  let name = data.name;
+  if (!name && (data.given_name || data.family_name)) {
+    name = [data.given_name, data.family_name].filter(Boolean).join(' ');
+  }
+  if (!name) {
+    // Use email prefix as last resort (e.g., "user" from "user@gmail.com")
+    name = email.split('@')[0];
+  }
   
   return {
     id: data.id,
-    email: data.email.toLowerCase(),
-    name: data.name,
+    email,
+    name,
     emailVerified: data.verified_email,
   };
 }
