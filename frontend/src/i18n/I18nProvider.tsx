@@ -215,5 +215,17 @@ export function I18nProvider({ children }: PropsWithChildren) {
     [handleSetLocale, locale, status, translate]
   );
 
+  // Gate children until i18n is ready to prevent "Missing translation" warnings
+  // This ensures t() calls always have loaded messages available
+  if (status === 'loading') {
+    return (
+      <I18nContext.Provider value={contextValue}>
+        <div className="min-h-screen flex items-center justify-center bg-ak-bg">
+          <div className="text-ak-text-secondary text-sm">Loading...</div>
+        </div>
+      </I18nContext.Provider>
+    );
+  }
+
   return <I18nContext.Provider value={contextValue}>{children}</I18nContext.Provider>;
 }
