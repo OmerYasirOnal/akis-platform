@@ -13,6 +13,9 @@ import { cookieOpts, env } from '../lib/env.js';
 import { getEnv } from '../config/env.js';
 import { HttpClient } from '../services/http/HttpClient.js';
 
+// PostgreSQL error codes for constraint violations
+const PG_UNIQUE_VIOLATION = '23505';
+
 // OAuth provider configuration
 interface OAuthProviderConfig {
   authUrl: string;
@@ -361,7 +364,8 @@ export async function registerOAuthRoutes(fastify: FastifyInstance) {
       
       console.log(`[OAuth] Profile fetched for provider: ${provider}, email: ${profile.email.substring(0, 3)}***, emailVerified: ${profile.emailVerified}`);
       
-      // Find or create user
+      // Find or create user (concurrency-safe)
+      // Use findOrCreate pattern with unique constraint handling
       let user = await db.query.users.findFirst({
         where: eq(users.email, profile.email),
       });
@@ -370,22 +374,57 @@ export async function registerOAuthRoutes(fastify: FastifyInstance) {
       
       if (!user) {
         // Create new user from OAuth
-        isNewUser = true;
-        const [created] = await db
-          .insert(users)
-          .values({
-            name: profile.name,
-            email: profile.email,
-            passwordHash: '', // OAuth users don't have a password
-            status: 'active', // OAuth users are active immediately
-            emailVerified: profile.emailVerified,
-            dataSharingConsent: null, // Will need to go through onboarding
-            hasSeenBetaWelcome: false,
-          })
-          .returning();
-        user = created;
+        // Determine status based on email verification (aligns with email/password policy)
+        // Only set 'active' if provider verified the email; otherwise 'pending_verification'
+        const initialStatus = profile.emailVerified ? 'active' : 'pending_verification';
         
-        console.log(`[OAuth] New user created via ${provider}: ${user.id}`);
+        try {
+          const [created] = await db
+            .insert(users)
+            .values({
+              name: profile.name,
+              email: profile.email,
+              passwordHash: '', // OAuth users don't have a password
+              status: initialStatus,
+              emailVerified: profile.emailVerified,
+              dataSharingConsent: null, // Will need to go through onboarding
+              hasSeenBetaWelcome: false,
+            })
+            .returning();
+          user = created;
+          isNewUser = true;
+          
+          console.log(`[OAuth] New user created via ${provider}: ${user.id}, status: ${initialStatus}`);
+        } catch (insertError: unknown) {
+          // Handle race condition: if another request created the user concurrently,
+          // catch the unique constraint violation and re-fetch the existing user
+          const pgError = insertError as { code?: string };
+          if (pgError.code === PG_UNIQUE_VIOLATION) {
+            console.log(`[OAuth] Concurrent insert detected for email: ${profile.email.substring(0, 3)}***, re-fetching existing user`);
+            user = await db.query.users.findFirst({
+              where: eq(users.email, profile.email),
+            });
+            
+            if (!user) {
+              // This should not happen, but handle gracefully
+              console.error(`[OAuth] User not found after unique constraint violation`);
+              return redirect(reply, `${frontendUrl}/login?error=oauth_failed`);
+            }
+            // Continue with existing user (not a new user)
+            isNewUser = false;
+          } else {
+            // Re-throw other errors
+            throw insertError;
+          }
+        }
+        
+        // Handle new user with unverified email - redirect to verification flow
+        if (isNewUser && !profile.emailVerified) {
+          console.log(`[OAuth] New user ${user.id} has unverified email, needs verification`);
+          // Don't create session yet, redirect to verification
+          // The user was created with pending_verification status
+          return redirect(reply, `${frontendUrl}/login?error=email_not_verified&needs_verification=true`);
+        }
       } else {
         // Check user status first (consistent with email/password flow in auth.multi-step.ts:289-309)
         if (user.status === 'disabled') {
