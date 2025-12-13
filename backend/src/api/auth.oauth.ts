@@ -105,23 +105,39 @@ async function fetchGitHubProfile(accessToken: string, httpClient: HttpClient): 
   }
   const userData = await userResponse.json() as { id: number; name?: string; login: string; email?: string };
   
-  // GitHub may not return email in user endpoint, need to fetch from emails endpoint
-  let email = userData.email;
+  // IMPORTANT: Email verification status MUST come from /user/emails endpoint
+  // The presence of email in /user endpoint does NOT imply verification
+  // GitHub's /user.email is just a convenience field, not a verification indicator
+  
+  let email: string | undefined;
   let emailVerified = false;
   
-  if (!email) {
-    const emailResponse = await httpClient.get('https://api.github.com/user/emails', accessToken);
-    if (emailResponse.ok) {
-      const emails = await emailResponse.json() as Array<{ email: string; primary: boolean; verified: boolean }>;
-      // Find primary verified email
-      const primaryEmail = emails.find(e => e.primary && e.verified) || emails.find(e => e.verified) || emails[0];
-      if (primaryEmail) {
-        email = primaryEmail.email;
-        emailVerified = primaryEmail.verified;
-      }
+  // Always try to fetch /user/emails for accurate verification status
+  const emailResponse = await httpClient.get('https://api.github.com/user/emails', accessToken);
+  
+  if (emailResponse.ok) {
+    const emails = await emailResponse.json() as Array<{ email: string; primary: boolean; verified: boolean }>;
+    
+    // Priority: primary+verified > any verified > primary > first available
+    const primaryVerified = emails.find(e => e.primary && e.verified);
+    const anyVerified = emails.find(e => e.verified);
+    const primaryAny = emails.find(e => e.primary);
+    const firstEmail = emails[0];
+    
+    const selectedEmail = primaryVerified || anyVerified || primaryAny || firstEmail;
+    
+    if (selectedEmail) {
+      email = selectedEmail.email;
+      emailVerified = selectedEmail.verified; // ONLY true if /user/emails says verified
     }
-  } else {
-    emailVerified = true; // If email is returned in user endpoint, consider it verified
+  }
+  
+  // Fallback: use /user.email if /user/emails failed or returned empty
+  // BUT keep emailVerified=false since we couldn't confirm verification
+  if (!email && userData.email) {
+    email = userData.email;
+    emailVerified = false; // Cannot confirm verification without /user/emails
+    console.warn(`[OAuth:GitHub] Using fallback email from /user endpoint, verification status unknown`);
   }
   
   if (!email) {

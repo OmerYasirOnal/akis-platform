@@ -91,20 +91,26 @@ GET /auth/oauth/github/callback?code={auth_code}&state={state_token}
 ```
 
 **Behavior:**
-1. Validates state token exists and matches provider
+1. Validates state token exists and matches provider (atomic single-use)
 2. Validates authorization code is present
 3. Exchanges code for access token via GitHub API
-4. Fetches user profile from GitHub API (`/user` and `/user/emails`)
-5. Finds or creates user by email (lowercase)
-6. Links OAuth account in `oauth_accounts` table
-7. Generates JWT session token
-8. Sets HTTP-only session cookie
+4. Fetches user profile from GitHub API:
+   - **Always** fetches `/user/emails` to get accurate verification status
+   - Email verification is determined **ONLY** by `/user/emails` `verified` field
+   - Falls back to `/user.email` only if `/user/emails` fails, but marks `emailVerified=false`
+5. Finds or creates user by email (lowercase):
+   - Verified email → `status='active'`, `emailVerified=true`
+   - Unverified email → `status='pending_verification'`, `emailVerified=false`, **no session**
+6. Links OAuth account in `oauth_accounts` table (only if user passes validation)
+7. Generates JWT session token (only if user is `active`)
+8. Sets HTTP-only session cookie (only if user is `active`)
 9. Redirects based on onboarding gates
 
 **Redirect Targets:**
-- **Success (New User):** `{FRONTEND_URL}/auth/privacy-consent` (if `dataSharingConsent === null`)
-- **Success (New User):** `{FRONTEND_URL}/auth/welcome-beta` (if `hasSeenBetaWelcome === false`)
+- **Success (New User, Verified):** `{FRONTEND_URL}/auth/privacy-consent` (if `dataSharingConsent === null`)
+- **Success (New User, Verified):** `{FRONTEND_URL}/auth/welcome-beta` (if `hasSeenBetaWelcome === false`)
 - **Success (Existing User):** `{FRONTEND_URL}/dashboard` (if onboarding complete)
+- **Error (Unverified Email):** `{FRONTEND_URL}/login?error=email_not_verified` (no session created)
 - **Error (OAuth Provider Error):** `{FRONTEND_URL}/login?error=oauth_{error}`
 - **Error (Invalid State):** `{FRONTEND_URL}/login?error=oauth_invalid_state`
 - **Error (Missing Code):** `{FRONTEND_URL}/login?error=oauth_missing_code`
@@ -112,6 +118,12 @@ GET /auth/oauth/github/callback?code={auth_code}&state={state_token}
 - **Error (Account Disabled):** `{FRONTEND_URL}/login?error=account_disabled`
 - **Error (Account Not Found):** `{FRONTEND_URL}/login?error=account_not_found`
 - **Error (Callback Failure):** `{FRONTEND_URL}/login?error=oauth_failed`
+
+**GitHub Email Verification Policy:**
+> ⚠️ **IMPORTANT:** The presence of `email` in GitHub's `/user` endpoint does **NOT** imply verification.
+> Email verification status is **ONLY** determined by the `verified` field from `/user/emails` API.
+> If `/user/emails` is unavailable (e.g., insufficient scope), the fallback email from `/user` is used
+> but `emailVerified` is set to `false`, resulting in `pending_verification` status.
 
 **Environment Variables Used:**
 - `BACKEND_URL` - Used to construct callback URL for token exchange
@@ -288,7 +300,9 @@ if (user.dataSharingConsent === null) {
    - GitHub: `http://localhost:3000/auth/oauth/github/callback`
    - Google: `http://localhost:3000/auth/oauth/google/callback`
 
-### Test Scenario 1: GitHub OAuth - New User
+### Test Scenario 1: GitHub OAuth - New User (Verified Email)
+
+**Prerequisite:** GitHub account has a **verified** primary email (confirmed in GitHub settings).
 
 **Steps:**
 1. Navigate to `http://localhost:5173/login`
@@ -309,6 +323,24 @@ if (user.dataSharingConsent === null) {
 - ✅ OAuth account linked in `oauth_accounts` table
 - ✅ Session cookie set and valid
 - ✅ Onboarding gates respected
+
+### Test Scenario 1b: GitHub OAuth - New User (Unverified Email)
+
+**Prerequisite:** GitHub account has an **unverified** email (email not confirmed in GitHub settings, or `/user/emails` API unavailable).
+
+**Steps:**
+1. Navigate to `http://localhost:5173/login`
+2. Click "Continue with GitHub" button
+3. Authorize the application
+4. Verify redirect back to callback URL
+
+**Expected Results:**
+- ✅ User created in database with `status='pending_verification'`, `emailVerified=false`
+- ✅ **NO session cookie set** (login blocked)
+- ✅ Redirect to `http://localhost:5173/login?error=email_not_verified`
+- ⚠️ User must verify email via standard email verification flow before logging in
+
+**Important:** Email verification is determined **ONLY** by the `verified` field from GitHub's `/user/emails` API endpoint. The presence of an email in `/user` endpoint does NOT imply verification.
 
 **Database Verification:**
 ```sql
