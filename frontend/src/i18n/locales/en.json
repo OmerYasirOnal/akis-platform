@@ -399,6 +399,8 @@
   "auth.oauth.error.missingCode": "Authorization was not completed. Please try again.",
   "auth.oauth.error.notConfigured": "This sign-in method is not available at the moment.",
   "auth.oauth.error.failed": "Sign-in failed. Please try again or use email.",
+  "auth.oauth.error.missingEmail": "No email address found. Please set a public email in your account settings.",
+  "auth.oauth.error.dbNotMigrated": "Service configuration error. Please try again later.",
   "auth.oauth.error.accountDisabled": "Your account has been disabled. Please contact support.",
   "auth.oauth.error.accountNotFound": "No account found. Please sign up first.",
   "auth.oauth.error.emailNotVerified": "Please verify your email address to continue.",

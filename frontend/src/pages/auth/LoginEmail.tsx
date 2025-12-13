@@ -17,6 +17,8 @@ const OAUTH_ERROR_MAP: Record<string, string> = {
   oauth_missing_code: 'auth.oauth.error.missingCode',
   oauth_not_configured: 'auth.oauth.error.notConfigured',
   oauth_failed: 'auth.oauth.error.failed',
+  oauth_missing_email: 'auth.oauth.error.missingEmail',
+  oauth_db_not_migrated: 'auth.oauth.error.dbNotMigrated',
   account_disabled: 'auth.oauth.error.accountDisabled',
   account_not_found: 'auth.oauth.error.accountNotFound',
   email_not_verified: 'auth.oauth.error.emailNotVerified',

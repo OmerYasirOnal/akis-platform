@@ -431,6 +431,8 @@ export const MESSAGE_KEYS = [
   'auth.oauth.error.missingCode',
   'auth.oauth.error.notConfigured',
   'auth.oauth.error.failed',
+  'auth.oauth.error.missingEmail',
+  'auth.oauth.error.dbNotMigrated',
   'auth.oauth.error.accountDisabled',
   'auth.oauth.error.accountNotFound',
   'auth.oauth.error.emailNotVerified',

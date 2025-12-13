@@ -141,7 +141,8 @@ async function fetchGitHubProfile(accessToken: string, httpClient: HttpClient): 
   }
   
   if (!email) {
-    throw new Error('No email available from GitHub account');
+    // Throw specific error for missing email (user needs to set email or grant permission)
+    throw new Error('OAUTH_MISSING_EMAIL');
   }
   
   return {
@@ -571,7 +572,27 @@ export async function registerOAuthRoutes(fastify: FastifyInstance) {
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err);
       console.error(`[OAuth] Callback error for provider ${provider}: ${errorMessage}`);
-      return redirect(reply, `${frontendUrl}/login?error=oauth_failed`);
+      
+      // Map specific errors to user-friendly error codes
+      let errorCode = 'oauth_failed';
+      
+      if (errorMessage === 'OAUTH_MISSING_EMAIL') {
+        errorCode = 'oauth_missing_email';
+        console.error(`[OAuth] ${provider} user has no accessible email. User may need to:`);
+        console.error(`  - Set a public email in their ${provider} profile`);
+        console.error(`  - Grant email permission (user:email scope for GitHub)`);
+        console.error(`  - Revoke and re-authorize the OAuth app`);
+      } else if (errorMessage.includes('relation') && errorMessage.includes('does not exist')) {
+        // PostgreSQL error when oauth_accounts table is missing
+        errorCode = 'oauth_db_not_migrated';
+        console.error(`[OAuth] Database migration required! Run: cd backend && pnpm db:migrate`);
+        console.error(`[OAuth] Missing table: oauth_accounts (migration 0007_modern_nova.sql)`);
+      } else if (errorMessage.includes('23505')) {
+        // Unique constraint violation - race condition (should be handled, but just in case)
+        errorCode = 'oauth_failed';
+      }
+      
+      return redirect(reply, `${frontendUrl}/login?error=${errorCode}`);
     }
   });
 }
