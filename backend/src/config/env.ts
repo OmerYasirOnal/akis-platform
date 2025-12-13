@@ -44,6 +44,14 @@ const envSchema = z
     RESEND_API_KEY: z.string().optional(),
     RESEND_FROM_EMAIL: z.string().email().optional(),
     EMAIL_VERIFICATION_TOKEN_TTL_MINUTES: z.coerce.number().default(15),
+    // OAuth Configuration (S0.4.2)
+    // OAuth credentials for user login (separate from GitHub App credentials)
+    GITHUB_OAUTH_CLIENT_ID: z.string().optional(),
+    GITHUB_OAUTH_CLIENT_SECRET: z.string().optional(),
+    GOOGLE_OAUTH_CLIENT_ID: z.string().optional(),
+    GOOGLE_OAUTH_CLIENT_SECRET: z.string().optional(),
+    // GitHub App Configuration (MCP Integration)
+    // These are for GitHub App installation, NOT for OAuth user login
     GITHUB_MCP_BASE_URL: z.string().url().optional(),
     ATLASSIAN_MCP_BASE_URL: z.string().url().optional(),
     GITHUB_APP_ID: z.string().optional(),
@@ -124,6 +132,37 @@ const envSchema = z
           path: ['RESEND_FROM_EMAIL'],
         });
       }
+    }
+
+    // OAuth credentials validation
+    // If a provider's client ID is provided, the secret must also be provided
+    if (data.GITHUB_OAUTH_CLIENT_ID && !data.GITHUB_OAUTH_CLIENT_SECRET) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'GITHUB_OAUTH_CLIENT_SECRET is required when GITHUB_OAUTH_CLIENT_ID is provided',
+        path: ['GITHUB_OAUTH_CLIENT_SECRET'],
+      });
+    }
+    if (!data.GITHUB_OAUTH_CLIENT_ID && data.GITHUB_OAUTH_CLIENT_SECRET) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'GITHUB_OAUTH_CLIENT_ID is required when GITHUB_OAUTH_CLIENT_SECRET is provided',
+        path: ['GITHUB_OAUTH_CLIENT_ID'],
+      });
+    }
+    if (data.GOOGLE_OAUTH_CLIENT_ID && !data.GOOGLE_OAUTH_CLIENT_SECRET) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'GOOGLE_OAUTH_CLIENT_SECRET is required when GOOGLE_OAUTH_CLIENT_ID is provided',
+        path: ['GOOGLE_OAUTH_CLIENT_SECRET'],
+      });
+    }
+    if (!data.GOOGLE_OAUTH_CLIENT_ID && data.GOOGLE_OAUTH_CLIENT_SECRET) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'GOOGLE_OAUTH_CLIENT_ID is required when GOOGLE_OAUTH_CLIENT_SECRET is provided',
+        path: ['GOOGLE_OAUTH_CLIENT_ID'],
+      });
     }
 
     if (isStrictMode) {
