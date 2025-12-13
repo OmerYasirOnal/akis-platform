@@ -610,3 +610,258 @@ describe('OAuth Unverified Email Race Condition', () => {
   });
 });
 
+/**
+ * Test: GitHub Email Verification Logic
+ * Tests that email verification status is ONLY determined by /user/emails endpoint
+ * NOT by the presence of email in /user endpoint
+ */
+describe('GitHub Email Verification Logic', () => {
+  // Simulates the fetchGitHubProfile logic
+  interface GitHubUserResponse {
+    id: number;
+    name?: string;
+    login: string;
+    email?: string;
+  }
+  
+  interface GitHubEmail {
+    email: string;
+    primary: boolean;
+    verified: boolean;
+  }
+  
+  // Mock fetchGitHubProfile behavior
+  function determineGitHubEmailVerification(
+    userData: GitHubUserResponse,
+    emailsResponse: { ok: boolean; emails?: GitHubEmail[] }
+  ): { email: string; emailVerified: boolean } | null {
+    let email: string | undefined;
+    let emailVerified = false;
+    
+    // Always try /user/emails first for accurate verification
+    if (emailsResponse.ok && emailsResponse.emails && emailsResponse.emails.length > 0) {
+      const emails = emailsResponse.emails;
+      
+      // Priority: primary+verified > any verified > primary > first
+      const primaryVerified = emails.find(e => e.primary && e.verified);
+      const anyVerified = emails.find(e => e.verified);
+      const primaryAny = emails.find(e => e.primary);
+      const firstEmail = emails[0];
+      
+      const selected = primaryVerified || anyVerified || primaryAny || firstEmail;
+      
+      if (selected) {
+        email = selected.email;
+        emailVerified = selected.verified; // ONLY true if /user/emails says verified
+      }
+    }
+    
+    // Fallback: /user.email but WITHOUT verification
+    if (!email && userData.email) {
+      email = userData.email;
+      emailVerified = false; // Cannot confirm without /user/emails
+    }
+    
+    if (!email) return null;
+    
+    return { email: email.toLowerCase(), emailVerified };
+  }
+  
+  test('/user returns email but /user/emails indicates unverified => emailVerified=false', () => {
+    const userData: GitHubUserResponse = {
+      id: 12345,
+      login: 'testuser',
+      name: 'Test User',
+      email: 'test@example.com', // Email present in /user
+    };
+    
+    // /user/emails says it's NOT verified
+    const emailsResponse = {
+      ok: true,
+      emails: [
+        { email: 'test@example.com', primary: true, verified: false },
+      ],
+    };
+    
+    const result = determineGitHubEmailVerification(userData, emailsResponse);
+    
+    assert.ok(result, 'Should return result');
+    assert.strictEqual(result.email, 'test@example.com');
+    assert.strictEqual(result.emailVerified, false, 
+      'Email should NOT be verified - /user/emails says unverified');
+  });
+  
+  test('/user returns email but /user/emails fails => emailVerified=false (fallback)', () => {
+    const userData: GitHubUserResponse = {
+      id: 12345,
+      login: 'testuser',
+      name: 'Test User',
+      email: 'fallback@example.com', // Email present in /user
+    };
+    
+    // /user/emails request fails (e.g., insufficient scope)
+    const emailsResponse = { ok: false };
+    
+    const result = determineGitHubEmailVerification(userData, emailsResponse);
+    
+    assert.ok(result, 'Should return result using fallback');
+    assert.strictEqual(result.email, 'fallback@example.com');
+    assert.strictEqual(result.emailVerified, false, 
+      'Email should NOT be verified - /user/emails unavailable, cannot confirm');
+  });
+  
+  test('/user/emails returns verified primary email => emailVerified=true', () => {
+    const userData: GitHubUserResponse = {
+      id: 12345,
+      login: 'testuser',
+      name: 'Test User',
+      email: 'public@example.com', // /user may have a different email
+    };
+    
+    const emailsResponse = {
+      ok: true,
+      emails: [
+        { email: 'secondary@example.com', primary: false, verified: true },
+        { email: 'primary@example.com', primary: true, verified: true },
+        { email: 'unverified@example.com', primary: false, verified: false },
+      ],
+    };
+    
+    const result = determineGitHubEmailVerification(userData, emailsResponse);
+    
+    assert.ok(result, 'Should return result');
+    assert.strictEqual(result.email, 'primary@example.com', 
+      'Should select primary+verified email');
+    assert.strictEqual(result.emailVerified, true, 
+      'Email should be verified - /user/emails confirms verified');
+  });
+  
+  test('/user email is null, /user/emails provides verified email => works correctly', () => {
+    // Regression test: original behavior when /user.email is null
+    const userData: GitHubUserResponse = {
+      id: 12345,
+      login: 'privateuser',
+      name: 'Private User',
+      email: undefined, // No email in /user
+    };
+    
+    const emailsResponse = {
+      ok: true,
+      emails: [
+        { email: 'verified@example.com', primary: true, verified: true },
+      ],
+    };
+    
+    const result = determineGitHubEmailVerification(userData, emailsResponse);
+    
+    assert.ok(result, 'Should return result from /user/emails');
+    assert.strictEqual(result.email, 'verified@example.com');
+    assert.strictEqual(result.emailVerified, true, 
+      'Email should be verified from /user/emails');
+  });
+  
+  test('/user/emails empty, /user has email => fallback with emailVerified=false', () => {
+    const userData: GitHubUserResponse = {
+      id: 12345,
+      login: 'edgeuser',
+      name: 'Edge User',
+      email: 'edge@example.com',
+    };
+    
+    const emailsResponse = {
+      ok: true,
+      emails: [], // Empty list
+    };
+    
+    const result = determineGitHubEmailVerification(userData, emailsResponse);
+    
+    assert.ok(result, 'Should return result using /user fallback');
+    assert.strictEqual(result.email, 'edge@example.com');
+    assert.strictEqual(result.emailVerified, false, 
+      'Email should NOT be verified - empty /user/emails');
+  });
+  
+  test('/user/emails has only unverified emails => emailVerified=false', () => {
+    const userData: GitHubUserResponse = {
+      id: 12345,
+      login: 'unverifieduser',
+      name: 'Unverified User',
+      email: undefined,
+    };
+    
+    const emailsResponse = {
+      ok: true,
+      emails: [
+        { email: 'unverified1@example.com', primary: true, verified: false },
+        { email: 'unverified2@example.com', primary: false, verified: false },
+      ],
+    };
+    
+    const result = determineGitHubEmailVerification(userData, emailsResponse);
+    
+    assert.ok(result, 'Should return result');
+    assert.strictEqual(result.email, 'unverified1@example.com', 
+      'Should select primary email even if unverified');
+    assert.strictEqual(result.emailVerified, false, 
+      'Email should NOT be verified - no verified emails in list');
+  });
+  
+  test('priority order: primary+verified > any verified > primary > first', () => {
+    const userData: GitHubUserResponse = {
+      id: 12345,
+      login: 'priorityuser',
+    };
+    
+    // Test 1: primary+verified should win
+    const emails1 = {
+      ok: true,
+      emails: [
+        { email: 'first@example.com', primary: false, verified: false },
+        { email: 'verified@example.com', primary: false, verified: true },
+        { email: 'primary@example.com', primary: true, verified: false },
+        { email: 'winner@example.com', primary: true, verified: true },
+      ],
+    };
+    const result1 = determineGitHubEmailVerification(userData, emails1);
+    assert.strictEqual(result1?.email, 'winner@example.com', 'primary+verified should win');
+    assert.strictEqual(result1?.emailVerified, true);
+    
+    // Test 2: no primary+verified, anyVerified should win
+    const emails2 = {
+      ok: true,
+      emails: [
+        { email: 'first@example.com', primary: false, verified: false },
+        { email: 'verified@example.com', primary: false, verified: true },
+        { email: 'primary@example.com', primary: true, verified: false },
+      ],
+    };
+    const result2 = determineGitHubEmailVerification(userData, emails2);
+    assert.strictEqual(result2?.email, 'verified@example.com', 'any verified should win over primary unverified');
+    assert.strictEqual(result2?.emailVerified, true);
+    
+    // Test 3: no verified, primary should win
+    const emails3 = {
+      ok: true,
+      emails: [
+        { email: 'first@example.com', primary: false, verified: false },
+        { email: 'primary@example.com', primary: true, verified: false },
+      ],
+    };
+    const result3 = determineGitHubEmailVerification(userData, emails3);
+    assert.strictEqual(result3?.email, 'primary@example.com', 'primary should win if no verified');
+    assert.strictEqual(result3?.emailVerified, false);
+    
+    // Test 4: no primary, first should win
+    const emails4 = {
+      ok: true,
+      emails: [
+        { email: 'first@example.com', primary: false, verified: false },
+        { email: 'second@example.com', primary: false, verified: false },
+      ],
+    };
+    const result4 = determineGitHubEmailVerification(userData, emails4);
+    assert.strictEqual(result4?.email, 'first@example.com', 'first email should be fallback');
+    assert.strictEqual(result4?.emailVerified, false);
+  });
+});
+
