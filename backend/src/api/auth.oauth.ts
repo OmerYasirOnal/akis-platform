@@ -13,8 +13,6 @@ import { cookieOpts, env } from '../lib/env.js';
 import { getEnv } from '../config/env.js';
 import { HttpClient } from '../services/http/HttpClient.js';
 
-type User = typeof users.$inferSelect;
-
 // OAuth provider configuration
 interface OAuthProviderConfig {
   authUrl: string;
@@ -46,17 +44,6 @@ function cleanupExpiredStates() {
     }
   }
 }
-
-// Helper to sanitize user data (matches existing pattern)
-const sanitizeUser = (user: User) => ({
-  id: user.id,
-  name: user.name,
-  email: user.email,
-  status: user.status,
-  emailVerified: user.emailVerified,
-  dataSharingConsent: user.dataSharingConsent,
-  hasSeenBetaWelcome: user.hasSeenBetaWelcome,
-});
 
 // Generate cryptographically secure state parameter
 function generateState(): string {
@@ -236,9 +223,6 @@ async function exchangeCodeForToken(
   
   throw new Error(`Unknown provider: ${provider}`);
 }
-
-// Mark sanitizeUser as used (for future response needs)
-void sanitizeUser;
 
 // Helper for HTTP redirects (Fastify doesn't have built-in redirect)
 function redirect(reply: FastifyReply, url: string) {
