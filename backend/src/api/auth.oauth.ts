@@ -330,23 +330,30 @@ export async function registerOAuthRoutes(fastify: FastifyInstance) {
       return redirect(reply, `${frontendUrl}/login?error=${encodedError}`);
     }
     
-    // Validate state exists
-    if (!state || !oauthStateStore.has(state)) {
-      console.warn(`[OAuth] Invalid or missing state for provider: ${provider}`);
+    // Atomic state consumption: retrieve AND delete in one operation
+    // This prevents race conditions where two callbacks could both pass validation
+    // before either deletes the state (single-use CSRF protection)
+    if (!state) {
+      console.warn(`[OAuth] Missing state for provider: ${provider}`);
       return redirect(reply, `${frontendUrl}/login?error=oauth_invalid_state`);
     }
     
-    const stateData = oauthStateStore.get(state)!;
+    // Atomically consume the state: get data and delete in one logical operation
+    // A second callback with the same state will get undefined and fail
+    const stateData = oauthStateStore.get(state);
+    const wasDeleted = oauthStateStore.delete(state); // Consume immediately (single-use)
     
-    // Enforce state TTL at callback time (not just via cleanup)
-    // This ensures expired states are rejected deterministically
+    // If state didn't exist or wasn't deleted, it's invalid (possibly already consumed)
+    if (!stateData || !wasDeleted) {
+      console.warn(`[OAuth] Invalid or already-consumed state for provider: ${provider}`);
+      return redirect(reply, `${frontendUrl}/login?error=oauth_invalid_state`);
+    }
+    
+    // Now validate the consumed state data (TTL check)
     if (isStateExpired(stateData.createdAt)) {
-      oauthStateStore.delete(state); // Clean up expired state
       console.warn(`[OAuth] State expired for provider: ${provider}, age: ${Date.now() - stateData.createdAt}ms`);
       return redirect(reply, `${frontendUrl}/login?error=oauth_invalid_state`);
     }
-    
-    oauthStateStore.delete(state); // One-time use (delete after successful validation)
     
     // Verify state matches provider
     if (stateData.provider !== provider) {
@@ -429,59 +436,62 @@ export async function registerOAuthRoutes(fastify: FastifyInstance) {
             }
             // Continue with existing user (not a new user)
             isNewUser = false;
+            // NOTE: Fall through to unified status validation below
           } else {
             // Re-throw other errors
             throw insertError;
           }
         }
-        
-        // Handle new user with unverified email - redirect to verification flow
-        if (isNewUser && !profile.emailVerified) {
-          console.log(`[OAuth] New user ${user.id} has unverified email, needs verification`);
-          // Don't create session yet, redirect to verification
-          // The user was created with pending_verification status
-          return redirect(reply, `${frontendUrl}/login?error=email_not_verified&needs_verification=true`);
-        }
-      } else {
-        // Check user status first (consistent with email/password flow in auth.multi-step.ts:289-309)
-        if (user.status === 'disabled') {
-          return redirect(reply, `${frontendUrl}/login?error=account_disabled`);
-        }
-        if (user.status === 'deleted') {
-          return redirect(reply, `${frontendUrl}/login?error=account_not_found`);
-        }
-        
-        // Handle pending_verification status
-        // If OAuth provider confirms email, upgrade to active; otherwise reject
-        if (user.status === 'pending_verification') {
-          if (profile.emailVerified) {
-            // Provider verified email, upgrade user to active
-            await db
-              .update(users)
-              .set({ 
-                status: 'active', 
-                emailVerified: true, 
-                updatedAt: new Date() 
-              })
-              .where(eq(users.id, user.id));
-            user = { ...user, status: 'active', emailVerified: true };
-            console.log(`[OAuth] User ${user.id} upgraded from pending_verification to active via ${provider}`);
-          } else {
-            // Provider did not verify email, reject login (consistent with email/password)
-            console.warn(`[OAuth] User ${user.id} has pending_verification status and OAuth provider did not verify email`);
-            return redirect(reply, `${frontendUrl}/login?error=email_not_verified`);
-          }
-        } else if (profile.emailVerified && !user.emailVerified) {
-          // Update email verified status if provider confirms it (for active users)
+      }
+      
+      // ========================================================================
+      // UNIFIED EMAIL VERIFICATION & STATUS VALIDATION (applies to ALL paths)
+      // This block runs for: new users, existing users, AND race-condition re-fetched users
+      // Decision is based on user.status + profile.emailVerified, NOT on isNewUser
+      // ========================================================================
+      
+      // Check user status first (consistent with email/password flow)
+      if (user.status === 'disabled') {
+        console.warn(`[OAuth] User ${user.id} is disabled`);
+        return redirect(reply, `${frontendUrl}/login?error=account_disabled`);
+      }
+      if (user.status === 'deleted') {
+        console.warn(`[OAuth] User ${user.id} is deleted`);
+        return redirect(reply, `${frontendUrl}/login?error=account_not_found`);
+      }
+      
+      // Handle pending_verification status (applies to new AND existing users)
+      // This is the key fix: even if race condition sets isNewUser=false, this check still runs
+      if (user.status === 'pending_verification') {
+        if (profile.emailVerified) {
+          // Provider verified email, upgrade user to active
           await db
             .update(users)
-            .set({ emailVerified: true, updatedAt: new Date() })
+            .set({ 
+              status: 'active', 
+              emailVerified: true, 
+              updatedAt: new Date() 
+            })
             .where(eq(users.id, user.id));
-          user = { ...user, emailVerified: true };
+          user = { ...user, status: 'active', emailVerified: true };
+          console.log(`[OAuth] User ${user.id} upgraded from pending_verification to active via ${provider}`);
+        } else {
+          // Provider did not verify email - CANNOT proceed (consistent with email/password)
+          // This applies to ALL paths: new user, existing user, OR race-condition re-fetch
+          console.warn(`[OAuth] User ${user.id} has pending_verification status and OAuth provider did not verify email`);
+          // Do NOT link OAuth account or create session for unverified users
+          return redirect(reply, `${frontendUrl}/login?error=email_not_verified`);
         }
-        
-        console.log(`[OAuth] Existing user logged in via ${provider}: ${user.id}`);
+      } else if (profile.emailVerified && !user.emailVerified) {
+        // Update email verified status if provider confirms it (for active users)
+        await db
+          .update(users)
+          .set({ emailVerified: true, updatedAt: new Date() })
+          .where(eq(users.id, user.id));
+        user = { ...user, emailVerified: true };
       }
+      
+      console.log(`[OAuth] User validation passed for ${user.id}, isNewUser: ${isNewUser}, status: ${user.status}`);
       
       // Link OAuth account if not already linked
       const existingOAuthAccount = await db.query.oauthAccounts.findFirst({

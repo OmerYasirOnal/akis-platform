@@ -394,5 +394,219 @@ describe('OAuth State Token TTL', () => {
     assert.strictEqual(isStateExpired(oldState.createdAt, now), true, 'Old state should be expired');
     assert.strictEqual(isStateExpired(validState.createdAt, now), false, 'Valid state should not be expired');
   });
+  
+  test('same state token cannot be consumed twice (atomic single-use)', () => {
+    // This tests the atomic consume-then-validate pattern
+    const stateToken = 'test-state-single-use-' + Date.now();
+    
+    // Store a valid state
+    mockOauthStateStore.set(stateToken, { provider: 'github', createdAt: Date.now() });
+    
+    // First consumption: get data and delete atomically
+    const firstData = mockOauthStateStore.get(stateToken);
+    const firstDelete = mockOauthStateStore.delete(stateToken);
+    
+    // Second consumption attempt: should fail (state already consumed)
+    const secondData = mockOauthStateStore.get(stateToken);
+    const secondDelete = mockOauthStateStore.delete(stateToken);
+    
+    // First attempt should succeed
+    assert.ok(firstData, 'First consumption should get state data');
+    assert.strictEqual(firstDelete, true, 'First consumption should successfully delete');
+    
+    // Second attempt should fail
+    assert.strictEqual(secondData, undefined, 'Second consumption should NOT get state data');
+    assert.strictEqual(secondDelete, false, 'Second consumption should fail to delete (already deleted)');
+  });
+  
+  test('concurrent state consumption - only one succeeds', async () => {
+    // Simulates two callbacks arriving with the same state
+    const stateToken = 'test-concurrent-state-' + Date.now();
+    mockOauthStateStore.set(stateToken, { provider: 'google', createdAt: Date.now() });
+    
+    // Simulate concurrent access pattern
+    let successCount = 0;
+    
+    // Thread A and Thread B both try to consume the same state
+    const consumeState = () => {
+      const data = mockOauthStateStore.get(stateToken);
+      const deleted = mockOauthStateStore.delete(stateToken);
+      
+      // Only count as success if BOTH get and delete succeeded
+      if (data && deleted) {
+        successCount++;
+        return { success: true, data };
+      }
+      return { success: false, data: null };
+    };
+    
+    // Simulate "concurrent" execution
+    const resultA = consumeState();
+    const resultB = consumeState();
+    
+    // Only ONE should succeed (atomic single-use)
+    assert.strictEqual(successCount, 1, 'Only one callback should successfully consume the state');
+    assert.strictEqual(resultA.success, true, 'First callback should succeed');
+    assert.strictEqual(resultB.success, false, 'Second callback should fail');
+  });
+});
+
+/**
+ * Test: Unverified Email Race Condition Prevention
+ * Two OAuth callbacks for the same unverified email must NOT result in successful login
+ */
+describe('OAuth Unverified Email Race Condition', () => {
+  // Mock user store for simulation
+  let mockUsers: Map<string, { id: string; email: string; status: string; emailVerified: boolean }>;
+  
+  beforeEach(() => {
+    mockUsers = new Map();
+  });
+  
+  // Simulates the unified status validation logic from auth.oauth.ts
+  function validateUserForOAuth(
+    user: { id: string; status: string; emailVerified: boolean },
+    profile: { emailVerified: boolean }
+  ): { allowed: boolean; reason?: string; shouldUpgrade?: boolean } {
+    // Check disabled/deleted status first
+    if (user.status === 'disabled') {
+      return { allowed: false, reason: 'account_disabled' };
+    }
+    if (user.status === 'deleted') {
+      return { allowed: false, reason: 'account_not_found' };
+    }
+    
+    // Handle pending_verification status
+    // This is the key check that must run for ALL paths (new, existing, race-condition)
+    if (user.status === 'pending_verification') {
+      if (profile.emailVerified) {
+        // Provider verified email, can upgrade to active
+        return { allowed: true, shouldUpgrade: true };
+      } else {
+        // Provider did not verify email - CANNOT proceed
+        return { allowed: false, reason: 'email_not_verified' };
+      }
+    }
+    
+    // Active user - allowed
+    return { allowed: true };
+  }
+  
+  test('race condition path: re-fetched user with pending_verification must still be rejected', () => {
+    // Simulates Thread B scenario: race condition occurs, user is re-fetched
+    // The re-fetched user has pending_verification status
+    const email = 'unverified@test.com';
+    
+    // User was created by Thread A (or exists) with pending_verification
+    const existingUser = {
+      id: 'user-' + Date.now(),
+      email,
+      status: 'pending_verification',
+      emailVerified: false,
+    };
+    mockUsers.set(email, existingUser);
+    
+    // Thread B's OAuth profile does NOT have verified email
+    const oauthProfile = { emailVerified: false };
+    
+    // Simulate Thread B's validation after race condition re-fetch
+    // isNewUser would be false due to race condition, but validation should STILL reject
+    const result = validateUserForOAuth(existingUser, oauthProfile);
+    
+    assert.strictEqual(result.allowed, false, 
+      'Login should be rejected for pending_verification user with unverified OAuth email');
+    assert.strictEqual(result.reason, 'email_not_verified',
+      'Rejection reason should be email_not_verified');
+  });
+  
+  test('concurrent unverified callbacks cannot both succeed', () => {
+    const email = 'race-unverified@test.com';
+    
+    // Both OAuth profiles have unverified email
+    const profileA = { emailVerified: false };
+    const profileB = { emailVerified: false };
+    
+    // User doesn't exist initially
+    let user = mockUsers.get(email);
+    
+    // Thread A creates user with pending_verification
+    if (!user) {
+      user = {
+        id: 'user-a-' + Date.now(),
+        email,
+        status: 'pending_verification',
+        emailVerified: false,
+      };
+      mockUsers.set(email, user);
+    }
+    
+    // Thread A validates and MUST be rejected
+    const resultA = validateUserForOAuth(user, profileA);
+    
+    // Thread B (race condition) re-fetches user and validates
+    const refetchedUser = mockUsers.get(email)!;
+    const resultB = validateUserForOAuth(refetchedUser, profileB);
+    
+    // BOTH should be rejected - neither should succeed
+    assert.strictEqual(resultA.allowed, false, 'Thread A should be rejected');
+    assert.strictEqual(resultB.allowed, false, 'Thread B should also be rejected');
+    assert.strictEqual(resultA.reason, 'email_not_verified', 'Thread A reason');
+    assert.strictEqual(resultB.reason, 'email_not_verified', 'Thread B reason');
+  });
+  
+  test('pending_verification user CAN login if OAuth provider verifies email', () => {
+    const email = 'upgradeable@test.com';
+    
+    // User exists with pending_verification (e.g., created via email/password signup)
+    const user = {
+      id: 'user-upgrade-' + Date.now(),
+      email,
+      status: 'pending_verification',
+      emailVerified: false,
+    };
+    mockUsers.set(email, user);
+    
+    // OAuth profile HAS verified email (e.g., Google always verifies)
+    const oauthProfile = { emailVerified: true };
+    
+    const result = validateUserForOAuth(user, oauthProfile);
+    
+    assert.strictEqual(result.allowed, true, 
+      'Login should be allowed when OAuth provider verifies email');
+    assert.strictEqual(result.shouldUpgrade, true,
+      'User should be marked for upgrade to active status');
+  });
+  
+  test('active user with verified OAuth should succeed', () => {
+    const user = {
+      id: 'user-active',
+      email: 'active@test.com',
+      status: 'active',
+      emailVerified: true,
+    };
+    
+    const oauthProfile = { emailVerified: true };
+    
+    const result = validateUserForOAuth(user, oauthProfile);
+    
+    assert.strictEqual(result.allowed, true, 'Active user should be allowed');
+    assert.strictEqual(result.shouldUpgrade, undefined, 'No upgrade needed for active user');
+  });
+  
+  test('disabled user should be rejected regardless of OAuth verification', () => {
+    const user = {
+      id: 'user-disabled',
+      email: 'disabled@test.com',
+      status: 'disabled',
+      emailVerified: true,
+    };
+    
+    const oauthProfile = { emailVerified: true };
+    
+    const result = validateUserForOAuth(user, oauthProfile);
+    
+    assert.strictEqual(result.allowed, false, 'Disabled user should be rejected');
+    assert.strictEqual(result.reason, 'account_disabled', 'Reason should be account_disabled');
+  });
 });
 
