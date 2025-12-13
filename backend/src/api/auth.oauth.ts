@@ -319,7 +319,9 @@ export async function registerOAuthRoutes(fastify: FastifyInstance) {
     // Handle OAuth errors from provider
     if (error) {
       console.warn(`[OAuth] Error from provider ${provider}: ${error} - ${error_description}`);
-      return redirect(reply, `${frontendUrl}/login?error=oauth_${error}`);
+      // URL-encode error parameter to prevent URL parsing issues and parameter injection
+      const encodedError = encodeURIComponent(`oauth_${error}`);
+      return redirect(reply, `${frontendUrl}/login?error=${encodedError}`);
     }
     
     // Validate state
