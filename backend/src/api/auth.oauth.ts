@@ -392,21 +392,41 @@ export async function registerOAuthRoutes(fastify: FastifyInstance) {
         
         console.log(`[OAuth] New user created via ${provider}: ${user.id}`);
       } else {
-        // Update email verified status if provider confirms it
-        if (profile.emailVerified && !user.emailVerified) {
-          await db
-            .update(users)
-            .set({ emailVerified: true, updatedAt: new Date() })
-            .where(eq(users.id, user.id));
-          user = { ...user, emailVerified: true };
-        }
-        
-        // Check user status
+        // Check user status first (consistent with email/password flow in auth.multi-step.ts:289-309)
         if (user.status === 'disabled') {
           return redirect(reply, `${frontendUrl}/login?error=account_disabled`);
         }
         if (user.status === 'deleted') {
           return redirect(reply, `${frontendUrl}/login?error=account_not_found`);
+        }
+        
+        // Handle pending_verification status
+        // If OAuth provider confirms email, upgrade to active; otherwise reject
+        if (user.status === 'pending_verification') {
+          if (profile.emailVerified) {
+            // Provider verified email, upgrade user to active
+            await db
+              .update(users)
+              .set({ 
+                status: 'active', 
+                emailVerified: true, 
+                updatedAt: new Date() 
+              })
+              .where(eq(users.id, user.id));
+            user = { ...user, status: 'active', emailVerified: true };
+            console.log(`[OAuth] User ${user.id} upgraded from pending_verification to active via ${provider}`);
+          } else {
+            // Provider did not verify email, reject login (consistent with email/password)
+            console.warn(`[OAuth] User ${user.id} has pending_verification status and OAuth provider did not verify email`);
+            return redirect(reply, `${frontendUrl}/login?error=email_not_verified`);
+          }
+        } else if (profile.emailVerified && !user.emailVerified) {
+          // Update email verified status if provider confirms it (for active users)
+          await db
+            .update(users)
+            .set({ emailVerified: true, updatedAt: new Date() })
+            .where(eq(users.id, user.id));
+          user = { ...user, emailVerified: true };
         }
         
         console.log(`[OAuth] Existing user logged in via ${provider}: ${user.id}`);
