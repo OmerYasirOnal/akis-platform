@@ -20,8 +20,8 @@ export default function WelcomeBeta() {
       setSubmitting(false);
     }
     
-    // Navigate to data sharing consent
-    navigate('/auth/privacy-consent');
+    // Navigate to dashboard (privacy-consent already completed per canonical order)
+    navigate('/dashboard');
   }
 
   function handleLearnMore() {

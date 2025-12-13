@@ -15,12 +15,17 @@ export default function PrivacyConsent() {
       const { AuthAPI } = await import('../../services/api/auth');
       await AuthAPI.updatePreferences({ dataSharingConsent: consent });
 
-      // Navigate to dashboard
-      navigate('/dashboard');
+      // Fetch user to check next step in canonical order: privacy → welcome → dashboard
+      const user = await AuthAPI.me();
+      if (!user.hasSeenBetaWelcome) {
+        navigate('/auth/welcome-beta');
+      } else {
+        navigate('/dashboard');
+      }
     } catch (err) {
       console.error('Failed to update preferences:', err);
-      // Still navigate to dashboard even if preference update fails
-      navigate('/dashboard');
+      // Still navigate to welcome-beta as fallback (safer than dashboard for new users)
+      navigate('/auth/welcome-beta');
     } finally {
       setSubmitting(false);
     }

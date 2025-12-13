@@ -316,6 +316,11 @@ export async function registerOAuthRoutes(fastify: FastifyInstance) {
     
     const authUrl = `${providerConfig.authUrl}?${authParams.toString()}`;
     
+    // Dev-only: Log OAuth App client_id prefix (no secrets) to verify correct credentials
+    if (provider === 'github' && config.NODE_ENV !== 'production') {
+      console.log(`[OAuth:GitHub] Login using OAuth App client_id=${providerConfig.clientId.substring(0, 6)}...`);
+    }
+    
     console.log(`[OAuth] Flow initiated for provider: ${provider}, state: ${state.substring(0, 8)}...`);
     
     return redirect(reply, authUrl);
