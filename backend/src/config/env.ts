@@ -52,8 +52,15 @@ const envSchema = z
     GOOGLE_OAUTH_CLIENT_SECRET: z.string().optional(),
     // GitHub App Configuration (MCP Integration)
     // These are for GitHub App installation, NOT for OAuth user login
-    GITHUB_MCP_BASE_URL: z.string().url().optional(),
-    ATLASSIAN_MCP_BASE_URL: z.string().url().optional(),
+    // Preprocess empty strings to undefined to handle test environments
+    GITHUB_MCP_BASE_URL: z.preprocess(
+      (val) => (val === '' || val === undefined ? undefined : val),
+      z.string().url().optional()
+    ),
+    ATLASSIAN_MCP_BASE_URL: z.preprocess(
+      (val) => (val === '' || val === undefined ? undefined : val),
+      z.string().url().optional()
+    ),
     GITHUB_APP_ID: z.string().optional(),
     GITHUB_INSTALLATION_ID: z.string().optional(),
     GITHUB_APP_PRIVATE_KEY_PEM: z.string().optional(),
