@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import Logo from '../../components/branding/Logo';
 
 export default function Login() {
   const navigate = useNavigate();
@@ -27,6 +28,10 @@ export default function Login() {
   return (
     <main className="min-h-screen bg-ak-bg text-ak-text-primary flex items-center justify-center px-4">
       <div className="w-full max-w-md bg-ak-surface-2 border border-ak-border rounded-2xl p-8 shadow-ak-md">
+        <div className="mb-6 flex justify-center">
+          <Logo size="sm" linkToHome={false} />
+        </div>
+
         <h1 className="text-h2 mb-6">Sign in</h1>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">

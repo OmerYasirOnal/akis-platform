@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import Button from '../../components/common/Button';
+import Logo from '../../components/branding/Logo';
 
 export default function LoginPassword() {
   const navigate = useNavigate();
@@ -78,16 +79,25 @@ export default function LoginPassword() {
   return (
     <main className="min-h-screen bg-ak-bg text-ak-text-primary flex items-center justify-center px-4">
       <div className="w-full max-w-md bg-ak-surface-2 border border-ak-border rounded-2xl p-8 shadow-ak-md">
-        <button
-          type="button"
-          onClick={handleBack}
-          className="flex items-center gap-2 text-sm text-ak-text-secondary hover:text-ak-primary mb-4 transition-colors"
-        >
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-          </svg>
-          Back
-        </button>
+        <div className="mb-4 flex items-center justify-between">
+          <button
+            type="button"
+            onClick={handleBack}
+            className="flex items-center gap-2 text-sm text-ak-text-secondary hover:text-ak-primary transition-colors"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M15 19l-7-7 7-7"
+              />
+            </svg>
+            Back
+          </button>
+
+          <Logo size="sm" linkToHome={false} />
+        </div>
 
         <h1 className="text-h2 mb-2">Enter your password</h1>
         <p className="text-sm text-ak-text-secondary mb-6">
