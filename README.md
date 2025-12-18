@@ -4,6 +4,30 @@
 
 AKIS Platform, yazılım geliştirme süreçlerindeki tekrarlayan görevleri otomatikleştiren bir otonom ajan platformudur.
 
+---
+
+## 📍 Start Here
+
+> **Hangi dökümana bakmalıyım?** Aşağıdaki kanonik zincir, tüm planlama ve uygulama dokümanlarını birbirine bağlar:
+
+```
+docs/PROJECT_TRACKING_BASELINE.md  (schedule anchor, spreadsheet source)
+          ↓
+docs/ROADMAP.md                    (phase overview)
+          ↓
+docs/NEXT.md                       (immediate actions + gating)
+```
+
+| Amaç | Doküman |
+|------|---------|
+| Sprint/phase/milestone takibi | [PROJECT_TRACKING_BASELINE.md](docs/PROJECT_TRACKING_BASELINE.md) |
+| Faz görünümü & kabul kriterleri | [ROADMAP.md](docs/ROADMAP.md) |
+| Anlık aksiyon listesi & gating | [NEXT.md](docs/NEXT.md) |
+| Mimari ve teknoloji yığını | [CONTEXT_ARCHITECTURE.md](.cursor/context/CONTEXT_ARCHITECTURE.md) |
+| Proje kapsamı & gereksinimler | [CONTEXT_SCOPE.md](.cursor/context/CONTEXT_SCOPE.md) |
+
+---
+
 ## Özellikler
 
 - **AKIS Scribe**: Teknik dokümantasyon güncelleme
@@ -28,45 +52,77 @@ AKIS Platform, yazılım geliştirme süreçlerindeki tekrarlayan görevleri oto
 - **Frontend**: React (Vite SPA, Next.js kullanılmıyor) + Tailwind CSS
 - **Integrations**: MCP (Model Context Protocol) adapters
 
-## Güncel Durum
+## Güncel Durum (2025-12-18)
 
-- Phase 8: Frontend SPA ✓
-- Phase 9.1: Dark Theme Unification & Auth UI ✓
-- Phase 9.2: i18n & Theming Foundations ✓
-- Feat: About AKIS sayfası eklendi (isim hikâyesi, vizyon, misyon ve ajan kartları).
-- Phase 9: Auth & RBAC ▶
+| Phase | Status | Description |
+|-------|--------|-------------|
+| 0.1–0.3 | ✅ Complete | Temeller, Mimari, Çekirdek Motor |
+| **0.4** | **🔄 In Progress** | Web Shell + Basit Motor (S0.4.6 current) |
+| 0.5 | 📋 Planned | Motor + GitHub Entegrasyonu |
+| 1 | 📋 Planned | Scribe • Trace • Proto – Early Access |
 
-## Phase 9.1 – Dark Theme Unification & Auth UI
+**Next Milestone:** Phase 1 Functional Complete — **2025-12-25** (Scribe job UI'dan çalışır)
 
-- Site geneli `#0A1215` full-bleed, header/footer kartları `ak-surface` / `ak-surface-2`.
-- Hero logosu 72–112px aralığında `Logo.tsx` ile clamp'lenir; yüksek çözünürlüklü `akis-official-logo@2x.png`.
-- Landing CTA'ları `/signup` (primary) ve `/login` (outline) yönlendirmeleriyle güncellendi.
-- `/login` ve `/signup` kartları `ak-surface-2`, focus ring `ak-primary`; demo roller (`admin`, `member`) UI üzerinden doğrulanır.
-- Docs güncellemeleri: IA, Design System, Auth notları Phase 9.1 temasıyla senkron.
+---
+
+## Project Tracking & Execution
+
+### Canonical Planning Sources
+
+| Document | Purpose |
+|----------|---------|
+| [PROJECT_TRACKING_BASELINE.md](docs/PROJECT_TRACKING_BASELINE.md) | Sprint/phase/milestone schedule (from spreadsheet) |
+| [NEXT.md](docs/NEXT.md) | Immediate actions + gating criteria |
+| [ROADMAP.md](docs/ROADMAP.md) | Phase overview |
+
+### Branch Separation Policy
+
+| Branch | Purpose | Status |
+|--------|---------|--------|
+| `feat/scribe-config-s0.4.6-wip` | Scribe Config Dashboard implementation | 🔄 Active |
+| `docs/project-tracking-baseline-s0.4.6` | Documentation & planning updates | 🔄 Active |
+| `main` | Stable production code | Protected |
+
+**Scribe Step 2 Status:** Implementation is complete and correct. The reported "manual text inputs" issue was caused by cache/dev-server restart/route confusion, not a code bug. See `SCRIBE_STEP2_VERIFICATION.md` for details.
+
+### Execution Order
+
+```
+CURRENT: S0.4.6 Scribe Config Dashboard
+    └── SearchableSelect verified ✅
+    └── Steps 3-5 pending
+
+NEXT (by Dec 25): Phase 1 Functional Complete
+    └── Scribe temel akış
+    └── Trace/Proto MVP
+    └── QA kanıtı
+
+THEN (by Jan 9): Phase 1.5
+    └── Job loglama v1
+    └── Token/cost tracking
+
+LATER: V2 RepoOps (gated on Phase 1 complete)
+```
+
+---
 
 ## Roadmap & Milestones
 
-Phase 9.2 ile i18n ve theming temel katmanları hazırlanarak çok dilli deneyim ve tema varyantları için altyapı kuruluyor.
-Varsayılan koyu tema korunurken light mode ve marka varlıkları için hazırlıklar tamamlanacak; lint temizlikleri geliştirici deneyimini yükseltiyor.
-Güncel kilometre taşları ve kabul notlarının tamamı [docs/ROADMAP.md](docs/ROADMAP.md) belgesinde takip ediliyor.
+Güncel kilometre taşları ve kabul notları [docs/ROADMAP.md](docs/ROADMAP.md) belgesinde takip ediliyor.  
+Sprint detayları [docs/PROJECT_TRACKING_BASELINE.md](docs/PROJECT_TRACKING_BASELINE.md) belgesinde.
 
-### Phase 9.2 İzleme
+### Critical Milestones
+
+| Milestone | Date | Owner |
+|-----------|------|-------|
+| Phase 1 Functional Complete | 2025-12-25 | Yasir |
+| SDTA hazır | 2025-12-26 | Ayşe |
+| Proje bitiş hedefi | 2026-03-31 | Yasir |
+
+### Phase İzleme (GitHub Issues)
 
 - [Epic] [#24 Phase 9.2 — i18n & Theming Foundations](https://github.com/OmerYasirOnal/akis-platform-devolopment/issues/24)
-- [Frontend] [#25 Phase 9.2 — i18n (TR/EN) enablement](https://github.com/OmerYasirOnal/akis-platform-devolopment/issues/25)
-- [Frontend] [#26 Phase 9.2 — Theme toggle (Dark/Light)](https://github.com/OmerYasirOnal/akis-platform-devolopment/issues/26)
-- [Branding] [#27 Phase 9.2 — High-res logo rollout (@2x/@3x, retina-crisp)](https://github.com/OmerYasirOnal/akis-platform-devolopment/issues/27)
-- [Frontend] [#28 Phase 9.2 — Subtle cursor/spotlight effects (GPU-friendly)](https://github.com/OmerYasirOnal/akis-platform-devolopment/issues/28)
-- [Quality] [#29 Phase 9.2 — Lint: exhaustive-deps cleanup](https://github.com/OmerYasirOnal/akis-platform-devolopment/issues/29)
-
-### Phase 10 İzleme
-
 - [Epic] [#44 Phase 10 — Next Foundations](https://github.com/OmerYasirOnal/akis-platform-devolopment/issues/44)
-- [Frontend] [#49 Phase 10 — Settings UX refinement](https://github.com/OmerYasirOnal/akis-platform-devolopment/issues/49)
-- [Frontend] [#47 Phase 10 — Accessibility pass](https://github.com/OmerYasirOnal/akis-platform-devolopment/issues/47)
-- [Frontend] [#48 Phase 10 — Performance budgets](https://github.com/OmerYasirOnal/akis-platform-devolopment/issues/48)
-- [Frontend] [#45 Phase 10 — ROI widget (Pricing)](https://github.com/OmerYasirOnal/akis-platform-devolopment/issues/45)
-- [Frontend] [#46 Phase 10 — FAQ accordion (Landing)](https://github.com/OmerYasirOnal/akis-platform-devolopment/issues/46)
 
 ## Quickstart
 
