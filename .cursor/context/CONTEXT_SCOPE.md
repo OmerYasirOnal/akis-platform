@@ -1,10 +1,28 @@
 ### `CONTEXT_SCOPE.md` (Nihai İçerik)
 
-**Proje Kapsamı ve Gereksinimler Dokümanı**
-**Proje Adı:** AKIS
-**Bölüm:** Bilgisayar Mühendisliği
-**Öğrenci:** Ömer Yasir ÖNAL (2221221562)
+**Proje Kapsamı ve Gereksinimler Dokümanı**  
+**Proje Adı:** AKIS  
+**Bölüm:** Bilgisayar Mühendisliği  
+**Öğrenci:** Ömer Yasir ÖNAL (2221221562)  
 **Danışman:** Dr. Öğr. Üyesi Nazlı DOĞAN
+
+---
+
+> **Canonical Planning Sources:**
+> - Schedule Anchor: `docs/PROJECT_TRACKING_BASELINE.md`
+> - Documentation Audit: `docs/DOCS_AUDIT_REPORT.md`
+> - Roadmap: `docs/ROADMAP.md`
+> - Next Actions: `docs/NEXT.md`
+>
+> **Execution Order (Scribe First):**
+> 1. Scribe stabilization (S0.4.6)
+> 2. Phase 9.2 completion (i18n, theming)
+> 3. Phase 10 foundations (settings, a11y, performance)
+> 4. Public waitlist-only site
+> 5. QR/device-link ecosystem
+> 6. V2 RepoOps agent (later, gated)
+
+---
 
 ### 1. Problem Tanımı ve Motivasyon
 
