@@ -209,3 +209,4 @@ If Option A causes issues:
 - **Config-Aware Design**: Aligns with existing `AgentOrchestrator.startJob()` config loading
 - **Validation Timing**: Config validation happens before job creation (safer than Option B)
 
+

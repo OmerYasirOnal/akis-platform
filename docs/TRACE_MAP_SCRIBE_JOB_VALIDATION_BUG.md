@@ -174,3 +174,4 @@ ZodError → "Scribe payload validation: Required"
 2. `frontend/src/pages/dashboard/agents/DashboardAgentScribePage.tsx` - UI gating
 3. `backend/src/core/orchestrator/AgentOrchestrator.ts` - config loading (works, but too late)
 
+

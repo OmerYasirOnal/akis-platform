@@ -740,3 +740,4 @@ curl http://localhost:3000/api/auth/me \
 - **Config-Aware**: New payloads (`mode: 'from_config'`) require auth and config in DB
 - **V1 Requirement**: GitHub-only mode must work (Confluence optional)
 
+
