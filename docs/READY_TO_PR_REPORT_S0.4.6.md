@@ -79,6 +79,38 @@ $ curl -v http://localhost:3000/api/integrations/connect/github
 # ✅ 302 redirect (not 404)
 ```
 
+### Bug 5: Missing GitHub Discovery Routes
+
+**Symptom**: Scribe page 404s for repository/branch selection:
+- `GET /api/integrations/github/repos?owner=...` → 404
+- `GET /api/integrations/github/branches?owner=...&repo=...` → 404
+
+**Root Cause**: Routes were never implemented. Frontend expected them for Scribe config wizard.
+
+**Fix**: Added three new routes in `backend/src/api/integrations.ts`:
+- `GET /api/integrations/github/owners` - List user + orgs
+- `GET /api/integrations/github/repos` - List repos for owner
+- `GET /api/integrations/github/branches` - List branches for repo
+
+**Evidence**:
+```bash
+$ curl http://localhost:3000/api/integrations/github/repos?owner=test
+{"error":{"code":"UNAUTHORIZED","message":"Authentication required"}}
+# ✅ 401 (not 404)
+
+$ curl http://localhost:3000/api/integrations/github/branches?owner=test&repo=test
+{"error":{"code":"UNAUTHORIZED","message":"Authentication required"}}
+# ✅ 401 (not 404)
+```
+
+### Bug 6: Lint Errors in agent-configs.ts
+
+**Symptom**: `agentTypeSchema` and `scribeConfigSchema` unused lint errors.
+
+**Root Cause**: Schemas were defined but not used for runtime validation.
+
+**Fix**: Added Zod `.safeParse()` validation for `agentType` and `payload` in route handlers.
+
 ---
 
 ## FILES CHANGED
