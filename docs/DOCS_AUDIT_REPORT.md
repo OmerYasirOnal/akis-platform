@@ -558,5 +558,51 @@ docs/archive/
 
 ---
 
-*This audit establishes the canonical documentation set and cleanup plan. Baseline now derived from official project tracking spreadsheet (ingested 2025-12-18). Cleanup executed 2025-12-18. Post-cleanup hardening completed 2025-12-18.*
+## 10. Resolved Conflicts — Auth Documentation (2025-12-18)
+
+### Conflicts Identified
+
+| Conflict | Source A | Source B | Resolution |
+|----------|----------|----------|------------|
+| **OAuth Status** | `backend/docs/Auth.md`: "planned (S0.4.2) but not currently implemented" | `QA_NOTES_S0.4.2_OAUTH.md`: "✅ Implementation Complete" | **OAuth IS implemented** (merged in PR #90, `auth.oauth.ts` exists on main) |
+| **Cookie Name** | `backend/docs/Auth.md` flow descriptions: `akis_session` | `QA_NOTES_S0.4.2_OAUTH.md`: `akis_sid` | **`akis_sid` is correct** (default from `AUTH_COOKIE_NAME` env var) |
+
+### Files Updated
+
+| File | Changes |
+|------|---------|
+| `backend/docs/Auth.md` | Updated OAuth status from "planned" to "implemented"; fixed cookie name references; updated migration path to reflect completed phases |
+| `docs/archive/qa-notes/QA_NOTES_S0.4.2_OAUTH.md` | Added conflict resolution note clarifying this doc is correct and canonical has been updated |
+
+### Why This Matters
+
+The contradiction between "planned" and "implemented" OAuth created a **risk of incorrect decisions**:
+- Developers might skip OAuth implementation thinking it doesn't exist
+- Configuration might be incorrectly documented
+- Onboarding docs might mislead new team members
+
+### Verification
+
+```bash
+# OAuth IS implemented on main:
+git show main:backend/src/api/auth.oauth.ts  # ✅ File exists (562+ lines)
+git show main:backend/migrations/0007_modern_nova.sql  # ✅ oauth_accounts table
+
+# Cookie name default:
+grep -n "AUTH_COOKIE_NAME" backend/src/config/env.ts
+# → z.string().default('akis_sid')
+```
+
+### Final State
+
+| Topic | Canonical Truth | Source |
+|-------|-----------------|--------|
+| OAuth Status | ✅ Implemented (PR #90), available when credentials configured | `backend/docs/Auth.md` |
+| Cookie Name | `akis_sid` (default, configurable via `AUTH_COOKIE_NAME`) | `backend/src/config/env.ts` |
+| OAuth Providers | GitHub ✅, Google ✅, Apple (future) | `backend/docs/Auth.md` |
+| OAuth Endpoints | `GET /auth/oauth/:provider`, `GET /auth/oauth/:provider/callback` | `backend/src/api/auth.oauth.ts` |
+
+---
+
+*This audit establishes the canonical documentation set and cleanup plan. Baseline now derived from official project tracking spreadsheet (ingested 2025-12-18). Cleanup executed 2025-12-18. Post-cleanup hardening completed 2025-12-18. Auth conflicts resolved 2025-12-18.*
 
