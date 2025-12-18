@@ -38,7 +38,20 @@ export async function agentConfigRoutes(fastify: FastifyInstance) {
   fastify.get(
     '/api/agents/configs/:agentType',
     async (request: FastifyRequest, reply: FastifyReply) => {
-      const { agentType } = request.params as { agentType: string };
+      const rawAgentType = (request.params as { agentType: string }).agentType;
+      
+      // Validate agentType
+      const agentTypeResult = agentTypeSchema.safeParse(rawAgentType);
+      if (!agentTypeResult.success) {
+        return reply.code(400).send({
+          error: {
+            code: 'INVALID_AGENT_TYPE',
+            message: `Invalid agent type. Must be one of: scribe, trace, proto`,
+          },
+        });
+      }
+      const agentType = agentTypeResult.data;
+      
       try {
         const user = await requireAuth(request);
 
@@ -95,8 +108,32 @@ export async function agentConfigRoutes(fastify: FastifyInstance) {
   fastify.post(
     '/api/agents/configs/:agentType',
     async (request: FastifyRequest, reply: FastifyReply) => {
-      const { agentType } = request.params as { agentType: string };
-      const payload = request.body as z.infer<typeof scribeConfigSchema>;
+      const rawAgentType = (request.params as { agentType: string }).agentType;
+      
+      // Validate agentType
+      const agentTypeResult = agentTypeSchema.safeParse(rawAgentType);
+      if (!agentTypeResult.success) {
+        return reply.code(400).send({
+          error: {
+            code: 'INVALID_AGENT_TYPE',
+            message: `Invalid agent type. Must be one of: scribe, trace, proto`,
+          },
+        });
+      }
+      const agentType = agentTypeResult.data;
+      
+      // Validate payload
+      const payloadResult = scribeConfigSchema.safeParse(request.body);
+      if (!payloadResult.success) {
+        return reply.code(400).send({
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'Invalid configuration payload',
+            details: payloadResult.error.errors,
+          },
+        });
+      }
+      const payload = payloadResult.data;
       
       try {
         const user = await requireAuth(request);
@@ -156,6 +193,19 @@ export async function agentConfigRoutes(fastify: FastifyInstance) {
   fastify.post(
     '/api/agents/configs/:agentType/validate',
     async (request: FastifyRequest, reply: FastifyReply) => {
+      const rawAgentType = (request.params as { agentType: string }).agentType;
+      
+      // Validate agentType
+      const agentTypeResult = agentTypeSchema.safeParse(rawAgentType);
+      if (!agentTypeResult.success) {
+        return reply.code(400).send({
+          error: {
+            code: 'INVALID_AGENT_TYPE',
+            message: `Invalid agent type. Must be one of: scribe, trace, proto`,
+          },
+        });
+      }
+      
       try {
         await requireAuth(request);
 
