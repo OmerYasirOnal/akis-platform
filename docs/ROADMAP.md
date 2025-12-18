@@ -3,6 +3,16 @@
 > **Schedule Anchor:** `docs/PROJECT_TRACKING_BASELINE.md` (source: spreadsheet)  
 > **Last Synced:** 2025-12-18
 
+### Planning Chain
+
+```
+docs/PROJECT_TRACKING_BASELINE.md  (schedule anchor, spreadsheet source)
+          ↓
+docs/ROADMAP.md                    (this file: phase overview)
+          ↓
+docs/NEXT.md                       (immediate actions + gating)
+```
+
 ---
 
 ## Current Status (2025-12-18)
@@ -142,6 +152,40 @@
 - ✅ Final rapor submitted
 - ✅ Demo video + prova complete
 - ✅ Sunum slaytları ready
+
+---
+
+## Phase 10 — Next Foundations (GitHub Epic #44)
+
+> **Note:** Phase 10 runs in parallel with core development as a UX/performance improvement track.  
+> **Source:** Consolidated from `docs/PHASE10_PLAN.md` (now deprecated, see audit report).
+
+### Goals
+- Settings UX: Kullanıcı/account konfigürasyonlarında daha az sürtünme, daha fazla rehberlik
+- Accessibility: Dark/light tema ve yeni bileşenlerde WCAG 2.1 AA uyumu
+- Performance: Core Web Vitals için ölçülebilir bütçeler ve otomasyon
+- Marketing: Pricing ROI widget'ı ve Landing FAQ akordeonu ile daha net değer önerisi
+
+### Work Items (GitHub Issues)
+
+| Issue | Title | Status |
+|-------|-------|--------|
+| #49 | Settings UX refinement | 📋 Planned |
+| #47 | Accessibility pass (global) | 📋 Planned |
+| #48 | Performance budgets & monitoring | 📋 Planned |
+| #45 | ROI widget (Pricing) | 📋 Planned |
+| #46 | FAQ accordion (Landing) | 📋 Planned |
+
+### Acceptance Gates
+- `npm run lint`, `npm run typecheck`, `npm run build` root seviyesinde yeşil
+- Lighthouse / WebPageTest: LCP < 2.5s, CLS < 0.1, INP < 200ms
+- Erişilebilirlik: axe, keyboard traversal kritik akışlarda engel üretmiyor
+- Yeni bileşenlerin analytics olayları ve dokümantasyonu güncel
+
+### Out of Scope
+- Backend auth yeniden yazımı veya MCP adapter yatırımı
+- Mobil native uygulama yüzeyleri
+- Pricing stratejisinde metin/plan değişiklikleri (yalnızca UI bileşenleri)
 
 ---
 

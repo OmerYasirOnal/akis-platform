@@ -110,6 +110,7 @@ The following documents should be treated as **authoritative** sources:
 | `docs/QA_EVIDENCE_PHASE_9_2_BRAND.md` | — | Phase complete, evidence captured | MOVE to archive |
 | `docs/DEV_COOKIE_VERIFICATION.md` | `backend/docs/Auth.md` | Debugging notes, not canonical | MOVE to archive |
 | `docs/PR_DRAFTS/phase-9-2-brand.md` | — | PR merged | DELETE |
+| **`docs/PHASE10_PLAN.md`** | **`docs/ROADMAP.md`** | **Content consolidated into ROADMAP Phase 10 section (2025-12-18)** | **DELETE** |
 
 ### Files to Keep (Active Reference)
 
@@ -126,11 +127,11 @@ The following documents should be treated as **authoritative** sources:
 
 ### Conflicts with PROJECT_TRACKING_BASELINE.md
 
-| Area | Baseline Says | Conflicting Doc | Resolution |
-|------|---------------|-----------------|------------|
-| Sprint IDs | S0.4.x format | ROADMAP.md uses Phase 9.x only | Update ROADMAP to include sprint IDs |
-| Phase 10 items | #44-#49 | PHASE10_PLAN.md has same | Consolidate into ROADMAP.md |
-| Auth status | S0.4.4 complete | docs/Auth.md shows Phase 9.1 mock | DELETE docs/Auth.md |
+| Area | Baseline Says | Conflicting Doc | Resolution | Status |
+|------|---------------|-----------------|------------|--------|
+| Sprint IDs | S0.4.x format | ROADMAP.md uses Phase 9.x only | Update ROADMAP to include sprint IDs | ✅ DONE |
+| Phase 10 items | #44-#49 | PHASE10_PLAN.md has same | Consolidate into ROADMAP.md | ✅ DONE (2025-12-18) |
+| Auth status | S0.4.4 complete | docs/Auth.md shows Phase 9.1 mock | DELETE docs/Auth.md | 📋 Pending cleanup |
 
 ### API Path Inconsistencies
 
@@ -341,6 +342,8 @@ BRAND_GUIDE.md (visual identity)
 6. ✅ Updated `.cursor/context/CONTEXT_SCOPE.md` (added planning refs)
 7. ✅ Updated `README.md` (added tracking section)
 8. ✅ Added spreadsheet to `.gitignore` (internal notes protection)
+9. ✅ Consolidated `docs/PHASE10_PLAN.md` content into `docs/ROADMAP.md` Phase 10 section
+10. ✅ Added "Planning Chain" cross-references to ROADMAP.md and NEXT.md
 
 ### Conflicts Resolved
 

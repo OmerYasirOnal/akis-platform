@@ -4,6 +4,12 @@
 > **Audit Report:** `docs/DOCS_AUDIT_REPORT.md`  
 > **Last Updated:** 2025-12-18
 
+### Planning Chain
+
+```
+docs/PROJECT_TRACKING_BASELINE.md  →  docs/ROADMAP.md  →  docs/NEXT.md (this file)
+```
+
 ---
 
 ## Current Focus (2025-12-18)
