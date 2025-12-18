@@ -1,8 +1,45 @@
 # AKIS Platform — Documentation Audit Report
 
-> **Audit Date:** 2025-12-18  
+> **Audit Date:** 2025-12-18 (Updated)  
 > **Scope:** All docs in `docs/`, `.cursor/`, `backend/docs/`  
 > **Branch:** `docs/project-tracking-baseline-s0.4.6`
+
+---
+
+## 0. Spreadsheet Ingestion Status
+
+### Source File
+
+| Item | Value |
+|------|-------|
+| **File Name** | `AKIS_Proje_Takibi_Profesyonel_SON_guncel_v2.xlsx` |
+| **Location** | `docs/AKIS_Proje_Takibi_Profesyonel_SON_guncel_v2.xlsx` |
+| **Status** | ✅ Ingested (2025-12-18) |
+| **Git Status** | 🚫 Excluded from git (see `.gitignore`) |
+
+### Why Excluded from Git
+
+The spreadsheet may contain internal notes, person-specific comments, or planning discussions not intended for public visibility. The extracted baseline (`PROJECT_TRACKING_BASELINE.md`) contains all canonicalized data.
+
+### Data Extracted
+
+| Sheet | Data Extracted |
+|-------|----------------|
+| 00_Overview | Critical milestones, notes |
+| 01_Kisiler | Team roles (Yasir, Ayşe, Sadi Önal) |
+| 02_Fazlar | Phase definitions (0.1 – 3) with dates and status |
+| 03_Sprintler | Sprint definitions (S0.4.1 – S3.0.3) with dates and goals |
+| 04_Gorevler | Task details with IDs, workstreams, dates, PR references |
+| 05_Gantt_Fazlar | Visual timeline (not extracted, reference only) |
+
+### Baseline Alignment
+
+| Document | Status | Notes |
+|----------|--------|-------|
+| `docs/PROJECT_TRACKING_BASELINE.md` | ✅ Updated | Full extraction from spreadsheet |
+| `docs/ROADMAP.md` | ✅ Updated | Aligned with baseline phases/milestones |
+| `docs/NEXT.md` | ✅ Updated | Aligned with baseline sprints/gating |
+| `README.md` | ✅ Updated | Added tracking section |
 
 ---
 
@@ -294,21 +331,32 @@ BRAND_GUIDE.md (visual identity)
 
 ## 7. Summary
 
-### Actions for This PR
+### Actions Completed (2025-12-18)
 
-1. ✅ Created `docs/PROJECT_TRACKING_BASELINE.md`
-2. ✅ Created `docs/DOCS_AUDIT_REPORT.md` (this file)
-3. 🔄 Update `docs/ROADMAP.md` (align with baseline)
-4. 🔄 Update `docs/NEXT.md` (add gating criteria)
-5. 🔄 Update `.cursor/context/CONTEXT_SCOPE.md` (add refs)
+1. ✅ Ingested spreadsheet `AKIS_Proje_Takibi_Profesyonel_SON_guncel_v2.xlsx`
+2. ✅ Created `docs/PROJECT_TRACKING_BASELINE.md` with real data
+3. ✅ Created `docs/DOCS_AUDIT_REPORT.md` (this file)
+4. ✅ Updated `docs/ROADMAP.md` (aligned with baseline)
+5. ✅ Updated `docs/NEXT.md` (added gating criteria)
+6. ✅ Updated `.cursor/context/CONTEXT_SCOPE.md` (added planning refs)
+7. ✅ Updated `README.md` (added tracking section)
+8. ✅ Added spreadsheet to `.gitignore` (internal notes protection)
+
+### Conflicts Resolved
+
+| Conflict | Resolution |
+|----------|------------|
+| Sprint IDs missing from ROADMAP | Added S0.4.x series to ROADMAP.md |
+| BASELINE was placeholder | Replaced with real spreadsheet data |
+| Phase dates inconsistent | Synced all docs with spreadsheet dates |
 
 ### Follow-up Actions (Separate PRs)
 
-1. Execute file operations (delete/archive)
+1. Execute file operations (delete/archive duplicates)
 2. Consolidate PHASE10_PLAN.md into ROADMAP.md
 3. Review and update QA_NOTES files as historical
 
 ---
 
-*This audit establishes the canonical documentation set and cleanup plan. Execute file operations only after this PR is reviewed and merged.*
+*This audit establishes the canonical documentation set and cleanup plan. Baseline now derived from official project tracking spreadsheet (ingested 2025-12-18).*
 

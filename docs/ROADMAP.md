@@ -1,175 +1,209 @@
-# Roadmap & Milestones
+# AKIS Platform — Roadmap & Milestones
 
-AKIS Platform'un kilometre taşları bu belge üzerinden yönetilir; tek süreç, tek deploy prensibiyle ilerleyen modüler monolit mimariyi referans alır.
-
-> **Schedule Anchor:** `docs/PROJECT_TRACKING_BASELINE.md`  
-> **Audit Report:** `docs/DOCS_AUDIT_REPORT.md`
+> **Schedule Anchor:** `docs/PROJECT_TRACKING_BASELINE.md` (source: spreadsheet)  
+> **Last Synced:** 2025-12-18
 
 ---
 
-## Phase Status Overview
+## Current Status (2025-12-18)
 
-| Phase | Name | Status | Sprint Range |
-|-------|------|--------|--------------|
-| 9.1 | Dark Theme Unification & Auth UI | ✅ Complete | S0.4.1 - S0.4.3 |
-| 9.2 | i18n & Theming Foundations | 🔄 In Progress | S0.4.4 - S0.4.6 |
-| 10 | Next Foundations | 📋 Planned | TBD |
+| Phase | Status | Key Deliverable |
+|-------|--------|-----------------|
+| 0.1–0.3 | ✅ Complete | Temeller, Mimari, Çekirdek Motor |
+| **0.4** | **🔄 In Progress** | Web Shell + Basit Motor (S0.4.6 current) |
+| 0.5 | 📋 Planned | Motor + GitHub Entegrasyonu |
+| 1 | 📋 Planned | Scribe • Trace • Proto – Early Access |
 
-### Sprint Checklist (S0.4.x Series)
-
-- [x] S0.4.2 — OAuth Config + Env Schema (PR #90)
-- [x] S0.4.3-FE-4 — Docs & .cursor cleanup
-- [x] S0.4.4 — Multi-step email auth flow (PR #90)
-- [x] S0.4.5 — GitHub OAuth UI wiring
-- [ ] S0.4.6 — Scribe Config Dashboard (current)
+**Next Milestone:** Phase 1 Functional Complete — **2025-12-25** (Scribe job UI'dan çalışır)
 
 ---
 
-## Phase 9.1 — Dark Theme Unification & Auth UI ✅
+## Phase Overview
 
-**Status:** Complete
-
-**Deliverables:**
-- Solid dark hero background (#0A1215)
-- ak-surface-2 card patterns
-- /login + /signup dark themes
-- Focus ring standardization (ak-primary)
-- Demo auth flow (frontend-only)
-
----
-
-## Phase 9.2 — i18n & Theming Foundations (Epic #24)
-
-**Why now?** Phase 9.2, geliştirici deneyimini iyileştirmek, marka tutarlılığını güçlendirmek ve ileride eklenecek locale/tema varyantlarına hazır olmak için gerekli altyapıyı sağlar. Dark tema varsayılan olarak korunurken, kullanıcı-denetimli tema geçişleri ve çok dilli içerik akışları için temel kancalar hazırlanır.
-
-**Linked Work:**
-- #24 Phase 9.2 — i18n & Theming Foundations (Epic)
-- #25 Phase 9.2 — i18n scaffold (locale klasörleri, mesaj katalogları)
-- #26 Phase 9.2 — Theme toggle (varsayılan dark, opt-in light)
-- #27 Phase 9.2 — High-res logo rollout (@2x/@3x, favicon seti)
-- #28 Phase 9.2 — Spotlight effects (GPU dostu, erişilebilir)
-- #29 Phase 9.2 — Lint cleanup (ESLint/Prettier sadeleştirme)
-
-### Deliverables & Acceptance Notes
-
-#### 1. i18n foundation
-- `frontend/src/locales/` altında TR ve EN kökleri
-- Navigasyon, auth giriş noktaları ve kritik CTA metinleri locale anahtarları üzerinden
-- Varsayılan fallback `tr-TR`
-
-#### 2. Theme toggle
-- Varsayılan tema dark; light tema opt-in
-- Kullanıcı tercihleri `localStorage` ile
-- Renk token'ları (`ak-*`) her iki tema için kataloglanmış
-
-#### 3. High-res logo rollout
-- `frontend/src/assets/branding/` altında @2x/@3x PNG seti
-- README ve docs/ içindeki görsel rozetler güncel logotype ile
-- Görsel optimizasyon (20 KB hedef)
-
-#### 4. Spotlight visual effects
-- GPU dostu (`transform`, `opacity`) animasyonlar
-- `prefers-reduced-motion` desteği
-- Performans bütçeleri (LCP < 2.5s, CLS < 0.1)
-
-#### 5. Lint & style cleanup
-- ESLint ve Prettier konfigürasyonları sadeleştirilmiş
-- CI pipeline'larında lint adımları yeşil
+| Faz | Adı | Tarih Aralığı | Durum |
+|-----|-----|---------------|-------|
+| 0.1 | Temeller (Repo & Altyapı) | Nov 1–7, 2025 | ✅ |
+| 0.2 | Mimari & Kapsam | Nov 8–17, 2025 | ✅ |
+| 0.3 | Çekirdek Motor İskeleti | Nov 18–27, 2025 | ✅ |
+| 0.4 | Web Shell + Basit Motor | Nov 28 – Dec 4, 2025 | 🔄 |
+| 0.5 | Motor + GitHub Entegrasyonu | Dec 5–12, 2025 | 📋 |
+| 1 | Scribe • Trace • Proto – Early Access | Dec 13–25, 2025 | 📋 |
+| 1.5 | Logging • Token Trace • Time-Saved v1 | Dec 26, 2025 – Jan 9, 2026 | 📋 |
+| 2 | OCI Hosting + Gerçek Pilotlar | Jan 10–23, 2026 | 📋 |
+| 2.5 | Gerçek Kullanım • Early Users • Marketplace Taslağı | Jan 24 – Feb 21, 2026 | 📋 |
+| 3 | Marka • İçerik • Final Teslim | Feb 22 – Mar 31, 2026 | 📋 |
 
 ---
 
-## Phase 10 — Next Foundations (Epic #44)
+## Phase 0.4 — Web Shell + Basit Motor (Current)
 
-**Why now?** Phase 10, Phase 9.2 sonrası deneyimi sertleştirerek ayakta tutma maliyetini düşürmeyi ve müşteri güvenini artırmayı hedefler.
+**Sprint Range:** S0.4.1 – S0.4.6
 
-**Linked Work:**
-- #44 Epic — Phase 10: Next Foundations
-- #49 Phase 10 — Settings UX refinement
-- #47 Phase 10 — Accessibility pass
-- #48 Phase 10 — Performance budgets
-- #45 Phase 10 — ROI widget (Pricing)
-- #46 Phase 10 — FAQ accordion (Landing)
+### Completed Sprints
+- [x] **S0.4.1** — Landing & ana navigasyon
+- [x] **S0.4.2** — OAuth config & auth endpoints (PR #90)
+- [x] **S0.4.3** — Light/Dark tema, brand assets
+- [x] **S0.4.4** — Dashboard layout, Cursor-style auth UI (PR #90)
+- [x] **S0.4.5** — i18n cleanup, 404 fix (PR #93)
 
-### Deliverables & Acceptance Notes
-
-1. **Settings UX refinement** — Kullanıcı ayarları IA'sı gözden geçirilir, formlar doğrulama ile yeniden düzenlenir
-2. **Accessibility pass** — Global ARIA landmark'ları, kontrast denetimleri, klavye erişimi
-3. **Performance budgets** — Core Web Vitals hedefleri (LCP, CLS, INP) tanımlanır, CI'ye bütçe kontrolleri
-4. **ROI widget (Pricing)** — Pricing sayfasında hesaplayıcı destekli ROI bileşeni
-5. **FAQ accordion (Landing)** — Landing sayfasına erişilebilir akordeon bileşeni
+### Current Sprint
+- [ ] **S0.4.6** — Scribe Config Dashboard
+  - [x] Step 2: SearchableSelect integration (verified)
+  - [ ] Steps 3-5: Target platform, advanced options, review
 
 ---
 
-## Academic Milestones
+## Phase 1 — Scribe • Trace • Proto – Early Access
 
-| Milestone | Date | Deliverable |
-|-----------|------|-------------|
-| Demo 1 | 2025-01-26 | Working prototype with core agent functionality |
-| Final | 2025-05-22 | Complete platform with all three agents |
+**Target:** 2025-12-13 to 2025-12-25  
+**Milestone:** Phase 1 Functional Complete (2025-12-25)
 
-**Academic Context:**
-- Student: Ömer Yasir ÖNAL (2221221562)
-- Department: Computer Engineering
-- Advisor: Dr. Öğr. Üyesi Nazlı DOĞAN
+### Sprints
+| Sprint | Dates | Goal |
+|--------|-------|------|
+| S1.0.1 | Dec 13–19 | Scribe temel akış (Orchestrator routing + UI output) + reflection |
+| S1.0.2 | Dec 20–25 | Trace/Proto MVP + job detail UI + Phase 1 kapanış |
+
+### Exit Criteria (DoD)
+- ✅ Scribe job starts from UI
+- ✅ Orchestrator routing functional
+- ✅ Output viewer displays results
+- ✅ Reflection step works
+- ✅ QA smoke kanıtı (Sadi Önal sign-off)
 
 ---
 
-## Agent Implementation Roadmap
+## Phase 1.5 — Logging • Token Trace • Time-Saved v1
 
-| Agent | Core Logic | Config UI | Job Execution | Target Phase |
-|-------|------------|-----------|---------------|--------------|
-| Scribe | ✅ | 🔄 S0.4.6 | ⚠️ Partial | Phase 9.2 |
-| Trace | ⚠️ Scaffold | 📋 | 📋 | Phase 10+ |
-| Proto | ⚠️ Scaffold | 📋 | 📋 | Phase 10+ |
+**Target:** 2025-12-26 to 2026-01-09
+
+### Sprints
+| Sprint | Dates | Goal |
+|--------|-------|------|
+| S1.5.0 | Dec 26 | SDTA dokümanı final + teslim (Ayşe) |
+| S1.5.1 | Dec 27 – Jan 2 | Job loglama v1 (job_logs + log viewer + logs endpoint) |
+| S1.5.2 | Jan 3–9 | Token/cost tracking + time-saved v1 metrikleri |
+
+### Exit Criteria (DoD)
+- ✅ Log viewer in dashboard
+- ✅ job_logs table populated
+- ✅ Token/cost tracking per job
+- ✅ Time-saved v1 metrics displayed
+
+---
+
+## Phase 2 — OCI Hosting + Gerçek Pilotlar
+
+**Target:** 2026-01-10 to 2026-01-23
+
+### Sprints
+| Sprint | Dates | Goal |
+|--------|-------|------|
+| S2.0.1 | Jan 10–16 | OCI resource setup |
+| S2.0.2 | Jan 17–23 | CI/CD + health-check/monitoring + pilotlar |
+
+### Exit Criteria (DoD)
+- ✅ OCI kaynakları provisioned
+- ✅ CI/CD pipeline functional
+- ✅ Health-check and monitoring active
+- ✅ Initial pilot users onboarded
+
+---
+
+## Phase 2.5 — Gerçek Kullanım • Early Users • Marketplace Taslağı
+
+**Target:** 2026-01-24 to 2026-02-21
+
+### Sprints
+| Sprint | Dates | Focus |
+|--------|-------|-------|
+| S2.5.1 | Jan 24–30 | Early users program |
+| S2.5.2 | Jan 31 – Feb 6 | Usage metrics implementation |
+| S2.5.3 | Feb 7–13 | Pricing page UI |
+| S2.5.4 | Feb 14–21 | Workflow templates |
+
+---
+
+## Phase 3 — Marka • İçerik • Final Teslim
+
+**Target:** 2026-02-22 to 2026-03-31  
+**Milestone:** Proje bitiş hedefi (2026-03-31)
+
+### Sprints
+| Sprint | Dates | Focus |
+|--------|-------|-------|
+| S3.0.1 | Feb 22 – Mar 7 | Brand finalization (logo, colors, tokens) |
+| S3.0.2 | Mar 8–21 | Content (Medium yazıları, LinkedIn posts) |
+| S3.0.3 | Mar 22–31 | Final demo, rapor, sunum, teslim |
+
+### Exit Criteria (DoD)
+- ✅ Brand guideline v1 complete
+- ✅ Medium + LinkedIn içerikleri published
+- ✅ Final rapor submitted
+- ✅ Demo video + prova complete
+- ✅ Sunum slaytları ready
+
+---
+
+## Critical Milestones
+
+| Milestone | Date | Owner |
+|-----------|------|-------|
+| **Phase 1 Functional Complete** | 2025-12-25 | Yasir |
+| **SDTA hazır** | 2025-12-26 | Ayşe |
+| **Proje bitiş hedefi** | 2026-03-31 | Yasir |
 
 ---
 
 ## Execution Order (Canonical)
 
 ```
-1. Finish Scribe stabilization (S0.4.6)
-   └── Config wizard complete
-   └── SearchableSelect functional
+NOW (Phase 0.4):
+1. Complete S0.4.6 Scribe Config Dashboard
+   └── SearchableSelect verified ✅
+   └── Steps 3-5 pending
 
-2. Phase 9.2 completion
-   └── i18n, theming, logo, lint
+NEXT (Phase 0.5 + 1):
+2. Motor + GitHub Entegrasyonu
+3. Scribe temel akış (S1.0.1)
+4. Trace/Proto MVP + Phase 1 kapanış (S1.0.2)
+   └── Milestone: Phase 1 Functional Complete (Dec 25)
 
-3. Phase 10 foundations
-   └── Settings, a11y, performance, ROI/FAQ
+THEN (Phase 1.5):
+5. SDTA dokümanı final (Ayşe, Dec 26)
+6. Job loglama v1
+7. Token/cost tracking
 
-4. Public waitlist-only site mode
-   └── Landing + waitlist signup only
-
-5. Ecosystem QR/device-link + mobile companion
-   └── Cross-device authentication
-
-6. V2 RepoOps agent (later)
-   └── Only when web agents stable
-   └── Full MCP adapter suite required
+FUTURE:
+8. OCI Hosting + pilotlar (Phase 2)
+9. Early users + marketplace (Phase 2.5)
+10. Marka + içerik + final teslim (Phase 3)
 ```
 
 ---
 
-## V2 Gating Criteria (RepoOps Agent)
+## V2 Gating Criteria
 
-Before starting V2 RepoOps development:
+V2 RepoOps agent development starts only after:
 
 | Criterion | Required Status |
-|-----------|----------------|
-| Scribe, Trace, Proto | Complete + tested |
-| GitHub MCP adapter | Production-ready |
-| Atlassian MCP adapter | Production-ready |
-| Job FSM | Proven (110+ tests) |
-| Waitlist site | Launched |
-| Mobile companion | QR linking functional |
+|-----------|-----------------|
+| Phase 1 complete | Scribe/Trace/Proto functional |
+| MCP adapters ready | GitHub + Atlassian production-ready |
+| Job FSM reliable | Tests passing, no regressions |
+| QA sign-off | Sadi Önal approval |
 
 ---
 
 ## Reference Documents
 
-- **Schedule Anchor:** `docs/PROJECT_TRACKING_BASELINE.md`
-- **Scope & Constraints:** `.cursor/context/CONTEXT_SCOPE.md`
-- **Architecture:** `.cursor/context/CONTEXT_ARCHITECTURE.md`
-- **Audit Report:** `docs/DOCS_AUDIT_REPORT.md`
-- **Next Actions:** `docs/NEXT.md`
-- **UI Design:** `docs/UI_DESIGN_SYSTEM.md`
+| Document | Purpose |
+|----------|---------|
+| `docs/PROJECT_TRACKING_BASELINE.md` | Schedule anchor (from spreadsheet) |
+| `docs/NEXT.md` | Immediate actions |
+| `.cursor/context/CONTEXT_SCOPE.md` | Scope & requirements |
+| `.cursor/context/CONTEXT_ARCHITECTURE.md` | Technical architecture |
+
+---
+
+*Roadmap synced with `AKIS_Proje_Takibi_Profesyonel_SON_guncel_v2.xlsx`. Task IDs and dates preserved exactly.*
