@@ -1,8 +1,8 @@
 import { AgentFactory, type AgentDependencies } from '../agents/AgentFactory.js';
 import { AgentStateMachine } from '../state/AgentStateMachine.js';
 import { db } from '../../db/client.js';
-import { jobs, jobPlans, jobAudits, type NewJob, type NewJobPlan, type NewJobAudit } from '../../db/schema.js';
-import { eq } from 'drizzle-orm';
+import { jobs, jobPlans, jobAudits, oauthAccounts, type NewJob, type NewJobPlan, type NewJobAudit } from '../../db/schema.js';
+import { eq, and } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
 import { JobNotFoundError, InvalidStateTransitionError, DatabaseError, AIProviderError } from '../errors.js';
 import type { AIService } from '../../services/ai/AIService.js';
@@ -11,6 +11,34 @@ import type { MCPTools } from '../../services/mcp/adapters/index.js';
 import { getEnv } from '../../config/env.js';
 import { GitHubMCPService } from '../../services/mcp/adapters/GitHubMCPService.js';
 import { StaticCheckRunner } from '../../services/checks/index.js';
+
+/**
+ * Custom error for missing GitHub integration
+ */
+export class GitHubNotConnectedError extends Error {
+  readonly code = 'GITHUB_NOT_CONNECTED';
+  
+  constructor(message: string = 'GitHub is not connected. Please connect your GitHub account first.') {
+    super(message);
+    this.name = 'GitHubNotConnectedError';
+  }
+}
+
+/**
+ * Custom error for missing dependencies
+ */
+export class MissingDependencyError extends Error {
+  readonly code = 'MISSING_DEPENDENCY';
+  readonly dependency: string;
+  readonly suggestion: string;
+  
+  constructor(dependency: string, suggestion: string) {
+    super(`Missing dependency: ${dependency}. ${suggestion}`);
+    this.name = 'MissingDependencyError';
+    this.dependency = dependency;
+    this.suggestion = suggestion;
+  }
+}
 
 /**
  * AgentOrchestrator - Central coordinator for agent workflows
@@ -30,6 +58,49 @@ export class AgentOrchestrator {
     this.aiService = aiService;
     this.mcpTools = mcpTools;
     this.checkRunner = new StaticCheckRunner();
+  }
+
+  /**
+   * Resolve GitHub OAuth token for a user
+   * @param userId - User ID
+   * @returns Access token or null if not connected
+   */
+  private async resolveGitHubToken(userId: string): Promise<string | null> {
+    try {
+      const githubOAuth = await db.query.oauthAccounts.findFirst({
+        where: and(
+          eq(oauthAccounts.userId, userId),
+          eq(oauthAccounts.provider, 'github')
+        ),
+      });
+      return githubOAuth?.accessToken || null;
+    } catch (error) {
+      console.error('Failed to resolve GitHub token:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Check if agent type requires GitHub integration
+   */
+  private agentRequiresGitHub(agentType: string, payload: Record<string, unknown>): boolean {
+    // Scribe always requires GitHub for repo operations
+    if (agentType === 'scribe') {
+      return true;
+    }
+    
+    // Check targetPlatform for any agent
+    const targetPlatform = payload.targetPlatform as string | undefined;
+    if (targetPlatform === 'github_repo' || targetPlatform === 'github_wiki') {
+      return true;
+    }
+    
+    // Check if there are repo-related fields
+    if (payload.owner && payload.repo) {
+      return true;
+    }
+    
+    return false;
   }
 
   /**
@@ -137,6 +208,8 @@ export class AgentOrchestrator {
 
       // Prepare dependencies (DI)
       const env = getEnv();
+      const payload = (job.payload || {}) as Record<string, unknown>;
+      
       const resolvedTools: AgentDependencies = { 
         ...this.tools,
         tools: {
@@ -145,9 +218,40 @@ export class AgentOrchestrator {
         }
       };
       
-      // Ensure GitHubMCPService is available (MVP: Use global token/URL)
-      if (!resolvedTools.tools?.githubMCP && env.GITHUB_MCP_BASE_URL) {
-        // In a real app, we'd resolve the token based on job.payload.owner/repo
+      // S0.4.6: Fail-fast validation for GitHub-dependent agents
+      if (this.agentRequiresGitHub(job.type, payload)) {
+        const userId = payload.userId as string | undefined;
+        
+        if (!userId) {
+          throw new MissingDependencyError(
+            'userId',
+            'Job payload must include userId for GitHub-dependent operations. Ensure the job was created with a valid authenticated session.'
+          );
+        }
+        
+        // Resolve user's GitHub OAuth token
+        const userGitHubToken = await this.resolveGitHubToken(userId);
+        
+        if (!userGitHubToken) {
+          throw new GitHubNotConnectedError(
+            `GitHub is not connected for user ${userId}. Please connect your GitHub account at /dashboard/agents/scribe before running this job.`
+          );
+        }
+        
+        // Create GitHubMCPService with user's token
+        if (env.GITHUB_MCP_BASE_URL) {
+          resolvedTools.tools!.githubMCP = new GitHubMCPService({
+            baseUrl: env.GITHUB_MCP_BASE_URL,
+            token: userGitHubToken
+          });
+        } else {
+          throw new MissingDependencyError(
+            'GITHUB_MCP_BASE_URL',
+            'GITHUB_MCP_BASE_URL environment variable is not configured. Please set it in your .env file.'
+          );
+        }
+      } else if (!resolvedTools.tools?.githubMCP && env.GITHUB_MCP_BASE_URL) {
+        // Fallback for non-GitHub-dependent agents (use global token if available)
         const token = env.GITHUB_TOKEN || ''; 
         resolvedTools.tools!.githubMCP = new GitHubMCPService({
           baseUrl: env.GITHUB_MCP_BASE_URL,
@@ -522,6 +626,8 @@ export class AgentOrchestrator {
   async executeAgent(agentType: string, context: unknown): Promise<unknown> {
     // Prepare dependencies (DI) similar to startJob
     const env = getEnv();
+    const payload = (context && typeof context === 'object' ? context : {}) as Record<string, unknown>;
+    
     const resolvedTools: AgentDependencies = { 
       ...this.tools,
       tools: {
@@ -530,7 +636,37 @@ export class AgentOrchestrator {
       }
     };
     
-    if (!resolvedTools.tools?.githubMCP && env.GITHUB_MCP_BASE_URL) {
+    // S0.4.6: Fail-fast validation for GitHub-dependent agents
+    if (this.agentRequiresGitHub(agentType, payload)) {
+      const userId = payload.userId as string | undefined;
+      
+      if (!userId) {
+        throw new MissingDependencyError(
+          'userId',
+          'Context must include userId for GitHub-dependent operations.'
+        );
+      }
+      
+      const userGitHubToken = await this.resolveGitHubToken(userId);
+      
+      if (!userGitHubToken) {
+        throw new GitHubNotConnectedError(
+          `GitHub is not connected for user ${userId}. Please connect your GitHub account first.`
+        );
+      }
+      
+      if (env.GITHUB_MCP_BASE_URL) {
+        resolvedTools.tools!.githubMCP = new GitHubMCPService({
+          baseUrl: env.GITHUB_MCP_BASE_URL,
+          token: userGitHubToken
+        });
+      } else {
+        throw new MissingDependencyError(
+          'GITHUB_MCP_BASE_URL',
+          'GITHUB_MCP_BASE_URL environment variable is not configured.'
+        );
+      }
+    } else if (!resolvedTools.tools?.githubMCP && env.GITHUB_MCP_BASE_URL) {
       const token = env.GITHUB_TOKEN || ''; 
       resolvedTools.tools!.githubMCP = new GitHubMCPService({
         baseUrl: env.GITHUB_MCP_BASE_URL,

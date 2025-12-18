@@ -71,10 +71,19 @@ export class ScribeAgent extends BaseAgent {
     const task = context as ScribeTaskContext;
 
     if (!this.githubMCP) {
-      throw new Error('GitHubMCPService not injected into ScribeAgent');
+      throw new Error(
+        'GitHubMCPService not injected into ScribeAgent. ' +
+        'This usually means: 1) GitHub OAuth is not connected for this user, or ' +
+        '2) GITHUB_MCP_BASE_URL is not configured. ' +
+        'Please connect GitHub at /dashboard/agents/scribe or check your environment configuration.'
+      );
     }
     if (!this.aiService) {
-      throw new Error('AIService not injected into ScribeAgent');
+      throw new Error(
+        'AIService not injected into ScribeAgent. ' +
+        'This usually means AI provider is not configured. ' +
+        'Please check AI_PROVIDER and related environment variables.'
+      );
     }
 
     const results: Record<string, unknown> = { plan };
