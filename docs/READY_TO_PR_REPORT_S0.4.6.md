@@ -58,6 +58,27 @@ disabled={!integrationStatus?.github.connected}
 
 **Fix**: Explicit `NODE_ENV=test` prefix for test commands, `unset NODE_ENV` before dev.
 
+### Bug 4: Runtime 404 for /api/agents/configs and /api/integrations
+
+**Symptom**: Frontend shows "Not Found" error. Console logs:
+- `GET /api/agents/configs/scribe` → 404
+- `GET /api/integrations/connect/github` → 404
+
+**Root Cause**: Route files `agent-configs.ts` and `integrations.ts` were removed during cleanup but frontend still expected them. Routes were never registered in `server.app.ts`.
+
+**Fix**: Recreated both route files with minimal scope and registered them in `server.app.ts`.
+
+**Evidence**:
+```bash
+$ curl http://localhost:3000/api/agents/configs/scribe
+{"error":{"code":"UNAUTHORIZED","message":"Authentication required"}}
+# ✅ 401 (not 404)
+
+$ curl -v http://localhost:3000/api/integrations/connect/github
+< HTTP/1.1 302 Found
+# ✅ 302 redirect (not 404)
+```
+
 ---
 
 ## FILES CHANGED
