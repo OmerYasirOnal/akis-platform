@@ -473,5 +473,90 @@ backend/docs/
 
 ---
 
-*This audit establishes the canonical documentation set and cleanup plan. Baseline now derived from official project tracking spreadsheet (ingested 2025-12-18). Cleanup executed 2025-12-18.*
+## 9. Post-Cleanup Hardening (2025-12-18)
+
+> **Validation Branch:** `docs/project-tracking-baseline-s0.4.6`
+
+### Branch Separation Verification
+
+| Branch | Purpose | Status |
+|--------|---------|--------|
+| `docs/project-tracking-baseline-s0.4.6` | Docs cleanup & canonicalization | ✅ Clean — only docs changes |
+| `feat/scribe-config-s0.4.6-wip` | Scribe implementation | ✅ Clean — only Scribe-related files |
+
+**Scribe Branch Docs Changes (All Valid):**
+- `docs/GITHUB_OAUTH_SETUP.md` — Scribe-related setup guide ✅
+- `docs/QA_NOTES_SCRIBE_CONFIG_S0.4.6.md` — Scribe QA notes ✅
+- `docs/QA_SCRIBE_STEP1_STEP2.md` — Scribe verification ✅
+- `docs/plans/S0.4.6_*.md` — Scribe planning docs ✅
+- `SCRIBE_STEP2_VERIFICATION.md` — Scribe Step 2 lock-in ✅
+
+**No Cross-Contamination:** Docs cleanup changes are isolated to docs branch. No leakage.
+
+### Canonical QA Evidence Status
+
+| File | Location | Status |
+|------|----------|--------|
+| `QA_NOTES_AUTH_S0.4.4.md` | `docs/archive/qa-notes/` | ✅ Archived with "Historical" label |
+| `QA_NOTES_S0.4.2_OAUTH.md` | `docs/archive/qa-notes/` | ✅ Archived with "Historical" label |
+
+**Labels Added:**
+- Both files now include: `> ⚠️ Historical QA Evidence (Read-Only)`
+- Both files reference canonical auth docs: `backend/docs/Auth.md`
+
+### Link Integrity Verification
+
+| Deleted/Moved File | References Found | Status |
+|--------------------|------------------|--------|
+| `docs/PHASE10_PLAN.md` | Yes (ROADMAP.md, audit report) | ✅ All point to consolidated ROADMAP.md |
+| `docs/Auth.md` | Yes (multiple) | ✅ All correctly point to `backend/docs/Auth.md` |
+| `docs/CONTEXT_SCOPE.md` | Yes (audit report) | ✅ All correctly point to `.cursor/context/CONTEXT_SCOPE.md` |
+| `docs/QA_NOTES_*.md` | Yes (audit report, archive) | ✅ Archive references updated |
+
+**No Broken Links Found.** All references either:
+- Point to correct canonical location
+- Are in archive documentation (explaining what was archived)
+
+### Canonical Evidence Paths (Final)
+
+| Evidence Type | Canonical Path | Archive Path (Historical) |
+|---------------|----------------|---------------------------|
+| Auth Implementation | `backend/docs/Auth.md` | — |
+| Auth QA S0.4.4 | — | `docs/archive/qa-notes/QA_NOTES_AUTH_S0.4.4.md` |
+| Auth QA S0.4.2 | — | `docs/archive/qa-notes/QA_NOTES_S0.4.2_OAUTH.md` |
+| Scribe QA S0.4.6 | `docs/QA_NOTES_SCRIBE_CONFIG_S0.4.6.md` (Scribe branch) | — |
+| Project Schedule | `docs/PROJECT_TRACKING_BASELINE.md` | — |
+| Roadmap | `docs/ROADMAP.md` | — |
+| Next Actions | `docs/NEXT.md` | — |
+
+### Hardening Actions Performed
+
+1. ✅ Verified branch separation (no cross-contamination)
+2. ✅ Added "Historical QA Evidence (Read-Only)" labels to archived QA files
+3. ✅ Verified all link references point to correct canonical locations
+4. ✅ Confirmed `backend/docs/Auth.md` exists as canonical auth source
+5. ✅ Confirmed Scribe branch only has Scribe-related docs
+
+### Remaining in Archive (Read-Only)
+
+```
+docs/archive/
+├── README.md                      # Archive index
+├── backend-project-deep-audit-report.md
+├── DEV_COOKIE_VERIFICATION.md
+├── repository-docs-audit.md
+├── repository-docs-cleanup-log.md
+├── deprecated/
+│   └── AUTH_GITHUB_INTEGRATION.md
+├── phase-9-2/
+│   ├── PHASE_9_2_BRAND_MIGRATION_NOTES.md
+│   └── QA_EVIDENCE_PHASE_9_2_BRAND.md
+└── qa-notes/
+    ├── QA_NOTES_AUTH_S0.4.4.md    # ⚠️ Historical label added
+    └── QA_NOTES_S0.4.2_OAUTH.md   # ⚠️ Historical label added
+```
+
+---
+
+*This audit establishes the canonical documentation set and cleanup plan. Baseline now derived from official project tracking spreadsheet (ingested 2025-12-18). Cleanup executed 2025-12-18. Post-cleanup hardening completed 2025-12-18.*
 

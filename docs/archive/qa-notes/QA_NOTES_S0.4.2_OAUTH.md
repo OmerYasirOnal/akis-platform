@@ -1,5 +1,9 @@
 # QA Verification Report: S0.4.2 OAuth Implementation
 
+> **⚠️ Historical QA Evidence (Read-Only)**  
+> This document is archived for historical reference. Implementation complete and merged in PR #90.  
+> Canonical auth documentation: `backend/docs/Auth.md`
+
 **Date:** 2025-01-XX  
 **Branch:** `feat/auth-oauth-config-S0.4.2`  
 **Status:** ✅ Implementation Complete, ⚠️ One Test Issue (Non-Blocking)

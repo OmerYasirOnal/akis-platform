@@ -1,5 +1,9 @@
 # Auth QA Notes — S0.4.4
 
+> **⚠️ Historical QA Evidence (Read-Only)**  
+> This document is archived for historical reference. Implementation complete and merged in PR #90.  
+> Canonical auth documentation: `backend/docs/Auth.md`
+
 **Purpose:** This document tracks the quality assurance testing results for the multi-step email authentication implementation in PR #90.
 
 **Related PR:** [#90 - feat(auth): Email-based multi-step authentication (S0.4.2 + S0.4.4)](https://github.com/OmerYasirOnal/akis-platform-devolopment/pull/90)
