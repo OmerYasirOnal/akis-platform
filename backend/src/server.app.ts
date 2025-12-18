@@ -11,6 +11,8 @@ import { healthRoutes } from './api/health.js';
 import { agentsRoutes, setOrchestrator } from './api/agents.js';
 import { metricsRoutes, metrics } from './api/metrics.js';
 import { authRoutes } from './api/auth.js';
+import { agentConfigRoutes } from './api/agent-configs.js';
+import { integrationsRoutes } from './api/integrations.js';
 import { AgentOrchestrator } from './core/orchestrator/AgentOrchestrator.js';
 import { createAIService } from './services/ai/AIService.js';
 import type { MCPTools } from './services/mcp/adapters/index.js';
@@ -141,6 +143,8 @@ export async function buildApp() {
   await app.register(metricsRoutes);
   await app.register(authRoutes, { prefix: '/auth' });
   await app.register(agentsRoutes);
+  await app.register(agentConfigRoutes);
+  await app.register(integrationsRoutes);
 
   // Phase 7.C: Expose OpenAPI JSON at /openapi.json (after routes are registered)
   app.get('/openapi.json', async (_request: FastifyRequest, reply: FastifyReply) => {
