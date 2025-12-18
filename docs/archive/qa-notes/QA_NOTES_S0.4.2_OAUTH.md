@@ -1,5 +1,14 @@
 # QA Verification Report: S0.4.2 OAuth Implementation
 
+> **⚠️ Historical QA Evidence (Read-Only)**  
+> This document is archived for historical reference. Implementation complete and merged in PR #90.  
+> Canonical auth documentation: `backend/docs/Auth.md`
+>
+> **Conflict Resolution (2025-12-18):**  
+> - This QA doc correctly states OAuth is implemented (PR #90).  
+> - `backend/docs/Auth.md` has been updated to reflect OAuth is implemented (was incorrectly marked as "planned").  
+> - Cookie name: `akis_sid` is correct (configurable via `AUTH_COOKIE_NAME` env var).
+
 **Date:** 2025-01-XX  
 **Branch:** `feat/auth-oauth-config-S0.4.2`  
 **Status:** ✅ Implementation Complete, ⚠️ One Test Issue (Non-Blocking)

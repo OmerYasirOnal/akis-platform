@@ -1,237 +1,273 @@
-# Docs NEXT — Gap Audit & Changelog
+# Docs NEXT — Execution Order, Gating Criteria & Gap Audit
+
+> **Schedule Anchor:** `docs/PROJECT_TRACKING_BASELINE.md` (derived from spreadsheet)  
+> **Audit Report:** `docs/DOCS_AUDIT_REPORT.md`  
+> **Last Updated:** 2025-12-18
+
+### Planning Chain
+
+```
+docs/PROJECT_TRACKING_BASELINE.md  →  docs/ROADMAP.md  →  docs/NEXT.md (this file)
+```
+
+---
+
+## Current Focus (2025-12-18)
+
+| Priority | Task | Status | Sprint |
+|----------|------|--------|--------|
+| **P0** | S0.4.6 Scribe Config Dashboard | 🔄 In Progress | S0.4.6 |
+| P1 | Scribe temel akış | 📋 Next | S1.0.1 |
+| P2 | Trace/Proto MVP | 📋 Planned | S1.0.2 |
+| P3 | Job loglama v1 | 📋 Planned | S1.5.1 |
+
+**Next Milestone:** Phase 1 Functional Complete — **2025-12-25**
+
+---
+
+## Execution Order (Spreadsheet-Aligned)
+
+### Phase 0.4: Web Shell + Basit Motor — CURRENT
+
+**Sprint Range:** S0.4.1 – S0.4.6  
+**Dates:** Nov 28, 2025 – Dec 18, 2025
+
+#### S0.4.6 — Scribe Config Dashboard (CURRENT)
+
+| Step | Description | Status |
+|------|-------------|--------|
+| Step 1 | Pre-flight checks (GitHub connection) | ✅ Complete |
+| Step 2 | SearchableSelect for Owner/Repo/Branch | ✅ Complete (verified) |
+| Step 3 | Target platform configuration | 🔄 In Progress |
+| Step 4 | Advanced options | 📋 Pending |
+| Step 5 | Review and save | 📋 Pending |
+
+**Exit Criteria:**
+- [x] Step 2 SearchableSelect works (SCRIBE_STEP2_VERIFICATION.md)
+- [ ] All 5 steps functional
+- [ ] TypeScript/Lint/Tests pass
+- [ ] Job creation endpoint connected
+
+---
+
+### Phase 0.5: Motor + GitHub Entegrasyonu — NEXT
+
+**Dates:** Dec 5–12, 2025
+
+**Objective:** Deep GitHub integration for Scribe agent operations.
+
+**Tasks:**
+- [ ] GitHub webhook handlers
+- [ ] PR creation flow
+- [ ] File content retrieval
+- [ ] Branch operations
+
+---
+
+### Phase 1: Scribe • Trace • Proto – Early Access
+
+**Dates:** Dec 13–25, 2025  
+**Milestone:** Phase 1 Functional Complete (Dec 25)
+
+#### S1.0.1 (Dec 13–19)
+
+| Task | Workstream | Description |
+|------|------------|-------------|
+| S1.0.1-DOC-1 | Docs | Scribe AgentContract & Playbook |
+| S1.0.1-BE-1 | Backend | Orchestrator routing for Scribe |
+| S1.0.1-FE-1 | Frontend | Output viewer component |
+| S1.0.1-BE-2 | Backend | Reflection step implementation |
+
+#### S1.0.2 (Dec 20–25)
+
+| Task | Workstream | Description |
+|------|------------|-------------|
+| S1.0.2-FE-1 | Frontend | Trace/Proto MVP scaffolds |
+| S1.0.2-FE-2 | Frontend | Job detail UI |
+| S1.0.2-QA-1 | QA | Phase 1 kapanış (Sadi Önal sign-off) |
+
+**Exit Criteria:**
+- ✅ Scribe job starts from UI
+- ✅ Orchestrator routes to correct agent
+- ✅ Output viewer displays results
+- ✅ Reflection step works
+- ✅ QA smoke kanıtı (Sadi Önal)
+
+---
+
+### Phase 1.5: Logging • Token Trace • Time-Saved v1
+
+**Dates:** Dec 26, 2025 – Jan 9, 2026
+
+#### S1.5.0 (Dec 26 only)
+
+| Task | Workstream | Description | Owner |
+|------|------------|-------------|-------|
+| S1.5.0-DOC-1 | Docs | SDTA dokümanı final + teslim | **Ayşe** |
+
+#### S1.5.1 (Dec 27 – Jan 2)
+
+| Task | Workstream | Description |
+|------|------------|-------------|
+| S1.5.1-BE-1 | Backend | job_logs table + API |
+| S1.5.1-FE-1 | Frontend | Log viewer component |
+| S1.5.1-API-1 | API | GET /api/jobs/:id/logs endpoint |
+
+#### S1.5.2 (Jan 3–9)
+
+| Task | Workstream | Description |
+|------|------------|-------------|
+| S1.5.2-BE-1 | Backend | Token/cost tracking model |
+| S1.5.2-FE-1 | Frontend | Time-saved v1 metrikleri UI |
+
+**Exit Criteria:**
+- ✅ Log viewer in dashboard
+- ✅ job_logs table populated
+- ✅ Token/cost per job tracked
+- ✅ Time-saved metrics displayed
+
+---
+
+### Phase 2+: Future Phases (Gated)
+
+| Phase | Dates | Focus |
+|-------|-------|-------|
+| 2 | Jan 10–23, 2026 | OCI Hosting + Gerçek Pilotlar |
+| 2.5 | Jan 24 – Feb 21, 2026 | Early Users + Marketplace Taslağı |
+| 3 | Feb 22 – Mar 31, 2026 | Marka + İçerik + Final Teslim |
+
+---
+
+## V2 RepoOps Gating Criteria
+
+V2 RepoOps agent development is **BLOCKED** until ALL criteria are green:
+
+| Criterion | Current Status | Required | Gate |
+|-----------|----------------|----------|------|
+| Phase 1 complete | 🔄 S0.4.6 + S1.0.x | ✅ Dec 25 milestone | Hard |
+| Scribe agent stable | 🔄 S0.4.6 | ✅ Production-ready | Hard |
+| Trace agent stable | ⚠️ Scaffold | ✅ MVP functional | Hard |
+| Proto agent stable | ⚠️ Scaffold | ✅ MVP functional | Hard |
+| GitHub MCP adapter | ✅ Functional | ✅ Production-ready | Hard |
+| Atlassian MCP adapter | ⚠️ Scaffold | ✅ Production-ready | Soft |
+| Job FSM reliable | ✅ 110/110 tests | ✅ No regressions | Hard |
+| QA sign-off | 📋 S1.0.2 | ✅ Sadi Önal approval | Hard |
+
+**V2 Start Date:** After Phase 1 complete (earliest Dec 26, 2025)
+
+---
+
+## Known PR References
+
+| PR | Sprint | Description | Status |
+|----|--------|-------------|--------|
+| **#90** | S0.4.2 + S0.4.4 | Email-based multi-step authentication | ✅ Merged |
+| **#93** | S0.4.5 | OAuth + onboarding fix, i18n loading gate | ✅ Merged |
+| — | S0.4.6 | Scribe Config Dashboard | 🔄 In Progress |
+
+---
 
 ## Recent Updates
 
-### ✅ [S0.4.2-DOC-2] Auth Documentation Sync Completed (2025-12-06)
+### ✅ [2025-12-18] Spreadsheet Ingestion & Baseline Sync
 
 **Status:** DONE  
-**Scope:** Synced all canonical documentation with email-based multi-step authentication flow (implemented in PR #90)
+**Source:** `AKIS_Proje_Takibi_Profesyonel_SON_guncel_v2.xlsx`
+
+**Actions:**
+- Ingested all phases, sprints, milestones from spreadsheet
+- Updated `docs/PROJECT_TRACKING_BASELINE.md` with real data
+- Synced `docs/ROADMAP.md` with baseline
+- Updated `docs/NEXT.md` (this file) with spreadsheet-driven plan
+- Updated `docs/DOCS_AUDIT_REPORT.md` with spreadsheet status
+
+---
+
+### ✅ [2025-12-18] Documentation Audit & Baseline
+
+**Status:** DONE
+
+**Files Created/Updated:**
+- `docs/PROJECT_TRACKING_BASELINE.md` — Sprint/phase/milestone from spreadsheet
+- `docs/DOCS_AUDIT_REPORT.md` — Full documentation audit
+- `docs/ROADMAP.md` — Aligned with baseline
+- `docs/NEXT.md` — Added gating criteria
+- `.cursor/context/CONTEXT_SCOPE.md` — Added planning references
+
+---
+
+### ✅ [2025-12-18] Scribe Step 2 Verification Locked
+
+**Status:** DONE  
+**Branch:** `feat/scribe-config-s0.4.6-wip`  
+**File:** `SCRIBE_STEP2_VERIFICATION.md`
+
+**Key Finding:** Implementation is complete and correct. Reported issues were cache/restart/route confusion, not code bugs.
+
+---
+
+### ✅ [S0.4.2-DOC-2] Auth Documentation Sync (2025-12-06)
+
+**Status:** DONE (PR #90)
 
 **Files Updated:**
-- `.cursor/context/CONTEXT_SCOPE.md` → Added "Authentication & Onboarding" section (Section 2.2: A1 with 5-step signup, 2-step login details)
-- `.cursor/context/CONTEXT_ARCHITECTURE.md` → Updated Section 7 "Auth Architecture" (backend components, data model, sequence flows, future OAuth strategy)
-- `docs/WEB_INFORMATION_ARCHITECTURE.md` → Fixed all `/api/auth/*` paths to `/auth/*`, added cross-references to backend docs
-- `backend/docs/API_SPEC.md` → Fixed all auth endpoint paths from `/api/auth/*` to `/auth/*` (14 endpoints updated)
-- `backend/docs/Auth.md` → Added Section 15 "Developer Guide" (local dev setup, MockEmailService debugging, curl examples, troubleshooting, extensibility)
-- `docs/NEXT.md` → Added this changelog entry
-
-**Key Changes:**
-- Documented multi-step signup flow: `email → password → 6-digit verification → beta welcome → privacy consent`
-- Documented multi-step login flow: `email check → password → dashboard (or privacy consent if not set)`
-- Explained email verification: 6-digit codes, 15min expiry, rate limiting (3 attempts per 15min)
-- Clarified future OAuth strategy: OAuth will be layered on top of email/password core; email remains primary user identity
-- Added developer debugging guide: MockEmailService console logs, Adminer database inspection, curl test examples
-- Fixed all auth endpoint paths: `/api/auth/*` → `/auth/*` (aligning with Fastify `prefix: '/auth'` registration)
-
-**Verification:**
-- All endpoint paths match `backend/src/server.app.ts` line 142: `app.register(authRoutes, { prefix: '/auth' })`
-- Database schema documented matches `backend/src/db/schema.ts` (users, email_verification_tokens tables)
-- Auth flow sequences match implementation in `backend/src/api/auth.multi-step.ts` and `backend/src/services/auth/verification.ts`
-- Frontend pages match `frontend/src/pages/auth/` directory structure
+- `.cursor/context/CONTEXT_SCOPE.md` → Authentication section
+- `.cursor/context/CONTEXT_ARCHITECTURE.md` → Auth Architecture
+- `docs/WEB_INFORMATION_ARCHITECTURE.md` → Fixed auth paths
+- `backend/docs/API_SPEC.md` → Fixed endpoint paths
+- `backend/docs/Auth.md` → Developer Guide
 
 ---
 
-## Original Audit (2025-01-08)
+## Documentation Gap Status
 
-### Summary
+### Scorecard (2025-12-18)
 
-Documentation audit focused on completeness, accuracy, and developer onboarding experience. Core findings: Strong foundation exists (ROADMAP, UI_DESIGN_SYSTEM, Auth, WEB_INFORMATION_ARCHITECTURE) but missing critical guides (ENV_SETUP, TESTING, PERFORMANCE), CI/DX documentation incomplete, and accessibility guidelines not actionable enough.
+| Area | Status | Notes |
+|------|--------|-------|
+| Planning Docs | 🟢 | Baseline + Roadmap aligned with spreadsheet |
+| Architecture Docs | 🟢 | CONTEXT_SCOPE + CONTEXT_ARCHITECTURE canonical |
+| UI/UX Docs | 🟢 | UI_DESIGN_SYSTEM.md comprehensive |
+| Auth Docs | 🟢 | backend/docs/Auth.md canonical |
+| Environment Setup | 🔴 | No ENV_SETUP.md |
+| Testing Docs | 🔴 | No TESTING.md |
+| Performance Docs | 🔴 | No PERFORMANCE.md |
+| CI/CD Docs | 🟡 | Basic coverage |
+| API Docs | 🟡 | API_SPEC.md exists, needs usage guide |
 
-## Scorecard
+### Priority Documentation Tasks
 
-| Area | Status | Key Risks | Confidence |
-|------|--------|-----------|------------|
-| Architecture Docs | 🟢 green | CONTEXT_SCOPE.md exists (not read but listed); ROADMAP.md comprehensive | high |
-| UI/UX Docs | 🟢 green | UI_DESIGN_SYSTEM.md is excellent (1600+ lines, color tokens, typography, a11y) | high |
-| Auth Docs | 🟢 green | Auth.md exists; covers session management, cookie config | high |
-| Environment Setup | 🔴 red | No ENV_SETUP.md; env vars scattered in README and env.ts | high |
-| Testing Docs | 🔴 red | No TESTING.md; test files exist but no guide for contributors | high |
-| Performance Docs | 🔴 red | No PERFORMANCE.md; Core Web Vitals mentioned in ROADMAP but no targets documented | high |
-| CI/CD Docs | 🟡 amber | README mentions CI but no detailed CI architecture or troubleshooting guide | medium |
-| API Docs | 🟡 amber | Swagger/OpenAPI available at /docs and /openapi.json but no usage guide in docs/ | medium |
-| Migration Docs | 🟡 amber | backend/migrations/README.md exists but no comprehensive DB migration guide | medium |
-| Security Docs | 🟡 amber | SECURITY.md exists (root) but minimal; no threat model or security checklist | medium |
-
-## Findings & Tasks
-
-### [Docs/Critical] Create ENV_SETUP.md
-- **Why**: No centralized environment setup guide; new contributors struggle to configure dev environment
-- **Scope**: docs/ENV_SETUP.md (new file)
-- **Acceptance**: 
-  - **Backend section**: List all env vars from backend/src/config/env.ts with descriptions, defaults, and examples
-  - **Frontend section**: List VITE_API_URL, VITE_ENABLE_DEV_LOGIN, etc.
-  - **Local dev section**: Document quick setup (copy .env.example, edit DATABASE_URL, run migrations)
-  - **Production section**: Document required vars (NODE_ENV=production, AUTH_COOKIE_SECURE=true, etc.)
-  - **Fallback behavior**: Explain in-memory session fallback when DB unavailable
-  - **MCP section**: Document GitHub and Atlassian MCP env vars (when needed)
-  - **Link from**: README.md, CONTRIBUTING.md
-- **Impact**: high (DX)
-- **Effort**: M
-- **Confidence**: high
-- **Links**: backend/src/config/env.ts:1-152, README.md:66-90
-
-### [Docs/Critical] Create TESTING.md
-- **Why**: No testing guide; contributors don't know how to run tests or write new ones
-- **Scope**: docs/TESTING.md (new file)
-- **Acceptance**: 
-  - **Backend section**: Document Node.js test runner setup, tsx usage, test file patterns
-  - **Frontend section**: Document Vitest setup, @testing-library/react usage, test file patterns
-  - **Running tests**: Document `pnpm test` (backend), `npm test` (frontend), CI test commands
-  - **Writing tests**: Provide example test patterns (unit, integration, mocking)
-  - **Coverage**: Document how to generate coverage reports (optional: c8 for backend, vitest coverage for frontend)
-  - **Link from**: CONTRIBUTING.md
-- **Impact**: high (DX, code quality)
-- **Effort**: M
-- **Confidence**: high
-- **Links**: backend/test/*.test.ts, frontend/test/*.tsx, CONTRIBUTING.md:23-29
-
-### [Docs/Critical] Create PERFORMANCE.md
-- **Why**: No performance targets or budgets documented; risk of regressions
-- **Scope**: docs/PERFORMANCE.md (new file)
-- **Acceptance**: 
-  - **Core Web Vitals targets**: Document LCP < 2.5s, CLS < 0.1, INP < 200ms (per PHASE10_PLAN.md)
-  - **Bundle size targets**: Document frontend bundle size budget (e.g., main chunk < 200 KB gzipped)
-  - **Backend performance**: Document expected response times (e.g., /health < 50ms, /api/agents/jobs < 500ms)
-  - **Baseline measurements**: Document current performance (to be measured after CI setup)
-  - **Monitoring**: Document how to measure (Lighthouse, WebPageTest, vite build analysis)
-  - **Link from**: ROADMAP.md, PHASE10_PLAN.md
-- **Impact**: high (performance governance)
-- **Effort**: M
-- **Confidence**: medium (requires baseline measurements)
-- **Links**: docs/ROADMAP.md:68-69, docs/PHASE10_PLAN.md:8, 12
-
-### [Docs/High] Create API_USAGE.md
-- **Why**: Swagger/OpenAPI available at /docs and /openapi.json but no usage guide for frontend devs or external consumers
-- **Scope**: docs/API_USAGE.md (new file)
-- **Acceptance**: 
-  - **OpenAPI location**: Document /openapi.json and /docs (Swagger UI)
-  - **Authentication**: Document cookie-based auth flow (/auth/signup, /auth/login, /auth/me)
-  - **Agents API**: Document /api/agents/jobs POST (submit), GET by ID, GET list (pagination)
-  - **Error handling**: Document unified error response format (code, message, requestId)
-  - **Examples**: Provide curl examples for key endpoints
-  - **Link from**: README.md
-- **Impact**: medium (API usability)
-- **Effort**: M
-- **Confidence**: high
-- **Links**: backend/src/api/*.ts, backend/src/utils/errorHandler.ts
-
-### [Docs/High] Create DB_MIGRATIONS.md
-- **Why**: Migrations exist but no comprehensive guide on creating, applying, or rolling back
-- **Scope**: docs/DB_MIGRATIONS.md (new file)
-- **Acceptance**: 
-  - **Creating migrations**: Document `pnpm db:generate` workflow (edit schema.ts → generate migration SQL)
-  - **Applying migrations**: Document `pnpm db:migrate` (applies all pending migrations)
-  - **Rollback strategy**: Document manual rollback (write inverse SQL or use drizzle-kit revert if available)
-  - **Migration naming**: Explain drizzle-kit naming conventions
-  - **CI integration**: Document how migrations run in CI (see .github/workflows/ci.yml)
-  - **Link from**: CONTRIBUTING.md, backend/migrations/README.md
-- **Impact**: medium (DX)
-- **Effort**: M
-- **Confidence**: high
-- **Links**: backend/migrations/README.md, .github/workflows/ci.yml:67-77
-
-### [Docs/Medium] Expand SECURITY.md
-- **Why**: Root SECURITY.md exists but minimal; no threat model, security checklist, or vulnerability reporting process
-- **Scope**: SECURITY.md (root), docs/SECURITY_CHECKLIST.md (new, optional)
-- **Acceptance**: 
-  - **Threat model**: Document key threats (DoS, XSS, CSRF, SQL injection, etc.)
-  - **Mitigations**: Document implemented mitigations (Helmet, CORS, rate limiting, Zod validation, parameterized queries)
-  - **Vulnerability reporting**: Document how to report security issues (email, GitHub Security Advisories)
-  - **Security checklist**: Link to CONTRIBUTING.md or create separate checklist
-  - **Link from**: README.md
-- **Impact**: medium (security governance)
-- **Effort**: M
-- **Confidence**: medium
-- **Links**: SECURITY.md, CONTRIBUTING.md
-
-### [Docs/Medium] Create CI_ARCHITECTURE.md
-- **Why**: CI workflow exists (.github/workflows/ci.yml) but no documentation on architecture, jobs, or troubleshooting
-- **Scope**: docs/CI_ARCHITECTURE.md (new file)
-- **Acceptance**: 
-  - **Jobs**: Document backend job (Postgres service, pnpm, migrations, typecheck, lint, test) and frontend job (npm, typecheck, lint, test)
-  - **Branch protection**: Document required status checks (backend, frontend)
-  - **Caching**: Document pnpm cache strategy
-  - **Troubleshooting**: Document common CI failures (DB connection, migration errors, lint failures)
-  - **Future enhancements**: Document planned additions (Lighthouse CI, bundle size analysis, axe tests)
-  - **Link from**: README.md, CONTRIBUTING.md
-- **Impact**: low (DX)
-- **Effort**: M
-- **Confidence**: high
-- **Links**: .github/workflows/ci.yml:1-122, README.md:129-153
-
-### [Docs/Medium] Document Accessibility Guidelines (Actionable)
-- **Why**: UI_DESIGN_SYSTEM.md has ARIA best practices but not actionable for devs (no checklist or testing guide)
-- **Scope**: docs/ACCESSIBILITY.md (new file) or expand UI_DESIGN_SYSTEM.md section 9
-- **Acceptance**: 
-  - **WCAG compliance**: Document target level (WCAG 2.1 AA)
-  - **Keyboard navigation**: Checklist for testing (Tab, Enter, Space, Escape, Arrow keys)
-  - **Screen reader testing**: Document how to test with VoiceOver (macOS), NVDA (Windows), or JAWS
-  - **Focus management**: Document focus trap patterns (modals), skip links
-  - **Automated testing**: Document axe-core setup (see frontend/NEXT.md)
-  - **Link from**: CONTRIBUTING.md, UI_DESIGN_SYSTEM.md
-- **Impact**: medium (a11y compliance)
-- **Effort**: M
-- **Confidence**: medium
-- **Links**: docs/UI_DESIGN_SYSTEM.md:1238-1278, docs/PHASE10_PLAN.md:11
-
-### [Docs/Low] Create LOGGING.md
-- **Why**: Backend uses Pino with structured logging but no guide on log aggregation or querying
-- **Scope**: docs/LOGGING.md (new file, optional)
-- **Acceptance**: 
-  - **Log format**: Document JSON structured logs (requestId, method, url, statusCode, duration)
-  - **Log levels**: Document when to use info/warn/error/debug
-  - **Aggregation**: Document log aggregation strategies (stdout → systemd, CloudWatch, ELK stack)
-  - **Querying**: Document how to filter logs by requestId or user
-  - **Link from**: CONTRIBUTING.md
-- **Impact**: low (operational)
-- **Effort**: S
-- **Confidence**: medium
-- **Links**: backend/src/server.app.ts:50-104
-
-### [Docs/Low] Document OpenRouter Configuration
-- **Why**: OpenRouter is the "first" AI provider (per prompt) but no setup guide
-- **Scope**: docs/ENV_SETUP.md (section), docs/AI_PROVIDERS.md (new, optional)
-- **Acceptance**: 
-  - **OpenRouter setup**: Document how to get API key from openrouter.ai
-  - **Env vars**: Document AI_PROVIDER=openrouter, AI_API_KEY=or-proj-...
-  - **Fallback behavior**: Document mock AIService when not configured
-  - **Other providers**: Document how to add OpenAI or custom providers (extend AIService.ts)
-  - **Link from**: README.md, ENV_SETUP.md
-- **Impact**: low (feature completeness)
-- **Effort**: S
-- **Confidence**: medium
-- **Links**: backend/src/services/ai/AIService.ts:30-34, backend/src/config/env.ts:50-51
+| Priority | Task | Blocker? |
+|----------|------|----------|
+| P1 | Create `docs/ENV_SETUP.md` | Non-blocking |
+| P1 | Create `docs/TESTING.md` | Non-blocking |
+| P2 | Create `docs/PERFORMANCE.md` | Non-blocking |
+| P2 | Create `docs/API_USAGE.md` | Non-blocking |
+| P3 | Expand `SECURITY.md` | Non-blocking |
 
 ---
 
-## Documentation Quality Assessment
+## Team Assignments (from Spreadsheet)
 
-### Strengths ✅
-- **UI_DESIGN_SYSTEM.md**: Comprehensive (1600+ lines), well-organized, covers colors, typography, components, a11y
-- **ROADMAP.md**: Clear phase structure, linked issues, acceptance criteria
-- **Auth.md**: Covers session management, cookie security
-- **WEB_INFORMATION_ARCHITECTURE.md**: (Not read but exists; assume good based on other docs)
-
-### Gaps 🔴
-- **ENV_SETUP.md**: Missing (critical)
-- **TESTING.md**: Missing (critical)
-- **PERFORMANCE.md**: Missing (critical)
-- **API_USAGE.md**: Missing (high)
-- **DB_MIGRATIONS.md**: Missing (high)
-- **CI_ARCHITECTURE.md**: Missing (medium)
-- **ACCESSIBILITY.md**: Missing (medium) — UI_DESIGN_SYSTEM.md covers some but not actionable
-
-### Improvements Needed 🟡
-- **SECURITY.md**: Minimal; needs threat model and vulnerability reporting
-- **CONTRIBUTING.md**: Good but needs links to new guides (TESTING, ENV_SETUP, DB_MIGRATIONS)
-- **README.md**: Good but could link to more detailed guides
+| Kişi | Rol | Current Focus |
+|------|-----|---------------|
+| **Yasir** | Product Owner / Tech Lead | S0.4.6 Scribe Config, development |
+| **Ayşe** | Research & Documentation Lead | SDTA prep (due Dec 26) |
+| **Sadi Önal** | QA & Test Lead | Phase 1 QA (S1.0.2) |
 
 ---
 
-## Audit Metadata
+## Reference Documents
 
-- **Date**: 2025-01-08
-- **Scope**: docs/ directory + root docs (README, CONTRIBUTING, SECURITY)
-- **Method**: File listing, selective deep-read (UI_DESIGN_SYSTEM, ROADMAP), gap analysis
-- **Confidence**: High for existing docs quality; high for missing docs identification
+| Document | Purpose |
+|----------|---------|
+| `docs/PROJECT_TRACKING_BASELINE.md` | Schedule anchor (spreadsheet source) |
+| `docs/ROADMAP.md` | Phase overview |
+| `docs/DOCS_AUDIT_REPORT.md` | Audit & cleanup plan |
+| `.cursor/context/CONTEXT_SCOPE.md` | Scope & requirements |
+| `.cursor/context/CONTEXT_ARCHITECTURE.md` | Technical architecture |
+| `SCRIBE_STEP2_VERIFICATION.md` | Scribe Step 2 verification |
 
+---
+
+*This document tracks immediate next actions and gating criteria. Schedule derived from `AKIS_Proje_Takibi_Profesyonel_SON_guncel_v2.xlsx`.*

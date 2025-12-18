@@ -14,7 +14,7 @@ AKIS Platform uses a **JWT-based authentication** system with email/password cre
 
 - **Email/password primary:** All users start with email+password auth
 - **Multi-step signup:** Name/email → password → email verification → consent flows
-- **OAuth future state:** Google/GitHub OAuth is planned (S0.4.2) but not currently implemented
+- **OAuth available:** Google/GitHub OAuth is implemented (S0.4.2, PR #90) and available when credentials are configured
 - **Stateless sessions:** JWT tokens stored in HTTP-only cookies
 - **Zero trust:** Every protected endpoint validates the token
 
@@ -96,7 +96,7 @@ interface User {
   1. Check code matches and not expired
   2. Update: `emailVerified: true`, `status: ACTIVE`
   3. Generate JWT session token
-  4. Set HTTP-only cookie: `akis_session`
+  4. Set HTTP-only cookie (name from `AUTH_COOKIE_NAME` env var, default: `akis_sid`)
   5. Return: `{ user: sanitized, token }`
 
 **Step 4-5: Beta Welcome & Data Sharing**
@@ -149,7 +149,7 @@ interface User {
 
 **Endpoint:** `POST /auth/logout`
 
-- Clears `akis_session` cookie (set maxAge=0)
+- Clears session cookie (set maxAge=0)
 - Returns: `{ ok: true }`
 - Client redirects to `/login`
 
@@ -172,8 +172,8 @@ interface JWTPayload {
 ### 4.2 Token Lifecycle
 
 - **Issuer:** Backend signs with `JWT_SECRET` (env var)
-- **Expiry:** 7 days (configurable via `JWT_EXPIRES_IN`)
-- **Storage:** HTTP-only cookie named `akis_session`
+- **Expiry:** 7 days (configurable via `AUTH_COOKIE_MAXAGE`)
+- **Storage:** HTTP-only cookie (name from `AUTH_COOKIE_NAME`, default: `akis_sid`)
 - **Refresh:** Not implemented yet (future: refresh tokens)
 
 ### 4.3 Cookie Options
@@ -199,7 +199,7 @@ All dashboard and agent endpoints require authentication:
 ```typescript
 // Pseudocode
 async function requireAuth(request, reply) {
-  const token = request.cookies.akis_session;
+  const token = request.cookies?.[env.AUTH_COOKIE_NAME];  // default: 'akis_sid'
   
   if (!token) {
     return reply.code(401).send({ error: 'Unauthorized' });
@@ -273,12 +273,16 @@ enum Role {
 
 ---
 
-## 7. OAuth Integration (S0.4.2)
+## 7. OAuth Integration (S0.4.2) — IMPLEMENTED
+
+> **Status:** ✅ Implemented and merged (PR #90)  
+> **Implementation:** `backend/src/api/auth.oauth.ts`  
+> **QA Evidence:** `docs/archive/qa-notes/QA_NOTES_S0.4.2_OAUTH.md` (historical)
 
 ### 7.1 Supported Providers
 
-- Google OAuth
-- GitHub OAuth
+- ✅ Google OAuth (implemented)
+- ✅ GitHub OAuth (implemented)
 - (Future: Apple Sign In)
 
 ### 7.2 OAuth Configuration
@@ -299,7 +303,7 @@ OAuth providers require callback URLs to be configured:
 
 Where `BACKEND_URL` is the value from your environment variables.
 
-### 7.3 OAuth Flow (Planned Implementation)
+### 7.3 OAuth Flow (Implemented)
 
 **Endpoints:**
 
@@ -315,14 +319,15 @@ Where `BACKEND_URL` is the value from your environment variables.
 5. Fetch user profile (email, name)
 6. If email exists → link account; else → create new user
 7. Generate JWT and set cookie
-8. Redirect to dashboard
+8. Redirect to dashboard (or onboarding gates if needed)
 
-**Implementation Notes:**
+**Implementation Details:**
 
-- OAuth providers will be implemented via **Fastify plugins**
-- User linking logic: Match by email (if verified)
-- Store provider tokens in `oauth_accounts` table (separate from users)
+- OAuth routes are in `backend/src/api/auth.oauth.ts`
+- User linking logic: Match by email (lowercase), verified email required for GitHub
+- Provider tokens stored in `oauth_accounts` table (migration: `0007_modern_nova.sql`)
 - OAuth is **optional** - email/password auth remains canonical
+- State token validation for CSRF protection (single-use, in-memory)
 
 ---
 
@@ -362,19 +367,19 @@ Where `BACKEND_URL` is the value from your environment variables.
 | POST | `/auth/logout` | Clear session cookie |
 | GET | `/auth/me` | Get current user |
 
-### 9.2 Planned (Multi-Step)
+### 9.2 Multi-Step Authentication (Implemented)
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/auth/signup/start` | Step 1: Name + email |
-| POST | `/auth/signup/password` | Step 2: Set password |
-| POST | `/auth/verify-email` | Step 3: Verify 6-digit code |
-| POST | `/auth/resend-code` | Resend verification email |
-| POST | `/auth/login/start` | Step 1: Email check |
-| POST | `/auth/login/complete` | Step 2: Password |
-| POST | `/auth/update-preferences` | Update consent flags |
-| GET | `/auth/oauth/:provider` | OAuth redirect |
-| GET | `/auth/oauth/:provider/callback` | OAuth callback |
+| Method | Endpoint | Description | Status |
+|--------|----------|-------------|--------|
+| POST | `/auth/signup/start` | Step 1: Name + email | ✅ |
+| POST | `/auth/signup/password` | Step 2: Set password | ✅ |
+| POST | `/auth/verify-email` | Step 3: Verify 6-digit code | ✅ |
+| POST | `/auth/resend-code` | Resend verification email | ✅ |
+| POST | `/auth/login/start` | Step 1: Email check | ✅ |
+| POST | `/auth/login/complete` | Step 2: Password | ✅ |
+| POST | `/auth/update-preferences` | Update consent flags | ✅ |
+| GET | `/auth/oauth/:provider` | OAuth redirect | ✅ |
+| GET | `/auth/oauth/:provider/callback` | OAuth callback | ✅ |
 
 ---
 
@@ -402,7 +407,9 @@ CREATE INDEX idx_users_email ON users(email);
 CREATE INDEX idx_users_status ON users(status);
 ```
 
-### 10.2 `oauth_accounts` Table (Future)
+### 10.2 `oauth_accounts` Table (Implemented)
+
+> **Migration:** `backend/migrations/0007_modern_nova.sql`
 
 ```sql
 CREATE TABLE oauth_accounts (
@@ -444,24 +451,25 @@ CREATE TABLE oauth_accounts (
 
 ## 12. Migration Path
 
-### Current → Target
+### Completed Phases
 
-**Phase 1 (This PR):**
+**Phase 1 (PR #90 - S0.4.4):** ✅ DONE
 
-- Add new multi-step endpoints
-- Keep legacy `/signup` and `/login` for compatibility
-- Update frontend to use new flow
-- Add email verification logic (console logging for now)
+- Multi-step signup/login endpoints
+- Email verification (console logging in dev, Resend in prod)
+- Legacy `/signup` and `/login` kept for compatibility
 
-**Phase 2 (S0.4.2):**
+**Phase 2 (PR #90 - S0.4.2):** ✅ DONE
 
-- Remove legacy endpoints
-- Implement OAuth providers
-- Add real email delivery
-- Implement rate limiting per endpoint
+- OAuth providers (GitHub, Google) implemented
+- OAuth credentials optional (email/password works without them)
+- `oauth_accounts` table added
+
+### Future Phases
 
 **Phase 3 (S0.5+):**
 
+- Remove legacy endpoints (when frontend fully migrated)
 - Add refresh tokens
 - Implement RBAC
 - Add 2FA (optional)
@@ -792,5 +800,5 @@ pnpm db:migrate
 
 ---
 
-**Status:** This document describes the **implemented state** for S0.4.4 (as of PR #90). OAuth integration is planned for future releases.
+**Status:** This document describes the **implemented state** for S0.4.2 + S0.4.4 (as of PR #90). OAuth integration is implemented and available when credentials are configured. Cookie name default is `akis_sid` (configurable via `AUTH_COOKIE_NAME`).
 
