@@ -4,6 +4,30 @@
 
 AKIS Platform, yazılım geliştirme süreçlerindeki tekrarlayan görevleri otomatikleştiren bir otonom ajan platformudur.
 
+---
+
+## 📍 Start Here
+
+> **Hangi dökümana bakmalıyım?** Aşağıdaki kanonik zincir, tüm planlama ve uygulama dokümanlarını birbirine bağlar:
+
+```
+docs/PROJECT_TRACKING_BASELINE.md  (schedule anchor, spreadsheet source)
+          ↓
+docs/ROADMAP.md                    (phase overview)
+          ↓
+docs/NEXT.md                       (immediate actions + gating)
+```
+
+| Amaç | Doküman |
+|------|---------|
+| Sprint/phase/milestone takibi | [PROJECT_TRACKING_BASELINE.md](docs/PROJECT_TRACKING_BASELINE.md) |
+| Faz görünümü & kabul kriterleri | [ROADMAP.md](docs/ROADMAP.md) |
+| Anlık aksiyon listesi & gating | [NEXT.md](docs/NEXT.md) |
+| Mimari ve teknoloji yığını | [CONTEXT_ARCHITECTURE.md](.cursor/context/CONTEXT_ARCHITECTURE.md) |
+| Proje kapsamı & gereksinimler | [CONTEXT_SCOPE.md](.cursor/context/CONTEXT_SCOPE.md) |
+
+---
+
 ## Özellikler
 
 - **AKIS Scribe**: Teknik dokümantasyon güncelleme

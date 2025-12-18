@@ -361,5 +361,117 @@ BRAND_GUIDE.md (visual identity)
 
 ---
 
-*This audit establishes the canonical documentation set and cleanup plan. Baseline now derived from official project tracking spreadsheet (ingested 2025-12-18).*
+---
+
+## 8. Docs Cleanup Report (2025-12-18)
+
+> **Branch:** `docs/project-tracking-baseline-s0.4.6`  
+> **Executed:** 2025-12-18
+
+### Deleted Files (Permanent)
+
+| Path | Reason |
+|------|--------|
+| `docs/Auth.md` | Duplicate of `backend/docs/Auth.md` |
+| `docs/CONTEXT_SCOPE.md` | Stale copy of `.cursor/context/CONTEXT_SCOPE.md` |
+| `docs/PR_DRAFTS/` (entire directory) | PR merged, drafts no longer needed |
+| `docs/PHASE10_PLAN.md` | Content consolidated into `docs/ROADMAP.md` Phase 10 section |
+| `docs/README.theme.md` | Content merged into `docs/UI_DESIGN_SYSTEM.md` |
+| `docs/PROJECT_SCOPE_REQUIREMENTS_SECTIONS_2_4_5_6.md` | Partial scope doc, superseded by `.cursor/context/CONTEXT_SCOPE.md` |
+
+### Archived Files
+
+| Original Path | New Path | Reason |
+|---------------|----------|--------|
+| `docs/PHASE_9_2_BRAND_MIGRATION_NOTES.md` | `docs/archive/phase-9-2/` | Phase complete, superseded by `BRAND_GUIDE.md` |
+| `docs/QA_EVIDENCE_PHASE_9_2_BRAND.md` | `docs/archive/phase-9-2/` | Phase complete, evidence captured |
+| `docs/DEV_COOKIE_VERIFICATION.md` | `docs/archive/` | Debugging notes, superseded by `backend/docs/Auth.md` |
+| `docs/QA_NOTES_AUTH_S0.4.4.md` | `docs/archive/qa-notes/` | Implementation complete (PR #90), historical value |
+| `docs/QA_NOTES_S0.4.2_OAUTH.md` | `docs/archive/qa-notes/` | Implementation complete (PR #90), historical value |
+| `docs/AUTH_GITHUB_INTEGRATION.md` | `docs/archive/deprecated/` | Superseded by `backend/docs/Auth.md` |
+| `docs/repository-docs-audit.md` | `docs/archive/` | Previous audit, superseded by this report |
+| `docs/repository-docs-cleanup-log.md` | `docs/archive/` | Previous cleanup log, superseded |
+
+### Updated Files
+
+| Path | Changes |
+|------|---------|
+| `README.md` | Added "Start Here" section with canonical chain |
+| `docs/archive/README.md` | Created archive index with file inventory |
+| `docs/DOCS_AUDIT_REPORT.md` | Added this cleanup report section |
+
+### Final Directory Structure
+
+```
+docs/
+├── BRAND_ASSET_INVENTORY.md
+├── BRAND_GUIDE.md
+├── constraints.md
+├── DOCS_AUDIT_REPORT.md          ← This file (audit + cleanup report)
+├── glossary.md
+├── NEXT.md                        ← Immediate actions
+├── PROJECT_TRACKING_BASELINE.md   ← Schedule anchor
+├── README.md
+├── ROADMAP.md                     ← Phase overview
+├── UI_DESIGN_SYSTEM.md
+├── WEB_INFORMATION_ARCHITECTURE.md
+├── archive/
+│   ├── README.md                  ← Archive index
+│   ├── backend-project-deep-audit-report.md
+│   ├── DEV_COOKIE_VERIFICATION.md
+│   ├── repository-docs-audit.md
+│   ├── repository-docs-cleanup-log.md
+│   ├── deprecated/
+│   │   └── AUTH_GITHUB_INTEGRATION.md
+│   ├── phase-9-2/
+│   │   ├── PHASE_9_2_BRAND_MIGRATION_NOTES.md
+│   │   └── QA_EVIDENCE_PHASE_9_2_BRAND.md
+│   └── qa-notes/
+│       ├── QA_NOTES_AUTH_S0.4.4.md
+│       └── QA_NOTES_S0.4.2_OAUTH.md
+└── releases/
+    ├── 2025-11-26-logout-fix-summary.md
+    └── 2025-11-26-logout-release-summary.md
+
+backend/docs/
+├── AGENT_WORKFLOWS.md             ← Canonical agent lifecycle
+├── API_SPEC.md                    ← Canonical API spec
+├── Auth.md                        ← Canonical auth implementation
+└── audit/
+    └── 2025-11-26-scribe-pipeline-audit.md
+
+.cursor/
+├── checklists/
+│   ├── DoD.md
+│   ├── Performance.md
+│   └── Security.md
+├── context/
+│   ├── CONTEXT_ARCHITECTURE.md    ← Canonical architecture
+│   ├── CONTEXT_SCOPE.md           ← Canonical scope
+│   └── README.md
+├── prompts/
+│   └── *.md
+└── rules/
+    └── rules.mdc
+```
+
+### Remaining Open Conflicts
+
+| Conflict | Status | Resolution |
+|----------|--------|------------|
+| None | — | All conflicts resolved |
+
+### Verification Checklist
+
+- [x] All true duplicates deleted
+- [x] Superseded docs archived with index
+- [x] Canonical chain established: Baseline → Roadmap → Next
+- [x] README.md has "Start Here" section
+- [x] docs/archive/README.md explains archived files
+- [x] No orphan docs in docs/ root
+- [x] Historical QA evidence preserved in archive
+
+---
+
+*This audit establishes the canonical documentation set and cleanup plan. Baseline now derived from official project tracking spreadsheet (ingested 2025-12-18). Cleanup executed 2025-12-18.*
 
