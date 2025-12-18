@@ -8,6 +8,50 @@
 
 ## ROOT CAUSE ANALYSIS
 
+### Bug 7: GitHubMCPService Not Injected During Job Execution
+
+**Symptom**: Scribe job fails with "GitHubMCPService not injected into ScribeAgent" error during job execution even when GitHub OAuth is connected.
+
+**Root Cause**: `AgentOrchestrator.startJob()` used a global `env.GITHUB_TOKEN` instead of the user's OAuth token. For `targetPlatform=github_repo` or scribe agents, the service requires the authenticated user's GitHub token.
+
+**Fix Location**: `backend/src/core/orchestrator/AgentOrchestrator.ts:50-140`
+
+**Evidence**:
+```typescript
+// NEW: Fail-fast validation for GitHub-dependent agents
+if (this.agentRequiresGitHub(job.type, payload)) {
+  const userId = payload.userId as string | undefined;
+  
+  if (!userId) {
+    throw new MissingDependencyError(
+      'userId',
+      'Job payload must include userId for GitHub-dependent operations.'
+    );
+  }
+  
+  // Resolve user's GitHub OAuth token
+  const userGitHubToken = await this.resolveGitHubToken(userId);
+  
+  if (!userGitHubToken) {
+    throw new GitHubNotConnectedError(
+      `GitHub is not connected for user ${userId}.`
+    );
+  }
+  
+  // Create GitHubMCPService with user's token
+  resolvedTools.tools!.githubMCP = new GitHubMCPService({
+    baseUrl: env.GITHUB_MCP_BASE_URL,
+    token: userGitHubToken
+  });
+}
+```
+
+**New Custom Errors**:
+- `GitHubNotConnectedError` (code: `GITHUB_NOT_CONNECTED`)
+- `MissingDependencyError` (code: `MISSING_DEPENDENCY`)
+
+---
+
 ### Bug 1: POST /api/agents/jobs Returns 400 VALIDATION_ERROR
 
 **Symptom**: Running "Run Test Job" or "Run Now" returned `400 VALIDATION_ERROR` with "Required" message.
@@ -115,14 +159,17 @@ $ curl http://localhost:3000/api/integrations/github/branches?owner=test&repo=te
 
 ## FILES CHANGED
 
-### Backend (5 files)
+### Backend (8 files)
 | File | Change |
 |------|--------|
 | `backend/src/api/agents.ts` | Config-aware validation + route handler |
 | `backend/src/db/schema.ts` | agentConfigs table export |
 | `backend/src/utils/auth.ts` | requireAuth utility |
+| `backend/src/core/orchestrator/AgentOrchestrator.ts` | **NEW: User-specific GitHubMCPService injection, fail-fast validation, custom errors** |
+| `backend/src/agents/scribe/ScribeAgent.ts` | **NEW: Actionable error messages for missing dependencies** |
+| `backend/test/unit/scribe-injection.test.ts` | **NEW: Unit tests for ScribeAgent DI** |
+| `backend/test/unit/orchestrator-github-injection.test.ts` | **NEW: Unit tests for error classes** |
 | `backend/migrations/0008_fearless_harpoon.sql` | agent_configs table |
-| `backend/migrations/0009_aspiring_prowler.sql` | provider_username column |
 
 ### Frontend (5 files)
 | File | Change |
@@ -154,7 +201,7 @@ $ curl http://localhost:3000/api/integrations/github/branches?owner=test&repo=te
 cd backend
 pnpm typecheck  # ✅ PASS
 pnpm lint       # ✅ PASS
-NODE_ENV=test pnpm test  # ✅ 85/85 PASS
+NODE_ENV=test pnpm test  # ✅ 111/111 PASS (including new DI tests)
 pnpm db:migrate # ✅ Migrations applied
 ```
 
@@ -269,7 +316,7 @@ Response: 200
 ### Code Quality
 - [x] Backend typecheck passes
 - [x] Backend lint passes
-- [x] Backend tests pass (85/85)
+- [x] Backend tests pass (111/111)
 - [x] Frontend typecheck passes
 - [x] Frontend lint passes
 - [x] Frontend tests pass (34/34)
