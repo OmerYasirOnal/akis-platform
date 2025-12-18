@@ -50,3 +50,4 @@ export async function requireAuth(request: FastifyRequest): Promise<Authenticate
   }
 }
 
+
