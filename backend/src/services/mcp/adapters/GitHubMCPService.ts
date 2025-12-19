@@ -217,16 +217,34 @@ export class GitHubMCPService {
     }
   }
 
-  private async callTool<T>(toolName: string, args: Record<string, unknown>): Promise<T> {
+  /**
+   * Invalidate cached tool list (e.g., after -32601 suggesting drift)
+   */
+  private invalidateToolsCache(): void {
+    this.toolsCache = null;
+    this.toolsCacheAt = null;
+  }
+
+  private async callTool<T>(toolName: string, args: Record<string, unknown>, retryOnNotFound = true): Promise<T> {
     await this.ensureInitialized();
     await this.ensureToolAvailable(toolName);
 
-    const { result } = await this.callJsonRpc<McpToolCallResult>('tools/call', {
-      name: toolName,
-      arguments: args,
-    });
+    try {
+      const { result } = await this.callJsonRpc<McpToolCallResult>('tools/call', {
+        name: toolName,
+        arguments: args,
+      });
 
-    return this.parseToolResultJson<T>(result);
+      return this.parseToolResultJson<T>(result);
+    } catch (err) {
+      // Auto-refresh cache and retry once on -32601 (method/tool not found)
+      if (err instanceof McpError && err.mcpCode === -32601 && retryOnNotFound) {
+        this.invalidateToolsCache();
+        // Recursive call with retry disabled to prevent infinite loop
+        return this.callTool<T>(toolName, args, false);
+      }
+      throw err;
+    }
   }
 
   /**
