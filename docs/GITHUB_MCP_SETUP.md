@@ -25,6 +25,55 @@ Run the official GitHub MCP Server locally with an HTTP gateway.
 
 **Setup:**
 
+### Quick Start (Recommended): MCP Doctor
+
+The fastest way to get started:
+
+```bash
+# One-command setup + smoke test
+./scripts/mcp-doctor.sh
+```
+
+**What it does:**
+1. Ensures `.env.mcp.local` exists (creates from template if missing)
+2. Verifies file is gitignored (security check)
+3. Verifies `GITHUB_TOKEN` key is present
+4. Runs: MCP Gateway up → smoke test → cleanup
+5. Writes redacted logs to `.mcp-doctor-*.log` (gitignored)
+6. Provides clear next steps for UI verification
+
+**First-time flow:**
+1. Run `./scripts/mcp-doctor.sh`
+2. If token missing, script creates `.env.mcp.local` and exits with instructions
+3. Get a GitHub token: https://github.com/settings/tokens (scopes: `repo`, `read:org`)
+4. Edit `.env.mcp.local` and paste your token: `GITHUB_TOKEN=ghp_...`
+5. Run `./scripts/mcp-doctor.sh` again → ✅ PASS
+
+**Expected output (first run without token):**
+```
+[ERROR] SETUP INCOMPLETE: You must add your GitHub token!
+Next steps:
+  1. Get a GitHub Personal Access Token: https://github.com/settings/tokens
+  2. Edit .env.mcp.local and set GITHUB_TOKEN: GITHUB_TOKEN=ghp_your_actual_token_here
+  3. Run this script again: ./scripts/mcp-doctor.sh
+```
+
+**Expected output (with valid token):**
+```
+✅ All checks passed!
+Next steps for UI verification:
+  1. Start backend and frontend
+  2. Open Scribe agent in browser
+  3. Run a test job (dry run)
+  4. Verify: No -32601 errors, Correlation ID visible, Copy button works
+```
+
+---
+
+### Manual Setup (Alternative)
+
+If you prefer step-by-step control or need to troubleshoot:
+
 1. **Create GitHub Personal Access Token**:
    - Visit: https://github.com/settings/tokens
    - Click "Generate new token (classic)"
@@ -175,6 +224,34 @@ GitHub.com
 ---
 
 ## Troubleshooting
+
+### Quick Diagnostics: Run MCP Doctor First
+
+**Before diving into specific issues, run the automated diagnostic:**
+
+```bash
+./scripts/mcp-doctor.sh
+```
+
+This will:
+- ✅ Check if `.env.mcp.local` exists and is properly configured
+- ✅ Verify the file is gitignored (security)
+- ✅ Validate `GITHUB_TOKEN` is present (without exposing value)
+- ✅ Run complete setup + smoke test
+- ✅ Provide redacted logs for sharing (safe for support)
+
+**If doctor fails:**
+1. Read the error message - it provides actionable fix instructions
+2. Check the log file: `.mcp-doctor-<timestamp>.log`
+3. Share the redacted log + correlation ID (never share token)
+
+**Exit codes:**
+- `0` = Success (all checks passed)
+- `1` = Setup incomplete (user action required - e.g., missing token)
+- `2` = Smoke test failed (MCP Gateway issue)
+- `3` = Security violation (env file not ignored)
+
+---
 
 ### "Missing dependency: GITHUB_MCP_BASE_URL"
 
