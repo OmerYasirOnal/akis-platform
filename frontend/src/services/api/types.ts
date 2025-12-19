@@ -15,6 +15,8 @@ export interface Job {
   errorCode?: string | null;
   /** User-friendly error message */
   errorMessage?: string | null;
+  /** MCP Gateway correlation id (safe to share, helps debug gateway logs) */
+  correlationId?: string | null;
   createdAt: string;
   updatedAt: string;
   plan?: JobPlan;
