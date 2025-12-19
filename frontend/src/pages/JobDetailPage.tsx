@@ -170,6 +170,14 @@ export default function JobDetailPage() {
         <div className="mb-6">
           <h2 className="mb-2 text-lg font-semibold text-ak-danger">Error</h2>
           <div className="rounded-lg border border-ak-danger/70 bg-ak-surface p-4 space-y-3">
+            {job.correlationId && (
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-ak-text-secondary">Correlation ID:</span>
+                <span className="inline-block rounded bg-ak-danger/10 px-2 py-0.5 text-sm font-medium text-ak-danger">
+                  {job.correlationId}
+                </span>
+              </div>
+            )}
             {job.errorCode && (
               <div className="flex items-center gap-2">
                 <span className="text-sm font-medium text-ak-text-secondary">Code:</span>
