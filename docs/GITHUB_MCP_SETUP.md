@@ -537,6 +537,31 @@ curl -X POST http://localhost:4010/mcp \
 
 ## Security
 
+### 🚨 CRITICAL: Token Rotation After Exposure
+
+**If you accidentally pasted, committed, or exposed a GitHub token:**
+
+1. **Immediately revoke the token** at https://github.com/settings/tokens
+2. **Generate a new token** with minimum required scopes
+3. **Update `.env.mcp.local`** with the new token
+4. **Never reuse the exposed token** - treat it as permanently compromised
+5. **Scan git history** for the leaked token:
+   ```bash
+   git log -p | grep -E 'ghp_[a-zA-Z0-9]{36}'
+   ```
+   If found, consider using tools like `git-filter-repo` or BFG Repo-Cleaner to remove it from history.
+
+**Common exposure scenarios:**
+- ❌ Pasting token in terminal (check shell history: `history | grep ghp_`)
+- ❌ Committing `.env.mcp.local` to git
+- ❌ Sharing screen/screenshot with token visible
+- ❌ Posting logs with token in error messages
+- ❌ Storing token in plain text notes/documents
+
+**GitHub will automatically scan public commits** for leaked tokens and revoke them. For private repos, you must manually revoke and rotate.
+
+---
+
 ### Token Safety Checklist ✅
 
 Before deploying or sharing your setup, verify all items:
