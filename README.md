@@ -151,6 +151,19 @@ See [docs/GITHUB_MCP_SETUP.md - Token Safety Checklist](docs/GITHUB_MCP_SETUP.md
 
 ### 1. MCP Gateway Setup (Required for GitHub Integration)
 
+**Quick start (recommended):**
+```bash
+# One-command setup + smoke test
+./scripts/mcp-doctor.sh
+```
+
+The doctor script will:
+- Create `.env.mcp.local` from template if missing
+- Guide you to add your GitHub token
+- Run automated setup + smoke test
+- Provide clear next steps
+
+**Manual setup (alternative):**
 ```bash
 # Copy template and add your GitHub token
 cp env.mcp.local.example .env.mcp.local
@@ -164,6 +177,8 @@ cp env.mcp.local.example .env.mcp.local
 
 # Gateway: http://localhost:4010/mcp
 ```
+
+📖 **Detailed setup guide**: See [`docs/GITHUB_MCP_SETUP.md`](docs/GITHUB_MCP_SETUP.md)
 
 ### 2. Backend Setup
 
