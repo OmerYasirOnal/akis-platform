@@ -83,6 +83,14 @@ Server runs on `http://localhost:3000`.
 
 See `.env.example` for complete list. Key variables:
 
+### Important: NODE_ENV
+**Do NOT set `NODE_ENV` in `.env` files.** It is controlled by scripts:
+- `pnpm dev` → defaults to `development` (or uses shell env if set)
+- `pnpm test` → sets `NODE_ENV=test` automatically
+- `pnpm start` → expects `production` (set via shell/system env)
+
+Setting `NODE_ENV` in `.env` can cause conflicts and validation errors.
+
 ### Required
 - `DATABASE_URL` - PostgreSQL connection string
 

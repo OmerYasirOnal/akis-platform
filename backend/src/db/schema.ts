@@ -1,4 +1,4 @@
-import { pgTable, uuid, varchar, jsonb, timestamp, pgEnum, text, index, boolean } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, varchar, jsonb, timestamp, pgEnum, text, index, boolean, integer, uniqueIndex } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 
 export const jobStateEnum = pgEnum('job_state', ['pending', 'running', 'completed', 'failed']);
@@ -173,6 +173,68 @@ export const oauthAccountsRelations = relations(oauthAccounts, ({ one }) => ({
 export const emailVerificationTokensRelations = relations(emailVerificationTokens, ({ one }) => ({
   user: one(users, {
     fields: [emailVerificationTokens.userId],
+    references: [users.id],
+  }),
+}));
+
+/**
+ * Agent configs - stores per-user, per-agent configuration
+ * S0.4.6: Persistent Scribe configuration storage
+ */
+export const agentConfigs = pgTable('agent_configs', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  agentType: varchar('agent_type', { length: 50 }).notNull(), // 'scribe', 'trace', 'proto'
+  
+  // Status
+  enabled: boolean('enabled').notNull().default(false),
+  
+  // Repository settings
+  repositoryOwner: varchar('repository_owner', { length: 255 }),
+  repositoryName: varchar('repository_name', { length: 255 }),
+  baseBranch: varchar('base_branch', { length: 255 }).default('main'),
+  branchPattern: varchar('branch_pattern', { length: 255 }).default('docs/{agent}-{timestamp}'),
+  
+  // Target settings (JSON for flexibility)
+  targetPlatform: varchar('target_platform', { length: 50 }), // 'confluence', 'notion', 'github_wiki'
+  targetConfig: jsonb('target_config').notNull().default({}),
+  
+  // Trigger settings
+  triggerMode: varchar('trigger_mode', { length: 50 }).notNull().default('manual'), // 'on_pr_merge', 'scheduled', 'manual'
+  scheduleCron: varchar('schedule_cron', { length: 100 }),
+  
+  // PR behavior
+  prTitleTemplate: varchar('pr_title_template', { length: 500 }).default('docs({agent}): {summary}'),
+  prBodyTemplate: text('pr_body_template'),
+  autoMerge: boolean('auto_merge').notNull().default(false),
+  
+  // Filters
+  includeGlobs: text('include_globs').array(),
+  excludeGlobs: text('exclude_globs').array(),
+  
+  // Advanced
+  jobTimeoutSeconds: integer('job_timeout_seconds').default(60),
+  maxRetries: integer('max_retries').default(2),
+  
+  // LLM overrides (optional)
+  llmModelOverride: varchar('llm_model_override', { length: 255 }),
+  
+  // Audit
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  // Unique constraint: one config per user per agent type
+  userAgentUnique: uniqueIndex('idx_agent_configs_user_agent').on(table.userId, table.agentType),
+  // Index for quick lookup
+  userIdIdx: index('idx_agent_configs_user_id').on(table.userId),
+}));
+
+export type AgentConfig = typeof agentConfigs.$inferSelect;
+export type NewAgentConfig = typeof agentConfigs.$inferInsert;
+
+export const agentConfigsRelations = relations(agentConfigs, ({ one }) => ({
+  user: one(users, {
+    fields: [agentConfigs.userId],
     references: [users.id],
   }),
 }));
