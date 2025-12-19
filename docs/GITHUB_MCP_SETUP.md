@@ -223,6 +223,71 @@ GitHub.com
 
 ---
 
+## Job Details Diagnostics v1
+
+When viewing job details in the UI (`/dashboard/jobs/:id`), you now have access to comprehensive diagnostic information:
+
+### 🎯 What's New
+
+**1. MCP Gateway URL**
+- Displayed in job metadata grid
+- Shows exactly which gateway was used for this job
+- Helps identify configuration mismatches:
+  - ✅ `http://localhost:4010/mcp` (local gateway)
+  - ⚠️ Different URL? Check `GITHUB_MCP_BASE_URL` in `backend/.env`
+
+**2. Enhanced Correlation ID**
+- Shown in job metadata (always visible)
+- Also shown in error section if job failed
+- One-click copy button
+- Use this ID to:
+  - Correlate backend logs with gateway logs
+  - Share with support (safe, contains no secrets)
+  - Debug MCP request chains
+
+**3. Raw Error Payload (New)**
+- Collapsible section in error panel
+- Shows full structured error including:
+  - Error type and code
+  - Correlation ID
+  - Gateway URL (redacted to host/port only)
+  - Error cause and hints
+  - Stack trace (first 5 lines only)
+- **Security**: Secrets are automatically redacted
+  - GitHub tokens: `ghp_REDACTED`, `gho_REDACTED`, etc.
+  - npm tokens: `ntn_REDACTED`
+  - JWT tokens: `JWT_REDACTED`
+  - Authorization headers: `Bearer REDACTED`
+- Safe to copy and share with support
+
+**4. Structured Error Codes**
+
+All MCP errors now use stable, actionable codes:
+
+| Code | Meaning | Hint Example |
+|------|---------|--------------|
+| `MCP_UNREACHABLE` | Gateway not running | "Run `./scripts/mcp-doctor.sh` to diagnose" |
+| `MCP_TIMEOUT` | Connection timeout | "Check if gateway is healthy: curl http://localhost:4010/health" |
+| `MCP_DNS_FAILED` | Invalid hostname | "Check `GITHUB_MCP_BASE_URL` in backend/.env" |
+| `MCP_UNAUTHORIZED` | Invalid token | "Check `GITHUB_TOKEN` in .env.mcp.local" |
+| `MCP_FORBIDDEN` | Insufficient scopes | "Ensure token has: repo, read:org" |
+| `MCP_RATE_LIMITED` | API rate limit | "Wait a few minutes and try again" |
+
+### 📋 Verification
+
+To test all diagnostic scenarios:
+
+```bash
+./scripts/verify-mcp-scenarios.sh
+```
+
+This will guide you through:
+- **Scenario A**: Gateway DOWN → See MCP_UNREACHABLE error with hints
+- **Scenario B**: Gateway UP, Dry Run → See correlation ID, plan, audit (no PR created)
+- **Scenario C**: Non-Dry Run → See PR creation or structured error
+
+---
+
 ## Troubleshooting
 
 ### Quick Diagnostics: Run MCP Doctor First
