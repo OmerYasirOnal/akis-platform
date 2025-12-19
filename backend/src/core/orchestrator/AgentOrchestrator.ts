@@ -245,6 +245,14 @@ export class AgentOrchestrator {
             token: userGitHubToken,
             correlationId: jobId,
           });
+          
+          // Store gateway URL for diagnostics
+          try {
+            await db.update(jobs).set({ mcpGatewayUrl: env.GITHUB_MCP_BASE_URL }).where(eq(jobs.id, jobId));
+          } catch (error) {
+            // Non-critical: log but don't fail job
+            console.warn(`Failed to store MCP gateway URL for job ${jobId}:`, error);
+          }
         } else {
           throw new MissingDependencyError(
             'GITHUB_MCP_BASE_URL',
@@ -259,6 +267,14 @@ export class AgentOrchestrator {
           token: token,
           correlationId: jobId,
         });
+        
+        // Store gateway URL for diagnostics
+        try {
+          await db.update(jobs).set({ mcpGatewayUrl: env.GITHUB_MCP_BASE_URL }).where(eq(jobs.id, jobId));
+        } catch (error) {
+          // Non-critical: log but don't fail job
+          console.warn(`Failed to store MCP gateway URL for job ${jobId}:`, error);
+        }
       }
 
       const agent = AgentFactory.create(job.type, resolvedTools);
@@ -569,12 +585,21 @@ export class AgentOrchestrator {
     let errorCode: string | null = null;
     let errorMsg: string | null = null;
     let rawError: string;
+    let mcpGatewayUrl: string | null = null;
+    let rawErrorPayload: string | null = null;
 
     if (error instanceof AIProviderError) {
       // AI-specific error - extract structured info
       errorCode = error.code;
       errorMsg = this.getHumanReadableErrorMessage(error);
       rawError = error.message;
+      // Serialize full error for diagnostics (no secrets in AIProviderError)
+      rawErrorPayload = JSON.stringify({
+        type: 'AIProviderError',
+        code: error.code,
+        message: error.message,
+        name: error.name,
+      });
     } else if (error instanceof McpConnectionError) {
       // MCP connection error - use stable code and include hint
       errorCode = error.code; // McpErrorCode enum value (e.g., MCP_UNREACHABLE)
@@ -582,6 +607,19 @@ export class AgentOrchestrator {
       const gateway = error.gatewayUrl ? ` [Gateway: ${error.gatewayUrl}]` : '';
       errorMsg = `${error.message}${hint}`;
       rawError = `${error.toUserMessage()}${gateway} (cause: ${error.cause || 'unknown'})`;
+      mcpGatewayUrl = error.gatewayUrl || null;
+      // Serialize full error for diagnostics (gatewayUrl is already redacted)
+      rawErrorPayload = JSON.stringify({
+        type: 'McpConnectionError',
+        code: error.code,
+        mcpCode: error.mcpCode,
+        method: error.mcpMethod,
+        message: error.message,
+        correlationId: error.correlationId,
+        gatewayUrl: error.gatewayUrl,
+        cause: error.cause,
+        hint: error.hint,
+      });
       // Safe log (no secrets) for operators
       console.error(
         `[AgentOrchestrator] Job ${jobId} MCP connection failed [${error.correlationId}] ` +
@@ -593,6 +631,19 @@ export class AgentOrchestrator {
       const hint = error.hint ? `\n\nHint: ${error.hint}` : '';
       errorMsg = `${error.toUserMessage()}${hint}`;
       rawError = `${error.toUserMessage()} (method: ${error.mcpMethod})`;
+      mcpGatewayUrl = error.gatewayUrl || null;
+      // Serialize full error for diagnostics (gatewayUrl is already redacted)
+      rawErrorPayload = JSON.stringify({
+        type: 'McpError',
+        code: error.code,
+        mcpCode: error.mcpCode,
+        method: error.mcpMethod,
+        message: error.message,
+        correlationId: error.correlationId,
+        gatewayUrl: error.gatewayUrl,
+        hint: error.hint,
+        data: error.mcpData,
+      });
       // Safe log (no secrets) for operators
       console.error(
         `[AgentOrchestrator] Job ${jobId} failed with MCP error [${error.correlationId}] ` +
@@ -600,6 +651,14 @@ export class AgentOrchestrator {
       );
     } else {
       rawError = error instanceof Error ? error.message : String(error);
+      // Generic error - capture basic structure
+      if (error instanceof Error) {
+        rawErrorPayload = JSON.stringify({
+          type: error.name,
+          message: error.message,
+          stack: error.stack?.split('\n').slice(0, 5).join('\n'), // First 5 lines of stack only
+        });
+      }
     }
 
     const truncatedError = rawError.length > 1000 ? rawError.substring(0, 997) + '...' : rawError;
@@ -614,6 +673,8 @@ export class AgentOrchestrator {
           error: truncatedError,
           errorCode: errorCode,
           errorMessage: truncatedErrorMsg,
+          rawErrorPayload: rawErrorPayload,
+          mcpGatewayUrl: mcpGatewayUrl,
           updatedAt: new Date(),
         })
         .where(eq(jobs.id, jobId));
