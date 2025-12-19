@@ -253,6 +253,59 @@ This will:
 
 ---
 
+### 🔴 "fetch failed" / "MCP_UNREACHABLE" Error
+
+**This is the most common MCP error.** It means the backend cannot connect to the MCP Gateway.
+
+**Common causes:**
+
+| Cause | Symptom | Fix |
+|-------|---------|-----|
+| Gateway not running | Job fails immediately with "fetch failed" | `./scripts/mcp-up.sh` |
+| Wrong URL in backend | Gateway runs but backend can't connect | Check `GITHUB_MCP_BASE_URL` in `backend/.env` |
+| Missing backend/.env | Backend has no MCP configuration | `cp backend/.env.example backend/.env` |
+| URL mismatch | Using hosted URL with local gateway | Set `GITHUB_MCP_BASE_URL=http://localhost:4010/mcp` |
+
+**Quick diagnostic flow:**
+
+1. **Run MCP Doctor first:**
+   ```bash
+   ./scripts/mcp-doctor.sh
+   ```
+   - If it says "PASS" but you still get errors → problem is in `backend/.env`
+   - If it fails → follow the specific fix instructions
+
+2. **Check backend/.env has the right URL:**
+   ```bash
+   # For local gateway (default):
+   GITHUB_MCP_BASE_URL=http://localhost:4010/mcp
+   
+   # For GitHub Copilot hosted (optional, requires Copilot subscription):
+   # GITHUB_MCP_BASE_URL=https://api.githubcopilot.com/mcp/
+   ```
+
+3. **Verify gateway is running:**
+   ```bash
+   curl http://localhost:4010/health
+   # Should return: {"status":"ok"}
+   ```
+
+4. **Restart backend after changing .env:**
+   ```bash
+   cd backend && pnpm dev
+   ```
+
+**Job Details will now show structured errors:**
+- `MCP_UNREACHABLE` → Gateway not running
+- `MCP_TIMEOUT` → Gateway slow/unresponsive
+- `MCP_DNS_FAILED` → URL hostname invalid
+- `MCP_UNAUTHORIZED` → Token invalid/missing
+- `MCP_FORBIDDEN` → Token lacks scopes
+
+Each error includes a **Hint** with the exact fix. Look for it in Job Details.
+
+---
+
 ### "Missing dependency: GITHUB_MCP_BASE_URL"
 
 **Cause**: Backend `.env` does not have `GITHUB_MCP_BASE_URL` set.
