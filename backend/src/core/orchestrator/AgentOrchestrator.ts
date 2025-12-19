@@ -9,7 +9,7 @@ import type { AIService } from '../../services/ai/AIService.js';
 import type { Plan, Critique } from '../../services/ai/AIService.js';
 import type { MCPTools } from '../../services/mcp/adapters/index.js';
 import { getEnv } from '../../config/env.js';
-import { GitHubMCPService } from '../../services/mcp/adapters/GitHubMCPService.js';
+import { GitHubMCPService, McpError } from '../../services/mcp/adapters/GitHubMCPService.js';
 import { StaticCheckRunner } from '../../services/checks/index.js';
 
 /**
@@ -242,7 +242,8 @@ export class AgentOrchestrator {
         if (env.GITHUB_MCP_BASE_URL) {
           resolvedTools.tools!.githubMCP = new GitHubMCPService({
             baseUrl: env.GITHUB_MCP_BASE_URL,
-            token: userGitHubToken
+            token: userGitHubToken,
+            correlationId: jobId,
           });
         } else {
           throw new MissingDependencyError(
@@ -255,7 +256,8 @@ export class AgentOrchestrator {
         const token = env.GITHUB_TOKEN || ''; 
         resolvedTools.tools!.githubMCP = new GitHubMCPService({
           baseUrl: env.GITHUB_MCP_BASE_URL,
-          token: token
+          token: token,
+          correlationId: jobId,
         });
       }
 
@@ -573,6 +575,15 @@ export class AgentOrchestrator {
       errorCode = error.code;
       errorMsg = this.getHumanReadableErrorMessage(error);
       rawError = error.message;
+    } else if (error instanceof McpError) {
+      errorCode = 'MCP_ERROR';
+      errorMsg = error.toUserMessage();
+      rawError = `${error.toUserMessage()} (method: ${error.mcpMethod})`;
+      // Safe log (no secrets) for operators
+      console.error(
+        `[AgentOrchestrator] Job ${jobId} failed with MCP error [${error.correlationId}] ` +
+          `code=${error.mcpCode} method=${error.mcpMethod}: ${error.message}`
+      );
     } else {
       rawError = error instanceof Error ? error.message : String(error);
     }
@@ -627,6 +638,7 @@ export class AgentOrchestrator {
     // Prepare dependencies (DI) similar to startJob
     const env = getEnv();
     const payload = (context && typeof context === 'object' ? context : {}) as Record<string, unknown>;
+    const executionId = this.generateExecutionId();
     
     const resolvedTools: AgentDependencies = { 
       ...this.tools,
@@ -658,7 +670,8 @@ export class AgentOrchestrator {
       if (env.GITHUB_MCP_BASE_URL) {
         resolvedTools.tools!.githubMCP = new GitHubMCPService({
           baseUrl: env.GITHUB_MCP_BASE_URL,
-          token: userGitHubToken
+          token: userGitHubToken,
+          correlationId: executionId,
         });
       } else {
         throw new MissingDependencyError(
@@ -670,13 +683,13 @@ export class AgentOrchestrator {
       const token = env.GITHUB_TOKEN || ''; 
       resolvedTools.tools!.githubMCP = new GitHubMCPService({
         baseUrl: env.GITHUB_MCP_BASE_URL,
-        token: token
+        token: token,
+        correlationId: executionId,
       });
     }
 
     const agent = AgentFactory.create(agentType, resolvedTools);
     const stateMachine = new AgentStateMachine('pending');
-    const executionId = this.generateExecutionId();
 
     this.stateMachines.set(executionId, stateMachine);
 
