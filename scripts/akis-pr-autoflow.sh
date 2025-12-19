@@ -6,18 +6,27 @@
 #   ./scripts/akis-pr-autoflow.sh [OPTIONS]
 #
 # Options:
-#   --dry-run     Show what would happen without making changes
-#   --no-merge    Create PR and wait for green, but don't merge
-#   --skip-ui     Skip UI smoke tests (not recommended)
-#   --skip-mcp    Skip MCP gateway tests (if gateway not available)
-#   -h, --help    Show this help message
+#   --dry-run             Show what would happen without making changes
+#   --no-merge            Create PR and wait for green, but don't merge
+#   --skip-ui             Skip UI smoke tests (not recommended)
+#   --skip-mcp            Skip MCP gateway tests (if gateway not available)
+#   --merge-method METHOD Merge strategy: merge (default), squash, or rebase
+#   --use-current-branch  Use existing branch instead of creating new one
+#   -h, --help            Show this help message
 #
 # What it does:
 #   1. Validates environment (git, gh, pnpm, node, docker)
 #   2. Ensures no secrets will be pushed
-#   3. Creates feature branch from main
+#   3. Creates feature branch from main OR uses existing branch
 #   4. Runs full verification (MCP + backend + frontend + UI)
-#   5. Opens PR, waits for CI green, merges, cleans up
+#   5. Opens PR, waits for CI green, merges with selected strategy
+#
+# Examples:
+#   # Use existing branch, preserve commits with merge (not squash)
+#   ./scripts/akis-pr-autoflow.sh --use-current-branch --merge-method merge
+#
+#   # Create new branch, squash on merge
+#   ./scripts/akis-pr-autoflow.sh --merge-method squash
 #===============================================================================
 set -euo pipefail
 
@@ -40,6 +49,8 @@ NO_MERGE=false
 SKIP_UI=false
 SKIP_MCP=false
 MCP_STARTED=false
+MERGE_METHOD="merge"  # Default: preserve commit history
+USE_CURRENT_BRANCH=false
 
 # Cleanup handler
 cleanup() {
@@ -115,6 +126,26 @@ parse_args() {
       --skip-mcp)
         SKIP_MCP=true
         log_warn "Skipping MCP gateway tests"
+        shift
+        ;;
+      --merge-method)
+        if [ -z "${2:-}" ]; then
+          fail "Missing argument for --merge-method" "Use: --merge-method [merge|squash|rebase]"
+        fi
+        case "$2" in
+          merge|squash|rebase)
+            MERGE_METHOD="$2"
+            log_info "Merge method: $MERGE_METHOD"
+            ;;
+          *)
+            fail "Invalid merge method: $2" "Valid options: merge, squash, rebase"
+            ;;
+        esac
+        shift 2
+        ;;
+      --use-current-branch)
+        USE_CURRENT_BRANCH=true
+        log_info "Will use current branch (no new branch creation)"
         shift
         ;;
       -h|--help)
@@ -209,9 +240,13 @@ check_secrets_safety() {
     ".env"
     ".env.local"
     ".env.*.local"
+    ".env.mcp.local"
     "backend/.env"
     "backend/.env.local"
     "backend/.env.*.local"
+    "frontend/.env"
+    "frontend/.env.local"
+    "frontend/.env.*.local"
     "mcp-gateway/.env"
   )
   
@@ -250,7 +285,7 @@ check_secrets_safety() {
   # Safe report: which env files exist (paths only, never values)
   log_info "Environment files report (paths only, NO values):"
   echo "  ┌─────────────────────────────────────────────────────"
-  for pattern in ".env" ".env.local" "backend/.env" "backend/.env.local"; do
+  for pattern in ".env.mcp.local" "backend/.env" "backend/.env.local" "frontend/.env" "frontend/.env.local"; do
     if [ -f "$REPO_ROOT/$pattern" ]; then
       echo "  │ ✓ EXISTS: $pattern"
     else
@@ -277,8 +312,19 @@ check_secrets_safety() {
       log_warn "Missing keys in backend/.env: ${missing_keys[*]}"
       log_warn "Some tests may be skipped"
     else
-      log_success "All critical env keys present"
+      log_success "All critical env keys present in backend/.env"
     fi
+  fi
+  
+  # Check MCP env file separately
+  if [ -f "$REPO_ROOT/.env.mcp.local" ]; then
+    if grep -qE '^GITHUB_TOKEN=.+' "$REPO_ROOT/.env.mcp.local" 2>/dev/null; then
+      log_success "GITHUB_TOKEN present in .env.mcp.local"
+    else
+      log_warn "GITHUB_TOKEN not set in .env.mcp.local (MCP tests will be skipped)"
+    fi
+  else
+    log_warn ".env.mcp.local not found (MCP tests will be skipped)"
   fi
   
   log_success "Security check passed - no secrets will be pushed"
@@ -299,37 +345,79 @@ setup_branch() {
   local current_branch
   current_branch=$(git branch --show-current)
   
-  # Check if main is ahead of origin/main
+  # Verify main alignment with origin/main
   if [ "$current_branch" = "main" ]; then
-    local ahead
+    local ahead behind
     ahead=$(git rev-list --count origin/main..main 2>/dev/null || echo "0")
+    behind=$(git rev-list --count main..origin/main 2>/dev/null || echo "0")
     
-    if [ "$ahead" -gt 0 ]; then
-      log_warn "Local main is $ahead commit(s) ahead of origin/main"
-      log_info "Creating rescue branch and resetting main..."
+    if [ "$ahead" -gt 0 ] || [ "$behind" -gt 0 ]; then
+      log_warn "Local main diverged from origin/main (ahead: $ahead, behind: $behind)"
       
-      # Create rescue branch from current HEAD
-      local rescue_branch="feat/auto-$TIMESTAMP"
-      git checkout -b "$rescue_branch"
-      FEATURE_BRANCH="$rescue_branch"
-      
-      # Reset main to origin/main (in a detached way for safety)
-      if [ "$DRY_RUN" = false ]; then
-        git branch -f main origin/main
+      if [ "$ahead" -gt 0 ]; then
+        log_info "Creating rescue branch from current main..."
+        local rescue_branch="feat/auto-$TIMESTAMP"
+        git checkout -b "$rescue_branch"
+        FEATURE_BRANCH="$rescue_branch"
+        
+        # Reset main to origin/main
+        if [ "$DRY_RUN" = false ]; then
+          git branch -f main origin/main
+        fi
+        
+        log_success "Created branch: $FEATURE_BRANCH (rescued $ahead commits)"
+      else
+        fail "Local main is behind origin/main" "Run: git checkout main && git pull origin main"
+      fi
+    else
+      # Main is clean
+      if [ "$USE_CURRENT_BRANCH" = true ]; then
+        fail "Cannot use current branch: you are on main" "Switch to a feature branch first"
       fi
       
-      log_success "Created branch: $FEATURE_BRANCH (rescued $ahead commits)"
-    else
-      # Main is clean, create new feature branch
+      # Create new feature branch
       FEATURE_BRANCH="feat/auto-$TIMESTAMP"
       git checkout -b "$FEATURE_BRANCH" origin/main
       log_success "Created branch: $FEATURE_BRANCH (from origin/main)"
     fi
   else
     # Already on a feature branch
-    log_info "Already on branch: $current_branch"
-    FEATURE_BRANCH="$current_branch"
-    log_success "Using existing branch: $FEATURE_BRANCH"
+    log_info "Current branch: $current_branch"
+    
+    # Sanity checks for existing branch
+    if [ "$USE_CURRENT_BRANCH" = true ] || git diff --quiet HEAD origin/main 2>/dev/null; then
+      # Check if branch exists on remote
+      if git ls-remote --heads origin "$current_branch" | grep -q "$current_branch"; then
+        log_info "Branch exists on remote"
+        
+        # Check if local is ahead/behind remote
+        local ahead_remote behind_remote
+        ahead_remote=$(git rev-list --count origin/"$current_branch".."$current_branch" 2>/dev/null || echo "0")
+        behind_remote=$(git rev-list --count "$current_branch"..origin/"$current_branch" 2>/dev/null || echo "0")
+        
+        if [ "$behind_remote" -gt 0 ]; then
+          log_warn "Local branch is $behind_remote commit(s) behind remote"
+          read -p "Pull latest changes? [Y/n] " -n 1 -r
+          echo ""
+          if [[ ! $REPLY =~ ^[Nn]$ ]]; then
+            git pull origin "$current_branch"
+            log_success "Pulled latest changes"
+          fi
+        fi
+        
+        if [ "$ahead_remote" -gt 0 ]; then
+          log_info "Local branch is $ahead_remote commit(s) ahead of remote"
+        fi
+      else
+        log_info "Branch does not exist on remote (will be created on push)"
+      fi
+      
+      FEATURE_BRANCH="$current_branch"
+      log_success "Using existing branch: $FEATURE_BRANCH"
+    else
+      fail "Current branch differs from main and --use-current-branch not set" \
+           "Either use --use-current-branch or switch to main first"
+    fi
   fi
 }
 
@@ -346,26 +434,33 @@ run_verification() {
   if [ "$SKIP_MCP" = false ]; then
     log_info "[4.1] MCP Gateway smoke test..."
     if [ -f "$REPO_ROOT/scripts/mcp-up.sh" ]; then
-      # Check if GITHUB_TOKEN is available
-      if [ -z "${GITHUB_TOKEN:-}" ]; then
-        log_warn "GITHUB_TOKEN not set - skipping MCP tests"
-        test_results+=("MCP Gateway: SKIPPED (no token)")
+      # Check if .env.mcp.local exists (canonical token source)
+      if [ ! -f "$REPO_ROOT/.env.mcp.local" ]; then
+        log_warn ".env.mcp.local not found - skipping MCP tests"
+        log_info "Create from template: cp env.mcp.local.example .env.mcp.local"
+        test_results+=("MCP Gateway: SKIPPED (no .env.mcp.local)")
       else
-        if "$REPO_ROOT/scripts/mcp-up.sh" 2>&1 | tee -a "$LOG_FILE"; then
-          MCP_STARTED=true
-          sleep 3
-          if "$REPO_ROOT/scripts/mcp-smoke-test.sh" 2>&1 | tee -a "$LOG_FILE"; then
-            test_results+=("MCP Gateway: PASS")
-            log_success "MCP Gateway smoke test passed"
+        # Validate token presence without reading value
+        if ! grep -qE '^GITHUB_TOKEN=.+' "$REPO_ROOT/.env.mcp.local" 2>/dev/null; then
+          log_warn "GITHUB_TOKEN not set in .env.mcp.local - skipping MCP tests"
+          test_results+=("MCP Gateway: SKIPPED (token not set)")
+        else
+          if "$REPO_ROOT/scripts/mcp-up.sh" 2>&1 | tee -a "$LOG_FILE"; then
+            MCP_STARTED=true
+            sleep 3
+            if "$REPO_ROOT/scripts/mcp-smoke-test.sh" 2>&1 | tee -a "$LOG_FILE"; then
+              test_results+=("MCP Gateway: PASS")
+              log_success "MCP Gateway smoke test passed"
+            else
+              test_results+=("MCP Gateway: FAIL")
+              log_error "MCP Gateway smoke test failed"
+              failed=true
+            fi
           else
-            test_results+=("MCP Gateway: FAIL")
-            log_error "MCP Gateway smoke test failed"
+            test_results+=("MCP Gateway: FAIL (startup)")
+            log_error "MCP Gateway failed to start"
             failed=true
           fi
-        else
-          test_results+=("MCP Gateway: FAIL (startup)")
-          log_error "MCP Gateway failed to start"
-          failed=true
         fi
       fi
     else
@@ -529,7 +624,13 @@ commit_and_push() {
     fi
     
     log_info "Committing..."
-    git commit -m "chore: automated verification run $TIMESTAMP
+    
+    # Only auto-commit if not using existing branch with commits
+    if [ "$USE_CURRENT_BRANCH" = true ] && [ "$(git rev-list --count HEAD ^origin/main 2>/dev/null || echo 0)" -gt 0 ]; then
+      log_info "Using existing branch with commits - skipping auto-commit"
+      log_warn "Existing commits will be preserved"
+    else
+      git commit -m "chore: automated verification run $TIMESTAMP
 
 - All backend tests passing (typecheck, lint, unit/integration)
 - All frontend tests passing (typecheck, lint, unit)
@@ -537,8 +638,9 @@ commit_and_push() {
 - No secrets in commit (verified)
 
 Automated by: akis-pr-autoflow.sh"
-    
-    log_success "Changes committed"
+      
+      log_success "Changes committed"
+    fi
   fi
   
   if [ "$DRY_RUN" = true ]; then
@@ -648,10 +750,27 @@ merge_and_cleanup() {
   
   cd "$REPO_ROOT"
   
-  # Merge PR
-  log_info "Merging PR #$PR_NUMBER..."
-  if gh pr merge "$PR_NUMBER" --squash --delete-branch; then
-    log_success "PR merged and remote branch deleted"
+  # Merge PR with selected method
+  log_info "Merging PR #$PR_NUMBER using '$MERGE_METHOD' strategy..."
+  
+  local merge_flag
+  case "$MERGE_METHOD" in
+    squash)
+      merge_flag="--squash"
+      ;;
+    rebase)
+      merge_flag="--rebase"
+      ;;
+    merge)
+      merge_flag="--merge"
+      ;;
+    *)
+      fail "Invalid merge method: $MERGE_METHOD" "Use: merge, squash, or rebase"
+      ;;
+  esac
+  
+  if gh pr merge "$PR_NUMBER" "$merge_flag" --delete-branch; then
+    log_success "PR merged ($MERGE_METHOD) and remote branch deleted"
   else
     fail "Failed to merge PR" "Check PR status: gh pr view $PR_NUMBER --web"
   fi
@@ -690,7 +809,7 @@ print_final_status() {
     echo -e "  ${BLUE}PR:${NC} gh pr view $PR_NUMBER --web"
   else
     echo -e "  ${GREEN}Status:${NC} SUCCESS"
-    echo -e "  ${BLUE}Merged PR:${NC} #$PR_NUMBER"
+    echo -e "  ${BLUE}Merged PR:${NC} #$PR_NUMBER (strategy: $MERGE_METHOD)"
     echo -e "  ${BLUE}Current branch:${NC} $(git branch --show-current)"
     echo -e "  ${BLUE}Latest commit:${NC} $(git log --oneline -1)"
   fi
