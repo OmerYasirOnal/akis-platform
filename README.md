@@ -126,22 +126,73 @@ Sprint detayları [docs/PROJECT_TRACKING_BASELINE.md](docs/PROJECT_TRACKING_BASE
 
 ## Quickstart
 
-### Backend
+### Prerequisites
+
+1. **Node.js** ≥ 20
+2. **PostgreSQL** database
+3. **Docker** (for MCP Gateway)
+4. **GitHub Personal Access Token** (for MCP integration)
+   - Get from: https://github.com/settings/tokens
+   - Required scopes: `repo`, `read:org`
+
+### ⚠️ Security: Never Commit Secrets
+
+All `.env` files are gitignored. Create them from templates:
+- `.env.mcp.local` → from `env.mcp.local.example` (for MCP Gateway)
+- `backend/.env` → from `backend/.env.example` (for Fastify backend)
+
+**Token Safety Rules**:
+- ✅ Use env files (`.env.mcp.local`, `backend/.env`)
+- ❌ Never `export GITHUB_TOKEN=...` in shell
+- ❌ Never `source .env` in scripts
+- ❌ Never commit real tokens
+
+See [docs/GITHUB_MCP_SETUP.md - Token Safety Checklist](docs/GITHUB_MCP_SETUP.md#token-safety-checklist-) for complete security guidance.
+
+### 1. MCP Gateway Setup (Required for GitHub Integration)
+
+```bash
+# Copy template and add your GitHub token
+cp env.mcp.local.example .env.mcp.local
+# Edit .env.mcp.local: GITHUB_TOKEN=ghp_your_actual_token
+
+# Start MCP Gateway
+./scripts/mcp-up.sh
+
+# Verify (recommended)
+./scripts/mcp-smoke-test.sh
+
+# Gateway: http://localhost:4010/mcp
+```
+
+### 2. Backend Setup
 
 ```bash
 cd backend
 pnpm install
 
-# Set up environment
+# Copy template and configure
 cp .env.example .env
-# Edit .env with your values (especially DATABASE_URL)
+# Edit .env with your values:
+#   DATABASE_URL=postgresql://user:pass@localhost:5432/akis_v2
+#   GITHUB_MCP_BASE_URL=http://localhost:4010/mcp
+#   (See .env.example for all options)
 
-# Run development server
+# Run database migrations
+pnpm db:migrate
+
+# Start development server
 pnpm dev
+# → http://localhost:3000/health
+```
 
-# The server will start on http://localhost:3000 (default port)
-# Health check: http://localhost:3000/health
-# Frontend default port: 5173 (Vite)
+### 3. Frontend Setup
+
+```bash
+cd frontend
+npm install
+npm run dev
+# → http://localhost:5173
 ```
 
 ### Ortak Ortam Değişkenleri
