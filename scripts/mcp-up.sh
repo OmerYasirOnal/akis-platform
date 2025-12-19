@@ -51,6 +51,10 @@ if curl -f -s http://localhost:4010/health > /dev/null 2>&1; then
   echo ""
   echo "Add to backend/.env:"
   echo "  GITHUB_MCP_BASE_URL=http://localhost:4010/mcp"
+  echo "  GITHUB_TOKEN=$GITHUB_TOKEN"
+  echo ""
+  echo "Optional: Run smoke test:"
+  echo "  ./scripts/mcp-smoke-test.sh"
   echo ""
   echo "To view logs:"
   echo "  docker compose -f docker-compose.mcp.yml logs -f"
@@ -59,8 +63,14 @@ if curl -f -s http://localhost:4010/health > /dev/null 2>&1; then
   echo "  ./scripts/mcp-down.sh"
 else
   echo "⚠️  Gateway started but health check failed"
-  echo "View logs:"
-  echo "  docker compose -f docker-compose.mcp.yml logs"
+  echo ""
+  echo "Checking logs..."
+  docker compose -f docker-compose.mcp.yml logs --tail=50
+  echo ""
+  echo "Common issues:"
+  echo "  - Invalid GITHUB_TOKEN (check scopes: repo, read:org)"
+  echo "  - Port 4010 already in use"
+  echo "  - Docker not running"
   exit 1
 fi
 

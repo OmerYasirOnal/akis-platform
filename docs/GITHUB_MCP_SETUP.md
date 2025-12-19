@@ -42,21 +42,36 @@ Run the official GitHub MCP Server locally with an HTTP gateway.
    ```
 
    This will:
-   - Start Docker container with GitHub MCP Server
+   - Start Docker container with official `@modelcontextprotocol/server-github`
    - Expose HTTP endpoint at `http://localhost:4010/mcp`
    - Run health checks
+   - Show configuration instructions
 
-4. **Configure backend**:
+4. **Run smoke test** (optional but recommended):
+   ```bash
+   ./scripts/mcp-smoke-test.sh
+   ```
+
+   This validates:
+   - Gateway is responding
+   - JSON-RPC validation works
+   - MCP initialize handshake succeeds
+
+5. **Configure backend**:
    Add to `backend/.env`:
    ```bash
    GITHUB_MCP_BASE_URL=http://localhost:4010/mcp
    GITHUB_TOKEN=ghp_your_token_here
    ```
 
-5. **Verify**:
+6. **Verify**:
    ```bash
+   # Health check
    curl http://localhost:4010/health
-   # Should return: {"status":"ok","service":"akis-github-mcp-gateway"}
+   # Should return: {"status":"ok","service":"akis-github-mcp-gateway","mcpServer":{"running":true}}
+   
+   # Or run full smoke test
+   ./scripts/mcp-smoke-test.sh
    ```
 
 **Stop gateway**:
@@ -195,6 +210,66 @@ The gateway has a 30-second request timeout. If needed, edit `mcp-gateway/src/se
 private readonly REQUEST_TIMEOUT = 60000; // 60 seconds
 ```
 
+### "MCP Request failed: 400 Bad Request"
+
+**Symptoms**:
+Backend logs show: `MCP Request failed: 400 Bad Request`
+
+**Root Causes**:
+
+1. **Missing Content-Type header**:
+   - Fix: Ensure HTTP client sends `Content-Type: application/json`
+   - Backend GitHubMCPService should already do this
+
+2. **Invalid JSON-RPC envelope**:
+   - Requires: `{"jsonrpc": "2.0", "method": "...", "id": ...}`
+   - Check: Gateway logs show correlation ID and exact error
+
+3. **Wrong endpoint path**:
+   - Correct: `POST http://localhost:4010/mcp`
+   - Wrong: `POST http://localhost:4010/` or `POST http://localhost:4010/github`
+
+**Debug**:
+```bash
+# Check gateway logs for correlation ID
+docker compose -f docker-compose.mcp.yml logs -f | grep "ERROR"
+
+# Test with valid request
+curl -X POST http://localhost:4010/mcp \
+  -H "Content-Type: application/json" \
+  -d '{"jsonrpc":"2.0","method":"initialize","params":{},"id":1}'
+```
+
+### "MCP server not running" or service unavailable
+
+**Symptoms**:
+- Gateway returns 503
+- Health check shows `"running": false`
+
+**Fix**:
+```bash
+# Restart gateway
+./scripts/mcp-down.sh
+./scripts/mcp-up.sh
+
+# Check logs for MCP server startup errors
+docker compose -f docker-compose.mcp.yml logs akis-github-mcp-gateway
+```
+
+### Correlation ID debugging
+
+Every request gets a unique correlation ID (UUID). Use it to trace requests:
+
+```bash
+# Backend error shows:
+# "Correlation ID: abc-123-def"
+
+# Search gateway logs:
+docker compose -f docker-compose.mcp.yml logs | grep "abc-123-def"
+```
+
+This shows the full request/response cycle for that specific request.
+
 ---
 
 ## Development
@@ -211,14 +286,22 @@ pnpm dev
 ### Test MCP endpoint
 
 ```bash
+# Test initialize handshake
 curl -X POST http://localhost:4010/mcp \
   -H "Content-Type: application/json" \
   -d '{
     "jsonrpc": "2.0",
-    "method": "github/getRepository",
-    "params": {"owner": "octocat", "repo": "hello-world"},
+    "method": "initialize",
+    "params": {
+      "protocolVersion": "0.1.0",
+      "capabilities": {},
+      "clientInfo": {"name": "test", "version": "1.0.0"}
+    },
     "id": 1
   }'
+
+# Or use smoke test script
+./scripts/mcp-smoke-test.sh
 ```
 
 ---
