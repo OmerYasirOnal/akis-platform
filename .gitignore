@@ -13,14 +13,24 @@ dist/
 build/
 *.log
 
-# Environment variables
+# Environment variables - NEVER commit secrets!
+# Root-level env files
 .env
 .env.local
 .env.*.local
+.env.mcp.local
+
+# Backend env files
 backend/.env
 backend/.env.local
 backend/.env.*.local
 !backend/.env.example
+
+# Frontend env files
+frontend/.env
+frontend/.env.local
+frontend/.env.*.local
+!frontend/.env.example
 
 # IDE
 .vscode/
