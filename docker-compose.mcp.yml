@@ -7,7 +7,12 @@
 #   OR: ./scripts/mcp-up.sh / ./scripts/mcp-down.sh
 #
 # Requirements:
-#   - GITHUB_TOKEN in .env or exported in shell
+#   - Create .env.mcp.local from env.mcp.local.example
+#   - Add your GITHUB_TOKEN to .env.mcp.local
+#
+# IMPORTANT: GITHUB_TOKEN is loaded ONLY from env_file (.env.mcp.local).
+# Do NOT add GITHUB_TOKEN to the environment section below - it would override
+# the env_file value with an empty string if not set in your shell.
 #
 # Note: Uses explicit project name 'akis-mcp' to avoid conflicts with other compose stacks
 # Set via: COMPOSE_PROJECT_NAME=akis-mcp (handled by scripts)
@@ -19,13 +24,21 @@ services:
       context: ./mcp-gateway
       dockerfile: Dockerfile
     container_name: akis-github-mcp-gateway
+    # SECRETS: Loaded from .env.mcp.local (gitignored)
+    # Contains GITHUB_TOKEN - the single source of truth for this secret.
+    # Never add GITHUB_TOKEN to the 'environment' section below.
+    # 
+    # To use a custom env file, set COMPOSE_ENV_FILE environment variable
+    # before running docker compose, or use scripts/mcp-up.sh --mcp-env-file
+    env_file:
+      - ${COMPOSE_ENV_FILE:-.env.mcp.local}
     ports:
-      - "${MCP_GATEWAY_PORT:-4010}:4010"
+      - "4010:4010"
+    # NON-SECRET configuration only - safe defaults, no token interpolation
     environment:
-      - GITHUB_TOKEN=${GITHUB_TOKEN}
       - MCP_GATEWAY_PORT=4010
       - MCP_GATEWAY_HOST=0.0.0.0
-      - LOG_LEVEL=${MCP_LOG_LEVEL:-info}
+      - LOG_LEVEL=info
       - NODE_ENV=production
     restart: unless-stopped
     healthcheck:
