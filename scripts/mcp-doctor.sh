@@ -251,7 +251,69 @@ else
 fi
 
 #===============================================================================
-# PHASE 5: Success + Next Steps
+# PHASE 5: Backend Environment Check (Warning Only)
+#===============================================================================
+log_step "Backend Environment Check (Warning)"
+
+BACKEND_ENV="$REPO_ROOT/backend/.env"
+BACKEND_WARNINGS=0
+
+# Check if backend/.env exists
+if [[ ! -f "$BACKEND_ENV" ]]; then
+  log_warn "backend/.env not found"
+  echo ""
+  echo -e "${YELLOW}⚠️  The backend requires its own .env file to connect to MCP Gateway.${NC}"
+  echo ""
+  echo "Create backend/.env from the example:"
+  echo -e "  ${BLUE}cp backend/.env.example backend/.env${NC}"
+  echo ""
+  BACKEND_WARNINGS=$((BACKEND_WARNINGS + 1))
+else
+  log_info "Checking backend/.env configuration..."
+  
+  # Check for GITHUB_MCP_BASE_URL (without printing value)
+  if ! grep -qE '^GITHUB_MCP_BASE_URL=' "$BACKEND_ENV"; then
+    log_warn "GITHUB_MCP_BASE_URL not set in backend/.env"
+    echo ""
+    echo -e "${YELLOW}⚠️  Backend cannot connect to MCP Gateway without GITHUB_MCP_BASE_URL.${NC}"
+    echo ""
+    echo "Add to backend/.env:"
+    echo -e "  ${BLUE}GITHUB_MCP_BASE_URL=http://localhost:4010/mcp${NC}"
+    echo ""
+    BACKEND_WARNINGS=$((BACKEND_WARNINGS + 1))
+  elif grep -qE '^GITHUB_MCP_BASE_URL=\s*$' "$BACKEND_ENV"; then
+    log_warn "GITHUB_MCP_BASE_URL is empty in backend/.env"
+    echo ""
+    echo -e "${YELLOW}⚠️  GITHUB_MCP_BASE_URL is set but empty.${NC}"
+    echo ""
+    echo "Set the value in backend/.env:"
+    echo -e "  ${BLUE}GITHUB_MCP_BASE_URL=http://localhost:4010/mcp${NC}"
+    echo ""
+    BACKEND_WARNINGS=$((BACKEND_WARNINGS + 1))
+  else
+    log_success "GITHUB_MCP_BASE_URL is configured"
+  fi
+  
+  # Check for GITHUB_TOKEN (without printing value)
+  if ! grep -qE '^GITHUB_TOKEN=' "$BACKEND_ENV"; then
+    log_warn "GITHUB_TOKEN not set in backend/.env"
+    echo ""
+    echo -e "${YELLOW}⚠️  Backend fallback token not configured.${NC}"
+    echo "    (This is optional if using user OAuth tokens)"
+    echo ""
+    BACKEND_WARNINGS=$((BACKEND_WARNINGS + 1))
+  fi
+fi
+
+if [[ $BACKEND_WARNINGS -gt 0 ]]; then
+  echo ""
+  echo -e "${YELLOW}Note: These are warnings only. MCP Gateway is working.${NC}"
+  echo "      But the backend won't be able to connect until you configure backend/.env"
+  echo ""
+fi
+
+#===============================================================================
+# PHASE 6: Success + Next Steps
 #===============================================================================
 log_step "SUCCESS: MCP Local Setup Complete"
 
