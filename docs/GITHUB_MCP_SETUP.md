@@ -247,6 +247,23 @@ The gateway has a 30-second request timeout. If needed, edit `mcp-gateway/src/se
 private readonly REQUEST_TIMEOUT = 60000; // 60 seconds
 ```
 
+### `MCP Error [-32601]: Method not found` (Scribe job)
+
+**Cause**: Backend is calling a non-standard / legacy JSON-RPC method name (e.g. `github/getFile`) instead of MCP-standard methods.
+
+**Fix**:
+- Ensure backend uses MCP standard flow: `initialize` → `tools/list` → `tools/call`
+- Re-run the job after updating backend
+
+**Debug with correlationId**:
+1. Open the failed job in UI: `/dashboard/jobs/<jobId>`
+2. Copy **Correlation ID** from the error panel
+3. Filter gateway logs by correlation ID:
+
+```bash
+docker compose -f docker-compose.mcp.yml logs -f akis-github-mcp-gateway | grep "<correlation-id>"
+```
+
 ### "MCP Request failed: 400 Bad Request"
 
 **Symptoms**:
