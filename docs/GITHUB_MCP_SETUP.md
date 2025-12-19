@@ -260,17 +260,53 @@ docker compose -f docker-compose.mcp.yml logs akis-github-mcp-gateway
 
 Every request gets a unique correlation ID (UUID). Use it to trace requests:
 
-```bash
-# Backend error shows:
-# "Correlation ID: abc-123-def"
+**HTTP Header**: `x-correlation-id`
+- Gateway accepts inbound correlation ID if provided
+- Gateway always returns correlation ID in response headers
+- Error bodies include `correlationId` in `data` field
 
-# Search gateway logs:
+**Workflow**:
+
+```bash
+# 1. Backend error shows:
+#    "Correlation ID: abc-123-def"
+
+# 2. Search gateway logs:
 docker compose -f docker-compose.mcp.yml logs | grep "abc-123-def"
+
+# 3. Or use the smoke test to verify correlation ID handling:
+./scripts/mcp-smoke-test.sh
+```
+
+**Sending custom correlation ID** (useful for tracing):
+
+```bash
+curl -X POST http://localhost:4010/mcp \
+  -H "Content-Type: application/json" \
+  -H "x-correlation-id: my-trace-123" \
+  -d '{"jsonrpc":"2.0","method":"initialize","params":{},"id":1}'
+
+# Response header will include:
+# x-correlation-id: my-trace-123
 ```
 
 This shows the full request/response cycle for that specific request.
 
 ---
+
+## Environment Variables Reference
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `GITHUB_TOKEN` | ✅ | - | GitHub PAT with `repo`, `read:org` scopes |
+| `MCP_GATEWAY_PORT` | ❌ | `4010` | Gateway HTTP port |
+| `MCP_GATEWAY_HOST` | ❌ | `0.0.0.0` | Gateway bind address |
+| `LOG_LEVEL` / `MCP_LOG_LEVEL` | ❌ | `info` | Logging level (`debug`/`info`/`error`) |
+
+**Correlation ID Header**: `x-correlation-id`
+- If provided in request, gateway preserves it in response
+- If not provided, gateway generates a new UUID
+- Always included in error response body and headers
 
 ## Development
 

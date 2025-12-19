@@ -4,11 +4,13 @@
 # Usage:
 #   docker compose -f docker-compose.mcp.yml up -d
 #   docker compose -f docker-compose.mcp.yml down
+#   OR: ./scripts/mcp-up.sh / ./scripts/mcp-down.sh
 #
 # Requirements:
 #   - GITHUB_TOKEN in .env or exported in shell
 #
-version: '3.8'
+# Note: Uses explicit project name 'akis-mcp' to avoid conflicts with other compose stacks
+# Set via: COMPOSE_PROJECT_NAME=akis-mcp (handled by scripts)
 
 services:
   # GitHub MCP Gateway - HTTP endpoint for AKIS backend

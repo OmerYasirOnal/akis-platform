@@ -5,7 +5,11 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
+# Use explicit project name to avoid conflicts with other compose stacks
+export COMPOSE_PROJECT_NAME=akis-mcp
+
 echo "=== AKIS GitHub MCP Gateway Startup ==="
+echo "Project: $COMPOSE_PROJECT_NAME"
 echo ""
 
 # Check if GITHUB_TOKEN is set

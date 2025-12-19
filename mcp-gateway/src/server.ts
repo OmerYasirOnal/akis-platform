@@ -13,7 +13,10 @@ import { randomUUID } from 'crypto';
 const PORT = parseInt(process.env.MCP_GATEWAY_PORT || '4010', 10);
 const HOST = process.env.MCP_GATEWAY_HOST || '0.0.0.0';
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN || process.env.GITHUB_PERSONAL_ACCESS_TOKEN;
-const LOG_LEVEL = process.env.LOG_LEVEL || 'info';
+const LOG_LEVEL = process.env.LOG_LEVEL || process.env.MCP_LOG_LEVEL || 'info';
+
+// Correlation ID header name (inbound accepted, outbound returned)
+const CORRELATION_ID_HEADER = 'x-correlation-id';
 
 if (!GITHUB_TOKEN) {
   console.error('[MCP Gateway] FATAL: GITHUB_TOKEN (or GITHUB_PERSONAL_ACCESS_TOKEN) environment variable is required');
@@ -244,7 +247,15 @@ async function main() {
 
   // MCP JSON-RPC endpoint
   app.post('/mcp', async (request, reply) => {
-    const correlationId = randomUUID();
+    // Accept inbound correlation ID or generate new one
+    const inboundCorrelationId = request.headers[CORRELATION_ID_HEADER];
+    const correlationId = (typeof inboundCorrelationId === 'string' && inboundCorrelationId.length > 0)
+      ? inboundCorrelationId
+      : randomUUID();
+    
+    // Always set correlation ID in response headers
+    reply.header(CORRELATION_ID_HEADER, correlationId);
+    
     const contentType = request.headers['content-type'] || '';
     
     try {
