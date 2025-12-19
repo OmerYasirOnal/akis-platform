@@ -62,21 +62,43 @@ fi
 # Validate environment file exists and contains GITHUB_TOKEN
 # SECURITY: We check presence without sourcing/echoing the file contents
 if [ ! -f "$MCP_ENV_FILE" ]; then
-  echo "❌ ERROR: Environment file not found: $MCP_ENV_FILE"
+  echo "⚠️  Environment file not found: $MCP_ENV_FILE"
   echo ""
-  echo "The MCP Gateway requires a GitHub token to function."
-  echo ""
-  echo "To fix:"
-  echo "  1. Copy the template:"
-  echo "     cp env.mcp.local.example .env.mcp.local"
-  echo ""
-  echo "  2. Edit .env.mcp.local and add your GitHub token:"
-  echo "     GITHUB_TOKEN=ghp_your_token_here"
-  echo ""
-  echo "  3. Get a token from: https://github.com/settings/tokens"
-  echo "     Required scopes: repo, read:org"
-  echo ""
-  exit 1
+  
+  # Auto-create from template if available
+  TEMPLATE_FILE="$REPO_ROOT/env.mcp.local.example"
+  if [ -f "$TEMPLATE_FILE" ]; then
+    echo "📝 Creating $MCP_ENV_FILE from template..."
+    cp "$TEMPLATE_FILE" "$MCP_ENV_FILE"
+    echo "✅ Created $MCP_ENV_FILE"
+    echo ""
+    echo "⚠️  IMPORTANT: You must add your GitHub token to this file!"
+    echo ""
+    echo "Edit $MCP_ENV_FILE and replace 'your_github_token_here' with your actual token:"
+    echo "  GITHUB_TOKEN=ghp_your_actual_token_here"
+    echo ""
+    echo "Get a token from: https://github.com/settings/tokens"
+    echo "Required scopes: repo, read:org"
+    echo ""
+    echo "Then run this script again."
+    exit 1
+  else
+    echo "❌ ERROR: Template file not found: $TEMPLATE_FILE"
+    echo ""
+    echo "The MCP Gateway requires a GitHub token to function."
+    echo ""
+    echo "To fix:"
+    echo "  1. Copy the template:"
+    echo "     cp env.mcp.local.example .env.mcp.local"
+    echo ""
+    echo "  2. Edit .env.mcp.local and add your GitHub token:"
+    echo "     GITHUB_TOKEN=ghp_your_token_here"
+    echo ""
+    echo "  3. Get a token from: https://github.com/settings/tokens"
+    echo "     Required scopes: repo, read:org"
+    echo ""
+    exit 1
+  fi
 fi
 
 echo "✅ Found environment file: $MCP_ENV_FILE"
