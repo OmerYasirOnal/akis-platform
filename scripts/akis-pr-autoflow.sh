@@ -327,6 +327,49 @@ check_secrets_safety() {
     log_warn ".env.mcp.local not found (MCP tests will be skipped)"
   fi
   
+  # HARDENED: Scan for common token prefixes in tracked/staged files
+  log_info "Scanning for accidental token leaks (GitHub, Notion, etc.)..."
+  local TOKEN_PATTERNS=(
+    "ghp_[a-zA-Z0-9]{36}"      # GitHub Personal Access Token
+    "gho_[a-zA-Z0-9]{36}"      # GitHub OAuth token
+    "ghu_[a-zA-Z0-9]{36}"      # GitHub User-to-Server token
+    "ghs_[a-zA-Z0-9]{36}"      # GitHub Server-to-Server token
+    "ghr_[a-zA-Z0-9]{36}"      # GitHub Refresh token
+    "ntn_[a-zA-Z0-9]+"         # Notion integration token
+    "secret_[a-zA-Z0-9]+"      # Notion internal token
+  )
+  
+  local leaked_secrets=false
+  for pattern in "${TOKEN_PATTERNS[@]}"; do
+    # Search in tracked files, excluding docs/examples and .gitignore
+    local matches
+    matches=$(git ls-files | grep -v -E '\.(md|example|gitignore)$' | xargs grep -l -E "$pattern" 2>/dev/null || true)
+    if [ -n "$matches" ]; then
+      log_error "SECURITY: Token pattern '$pattern' found in tracked files!"
+      echo "$matches" | while read -r file; do
+        log_error "  ⚠️  $file"
+      done
+      leaked_secrets=true
+    fi
+    
+    # Also check staged files
+    local staged_matches
+    staged_matches=$(git diff --cached --name-only | grep -v -E '\.(md|example|gitignore)$' | xargs grep -l -E "$pattern" 2>/dev/null || true)
+    if [ -n "$staged_matches" ]; then
+      log_error "SECURITY: Token pattern '$pattern' found in staged files!"
+      echo "$staged_matches" | while read -r file; do
+        log_error "  ⚠️  $file (staged)"
+      done
+      leaked_secrets=true
+    fi
+  done
+  
+  if [ "$leaked_secrets" = true ]; then
+    fail "SECURITY: Real tokens detected in code!" \
+         "Remove them and use placeholders like 'your_token_here' or 'ghp_PLACEHOLDER' in examples"
+  fi
+  
+  log_success "No token leaks detected (scanned for ghp_, gho_, ntn_, etc.)"
   log_success "Security check passed - no secrets will be pushed"
 }
 

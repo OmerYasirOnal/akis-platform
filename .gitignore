@@ -40,6 +40,10 @@ frontend/.env.*.local
 *~
 .DS_Store
 
+# Cursor MCP config (may contain secrets)
+.cursor/mcp.json
+!.cursor/mcp.json.example
+
 # TypeScript
 *.tsbuildinfo
 

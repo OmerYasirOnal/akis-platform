@@ -1,0 +1,23 @@
+{
+  "mcpServers": {
+    "github-local": {
+      "command": "docker",
+      "args": [
+        "compose",
+        "-f",
+        "docker-compose.mcp.yml",
+        "exec",
+        "-T",
+        "akis-github-mcp-gateway",
+        "node",
+        "/app/dist/index.js"
+      ],
+      "env": {
+        "GITHUB_TOKEN": "your_github_token_here",
+        "LOG_LEVEL": "info"
+      },
+      "disabled": false
+    }
+  }
+}
+
