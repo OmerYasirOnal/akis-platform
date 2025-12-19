@@ -7,6 +7,47 @@ import { Pill } from '../components/ui/Pill';
 import { CodeBlock } from '../components/ui/CodeBlock';
 import { ErrorToast } from '../components/ui/ErrorToast';
 
+/**
+ * Get a user-friendly error message for common error codes while preserving technical details
+ */
+function getErrorHint(errorCode?: string | null): string | null {
+  if (!errorCode) return null;
+
+  const hints: Record<string, string> = {
+    '-32601': 'MCP tool not found - the requested operation may not be supported by the GitHub MCP server',
+    '-32602': 'Invalid MCP parameters - check the request payload format',
+    '-32700': 'Invalid JSON-RPC request - malformed request structure',
+    '401': 'Unauthorized - check your GitHub token or authentication',
+    '403': 'Forbidden - insufficient permissions or API rate limit exceeded',
+    '404': 'Not found - the requested resource does not exist',
+    '422': 'Validation error - the provided data is invalid',
+    '429': 'Rate limit exceeded - too many requests, please retry later',
+    '500': 'Internal server error - an unexpected error occurred',
+    '502': 'Bad gateway - MCP gateway or upstream service is unavailable',
+    '503': 'Service unavailable - the service is temporarily down',
+    '504': 'Gateway timeout - the request took too long to complete',
+  };
+
+  // Match numeric status codes or JSON-RPC error codes
+  const code = String(errorCode);
+  const hint = hints[code];
+
+  if (!hint) {
+    // Check for pattern-based hints
+    if (code.startsWith('5')) {
+      return 'Server error - please contact support with the correlation ID';
+    }
+    if (code.startsWith('4')) {
+      return 'Client error - check your request parameters';
+    }
+    if (code.startsWith('-326')) {
+      return 'JSON-RPC protocol error - invalid request format';
+    }
+  }
+
+  return hint || null;
+}
+
 export default function JobDetailPage() {
   const { id } = useParams<{ id: string }>();
   const [job, setJob] = useState<Job | null>(null);
@@ -17,6 +58,7 @@ export default function JobDetailPage() {
   const [includePlan, setIncludePlan] = useState(false);
   const [includeAudit, setIncludeAudit] = useState(false);
   const [requestId, setRequestId] = useState<string | undefined>();
+  const [copied, setCopied] = useState(false);
 
   // Use refs for options to avoid closure issues
   const includePlanRef = useRef(includePlan);
@@ -65,6 +107,16 @@ export default function JobDetailPage() {
 
     return () => clearInterval(interval);
   }, [job, loadJob]);
+
+  const copyToClipboard = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy:', err);
+    }
+  };
 
   const containerClass = 'mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8';
 
@@ -176,6 +228,13 @@ export default function JobDetailPage() {
                 <span className="inline-block rounded bg-ak-danger/10 px-2 py-0.5 text-sm font-medium text-ak-danger">
                   {job.correlationId}
                 </span>
+                <button
+                  onClick={() => copyToClipboard(job.correlationId ?? '')}
+                  className="ml-2 rounded px-2 py-0.5 text-xs bg-ak-surface-2 hover:bg-ak-surface-3 text-ak-text-secondary hover:text-ak-text-primary transition-colors"
+                  title="Copy Correlation ID"
+                >
+                  {copied ? '✓ Copied' : 'Copy'}
+                </button>
               </div>
             )}
             {job.errorCode && (
@@ -190,6 +249,14 @@ export default function JobDetailPage() {
               <div>
                 <span className="text-sm font-medium text-ak-text-secondary">Message:</span>
                 <p className="mt-1 text-ak-danger">{job.errorMessage}</p>
+              </div>
+            )}
+            {getErrorHint(job.errorCode) && (
+              <div className="rounded bg-ak-info/10 px-3 py-2 border-l-4 border-ak-info">
+                <span className="text-sm font-medium text-ak-info">💡 Hint:</span>
+                <p className="mt-1 text-sm text-ak-text-primary">
+                  {getErrorHint(job.errorCode)}
+                </p>
               </div>
             )}
             {job.error && job.error !== job.errorMessage && (

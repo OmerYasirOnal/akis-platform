@@ -51,11 +51,20 @@ Run the official GitHub MCP Server locally with an HTTP gateway.
    ```
 
    The script will:
-   - Check for `.env.mcp.local` and validate `GITHUB_TOKEN` (without reading the value)
+   - **Auto-create `.env.mcp.local` from template if missing** (you'll need to add your token after)
+   - Check for `GITHUB_TOKEN` presence and validate it's not empty (without reading the value)
+   - **Fail fast with clear instructions if token is missing** (no silent skips)
    - Start Docker container with official `@modelcontextprotocol/server-github`
    - Expose HTTP endpoint at `http://localhost:4010/mcp`
    - Run health checks
    - Show configuration instructions
+
+   **First-time flow**:
+   1. Run `./scripts/mcp-up.sh`
+   2. If `.env.mcp.local` doesn't exist, script creates it from `env.mcp.local.example`
+   3. Script exits with instructions to add your `GITHUB_TOKEN`
+   4. Edit `.env.mcp.local` and paste your token
+   5. Run `./scripts/mcp-up.sh` again → gateway starts
 
    **Using a custom env file**:
    ```bash
@@ -467,8 +476,9 @@ Before deploying or sharing your setup, verify all items:
 #### 2. Local File Placement
 - [ ] `.env.mcp.local` exists at repo root (for MCP Gateway)
 - [ ] `backend/.env` exists in backend directory (for Fastify app)
-- [ ] Both files are gitignored (verify with `git status`)
-- [ ] Templates exist: `env.mcp.local.example` and `backend/.env.example`
+- [ ] `.cursor/mcp.json` (if used) is gitignored - **never commit Cursor MCP config with real tokens**
+- [ ] All local-only files are gitignored (verify with `git status`)
+- [ ] Templates exist: `env.mcp.local.example`, `backend/.env.example`, `.cursor/mcp.json.example`
 
 #### 3. Non-Leak Practices
 - [ ] **Never print tokens** - scripts use `grep` to validate, not `echo`
@@ -504,8 +514,10 @@ Understanding which system reads which file prevents confusion and security issu
 |------|---------|----------|------------|
 | `.env.mcp.local` | Docker Compose `env_file` | `GITHUB_TOKEN` for MCP Gateway | ❌ No (gitignored) |
 | `backend/.env` | Fastify app (dotenv) | `GITHUB_TOKEN`, `DATABASE_URL`, etc. | ❌ No (gitignored) |
+| `.cursor/mcp.json` | Cursor IDE MCP extension | `GITHUB_TOKEN` in `env` field (optional) | ❌ No (gitignored) |
 | `env.mcp.local.example` | Developers (copy template) | Placeholder values only | ✅ Yes |
 | `backend/.env.example` | Developers (copy template) | Placeholder values only | ✅ Yes |
+| `.cursor/mcp.json.example` | Developers (copy template) | Placeholder values only | ✅ Yes |
 
 **Supported Workflow**:
 ```
