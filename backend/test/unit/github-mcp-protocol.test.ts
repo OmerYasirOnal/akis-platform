@@ -5,7 +5,12 @@
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
-import { GitHubMCPService, McpError } from '../../src/services/mcp/adapters/GitHubMCPService.js';
+import {
+  GitHubMCPService,
+  McpError,
+  McpConnectionError,
+  McpErrorCode,
+} from '../../src/services/mcp/adapters/GitHubMCPService.js';
 import { HttpClient } from '../../src/services/http/HttpClient.js';
 
 type Call = {
@@ -189,4 +194,201 @@ describe('GitHubMCPService (protocol)', () => {
   });
 });
 
+/**
+ * MCP Connection Error Tests
+ * Ensures network failures and HTTP errors are mapped to structured McpConnectionError
+ * with actionable hints (not generic "fetch failed").
+ */
+describe('GitHubMCPService (connection errors)', () => {
+  it('maps ECONNREFUSED to MCP_UNREACHABLE with actionable hint', async () => {
+    class ConnectionRefusedHttpClient extends HttpClient {
+      async post(): Promise<Response> {
+        const error = new Error('fetch failed');
+        (error as Error & { cause?: { code: string } }).cause = { code: 'ECONNREFUSED' };
+        throw error;
+      }
+    }
 
+    const svc = new GitHubMCPService({
+      baseUrl: 'http://localhost:4010/mcp',
+      correlationId: 'job-conn-test',
+      httpClient: new ConnectionRefusedHttpClient(),
+    });
+
+    await assert.rejects(
+      () => svc.getFileContent('acme', 'repo', 'main', 'README.md'),
+      (err) => {
+        assert.ok(err instanceof McpConnectionError, 'Expected McpConnectionError');
+        assert.strictEqual(err.code, McpErrorCode.MCP_UNREACHABLE);
+        assert.strictEqual(err.correlationId, 'job-conn-test');
+        assert.ok(err.hint, 'Expected hint to be set');
+        assert.ok(
+          err.hint!.includes('mcp-up.sh') || err.hint!.includes('mcp-doctor'),
+          `Hint should mention mcp-up.sh or mcp-doctor, got: ${err.hint}`
+        );
+        // Ensure gateway URL is redacted (no path)
+        assert.strictEqual(err.gatewayUrl, 'http://localhost:4010');
+        return true;
+      }
+    );
+  });
+
+  it('maps "fetch failed" to MCP_UNREACHABLE with hint', async () => {
+    class FetchFailedHttpClient extends HttpClient {
+      async post(): Promise<Response> {
+        throw new Error('fetch failed');
+      }
+    }
+
+    const svc = new GitHubMCPService({
+      baseUrl: 'http://localhost:4010/mcp',
+      correlationId: 'job-fetch-fail',
+      httpClient: new FetchFailedHttpClient(),
+    });
+
+    await assert.rejects(
+      () => svc.getFileContent('acme', 'repo', 'main', 'README.md'),
+      (err) => {
+        assert.ok(err instanceof McpConnectionError);
+        assert.strictEqual(err.code, McpErrorCode.MCP_UNREACHABLE);
+        assert.ok(err.hint!.includes('mcp-doctor'));
+        return true;
+      }
+    );
+  });
+
+  it('maps HTTP 401 to MCP_UNAUTHORIZED with token hint', async () => {
+    class UnauthorizedHttpClient extends HttpClient {
+      async post(): Promise<Response> {
+        return new Response('Unauthorized', {
+          status: 401,
+          statusText: 'Unauthorized',
+          headers: { 'x-correlation-id': 'corr-401' },
+        });
+      }
+    }
+
+    const svc = new GitHubMCPService({
+      baseUrl: 'http://localhost:4010/mcp',
+      correlationId: 'job-401',
+      httpClient: new UnauthorizedHttpClient(),
+    });
+
+    await assert.rejects(
+      () => svc.getFileContent('acme', 'repo', 'main', 'README.md'),
+      (err) => {
+        assert.ok(err instanceof McpConnectionError);
+        assert.strictEqual(err.code, McpErrorCode.MCP_UNAUTHORIZED);
+        assert.ok(err.hint!.includes('token') || err.hint!.includes('GITHUB_TOKEN'));
+        return true;
+      }
+    );
+  });
+
+  it('maps HTTP 403 to MCP_FORBIDDEN with scopes hint', async () => {
+    class ForbiddenHttpClient extends HttpClient {
+      async post(): Promise<Response> {
+        return new Response('Forbidden', {
+          status: 403,
+          statusText: 'Forbidden',
+          headers: { 'x-correlation-id': 'corr-403' },
+        });
+      }
+    }
+
+    const svc = new GitHubMCPService({
+      baseUrl: 'http://localhost:4010/mcp',
+      correlationId: 'job-403',
+      httpClient: new ForbiddenHttpClient(),
+    });
+
+    await assert.rejects(
+      () => svc.getFileContent('acme', 'repo', 'main', 'README.md'),
+      (err) => {
+        assert.ok(err instanceof McpConnectionError);
+        assert.strictEqual(err.code, McpErrorCode.MCP_FORBIDDEN);
+        assert.ok(err.hint!.includes('scope') || err.hint!.includes('repo'));
+        return true;
+      }
+    );
+  });
+
+  it('maps HTTP 429 to MCP_RATE_LIMITED', async () => {
+    class RateLimitedHttpClient extends HttpClient {
+      async post(): Promise<Response> {
+        return new Response('Rate Limit Exceeded', {
+          status: 429,
+          statusText: 'Too Many Requests',
+          headers: { 'x-correlation-id': 'corr-429' },
+        });
+      }
+    }
+
+    const svc = new GitHubMCPService({
+      baseUrl: 'http://localhost:4010/mcp',
+      correlationId: 'job-429',
+      httpClient: new RateLimitedHttpClient(),
+    });
+
+    await assert.rejects(
+      () => svc.getFileContent('acme', 'repo', 'main', 'README.md'),
+      (err) => {
+        assert.ok(err instanceof McpConnectionError);
+        assert.strictEqual(err.code, McpErrorCode.MCP_RATE_LIMITED);
+        assert.ok(err.hint!.includes('rate limit') || err.hint!.includes('wait'));
+        return true;
+      }
+    );
+  });
+
+  it('maps HTTP 500+ to MCP_SERVER_ERROR', async () => {
+    class ServerErrorHttpClient extends HttpClient {
+      async post(): Promise<Response> {
+        return new Response('Internal Server Error', {
+          status: 500,
+          statusText: 'Internal Server Error',
+          headers: { 'x-correlation-id': 'corr-500' },
+        });
+      }
+    }
+
+    const svc = new GitHubMCPService({
+      baseUrl: 'http://localhost:4010/mcp',
+      correlationId: 'job-500',
+      httpClient: new ServerErrorHttpClient(),
+    });
+
+    await assert.rejects(
+      () => svc.getFileContent('acme', 'repo', 'main', 'README.md'),
+      (err) => {
+        assert.ok(err instanceof McpConnectionError);
+        assert.strictEqual(err.code, McpErrorCode.MCP_SERVER_ERROR);
+        assert.ok(err.hint!.includes('logs') || err.hint!.includes('gateway'));
+        return true;
+      }
+    );
+  });
+
+  it('preserves correlationId through connection errors', async () => {
+    class TimeoutHttpClient extends HttpClient {
+      async post(): Promise<Response> {
+        throw new Error('Request timeout: AbortError');
+      }
+    }
+
+    const svc = new GitHubMCPService({
+      baseUrl: 'http://localhost:4010/mcp',
+      correlationId: 'job-timeout-test',
+      httpClient: new TimeoutHttpClient(),
+    });
+
+    await assert.rejects(
+      () => svc.getFileContent('acme', 'repo', 'main', 'README.md'),
+      (err) => {
+        assert.ok(err instanceof McpConnectionError);
+        assert.strictEqual(err.correlationId, 'job-timeout-test');
+        return true;
+      }
+    );
+  });
+});
