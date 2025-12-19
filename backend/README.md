@@ -101,8 +101,24 @@ Setting `NODE_ENV` in `.env` can cause conflicts and validation errors.
 - `AI_MODEL_PLANNER` - Model for planning phase
 - `AI_MODEL_VALIDATION` - Stronger model for validation
 
+### GitHub MCP Server
+**Required for Scribe agent to work.**
+
+Two options:
+1. **Local Docker Gateway** (Recommended):
+   ```bash
+   export GITHUB_TOKEN=ghp_your_token_here
+   ./scripts/mcp-up.sh
+   ```
+   Then set: `GITHUB_MCP_BASE_URL=http://localhost:4010/mcp`
+
+2. **Remote Hosted** (requires GitHub Copilot):
+   Set: `GITHUB_MCP_BASE_URL=https://api.githubcopilot.com/mcp/`
+
+See [GitHub MCP Setup Guide](../docs/GITHUB_MCP_SETUP.md) for details.
+
 ### Optional Integrations
-- `GITHUB_*` - GitHub App credentials
+- `GITHUB_OAUTH_*` - GitHub OAuth for user login
 - `ATLASSIAN_*` - Jira/Confluence credentials
 
 ## API Endpoints
