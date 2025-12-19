@@ -121,6 +121,12 @@ const includeQuerySchema = z.object({
   include: z.string().optional(), // Comma-separated: 'plan,audit'
 });
 
+function extractCorrelationIdFromText(value: unknown): string | null {
+  if (typeof value !== 'string' || value.length === 0) return null;
+  const match = value.match(/Correlation ID:\s*([A-Za-z0-9._-]+)/i);
+  return match?.[1] || null;
+}
+
 // Initialize orchestrator (will be injected from server.app.ts)
 let orchestrator: AgentOrchestrator;
 
@@ -225,6 +231,15 @@ export async function agentsRoutes(fastify: FastifyInstance) {
             }
             if (config.targetConfig && typeof config.targetConfig === 'object' && config.targetConfig !== null) {
               (enrichedPayload as Record<string, unknown>).targetConfig = config.targetConfig;
+            }
+            if (config.prTitleTemplate) {
+              (enrichedPayload as Record<string, unknown>).prTitleTemplate = config.prTitleTemplate;
+            }
+            if (typeof config.prBodyTemplate === 'string' || config.prBodyTemplate === null) {
+              (enrichedPayload as Record<string, unknown>).prBodyTemplate = config.prBodyTemplate;
+            }
+            if (typeof config.autoMerge === 'boolean') {
+              (enrichedPayload as Record<string, unknown>).autoMerge = config.autoMerge;
             }
           } else {
             // Legacy payload: try to get userId if auth is available
@@ -383,6 +398,9 @@ export async function agentsRoutes(fastify: FastifyInstance) {
         }
 
         // Return job data with optional plan/audit
+        const correlationId =
+          extractCorrelationIdFromText(job.errorMessage) || extractCorrelationIdFromText(job.error);
+
         const response: Record<string, unknown> = {
           id: job.id,
           type: job.type,
@@ -392,6 +410,7 @@ export async function agentsRoutes(fastify: FastifyInstance) {
           error: job.error,
           errorCode: job.errorCode,
           errorMessage: job.errorMessage,
+          correlationId,
           createdAt: job.createdAt,
           updatedAt: job.updatedAt,
         };
