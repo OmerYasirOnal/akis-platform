@@ -25,6 +25,55 @@ Run the official GitHub MCP Server locally with an HTTP gateway.
 
 **Setup:**
 
+### Quick Start (Recommended): MCP Doctor
+
+The fastest way to get started:
+
+```bash
+# One-command setup + smoke test
+./scripts/mcp-doctor.sh
+```
+
+**What it does:**
+1. Ensures `.env.mcp.local` exists (creates from template if missing)
+2. Verifies file is gitignored (security check)
+3. Verifies `GITHUB_TOKEN` key is present
+4. Runs: MCP Gateway up → smoke test → cleanup
+5. Writes redacted logs to `.mcp-doctor-*.log` (gitignored)
+6. Provides clear next steps for UI verification
+
+**First-time flow:**
+1. Run `./scripts/mcp-doctor.sh`
+2. If token missing, script creates `.env.mcp.local` and exits with instructions
+3. Get a GitHub token: https://github.com/settings/tokens (scopes: `repo`, `read:org`)
+4. Edit `.env.mcp.local` and paste your token: `GITHUB_TOKEN=ghp_...`
+5. Run `./scripts/mcp-doctor.sh` again → ✅ PASS
+
+**Expected output (first run without token):**
+```
+[ERROR] SETUP INCOMPLETE: You must add your GitHub token!
+Next steps:
+  1. Get a GitHub Personal Access Token: https://github.com/settings/tokens
+  2. Edit .env.mcp.local and set GITHUB_TOKEN: GITHUB_TOKEN=ghp_your_actual_token_here
+  3. Run this script again: ./scripts/mcp-doctor.sh
+```
+
+**Expected output (with valid token):**
+```
+✅ All checks passed!
+Next steps for UI verification:
+  1. Start backend and frontend
+  2. Open Scribe agent in browser
+  3. Run a test job (dry run)
+  4. Verify: No -32601 errors, Correlation ID visible, Copy button works
+```
+
+---
+
+### Manual Setup (Alternative)
+
+If you prefer step-by-step control or need to troubleshoot:
+
 1. **Create GitHub Personal Access Token**:
    - Visit: https://github.com/settings/tokens
    - Click "Generate new token (classic)"
@@ -175,6 +224,87 @@ GitHub.com
 ---
 
 ## Troubleshooting
+
+### Quick Diagnostics: Run MCP Doctor First
+
+**Before diving into specific issues, run the automated diagnostic:**
+
+```bash
+./scripts/mcp-doctor.sh
+```
+
+This will:
+- ✅ Check if `.env.mcp.local` exists and is properly configured
+- ✅ Verify the file is gitignored (security)
+- ✅ Validate `GITHUB_TOKEN` is present (without exposing value)
+- ✅ Run complete setup + smoke test
+- ✅ Provide redacted logs for sharing (safe for support)
+
+**If doctor fails:**
+1. Read the error message - it provides actionable fix instructions
+2. Check the log file: `.mcp-doctor-<timestamp>.log`
+3. Share the redacted log + correlation ID (never share token)
+
+**Exit codes:**
+- `0` = Success (all checks passed)
+- `1` = Setup incomplete (user action required - e.g., missing token)
+- `2` = Smoke test failed (MCP Gateway issue)
+- `3` = Security violation (env file not ignored)
+
+---
+
+### 🔴 "fetch failed" / "MCP_UNREACHABLE" Error
+
+**This is the most common MCP error.** It means the backend cannot connect to the MCP Gateway.
+
+**Common causes:**
+
+| Cause | Symptom | Fix |
+|-------|---------|-----|
+| Gateway not running | Job fails immediately with "fetch failed" | `./scripts/mcp-up.sh` |
+| Wrong URL in backend | Gateway runs but backend can't connect | Check `GITHUB_MCP_BASE_URL` in `backend/.env` |
+| Missing backend/.env | Backend has no MCP configuration | `cp backend/.env.example backend/.env` |
+| URL mismatch | Using hosted URL with local gateway | Set `GITHUB_MCP_BASE_URL=http://localhost:4010/mcp` |
+
+**Quick diagnostic flow:**
+
+1. **Run MCP Doctor first:**
+   ```bash
+   ./scripts/mcp-doctor.sh
+   ```
+   - If it says "PASS" but you still get errors → problem is in `backend/.env`
+   - If it fails → follow the specific fix instructions
+
+2. **Check backend/.env has the right URL:**
+   ```bash
+   # For local gateway (default):
+   GITHUB_MCP_BASE_URL=http://localhost:4010/mcp
+   
+   # For GitHub Copilot hosted (optional, requires Copilot subscription):
+   # GITHUB_MCP_BASE_URL=https://api.githubcopilot.com/mcp/
+   ```
+
+3. **Verify gateway is running:**
+   ```bash
+   curl http://localhost:4010/health
+   # Should return: {"status":"ok"}
+   ```
+
+4. **Restart backend after changing .env:**
+   ```bash
+   cd backend && pnpm dev
+   ```
+
+**Job Details will now show structured errors:**
+- `MCP_UNREACHABLE` → Gateway not running
+- `MCP_TIMEOUT` → Gateway slow/unresponsive
+- `MCP_DNS_FAILED` → URL hostname invalid
+- `MCP_UNAUTHORIZED` → Token invalid/missing
+- `MCP_FORBIDDEN` → Token lacks scopes
+
+Each error includes a **Hint** with the exact fix. Look for it in Job Details.
+
+---
 
 ### "Missing dependency: GITHUB_MCP_BASE_URL"
 
@@ -459,6 +589,31 @@ curl -X POST http://localhost:4010/mcp \
 ---
 
 ## Security
+
+### 🚨 CRITICAL: Token Rotation After Exposure
+
+**If you accidentally pasted, committed, or exposed a GitHub token:**
+
+1. **Immediately revoke the token** at https://github.com/settings/tokens
+2. **Generate a new token** with minimum required scopes
+3. **Update `.env.mcp.local`** with the new token
+4. **Never reuse the exposed token** - treat it as permanently compromised
+5. **Scan git history** for the leaked token:
+   ```bash
+   git log -p | grep -E 'ghp_[a-zA-Z0-9]{36}'
+   ```
+   If found, consider using tools like `git-filter-repo` or BFG Repo-Cleaner to remove it from history.
+
+**Common exposure scenarios:**
+- ❌ Pasting token in terminal (check shell history: `history | grep ghp_`)
+- ❌ Committing `.env.mcp.local` to git
+- ❌ Sharing screen/screenshot with token visible
+- ❌ Posting logs with token in error messages
+- ❌ Storing token in plain text notes/documents
+
+**GitHub will automatically scan public commits** for leaked tokens and revoke them. For private repos, you must manually revoke and rotate.
+
+---
 
 ### Token Safety Checklist ✅
 

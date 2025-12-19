@@ -9,7 +9,7 @@ import type { AIService } from '../../services/ai/AIService.js';
 import type { Plan, Critique } from '../../services/ai/AIService.js';
 import type { MCPTools } from '../../services/mcp/adapters/index.js';
 import { getEnv } from '../../config/env.js';
-import { GitHubMCPService, McpError } from '../../services/mcp/adapters/GitHubMCPService.js';
+import { GitHubMCPService, McpError, McpConnectionError } from '../../services/mcp/adapters/GitHubMCPService.js';
 import { StaticCheckRunner } from '../../services/checks/index.js';
 
 /**
@@ -575,9 +575,23 @@ export class AgentOrchestrator {
       errorCode = error.code;
       errorMsg = this.getHumanReadableErrorMessage(error);
       rawError = error.message;
+    } else if (error instanceof McpConnectionError) {
+      // MCP connection error - use stable code and include hint
+      errorCode = error.code; // McpErrorCode enum value (e.g., MCP_UNREACHABLE)
+      const hint = error.hint ? `\n\nHint: ${error.hint}` : '';
+      const gateway = error.gatewayUrl ? ` [Gateway: ${error.gatewayUrl}]` : '';
+      errorMsg = `${error.message}${hint}`;
+      rawError = `${error.toUserMessage()}${gateway} (cause: ${error.cause || 'unknown'})`;
+      // Safe log (no secrets) for operators
+      console.error(
+        `[AgentOrchestrator] Job ${jobId} MCP connection failed [${error.correlationId}] ` +
+          `code=${error.code} cause=${error.cause || 'unknown'} gateway=${error.gatewayUrl || 'unknown'}`
+      );
     } else if (error instanceof McpError) {
-      errorCode = 'MCP_ERROR';
-      errorMsg = error.toUserMessage();
+      // MCP protocol error - use stable code if available
+      errorCode = error.code || 'MCP_ERROR';
+      const hint = error.hint ? `\n\nHint: ${error.hint}` : '';
+      errorMsg = `${error.toUserMessage()}${hint}`;
       rawError = `${error.toUserMessage()} (method: ${error.mcpMethod})`;
       // Safe log (no secrets) for operators
       console.error(
