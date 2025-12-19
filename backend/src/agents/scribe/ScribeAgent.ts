@@ -14,6 +14,15 @@ export interface ScribeTaskContext {
   featureBranch?: string; // e.g. 'feat/new-docs', if provided, edits happen here
   targetPath?: string; // e.g. 'README.md' or 'docs/'
   taskDescription?: string;
+  /** Config-aware mode flag (S0.4.6) */
+  mode?: 'from_config' | 'test' | 'run' | string;
+  /** If true, do NOT write to GitHub; only simulate */
+  dryRun?: boolean;
+  /** Optional branch pattern, e.g. 'docs/scribe-{timestamp}' */
+  branchPattern?: string;
+  /** Optional PR title/body templates from agent config */
+  prTitleTemplate?: string;
+  prBodyTemplate?: string | null;
 }
 
 /**
@@ -69,6 +78,7 @@ export class ScribeAgent extends BaseAgent {
       throw new Error('ScribeAgent requires valid ScribeTaskContext');
     }
     const task = context as ScribeTaskContext;
+    const dryRun = task.dryRun === true;
 
     if (!this.githubMCP) {
       throw new Error(
@@ -88,11 +98,38 @@ export class ScribeAgent extends BaseAgent {
 
     const results: Record<string, unknown> = { plan };
 
-    // Step 1: Branch Management (Simplified)
-    const workingBranch = task.featureBranch || task.baseBranch;
-    if (task.featureBranch && task.featureBranch !== task.baseBranch) {
-        // In real impl, we would check/create branch here
-        results.branch = workingBranch;
+    // Step 1: Branch Management
+    const baseBranch = task.baseBranch;
+    let workingBranch =
+      task.featureBranch && task.featureBranch.length > 0 ? task.featureBranch : baseBranch;
+
+    // Config-driven branch creation when featureBranch is not explicitly provided
+    if (!dryRun && (!task.featureBranch || task.featureBranch === baseBranch)) {
+      const pattern = task.branchPattern || 'docs/scribe-{timestamp}';
+      const ts = new Date()
+        .toISOString()
+        .replace(/[-:]/g, '')
+        .replace(/\..+$/, '')
+        .replace('T', '-'); // YYYYMMDD-HHMMSS
+      workingBranch = pattern.includes('{timestamp}') ? pattern.replace('{timestamp}', ts) : pattern;
+    }
+
+    results.branch = workingBranch;
+
+    // Create branch if needed (best-effort, idempotent)
+    if (!dryRun && workingBranch !== baseBranch) {
+      try {
+        await this.githubMCP.createBranch(task.owner, task.repo, workingBranch, baseBranch);
+        results.branchCreated = true;
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        // GitHub returns a "reference already exists" error if branch exists; treat as OK.
+        if (msg.toLowerCase().includes('already exists')) {
+          results.branchCreated = false;
+        } else {
+          throw e;
+        }
+      }
     }
 
     // Step 2: Analyze & Generate
@@ -101,9 +138,11 @@ export class ScribeAgent extends BaseAgent {
     let currentContent = '';
     try {
       const fileData = await this.githubMCP.getFileContent(task.owner, task.repo, workingBranch, filePath);
-      currentContent = Buffer.from(fileData.content, 'base64').toString('utf-8');
+      // Official GitHub MCP server returns decoded UTF-8 content
+      currentContent = fileData.content;
     } catch (_e) {
-      console.log('File not found, will create:', filePath);
+      // File missing is acceptable; we'll create it on commit (unless dryRun)
+      results.fileMissing = true;
     }
 
     // Simulate content generation (using plan rationale if available)
@@ -117,8 +156,22 @@ export class ScribeAgent extends BaseAgent {
     });
     results.critique = critique;
 
-    // Step 4: Commit (if critique passes or soft pass)
-    // For MVP, we commit if no critical issues (mocked as always true)
+    // Step 4: Commit (skip in dryRun)
+    if (dryRun) {
+      results.dryRun = true;
+      results.preview = {
+        branch: workingBranch,
+        path: filePath,
+        commitMessage: `docs: update ${filePath} via ScribeAgent`,
+        contentLength: newContent.length,
+      };
+      return {
+        ok: true,
+        agent: 'scribe',
+        ...results,
+      };
+    }
+
     const commitResult = await this.githubMCP.commitFile(
       task.owner,
       task.repo,
@@ -128,6 +181,33 @@ export class ScribeAgent extends BaseAgent {
       `docs: update ${filePath} via ScribeAgent`
     );
     results.commit = commitResult;
+
+    // Step 5: Create PR (only if workingBranch differs from baseBranch)
+    if (workingBranch !== baseBranch) {
+      const titleTemplate = task.prTitleTemplate || `docs: update ${filePath}`;
+      const bodyTemplate = task.prBodyTemplate || `Automated docs update via ScribeAgent.\n\nPath: ${filePath}\nBranch: ${workingBranch}`;
+
+      const prTitle = titleTemplate
+        .replace('{timestamp}', new Date().toISOString())
+        .replace('{branch}', workingBranch)
+        .replace('{path}', filePath);
+
+      const prBody = bodyTemplate
+        .replace('{timestamp}', new Date().toISOString())
+        .replace('{branch}', workingBranch)
+        .replace('{path}', filePath);
+
+      const pr = await this.githubMCP.createPRDraft(
+        task.owner,
+        task.repo,
+        prTitle,
+        prBody,
+        workingBranch,
+        baseBranch
+      );
+
+      results.pullRequest = pr;
+    }
 
     return {
       ok: true,

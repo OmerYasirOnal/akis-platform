@@ -23,15 +23,20 @@ export class HttpClient {
   /**
    * GET request with timeout and retry
    */
-  async get(url: string, token?: string): Promise<Response> {
-    return this.request(url, { method: 'GET' }, token);
+  async get(url: string, token?: string, extraHeaders?: Record<string, string>): Promise<Response> {
+    return this.request(url, { method: 'GET' }, token, extraHeaders);
   }
 
   /**
    * POST request with timeout and retry
    * Only sets Content-Type: application/json if body is provided
    */
-  async post(url: string, body?: unknown, token?: string): Promise<Response> {
+  async post(
+    url: string,
+    body?: unknown,
+    token?: string,
+    extraHeaders?: Record<string, string>
+  ): Promise<Response> {
     const init: RequestInit = { method: 'POST' };
     
     // Only set Content-Type and body if body is provided
@@ -40,14 +45,19 @@ export class HttpClient {
       init.body = JSON.stringify(body);
     }
     
-    return this.request(url, init, token);
+    return this.request(url, init, token, extraHeaders);
   }
   
   /**
    * PUT request with timeout and retry
    * Only sets Content-Type: application/json if body is provided
    */
-  async put(url: string, body?: unknown, token?: string): Promise<Response> {
+  async put(
+    url: string,
+    body?: unknown,
+    token?: string,
+    extraHeaders?: Record<string, string>
+  ): Promise<Response> {
     const init: RequestInit = { method: 'PUT' };
     
     if (body !== undefined && body !== null) {
@@ -55,14 +65,14 @@ export class HttpClient {
       init.body = JSON.stringify(body);
     }
     
-    return this.request(url, init, token);
+    return this.request(url, init, token, extraHeaders);
   }
   
   /**
    * DELETE request with timeout and retry
    */
-  async delete(url: string, token?: string): Promise<Response> {
-    return this.request(url, { method: 'DELETE' }, token);
+  async delete(url: string, token?: string, extraHeaders?: Record<string, string>): Promise<Response> {
+    return this.request(url, { method: 'DELETE' }, token, extraHeaders);
   }
 
   /**
@@ -71,11 +81,17 @@ export class HttpClient {
   private async request(
     url: string,
     init: RequestInit,
-    token?: string
+    token?: string,
+    extraHeaders?: Record<string, string>
   ): Promise<Response> {
     const headers = new Headers(init.headers);
     if (token) {
       headers.set('Authorization', `Bearer ${token}`);
+    }
+    if (extraHeaders) {
+      for (const [key, value] of Object.entries(extraHeaders)) {
+        headers.set(key, value);
+      }
     }
 
     const controller = new AbortController();
