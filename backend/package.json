@@ -11,7 +11,7 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "format": "prettier --write \"src/**/*.ts\"",
-    "test": "bash -lc 'shopt -s nullglob; files=(test/**/*.test.ts); if [ ${#files[@]} -gt 0 ]; then node --test --import tsx \"${files[@]}\"; else echo \"[backend] no tests – skipping\"; fi'",
+    "test": "NODE_ENV=test node --test --import tsx test/**/*.test.ts",
     "test:ci": "NODE_ENV=test node --test --import tsx test/**/*.test.ts",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
