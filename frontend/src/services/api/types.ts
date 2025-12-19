@@ -11,16 +11,22 @@ export interface Job {
   payload?: unknown;
   result?: unknown;
   error?: string;
-  /** Structured error code for classification (e.g., AI_RATE_LIMITED) */
+  /** Structured error code for classification (e.g., AI_RATE_LIMITED, MCP_UNREACHABLE) */
   errorCode?: string | null;
   /** User-friendly error message */
   errorMessage?: string | null;
   /** MCP Gateway correlation id (safe to share, helps debug gateway logs) */
   correlationId?: string | null;
+  /** MCP Gateway URL used for this job (safe to share, no secrets) */
+  mcpGatewayUrl?: string | null;
+  /** Raw error payload for debugging (secrets redacted before display) */
+  rawErrorPayload?: string | null;
   createdAt: string;
   updatedAt: string;
   plan?: JobPlan;
   audit?: JobAudit[];
+  /** Request ID for tracing (from API response) */
+  requestId?: string;
 }
 
 export interface JobPlan {
