@@ -316,7 +316,23 @@ Use existing scripts only (no new secret-dependent tooling):
 
 ## End-to-End Verification Plan
 
-Run these commands to verify the complete implementation:
+**Quick verification (recommended):**
+
+```bash
+# Automated setup + smoke test in one command
+./scripts/mcp-doctor.sh
+```
+
+This runs the complete MCP Gateway verification automatically:
+- Ensures `.env.mcp.local` exists and is configured
+- Verifies security (gitignore check)
+- Validates token presence (no value exposure)
+- Runs: up → smoke test → down
+- Writes redacted logs (safe for sharing)
+
+**Manual verification (alternative):**
+
+Run these commands to verify step-by-step:
 
 ### 1. MCP Gateway Verification
 

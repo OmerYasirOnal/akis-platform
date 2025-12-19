@@ -14,9 +14,26 @@ function getErrorHint(errorCode?: string | null): string | null {
   if (!errorCode) return null;
 
   const hints: Record<string, string> = {
+    // MCP Connection errors (new stable codes from backend)
+    'MCP_UNREACHABLE': 'MCP Gateway is not running or unreachable. Run: ./scripts/mcp-doctor.sh',
+    'MCP_TIMEOUT': 'Connection to MCP Gateway timed out. Check if gateway is healthy.',
+    'MCP_DNS_FAILED': 'Cannot resolve MCP Gateway hostname. Check GITHUB_MCP_BASE_URL in backend/.env',
+    'MCP_UNAUTHORIZED': 'Invalid or missing GitHub token. Check GITHUB_TOKEN in .env.mcp.local',
+    'MCP_FORBIDDEN': 'GitHub token lacks required scopes. Ensure token has: repo, read:org',
+    'MCP_RATE_LIMITED': 'GitHub API rate limit exceeded. Wait a few minutes and try again.',
+    'MCP_SERVER_ERROR': 'MCP Gateway server error. Check logs: docker compose -f docker-compose.mcp.yml logs',
+    'MCP_CONFIG_MISSING': 'MCP configuration is missing. Set GITHUB_MCP_BASE_URL in backend/.env',
+    'MCP_PROTOCOL_ERROR': 'MCP protocol error. Check gateway compatibility.',
+    'MCP_TOOL_NOT_FOUND': 'MCP tool not found. The requested operation may not be supported.',
+    
+    // JSON-RPC error codes
     '-32601': 'MCP tool not found - the requested operation may not be supported by the GitHub MCP server',
     '-32602': 'Invalid MCP parameters - check the request payload format',
+    '-32603': 'Internal JSON-RPC error - unexpected response format',
     '-32700': 'Invalid JSON-RPC request - malformed request structure',
+    '-32000': 'MCP connection failed - gateway may be down or unreachable',
+    
+    // HTTP status codes
     '401': 'Unauthorized - check your GitHub token or authentication',
     '403': 'Forbidden - insufficient permissions or API rate limit exceeded',
     '404': 'Not found - the requested resource does not exist',
@@ -26,14 +43,21 @@ function getErrorHint(errorCode?: string | null): string | null {
     '502': 'Bad gateway - MCP gateway or upstream service is unavailable',
     '503': 'Service unavailable - the service is temporarily down',
     '504': 'Gateway timeout - the request took too long to complete',
+    
+    // Agent-specific errors
+    'GITHUB_NOT_CONNECTED': 'GitHub is not connected. Connect GitHub in the agent setup wizard.',
+    'MCP_ERROR': 'MCP Gateway error. Check gateway logs for details.',
   };
 
-  // Match numeric status codes or JSON-RPC error codes
+  // Match error codes (case-insensitive for flexibility)
   const code = String(errorCode);
-  const hint = hints[code];
+  const hint = hints[code] || hints[code.toUpperCase()];
 
   if (!hint) {
     // Check for pattern-based hints
+    if (code.startsWith('MCP_')) {
+      return 'MCP Gateway issue detected. Run ./scripts/mcp-doctor.sh to diagnose.';
+    }
     if (code.startsWith('5')) {
       return 'Server error - please contact support with the correlation ID';
     }

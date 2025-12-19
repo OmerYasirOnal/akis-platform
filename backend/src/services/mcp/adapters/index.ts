@@ -12,6 +12,9 @@ export { GitHubMCPService } from './GitHubMCPService.js';
 export { JiraMCPService } from './JiraMCPService.js';
 export { ConfluenceMCPService } from './ConfluenceMCPService.js';
 
+// Error exports
+export { McpError, McpConnectionError, McpErrorCode } from './GitHubMCPService.js';
+
 // Options exports
 export type { GitHubMCPServiceOptions } from './GitHubMCPService.js';
 export type { JiraMCPServiceOptions, JiraIssue, JiraIssueCreateFields, JiraComment } from './JiraMCPService.js';
