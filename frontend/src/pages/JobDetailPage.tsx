@@ -72,6 +72,32 @@ function getErrorHint(errorCode?: string | null): string | null {
   return hint || null;
 }
 
+/**
+ * Redact potential secrets from raw error payload (safe-by-default)
+ */
+function redactSecrets(text: string): string {
+  if (!text) return text;
+  
+  // Redact GitHub tokens (ghp_, gho_, ghs_, ghr_, ghu_, github_pat_)
+  let redacted = text.replace(/ghp_[a-zA-Z0-9]{36}/g, 'ghp_REDACTED');
+  redacted = redacted.replace(/gho_[a-zA-Z0-9]{36}/g, 'gho_REDACTED');
+  redacted = redacted.replace(/ghs_[a-zA-Z0-9]{36}/g, 'ghs_REDACTED');
+  redacted = redacted.replace(/ghr_[a-zA-Z0-9]{36}/g, 'ghr_REDACTED');
+  redacted = redacted.replace(/ghu_[a-zA-Z0-9]{36}/g, 'ghu_REDACTED');
+  redacted = redacted.replace(/github_pat_[a-zA-Z0-9_]{82}/g, 'github_pat_REDACTED');
+  
+  // Redact npm tokens
+  redacted = redacted.replace(/ntn_[a-zA-Z0-9]{36}/g, 'ntn_REDACTED');
+  
+  // Redact bearer tokens in Authorization headers
+  redacted = redacted.replace(/"Authorization":\s*"Bearer\s+[^"]+"/g, '"Authorization": "Bearer REDACTED"');
+  
+  // Redact JWT tokens (anything that looks like base64.base64.base64)
+  redacted = redacted.replace(/\beyJ[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+\b/g, 'JWT_REDACTED');
+  
+  return redacted;
+}
+
 export default function JobDetailPage() {
   const { id } = useParams<{ id: string }>();
   const [job, setJob] = useState<Job | null>(null);
@@ -83,6 +109,7 @@ export default function JobDetailPage() {
   const [includeAudit, setIncludeAudit] = useState(false);
   const [requestId, setRequestId] = useState<string | undefined>();
   const [copied, setCopied] = useState(false);
+  const [showRawPayload, setShowRawPayload] = useState(false);
 
   // Use refs for options to avoid closure issues
   const includePlanRef = useRef(includePlan);
@@ -204,6 +231,27 @@ export default function JobDetailPage() {
             <label className="text-sm font-medium text-ak-text-secondary">Updated At</label>
             <p className="mt-1 text-sm text-ak-text-primary">{new Date(job.updatedAt).toLocaleString()}</p>
           </div>
+          {job.correlationId && (
+            <div>
+              <label className="text-sm font-medium text-ak-text-secondary">Correlation ID</label>
+              <div className="mt-1 flex items-center gap-2">
+                <span className="text-xs font-mono text-ak-text-primary">{job.correlationId}</span>
+                <button
+                  onClick={() => copyToClipboard(job.correlationId ?? '')}
+                  className="rounded px-1.5 py-0.5 text-xs bg-ak-surface hover:bg-ak-surface-3 text-ak-text-secondary hover:text-ak-text-primary transition-colors"
+                  title="Copy Correlation ID"
+                >
+                  {copied ? '✓' : 'Copy'}
+                </button>
+              </div>
+            </div>
+          )}
+          {job.mcpGatewayUrl && (
+            <div>
+              <label className="text-sm font-medium text-ak-text-secondary">MCP Gateway</label>
+              <p className="mt-1 text-xs font-mono text-ak-text-primary break-all">{job.mcpGatewayUrl}</p>
+            </div>
+          )}
         </div>
 
         <div className="mt-6 space-y-3">
@@ -287,6 +335,48 @@ export default function JobDetailPage() {
               <div>
                 <span className="text-sm font-medium text-ak-text-secondary">Details:</span>
                 <p className="mt-1 text-sm text-ak-danger/80">{job.error}</p>
+              </div>
+            )}
+            {job.mcpGatewayUrl && (
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-ak-text-secondary">MCP Gateway:</span>
+                <span className="inline-block rounded bg-ak-info/10 px-2 py-0.5 text-xs font-mono text-ak-text-primary">
+                  {job.mcpGatewayUrl}
+                </span>
+              </div>
+            )}
+            {job.rawErrorPayload && (
+              <div className="mt-4 pt-4 border-t border-ak-border">
+                <button
+                  onClick={() => setShowRawPayload(!showRawPayload)}
+                  className="flex items-center gap-2 text-sm font-medium text-ak-text-secondary hover:text-ak-text-primary transition-colors"
+                >
+                  <span>{showRawPayload ? '▼' : '▶'}</span>
+                  <span>Raw Error Payload (for debugging)</span>
+                </button>
+                {showRawPayload && (
+                  <div className="mt-3">
+                    <div className="relative">
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(redactSecrets(job.rawErrorPayload ?? ''));
+                          setCopied(true);
+                          setTimeout(() => setCopied(false), 2000);
+                        }}
+                        className="absolute top-2 right-2 rounded px-2 py-1 text-xs bg-ak-surface-2 hover:bg-ak-surface-3 text-ak-text-secondary hover:text-ak-text-primary transition-colors z-10"
+                        title="Copy raw payload (redacted)"
+                      >
+                        {copied ? '✓ Copied' : 'Copy'}
+                      </button>
+                      <pre className="rounded bg-ak-surface-2 p-4 overflow-x-auto text-xs font-mono text-ak-text-primary max-h-96 overflow-y-auto">
+                        {redactSecrets(job.rawErrorPayload)}
+                      </pre>
+                    </div>
+                    <p className="mt-2 text-xs text-ak-text-secondary">
+                      ⚠️ Secrets are automatically redacted. Safe to share with support.
+                    </p>
+                  </div>
+                )}
               </div>
             )}
           </div>
