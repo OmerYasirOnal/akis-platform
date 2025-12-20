@@ -35,8 +35,12 @@ describe('ScribeAgent (dryRun)', () => {
 
     const aiService = {
       reflector: {
-        critique: async () => ({ summary: 'ok', suggestions: [] }),
+        critique: async () => ({ issues: [], recommendations: [] }),
       },
+      generateWorkArtifact: async () => ({ 
+        content: '# Test Documentation\n\nGenerated content for test.', 
+        metadata: {} 
+      }),
     };
 
     const agent = new ScribeAgent({
@@ -59,11 +63,12 @@ describe('ScribeAgent (dryRun)', () => {
     const r = result as Record<string, unknown>;
 
     assert.strictEqual(r.ok, true);
-    assert.strictEqual(r.agent, 'scribe');
+    assert.strictEqual(r.agent, 'scribe-v2');
     assert.strictEqual(commitCalled, false);
     assert.strictEqual(prCalled, false);
     assert.strictEqual(branchCalled, false);
     assert.ok(r.preview, 'expected preview to be present in dryRun result');
+    assert.ok(r.diagnostics, 'expected diagnostics to be present in v2 result');
   });
 });
 
