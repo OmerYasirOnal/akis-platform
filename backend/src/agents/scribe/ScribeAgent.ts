@@ -563,7 +563,6 @@ export class ScribeAgent extends BaseAgent {
       });
 
       // Build PR title and body with file summaries
-      const fileList = updatedFiles.map(f => f.path).join(', ');
       const titleTemplate = task.prTitleTemplate || 
         (updatedFiles.length === 1 ? `docs: update ${updatedFiles[0].path}` : `docs: update ${updatedFiles.length} documentation files`);
       
