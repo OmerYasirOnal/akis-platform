@@ -10,9 +10,12 @@
 import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert';
 import { db } from '../../src/db/client.js';
-import { jobs, jobTraces } from '../../src/db/schema.js';
+import { jobs, jobTraces, traceEventTypeEnum } from '../../src/db/schema.js';
 import { eq } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
+
+/** Trace event types from the Drizzle schema */
+type TraceEventType = (typeof traceEventTypeEnum.enumValues)[number];
 
 describe('Trace Persistence', () => {
   let testJobId: string;
@@ -37,7 +40,7 @@ describe('Trace Persistence', () => {
 
   it('should persist all explainability trace event types', async () => {
     // Test all explainability event types that previously caused errors
-    const explainabilityEvents = [
+    const explainabilityEvents: TraceEventType[] = [
       'tool_call',
       'tool_result',
       'decision',
@@ -52,7 +55,7 @@ describe('Trace Persistence', () => {
       await db.insert(jobTraces).values({
         id: traceId,
         jobId: testJobId,
-        eventType: eventType as any,
+        eventType,
         title: `Test ${eventType} event`,
         detail: { test: true },
         status: 'info',
