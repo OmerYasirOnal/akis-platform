@@ -76,6 +76,10 @@ backend/package-lock.json
 # Build Artifacts (Recursive)
 **/dist
 
+# Playwright artifacts
+frontend/playwright-report/
+frontend/test-results/
+
 # Project Tracking Spreadsheets (may contain internal notes)
 docs/AKIS_Proje_Takibi*.xlsx
 *.xlsx

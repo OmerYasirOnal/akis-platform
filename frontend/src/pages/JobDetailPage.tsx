@@ -286,11 +286,12 @@ function TimelineItem({ event }: TimelineItemProps) {
 
 interface EmptyStateProps {
   message: string;
+  testId?: string;
 }
 
-function EmptyState({ message }: EmptyStateProps) {
+function EmptyState({ message, testId }: EmptyStateProps) {
   return (
-    <div className="text-center py-8 text-ak-text-secondary">
+    <div className="text-center py-8 text-ak-text-secondary" data-testid={testId}>
       <p className="text-sm">{message}</p>
     </div>
   );
@@ -590,9 +591,9 @@ export default function JobDetailPage() {
         {activeTab === 'timeline' && (
           <div>
             {traces.length === 0 ? (
-              <EmptyState message="No trace events recorded for this job" />
+              <EmptyState testId="timeline-empty" message="No trace events recorded for this job" />
             ) : (
-              <div className="space-y-0">
+              <div className="space-y-0" data-testid="timeline-list">
                 {traces.map((event) => (
                   <TimelineItem key={event.id} event={event} />
                 ))}
@@ -605,9 +606,9 @@ export default function JobDetailPage() {
         {activeTab === 'documents' && (
           <div>
             {documentsRead.length === 0 ? (
-              <EmptyState message="No documents were read during this job" />
+              <EmptyState testId="documents-empty" message="No documents were read during this job" />
             ) : (
-              <div className="overflow-x-auto">
+              <div className="overflow-x-auto" data-testid="documents-table">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-ak-border">
@@ -637,9 +638,12 @@ export default function JobDetailPage() {
         {activeTab === 'files' && (
           <div>
             {filesProduced.length === 0 ? (
-              <EmptyState message="No files were created or modified during this job" />
+              <EmptyState
+                testId="files-empty"
+                message="No files were created or modified during this job"
+              />
             ) : (
-              <div className="overflow-x-auto">
+              <div className="overflow-x-auto" data-testid="files-table">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-ak-border">
