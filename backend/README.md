@@ -65,6 +65,30 @@ pnpm dev
 
 Server runs on `http://localhost:3000`.
 
+## Local DB Migrations (Troubleshooting)
+
+If you encounter database errors like:
+```
+column "plan_markdown" of relation "job_plans" does not exist
+```
+
+This means your local database schema is behind the code. **Fix:**
+
+```bash
+# Apply all pending migrations
+pnpm db:migrate
+
+# Verify columns exist (optional)
+psql "$DATABASE_URL" -c "\\d job_plans"
+```
+
+**Common symptoms of schema drift:**
+- Job creation returns 500 with DATABASE_ERROR
+- Plan tab shows empty state even after job completes
+- Backend logs show "column X does not exist"
+
+**Prevention:** Always run `pnpm db:migrate` after pulling new code that includes migration files.
+
 ## Scripts
 
 | Script | Description |
