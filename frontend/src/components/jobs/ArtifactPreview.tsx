@@ -210,10 +210,13 @@ function PreviewModal({ artifact, isOpen, onClose }: PreviewModalProps) {
                 ? 'bg-emerald-500/20 text-emerald-400' 
                 : artifact.operation === 'modify'
                 ? 'bg-amber-500/20 text-amber-400'
+                : artifact.operation === 'preview'
+                ? 'bg-purple-500/20 text-purple-400'
                 : 'bg-ak-surface-3 text-ak-text-secondary'
             }`}>
               {artifact.operation === 'create' ? 'Created' : 
-               artifact.operation === 'modify' ? 'Modified' : 'Read'}
+               artifact.operation === 'modify' ? 'Modified' : 
+               artifact.operation === 'preview' ? '🔬 Preview (Dry Run)' : 'Read'}
             </span>
             <span className="text-xs text-ak-text-secondary">
               {new Date(artifact.createdAt).toLocaleString()}
@@ -255,6 +258,7 @@ export function ArtifactPreview({ artifact, showFullPath = false }: ArtifactPrev
     create: 'border-l-emerald-500 bg-emerald-500/5',
     modify: 'border-l-amber-500 bg-amber-500/5',
     read: 'border-l-blue-500 bg-blue-500/5',
+    preview: 'border-l-purple-500 bg-purple-500/5',
   };
 
   return (
@@ -277,9 +281,11 @@ export function ArtifactPreview({ artifact, showFullPath = false }: ArtifactPrev
                     ? 'bg-emerald-500/20 text-emerald-400' 
                     : artifact.operation === 'modify'
                     ? 'bg-amber-500/20 text-amber-400'
+                    : artifact.operation === 'preview'
+                    ? 'bg-purple-500/20 text-purple-400'
                     : 'bg-blue-500/20 text-blue-400'
                 }`}>
-                  {artifact.operation}
+                  {artifact.operation === 'preview' ? '🔬 preview' : artifact.operation}
                 </span>
               </div>
               <div className="flex items-center gap-2 text-xs text-ak-text-secondary mt-0.5">
