@@ -1,0 +1,221 @@
+name: Nightly Smoke Tests
+
+on:
+  schedule:
+    # Run nightly at 2 AM UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+    inputs:
+      skip_cli:
+        description: 'Skip CLI smoke test'
+        required: false
+        type: boolean
+        default: false
+      skip_e2e:
+        description: 'Skip Playwright E2E'
+        required: false
+        type: boolean
+        default: false
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  smoke-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: akis_v2
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Get pnpm store directory
+        shell: bash
+        run: |
+          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+
+      - name: Setup pnpm cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile || pnpm install
+
+      - name: Wait for Postgres
+        run: |
+          until nc -z 127.0.0.1 5433; do echo "waiting for pg..."; sleep 1; done
+
+      - name: Run database migrations
+        working-directory: backend
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5433/akis_v2
+        run: pnpm db:migrate
+
+      - name: Start MCP Gateway
+        env:
+          GITHUB_TOKEN: ${{ secrets.MCP_GITHUB_TOKEN }}
+        run: |
+          echo "GITHUB_TOKEN=$GITHUB_TOKEN" > .env.mcp.local
+          echo "LOG_LEVEL=info" >> .env.mcp.local
+          ./scripts/mcp-up.sh
+          sleep 3
+
+      - name: Start Backend Server
+        working-directory: backend
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5433/akis_v2
+          GITHUB_TOKEN: ${{ secrets.MCP_GITHUB_TOKEN }}
+          GITHUB_MCP_BASE_URL: http://localhost:4010/mcp
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_MODEL: gpt-4o-mini
+          SESSION_SECRET: nightly-smoke-session-secret
+          NODE_ENV: development
+          SCRIBE_DEV_GITHUB_BOOTSTRAP: true
+        run: |
+          nohup pnpm dev > /tmp/backend.log 2>&1 &
+          echo $! > /tmp/backend.pid
+          sleep 8
+          curl -s http://localhost:3000/health || (cat /tmp/backend.log && exit 1)
+
+      - name: CLI Smoke Test
+        if: ${{ !inputs.skip_cli }}
+        env:
+          SCRIBE_DEV_GITHUB_BOOTSTRAP: true
+          SCRIBE_SMOKE_EMAIL: ${{ secrets.SMOKE_TEST_EMAIL }}
+          SCRIBE_SMOKE_PASSWORD: ${{ secrets.SMOKE_TEST_PASSWORD }}
+          SCRIBE_SMOKE_OWNER: ${{ secrets.SMOKE_TEST_OWNER }}
+          SCRIBE_SMOKE_REPO: ${{ secrets.SMOKE_TEST_REPO }}
+          SCRIBE_SMOKE_BRANCH: main
+          SCRIBE_SMOKE_BACKEND_URL: http://localhost:3000
+        run: |
+          echo "Running CLI smoke test..."
+          pnpm exec tsx scripts/scribe-smoke.ts | tee /tmp/cli-smoke.log
+          CLI_EXIT=$?
+          if [ $CLI_EXIT -eq 0 ]; then
+            echo "✅ CLI smoke test PASSED"
+          else
+            echo "❌ CLI smoke test FAILED"
+            cat /tmp/backend.log
+            exit 1
+          fi
+
+      - name: Install Playwright Browsers
+        if: ${{ !inputs.skip_e2e }}
+        working-directory: frontend
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Playwright E2E Smoke Test
+        if: ${{ !inputs.skip_e2e }}
+        working-directory: frontend
+        env:
+          E2E_EMAIL: ${{ secrets.SMOKE_TEST_EMAIL }}
+          E2E_PASSWORD: ${{ secrets.SMOKE_TEST_PASSWORD }}
+          E2E_OWNER: ${{ secrets.SMOKE_TEST_OWNER }}
+          E2E_REPO: ${{ secrets.SMOKE_TEST_REPO }}
+          E2E_BRANCH: main
+          SCRIBE_DEV_GITHUB_BOOTSTRAP: true
+        run: |
+          echo "Running Playwright E2E smoke test..."
+          pnpm test:e2e | tee /tmp/e2e-smoke.log
+          E2E_EXIT=$?
+          if [ $E2E_EXIT -eq 0 ]; then
+            echo "✅ Playwright E2E smoke test PASSED"
+          else
+            echo "❌ Playwright E2E smoke test FAILED"
+            exit 1
+          fi
+
+      - name: Upload Playwright Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: frontend/playwright-report/
+          retention-days: 7
+
+      - name: Upload Playwright Screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-screenshots
+          path: frontend/test-results/
+          retention-days: 7
+
+      - name: Upload Backend Logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-logs
+          path: /tmp/backend.log
+          retention-days: 7
+
+      - name: Stop Services
+        if: always()
+        run: |
+          if [ -f /tmp/backend.pid ]; then
+            kill $(cat /tmp/backend.pid) || true
+          fi
+          ./scripts/mcp-down.sh || true
+
+      - name: Smoke Test Summary
+        if: always()
+        run: |
+          echo "## Nightly Smoke Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Date**: $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
+          echo "**Commit**: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ -f /tmp/cli-smoke.log ]; then
+            if grep -q "✅ PASS" /tmp/cli-smoke.log; then
+              echo "✅ CLI Smoke: PASS" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "❌ CLI Smoke: FAIL" >> $GITHUB_STEP_SUMMARY
+            fi
+          else
+            echo "⏭️ CLI Smoke: SKIPPED" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          if [ -f /tmp/e2e-smoke.log ]; then
+            if grep -q "passed" /tmp/e2e-smoke.log; then
+              echo "✅ Playwright E2E: PASS" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "❌ Playwright E2E: FAIL" >> $GITHUB_STEP_SUMMARY
+            fi
+          else
+            echo "⏭️ Playwright E2E: SKIPPED" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Artifacts uploaded for detailed review." >> $GITHUB_STEP_SUMMARY
+
