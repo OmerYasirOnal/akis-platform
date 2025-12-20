@@ -1,6 +1,6 @@
 import { cn } from "../../utils/cn";
 
-type BadgeState = "pending" | "running" | "completed" | "failed";
+type BadgeState = "pending" | "running" | "completed" | "failed" | "awaiting_approval";
 
 interface BadgeProps {
   state: BadgeState;
@@ -30,6 +30,11 @@ const stateStyles: Record<
     container: "border border-ak-border text-ak-text-primary",
     dot: "bg-ak-text-primary",
     label: "Failed",
+  },
+  awaiting_approval: {
+    container: "border border-yellow-500/40 text-yellow-600 dark:text-yellow-400",
+    dot: "bg-yellow-500",
+    label: "Awaiting Approval",
   },
 };
 

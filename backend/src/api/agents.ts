@@ -617,5 +617,181 @@ export async function agentsRoutes(fastify: FastifyInstance) {
       }
     }
   );
+
+  // POST /api/agents/jobs/:id/approve - Approve a job for execution (S1.2)
+  fastify.post(
+    '/api/agents/jobs/:id/approve',
+    {
+      schema: {
+        description: 'Approve a PLAN_ONLY job for execution',
+        tags: ['agents'],
+        params: {
+          type: 'object',
+          required: ['id'],
+          properties: {
+            id: { type: 'string', format: 'uuid' },
+          },
+        },
+        body: {
+          type: 'object',
+          properties: {
+            comment: { type: 'string', maxLength: 1000 },
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      try {
+        // Require authentication
+        const user = await requireAuth(request);
+
+        // Validate params
+        const params = jobIdParamsSchema.parse(request.params);
+        const body = request.body as { comment?: string };
+
+        // Load job
+        const [job] = await db.select().from(jobs).where(eq(jobs.id, params.id)).limit(1);
+        if (!job) {
+          throw new JobNotFoundError(params.id);
+        }
+
+        // Validate approval eligibility
+        if (!job.requiresApproval) {
+          return reply.code(400).send({
+            error: {
+              code: 'INVALID_OPERATION',
+              message: 'This job does not require approval',
+            },
+          });
+        }
+
+        if (job.state !== 'awaiting_approval') {
+          return reply.code(400).send({
+            error: {
+              code: 'INVALID_STATE',
+              message: `Job is in state "${job.state}" and cannot be approved. Only jobs in "awaiting_approval" state can be approved.`,
+            },
+          });
+        }
+
+        if (job.approvedBy || job.approvedAt) {
+          return reply.code(400).send({
+            error: {
+              code: 'ALREADY_APPROVED',
+              message: 'This job has already been approved',
+            },
+          });
+        }
+
+        // Update job with approval info
+        await db
+          .update(jobs)
+          .set({
+            approvedBy: user.id,
+            approvedAt: new Date(),
+            approvalComment: body.comment || null,
+            updatedAt: new Date(),
+          })
+          .where(eq(jobs.id, params.id));
+
+        // TODO: Trigger execution of approved job (create new EXECUTE job)
+        // For now, just mark as approved - execution must be triggered separately
+
+        return reply.code(200).send({
+          success: true,
+          message: 'Job approved successfully',
+          approvedBy: user.id,
+          approvedAt: new Date().toISOString(),
+        });
+      } catch (error) {
+        const errorResponse = formatErrorResponse(request, error);
+        const statusCode = getStatusCodeForError(errorResponse.error.code);
+        reply.code(statusCode).send(errorResponse);
+      }
+    }
+  );
+
+  // POST /api/agents/jobs/:id/reject - Reject a job (S1.2)
+  fastify.post(
+    '/api/agents/jobs/:id/reject',
+    {
+      schema: {
+        description: 'Reject a PLAN_ONLY job',
+        tags: ['agents'],
+        params: {
+          type: 'object',
+          required: ['id'],
+          properties: {
+            id: { type: 'string', format: 'uuid' },
+          },
+        },
+        body: {
+          type: 'object',
+          properties: {
+            comment: { type: 'string', maxLength: 1000 },
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      try {
+        // Require authentication
+        const user = await requireAuth(request);
+
+        // Validate params
+        const params = jobIdParamsSchema.parse(request.params);
+        const body = request.body as { comment?: string };
+
+        // Load job
+        const [job] = await db.select().from(jobs).where(eq(jobs.id, params.id)).limit(1);
+        if (!job) {
+          throw new JobNotFoundError(params.id);
+        }
+
+        // Validate rejection eligibility
+        if (!job.requiresApproval) {
+          return reply.code(400).send({
+            error: {
+              code: 'INVALID_OPERATION',
+              message: 'This job does not require approval',
+            },
+          });
+        }
+
+        if (job.state !== 'awaiting_approval') {
+          return reply.code(400).send({
+            error: {
+              code: 'INVALID_STATE',
+              message: `Job is in state "${job.state}" and cannot be rejected. Only jobs in "awaiting_approval" state can be rejected.`,
+            },
+          });
+        }
+
+        // Update job with rejection info
+        await db
+          .update(jobs)
+          .set({
+            rejectedBy: user.id,
+            rejectedAt: new Date(),
+            approvalComment: body.comment || null,
+            state: 'failed', // Mark as failed since it won't be executed
+            error: 'Job rejected by user',
+            updatedAt: new Date(),
+          })
+          .where(eq(jobs.id, params.id));
+
+        return reply.code(200).send({
+          success: true,
+          message: 'Job rejected successfully',
+          rejectedBy: user.id,
+          rejectedAt: new Date().toISOString(),
+        });
+      } catch (error) {
+        const errorResponse = formatErrorResponse(request, error);
+        const statusCode = getStatusCodeForError(errorResponse.error.code);
+        reply.code(statusCode).send(errorResponse);
+      }
+    }
+  );
 }
 
