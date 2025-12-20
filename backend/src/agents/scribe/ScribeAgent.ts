@@ -382,15 +382,25 @@ export class ScribeAgent extends BaseAgent {
       const titleTemplate = task.prTitleTemplate || `docs: update ${filePath}`;
       const bodyTemplate = task.prBodyTemplate || `Automated docs update via ScribeAgent.\n\nPath: ${filePath}\nBranch: ${workingBranch}`;
 
+      // Generate a safe summary from taskDescription (first 50 chars, sanitized)
+      const safeSummary = (task.taskDescription || `update ${filePath}`)
+        .replace(/[^a-zA-Z0-9\s\-_]/g, '')
+        .substring(0, 50)
+        .trim() || `update ${filePath}`;
+
       const prTitle = titleTemplate
         .replace('{timestamp}', new Date().toISOString())
         .replace('{branch}', workingBranch)
-        .replace('{path}', filePath);
+        .replace('{path}', filePath)
+        .replace('{agent}', 'scribe')
+        .replace('{summary}', safeSummary);
 
       const prBody = bodyTemplate
         .replace('{timestamp}', new Date().toISOString())
         .replace('{branch}', workingBranch)
-        .replace('{path}', filePath);
+        .replace('{path}', filePath)
+        .replace('{agent}', 'scribe')
+        .replace('{summary}', safeSummary);
 
       const prStartTime = Date.now();
       this.traceRecorder?.recordToolCall({
