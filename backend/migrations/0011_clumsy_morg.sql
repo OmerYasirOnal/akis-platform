@@ -1,5 +1,5 @@
 DO $$ BEGIN
- CREATE TYPE "public"."trace_event_type" AS ENUM('step_start', 'step_complete', 'step_failed', 'doc_read', 'file_created', 'file_modified', 'mcp_connect', 'mcp_call', 'ai_call', 'ai_parse_error', 'error', 'info');
+ CREATE TYPE "public"."trace_event_type" AS ENUM('step_start', 'step_complete', 'step_failed', 'doc_read', 'file_created', 'file_modified', 'mcp_connect', 'mcp_call', 'ai_call', 'ai_parse_error', 'error', 'info', 'tool_call', 'tool_result', 'decision', 'plan_step', 'reasoning');
 EXCEPTION
  WHEN duplicate_object THEN null;
 END $$;
@@ -14,7 +14,10 @@ CREATE TABLE IF NOT EXISTS "job_artifacts" (
 	"content_hash" varchar(64),
 	"preview" text,
 	"metadata" jsonb,
-	"created_at" timestamp DEFAULT now() NOT NULL
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"diff_preview" text,
+	"lines_added" integer,
+	"lines_removed" integer
 );
 --> statement-breakpoint
 CREATE TABLE IF NOT EXISTS "job_traces" (
@@ -29,7 +32,14 @@ CREATE TABLE IF NOT EXISTS "job_traces" (
 	"correlation_id" varchar(100),
 	"gateway_url" varchar(500),
 	"error_code" varchar(50),
-	"timestamp" timestamp DEFAULT now() NOT NULL
+	"timestamp" timestamp DEFAULT now() NOT NULL,
+	"tool_name" varchar(100),
+	"input_summary" text,
+	"output_summary" text,
+	"reasoning_summary" varchar(1000),
+	"asked_what" text,
+	"did_what" text,
+	"why_reason" text
 );
 --> statement-breakpoint
 DO $$ BEGIN
@@ -48,4 +58,4 @@ CREATE INDEX IF NOT EXISTS "idx_job_artifacts_job_id" ON "job_artifacts" USING b
 CREATE INDEX IF NOT EXISTS "idx_job_artifacts_type" ON "job_artifacts" USING btree ("artifact_type");--> statement-breakpoint
 CREATE INDEX IF NOT EXISTS "idx_job_traces_job_id" ON "job_traces" USING btree ("job_id");--> statement-breakpoint
 CREATE INDEX IF NOT EXISTS "idx_job_traces_event_type" ON "job_traces" USING btree ("event_type");--> statement-breakpoint
-ALTER TABLE "oauth_accounts" DROP COLUMN IF EXISTS "provider_username";
+CREATE INDEX IF NOT EXISTS "idx_job_traces_tool_name" ON "job_traces" USING btree ("tool_name");
