@@ -1,7 +1,7 @@
 import { pgTable, uuid, varchar, jsonb, timestamp, pgEnum, text, index, boolean, integer, uniqueIndex } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 
-export const jobStateEnum = pgEnum('job_state', ['pending', 'running', 'completed', 'failed']);
+export const jobStateEnum = pgEnum('job_state', ['pending', 'running', 'completed', 'failed', 'awaiting_approval']);
 
 export const auditPhaseEnum = pgEnum('audit_phase', ['plan', 'execute', 'reflect', 'validate']);
 
@@ -48,11 +48,27 @@ export const jobs = pgTable('jobs', {
   mcpGatewayUrl: varchar('mcp_gateway_url', { length: 255 }),
   /** Whether this job requires strong-model validation before completion */
   requiresStrictValidation: boolean('requires_strict_validation').default(false).notNull(),
+  // S1.2: Approval system for PLAN_ONLY → EXECUTE workflow
+  /** Whether this job requires approval before execution */
+  requiresApproval: boolean('requires_approval').default(false).notNull(),
+  /** User who approved this job */
+  approvedBy: uuid('approved_by').references(() => users.id),
+  /** Timestamp when job was approved */
+  approvedAt: timestamp('approved_at'),
+  /** User who rejected this job */
+  rejectedBy: uuid('rejected_by').references(() => users.id),
+  /** Timestamp when job was rejected */
+  rejectedAt: timestamp('rejected_at'),
+  /** Comment on approval/rejection */
+  approvalComment: text('approval_comment'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 }, (table) => ({
   // Phase 7.D: Index for efficient jobs listing (type, state, createdAt DESC)
   typeStateCreatedIdx: index('idx_jobs_type_state_created').on(table.type, table.state, table.createdAt),
+  // S1.2: Index for approval queries
+  requiresApprovalIdx: index('idx_jobs_requires_approval').on(table.requiresApproval),
+  approvedByIdx: index('idx_jobs_approved_by').on(table.approvedBy),
 }));
 
 export type Job = typeof jobs.$inferSelect;

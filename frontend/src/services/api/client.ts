@@ -41,6 +41,22 @@ export const api = {
     return httpClient.post<CreateJobResponse & { requestId?: string }>('/api/agents/jobs', request);
   },
 
+  // POST /api/agents/jobs/:id/approve - S1.2: Approve a job
+  approveJob: async (
+    id: string,
+    comment?: string
+  ): Promise<{ success: boolean; message: string; approvedBy: string; approvedAt: string }> => {
+    return httpClient.post(`/api/agents/jobs/${id}/approve`, { comment });
+  },
+
+  // POST /api/agents/jobs/:id/reject - S1.2: Reject a job
+  rejectJob: async (
+    id: string,
+    comment?: string
+  ): Promise<{ success: boolean; message: string; rejectedBy: string; rejectedAt: string }> => {
+    return httpClient.post(`/api/agents/jobs/${id}/reject`, { comment });
+  },
+
   // GET /
   getRoot: async (): Promise<{ name: string; status: string; version: string }> => {
     return httpClient.get('/');

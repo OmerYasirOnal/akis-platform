@@ -2,7 +2,7 @@
 // For now, we define basic types manually
 
 export type JobType = 'scribe' | 'trace' | 'proto';
-export type JobState = 'pending' | 'running' | 'completed' | 'failed';
+export type JobState = 'pending' | 'running' | 'completed' | 'failed' | 'awaiting_approval';
 
 export interface Job {
   id: string;
@@ -31,6 +31,19 @@ export interface Job {
   trace?: JobTraceEvent[];
   /** S1.0: Job artifacts (documents read, files produced) */
   artifacts?: JobArtifact[];
+  // S1.2: Approval system
+  /** Whether this job requires approval before execution */
+  requiresApproval?: boolean;
+  /** User ID who approved this job */
+  approvedBy?: string | null;
+  /** Timestamp when job was approved */
+  approvedAt?: string | null;
+  /** User ID who rejected this job */
+  rejectedBy?: string | null;
+  /** Timestamp when job was rejected */
+  rejectedAt?: string | null;
+  /** Comment on approval/rejection */
+  approvalComment?: string | null;
 }
 
 export interface JobTraceEvent {
