@@ -64,11 +64,8 @@ jobs:
         run: |
           until nc -z 127.0.0.1 5432; do echo "waiting for pg..."; sleep 1; done
 
-      - name: Generate Drizzle migrations
-        working-directory: backend
-        env:
-          DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/akis_v2_test
-        run: pnpm db:generate
+      # Note: db:generate is NOT run in CI - migrations should be committed, not generated on-the-fly
+      # This prevents conflicts between schema-generated migrations and manually written ones
 
       - name: Run database migrations
         working-directory: backend
