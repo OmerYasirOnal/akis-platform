@@ -11,6 +11,7 @@ import { requireAuth } from '../utils/auth.js';
 import { db } from '../db/client.js';
 import { oauthAccounts } from '../db/schema.js';
 import { eq, and } from 'drizzle-orm';
+import { DEV_GITHUB_BOOTSTRAP_TOKEN_PLACEHOLDER } from '../core/orchestrator/AgentOrchestrator.js';
 
 // GitHub API helper
 async function fetchFromGitHub<T>(endpoint: string, accessToken: string): Promise<T> {
@@ -41,7 +42,17 @@ async function getGitHubToken(userId: string): Promise<string | null> {
     ),
   });
 
-  return githubOAuth?.accessToken || null;
+  const rawToken = githubOAuth?.accessToken || null;
+  if (rawToken && rawToken !== DEV_GITHUB_BOOTSTRAP_TOKEN_PLACEHOLDER) {
+    return rawToken;
+  }
+
+  if (rawToken === DEV_GITHUB_BOOTSTRAP_TOKEN_PLACEHOLDER && process.env.SCRIBE_DEV_GITHUB_BOOTSTRAP === 'true') {
+    const env = getEnv();
+    return env.SCRIBE_DEV_BOOTSTRAP_GITHUB_TOKEN || env.GITHUB_TOKEN || null;
+  }
+
+  return rawToken;
 }
 
 export async function integrationsRoutes(fastify: FastifyInstance) {
