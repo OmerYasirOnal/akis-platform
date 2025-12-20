@@ -2,8 +2,8 @@ import { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { AgentOrchestrator } from '../core/orchestrator/AgentOrchestrator.js';
 import { db } from '../db/client.js';
-import { jobs, jobPlans, jobAudits, agentConfigs } from '../db/schema.js';
-import { eq, desc, and, sql } from 'drizzle-orm';
+import { jobs, jobPlans, jobAudits, jobTraces, jobArtifacts, agentConfigs } from '../db/schema.js';
+import { eq, desc, and, sql, asc } from 'drizzle-orm';
 import { JobNotFoundError } from '../core/errors.js';
 import { metrics } from './metrics.js';
 import { formatErrorResponse, getStatusCodeForError } from '../utils/errorHandler.js';
@@ -336,6 +336,8 @@ export async function agentsRoutes(fastify: FastifyInstance) {
           : [];
         const includePlan = includeFlags.includes('plan');
         const includeAudit = includeFlags.includes('audit');
+        const includeTrace = includeFlags.includes('trace');
+        const includeArtifacts = includeFlags.includes('artifacts');
 
         // Fetch job from database
         let job;
@@ -397,7 +399,63 @@ export async function agentsRoutes(fastify: FastifyInstance) {
           }
         }
 
-        // Return job data with optional plan/audit
+        // S1.0: Fetch trace events if requested
+        let traces: unknown[] = [];
+        if (includeTrace) {
+          try {
+            const traceRows = await db
+              .select()
+              .from(jobTraces)
+              .where(eq(jobTraces.jobId, params.id))
+              .orderBy(asc(jobTraces.timestamp))
+              .limit(500); // Limit to 500 trace events
+            traces = traceRows.map((row) => ({
+              id: row.id,
+              eventType: row.eventType,
+              stepId: row.stepId,
+              title: row.title,
+              detail: row.detail,
+              durationMs: row.durationMs,
+              status: row.status,
+              correlationId: row.correlationId,
+              gatewayUrl: row.gatewayUrl,
+              errorCode: row.errorCode,
+              timestamp: row.timestamp,
+            }));
+          } catch (error) {
+            // Don't fail request if trace fetch fails
+            console.error(`Failed to fetch traces for job ${params.id}:`, error);
+          }
+        }
+
+        // S1.0: Fetch artifacts if requested
+        let artifacts: unknown[] = [];
+        if (includeArtifacts) {
+          try {
+            const artifactRows = await db
+              .select()
+              .from(jobArtifacts)
+              .where(eq(jobArtifacts.jobId, params.id))
+              .orderBy(asc(jobArtifacts.createdAt))
+              .limit(100); // Limit to 100 artifacts
+            artifacts = artifactRows.map((row) => ({
+              id: row.id,
+              artifactType: row.artifactType,
+              path: row.path,
+              operation: row.operation,
+              sizeBytes: row.sizeBytes,
+              contentHash: row.contentHash,
+              preview: row.preview,
+              metadata: row.metadata,
+              createdAt: row.createdAt,
+            }));
+          } catch (error) {
+            // Don't fail request if artifacts fetch fails
+            console.error(`Failed to fetch artifacts for job ${params.id}:`, error);
+          }
+        }
+
+        // Return job data with optional plan/audit/trace/artifacts
         const correlationId =
           extractCorrelationIdFromText(job.errorMessage) || extractCorrelationIdFromText(job.error);
 
@@ -422,6 +480,12 @@ export async function agentsRoutes(fastify: FastifyInstance) {
         }
         if (includeAudit) {
           response.audit = audits;
+        }
+        if (includeTrace) {
+          response.trace = traces;
+        }
+        if (includeArtifacts) {
+          response.artifacts = artifacts;
         }
 
         return response;
