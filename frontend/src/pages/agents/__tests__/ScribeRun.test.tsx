@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, screen, waitFor, fireEvent, act } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
 import ScribeRunPage from '../ScribeRun';
 import { agentsApi } from '../../../services/api/agents';
@@ -45,6 +45,10 @@ describe('ScribeRunPage', () => {
     vi.clearAllMocks();
   });
 
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it('should render the page with form elements', async () => {
     renderWithProviders(<ScribeRunPage />);
 
@@ -86,6 +90,7 @@ describe('ScribeRunPage', () => {
       jobId: mockJobId,
       state: 'pending',
     });
+    // Return completed job immediately to stop polling
     (agentsApi.getJob as ReturnType<typeof vi.fn>).mockResolvedValue({
       id: mockJobId,
       type: 'scribe',
@@ -117,22 +122,40 @@ describe('ScribeRunPage', () => {
     });
   });
 
-  it('should display job status after successful submission', async () => {
+  it('should poll job status after successful submission', async () => {
+    // Use fake timers for this specific test to control polling
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+
     const mockJobId = 'job-456';
-    (agentsApi.runAgent as ReturnType<typeof vi.fn>).mockResolvedValue({
+
+    // Mock runAgent to return pending job
+    (agentsApi.runAgent as ReturnType<typeof vi.fn>).mockImplementation(() =>
+      Promise.resolve({
       jobId: mockJobId,
       state: 'pending',
-    });
-    (agentsApi.getJob as ReturnType<typeof vi.fn>).mockResolvedValue({
+      })
+    );
+
+    // Track getJob calls and return completed on second call
+    let getJobCallCount = 0;
+    (agentsApi.getJob as ReturnType<typeof vi.fn>).mockImplementation(() => {
+      getJobCallCount++;
+      return Promise.resolve({
       id: mockJobId,
       type: 'scribe',
-      state: 'completed',
+        state: getJobCallCount >= 2 ? 'completed' : 'running',
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-      result: { summary: 'Docs generated successfully' },
+        result: getJobCallCount >= 2 ? { summary: 'Docs generated successfully' } : undefined,
+      });
     });
 
     renderWithProviders(<ScribeRunPage />);
+
+    // Wait for auth context to initialize
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(100);
+    });
 
     await waitFor(() => {
       expect(screen.getByRole('textbox')).toBeInTheDocument();
@@ -140,17 +163,35 @@ describe('ScribeRunPage', () => {
 
     // Fill and submit
     const textarea = screen.getByRole('textbox');
+    await act(async () => {
     fireEvent.change(textarea, { target: { value: 'Documentation context' } });
+    });
 
+    await act(async () => {
     fireEvent.click(getSubmitButton());
+    });
 
-    // Wait for job status to appear (job ID should be visible)
-    await waitFor(
-      () => {
+    // Let runAgent resolve and trigger initial pollJob call
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(100);
+    });
+
+    // First getJob should have been called (immediate call after runAgent)
+    await waitFor(() => {
         expect(agentsApi.getJob).toHaveBeenCalled();
-      },
-      { timeout: 5000 }
-    );
+    });
+
+    // Advance time to trigger polling interval (2500ms)
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(3000);
+    });
+
+    // Should have polled again
+    expect(agentsApi.getJob).toHaveBeenCalledTimes(2);
+    expect(agentsApi.getJob).toHaveBeenCalledWith(mockJobId);
+
+    // Restore real timers
+    vi.useRealTimers();
   });
 
   it('should handle API error gracefully', async () => {
@@ -196,4 +237,3 @@ describe('ScribeRunPage', () => {
     expect(textarea.value).toBe('');
   });
 });
-

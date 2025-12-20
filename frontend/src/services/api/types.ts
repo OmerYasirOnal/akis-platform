@@ -21,10 +21,42 @@ export interface Job {
   mcpGatewayUrl?: string | null;
   /** MCP Gateway correlation id (safe to share, helps debug gateway logs) */
   correlationId?: string | null;
+  /** Request ID from the API response */
+  requestId?: string;
   createdAt: string;
   updatedAt: string;
   plan?: JobPlan;
   audit?: JobAudit[];
+  /** S1.0: Execution trace events */
+  trace?: JobTraceEvent[];
+  /** S1.0: Job artifacts (documents read, files produced) */
+  artifacts?: JobArtifact[];
+}
+
+export interface JobTraceEvent {
+  id: string;
+  eventType: string;
+  stepId?: string;
+  title: string;
+  detail?: Record<string, unknown>;
+  durationMs?: number;
+  status?: string;
+  correlationId?: string;
+  gatewayUrl?: string;
+  errorCode?: string;
+  timestamp: string;
+}
+
+export interface JobArtifact {
+  id: string;
+  artifactType: string;
+  path: string;
+  operation: string;
+  sizeBytes?: number;
+  contentHash?: string;
+  preview?: string;
+  metadata?: Record<string, unknown>;
+  createdAt: string;
 }
 
 export interface JobPlan {

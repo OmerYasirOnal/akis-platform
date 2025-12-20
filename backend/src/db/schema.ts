@@ -5,6 +5,25 @@ export const jobStateEnum = pgEnum('job_state', ['pending', 'running', 'complete
 
 export const auditPhaseEnum = pgEnum('audit_phase', ['plan', 'execute', 'reflect', 'validate']);
 
+/**
+ * Trace event types for job execution tracking
+ * S1.0: Scribe Observability - structured trace timeline
+ */
+export const traceEventTypeEnum = pgEnum('trace_event_type', [
+  'step_start',    // Agent step started
+  'step_complete', // Agent step completed
+  'step_failed',   // Agent step failed
+  'doc_read',      // Document/file read from source
+  'file_created',  // File created/produced
+  'file_modified', // File modified
+  'mcp_connect',   // MCP gateway connection attempt
+  'mcp_call',      // MCP tool call
+  'ai_call',       // AI/LLM call
+  'ai_parse_error', // AI response parse error (fallback used)
+  'error',         // General error event
+  'info',          // Informational event
+]);
+
 export const jobs = pgTable('jobs', {
   id: uuid('id').defaultRandom().primaryKey(),
   type: varchar('type', { length: 50 }).notNull(),
@@ -63,6 +82,70 @@ export type JobAudit = typeof jobAudits.$inferSelect;
 export type NewJobAudit = typeof jobAudits.$inferInsert;
 
 /**
+ * Job traces - stores execution timeline events
+ * S1.0: Scribe Observability - structured trace timeline
+ */
+export const jobTraces = pgTable('job_traces', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  jobId: uuid('job_id').notNull().references(() => jobs.id, { onDelete: 'cascade' }),
+  eventType: traceEventTypeEnum('event_type').notNull(),
+  /** Step ID if this trace is associated with a plan step */
+  stepId: varchar('step_id', { length: 100 }),
+  /** Event title/summary */
+  title: varchar('title', { length: 500 }).notNull(),
+  /** Event details (JSON for flexibility) */
+  detail: jsonb('detail'),
+  /** Duration in milliseconds (for timed events) */
+  durationMs: integer('duration_ms'),
+  /** Status: success, failed, warning, info */
+  status: varchar('status', { length: 20 }).default('info'),
+  /** Correlation ID for MCP/external calls */
+  correlationId: varchar('correlation_id', { length: 100 }),
+  /** Gateway URL for MCP events */
+  gatewayUrl: varchar('gateway_url', { length: 500 }),
+  /** Error code if failed */
+  errorCode: varchar('error_code', { length: 50 }),
+  /** Timestamp of the event */
+  timestamp: timestamp('timestamp').defaultNow().notNull(),
+}, (table) => ({
+  jobIdIdx: index('idx_job_traces_job_id').on(table.jobId),
+  eventTypeIdx: index('idx_job_traces_event_type').on(table.eventType),
+}));
+
+export type JobTrace = typeof jobTraces.$inferSelect;
+export type NewJobTrace = typeof jobTraces.$inferInsert;
+
+/**
+ * Job artifacts - stores files/documents produced by jobs
+ * S1.0: Scribe Observability - artifacts tracking
+ */
+export const jobArtifacts = pgTable('job_artifacts', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  jobId: uuid('job_id').notNull().references(() => jobs.id, { onDelete: 'cascade' }),
+  /** Artifact type: doc_read, file_created, file_modified */
+  artifactType: varchar('artifact_type', { length: 50 }).notNull(),
+  /** File path or document identifier */
+  path: varchar('path', { length: 1000 }).notNull(),
+  /** Operation performed: read, create, modify, delete */
+  operation: varchar('operation', { length: 20 }).notNull(),
+  /** Size in bytes (if applicable) */
+  sizeBytes: integer('size_bytes'),
+  /** Content hash (SHA-256, for deduplication/verification) */
+  contentHash: varchar('content_hash', { length: 64 }),
+  /** Preview/excerpt (truncated, max 1KB) */
+  preview: text('preview'),
+  /** Additional metadata (JSON) */
+  metadata: jsonb('metadata'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => ({
+  jobIdIdx: index('idx_job_artifacts_job_id').on(table.jobId),
+  artifactTypeIdx: index('idx_job_artifacts_type').on(table.artifactType),
+}));
+
+export type JobArtifact = typeof jobArtifacts.$inferSelect;
+export type NewJobArtifact = typeof jobArtifacts.$inferInsert;
+
+/**
  * User status enum - tracks account state
  */
 export const userStatusEnum = pgEnum('user_status', [
@@ -98,6 +181,8 @@ export type NewUser = typeof users.$inferInsert;
 export const jobsRelations = relations(jobs, ({ many }) => ({
   plans: many(jobPlans),
   audits: many(jobAudits),
+  traces: many(jobTraces),
+  artifacts: many(jobArtifacts),
 }));
 
 export const jobPlansRelations = relations(jobPlans, ({ one }) => ({
@@ -110,6 +195,20 @@ export const jobPlansRelations = relations(jobPlans, ({ one }) => ({
 export const jobAuditsRelations = relations(jobAudits, ({ one }) => ({
   job: one(jobs, {
     fields: [jobAudits.jobId],
+    references: [jobs.id],
+  }),
+}));
+
+export const jobTracesRelations = relations(jobTraces, ({ one }) => ({
+  job: one(jobs, {
+    fields: [jobTraces.jobId],
+    references: [jobs.id],
+  }),
+}));
+
+export const jobArtifactsRelations = relations(jobArtifacts, ({ one }) => ({
+  job: one(jobs, {
+    fields: [jobArtifacts.jobId],
     references: [jobs.id],
   }),
 }));
