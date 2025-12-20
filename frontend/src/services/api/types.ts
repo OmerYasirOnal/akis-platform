@@ -76,9 +76,11 @@ export interface JobTraceEvent {
 
 export interface JobArtifact {
   id: string;
-  artifactType: string;
+  /** Artifact type: doc_read, file_created, file_modified, file_preview */
+  artifactType: 'doc_read' | 'file_created' | 'file_modified' | 'file_deleted' | 'file_preview' | string;
   path: string;
-  operation: string;
+  /** Operation: read, create, modify, delete, preview */
+  operation: 'read' | 'create' | 'modify' | 'delete' | 'preview' | string;
   sizeBytes?: number;
   contentHash?: string;
   preview?: string;

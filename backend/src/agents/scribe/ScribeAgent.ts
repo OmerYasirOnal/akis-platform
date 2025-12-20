@@ -456,6 +456,20 @@ export class ScribeAgent extends BaseAgent {
         reasoning: 'In dry-run mode, we simulate the workflow without making actual changes. This allows testing the contract-first workflow safely.',
       });
 
+      // S2.1: Record preview artifacts for dryRun visibility in Job Details UI
+      for (const file of updatedFiles) {
+        this.traceRecorder?.recordFilePreview({
+          path: file.path,
+          sizeBytes: file.content.length,
+          // Provide a safe preview (first 500 chars, no secrets)
+          preview: file.content.substring(0, 500),
+          linesAdded: file.linesAdded,
+          diffPreview: file.linesAdded > 0 
+            ? `+${file.linesAdded} lines (new content)` 
+            : 'Content generated',
+        });
+      }
+
       results.dryRun = true;
       results.preview = {
         branch: workingBranch,

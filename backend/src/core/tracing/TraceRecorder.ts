@@ -74,9 +74,9 @@ export interface ExplainableToolCall {
 }
 
 export interface ArtifactRecord {
-  artifactType: 'doc_read' | 'file_created' | 'file_modified' | 'file_deleted';
+  artifactType: 'doc_read' | 'file_created' | 'file_modified' | 'file_deleted' | 'file_preview';
   path: string;
-  operation: 'read' | 'create' | 'modify' | 'delete';
+  operation: 'read' | 'create' | 'modify' | 'delete' | 'preview';
   sizeBytes?: number;
   contentHash?: string;
   preview?: string;
@@ -554,6 +554,44 @@ export class TraceRecorder {
   }
 
   /**
+   * Record a file preview (dry-run mode - no actual changes made)
+   * S2.1: Dry-run preview artifacts for observability
+   */
+  recordFilePreview(options: {
+    path: string;
+    sizeBytes?: number;
+    preview?: string;
+    linesAdded?: number;
+    diffPreview?: string;
+  }): void {
+    void this.trace({
+      eventType: 'file_created', // Use file_created event type for timeline consistency
+      stepId: 'preview',
+      title: `Preview: ${options.path}`,
+      detail: { 
+        path: options.path, 
+        sizeBytes: options.sizeBytes,
+        linesAdded: options.linesAdded,
+        isDryRun: true,
+      },
+      status: 'success',
+    });
+    
+    void this.recordArtifact({
+      artifactType: 'file_preview',
+      path: options.path,
+      operation: 'preview',
+      sizeBytes: options.sizeBytes,
+      preview: options.preview,
+      metadata: {
+        isDryRun: true,
+        linesAdded: options.linesAdded,
+        diffPreview: options.diffPreview ? truncateDiff(options.diffPreview) : undefined,
+      },
+    });
+  }
+
+  /**
    * Flush all pending traces and artifacts to the database
    */
   async flush(): Promise<void> {
@@ -578,17 +616,19 @@ export class TraceRecorder {
   /**
    * Get summary of recorded events (for job result)
    */
-  getSummary(): { traceCount: number; artifactCount: number; documentsRead: number; filesProduced: number } {
+  getSummary(): { traceCount: number; artifactCount: number; documentsRead: number; filesProduced: number; filesPreview: number } {
     const documentsRead = this.pendingArtifacts.filter(a => a.artifactType === 'doc_read').length;
     const filesProduced = this.pendingArtifacts.filter(a => 
       a.artifactType === 'file_created' || a.artifactType === 'file_modified'
     ).length;
+    const filesPreview = this.pendingArtifacts.filter(a => a.artifactType === 'file_preview').length;
     
     return {
       traceCount: this.pendingTraces.length,
       artifactCount: this.pendingArtifacts.length,
       documentsRead,
       filesProduced,
+      filesPreview,
     };
   }
 }

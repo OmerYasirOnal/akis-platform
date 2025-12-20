@@ -39,7 +39,7 @@ interface Artifact {
   createdAt: string;
 }
 
-type TabId = 'overview' | 'timeline' | 'documents' | 'files' | 'plan' | 'audit' | 'raw';
+type TabId = 'overview' | 'timeline' | 'documents' | 'files' | 'preview' | 'plan' | 'audit' | 'raw';
 
 // ============================================================================
 // Helper Functions
@@ -278,6 +278,11 @@ export default function JobDetailPage() {
     () => artifacts.filter((a) => a.artifactType === 'file_created' || a.artifactType === 'file_modified'),
     [artifacts]
   );
+  const previewFiles = useMemo(
+    () => artifacts.filter((a) => a.artifactType === 'file_preview'),
+    [artifacts]
+  );
+  const isDryRun = Boolean((job?.payload as Record<string, unknown>)?.dryRun);
 
   // MCP status derived from traces
   const mcpStatus = useMemo(() => {
@@ -458,6 +463,9 @@ export default function JobDetailPage() {
           <TabButton id="timeline" label="Timeline" count={traces.length} active={activeTab === 'timeline'} onClick={setActiveTab} />
           <TabButton id="documents" label="Documents Read" count={documentsRead.length} active={activeTab === 'documents'} onClick={setActiveTab} />
           <TabButton id="files" label="Files Produced" count={filesProduced.length} active={activeTab === 'files'} onClick={setActiveTab} />
+          {previewFiles.length > 0 && (
+            <TabButton id="preview" label="Preview Files" count={previewFiles.length} active={activeTab === 'preview'} onClick={setActiveTab} />
+          )}
           <TabButton id="plan" label="Plan" active={activeTab === 'plan'} onClick={setActiveTab} />
           <TabButton id="audit" label="Audit" active={activeTab === 'audit'} onClick={setActiveTab} />
           <TabButton id="raw" label="Raw" active={activeTab === 'raw'} onClick={setActiveTab} />
@@ -470,7 +478,7 @@ export default function JobDetailPage() {
         {activeTab === 'overview' && (
           <div className="space-y-6">
             {/* Stats Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className={`grid grid-cols-1 gap-4 ${previewFiles.length > 0 ? 'md:grid-cols-4' : 'md:grid-cols-3'}`}>
               <div className="bg-ak-surface-2 rounded-lg p-4 border border-ak-border">
                 <h4 className="text-xs font-medium text-ak-text-secondary uppercase tracking-wider mb-2">Trace Events</h4>
                 <p className="text-2xl font-bold text-ak-text-primary">{traces.length}</p>
@@ -483,6 +491,13 @@ export default function JobDetailPage() {
                 <h4 className="text-xs font-medium text-ak-text-secondary uppercase tracking-wider mb-2">Files Produced</h4>
                 <p className="text-2xl font-bold text-ak-text-primary">{filesProduced.length}</p>
               </div>
+              {previewFiles.length > 0 && (
+                <div className="bg-ak-surface-2 rounded-lg p-4 border border-amber-500/30 bg-amber-500/5">
+                  <h4 className="text-xs font-medium text-amber-400 uppercase tracking-wider mb-2">Preview Files</h4>
+                  <p className="text-2xl font-bold text-amber-400">{previewFiles.length}</p>
+                  <p className="text-xs text-ak-text-secondary mt-1">Dry run only</p>
+                </div>
+              )}
             </div>
 
             {/* PR/Branch/Commit Metadata - Prominent display for Scribe jobs */}
@@ -539,13 +554,57 @@ export default function JobDetailPage() {
         {activeTab === 'files' && (
           <div data-testid="files-list">
             {filesProduced.length === 0 ? (
-              <EmptyState
-                testId="files-empty"
-                message="No files were created or modified during this job"
-              />
+              <div className="text-center py-8">
+                <p className="text-sm text-ak-text-secondary mb-2">
+                  No files were created or modified during this job
+                </p>
+                {isDryRun && previewFiles.length > 0 && (
+                  <p className="text-xs text-ak-text-secondary">
+                    💡 This is a dry-run job. Check the{' '}
+                    <button 
+                      onClick={() => setActiveTab('preview')} 
+                      className="text-ak-primary hover:underline"
+                    >
+                      Preview Files
+                    </button>{' '}
+                    tab to see what would have been created.
+                  </p>
+                )}
+              </div>
             ) : (
               <div className="space-y-3">
                 {filesProduced.map((file) => (
+                  <ArtifactPreview 
+                    key={file.id} 
+                    artifact={file as ArtifactType} 
+                    showFullPath 
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Preview Files Tab (Dry Run) */}
+        {activeTab === 'preview' && (
+          <div data-testid="preview-files-list">
+            <div className="mb-4 p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg">
+              <div className="flex items-start gap-2">
+                <span className="text-lg">🔬</span>
+                <div>
+                  <p className="text-sm font-medium text-amber-400">Dry Run Preview</p>
+                  <p className="text-xs text-ak-text-secondary mt-1">
+                    These files were generated but NOT committed to the repository. 
+                    This is a preview of what would have been created.
+                  </p>
+                </div>
+              </div>
+            </div>
+            {previewFiles.length === 0 ? (
+              <EmptyState testId="preview-empty" message="No preview files available" />
+            ) : (
+              <div className="space-y-3">
+                {previewFiles.map((file) => (
                   <ArtifactPreview 
                     key={file.id} 
                     artifact={file as ArtifactType} 
