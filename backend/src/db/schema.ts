@@ -355,7 +355,7 @@ export const agentConfigs = pgTable('agent_configs', {
   scheduleCron: varchar('schedule_cron', { length: 100 }),
   
   // PR behavior
-  prTitleTemplate: varchar('pr_title_template', { length: 500 }).default('docs({agent}): {summary}'),
+  prTitleTemplate: varchar('pr_title_template', { length: 500 }).default('docs(scribe): update {path}'),
   prBodyTemplate: text('pr_body_template'),
   autoMerge: boolean('auto_merge').notNull().default(false),
   
