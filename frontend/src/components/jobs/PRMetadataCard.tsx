@@ -46,6 +46,8 @@ interface PRMetadataCardProps {
   payload?: unknown;
   /** Whether this was a dry run */
   isDryRun?: boolean;
+  /** Job state for showing pending/running status */
+  jobState?: 'pending' | 'running' | 'completed' | 'failed';
 }
 
 // ============================================================================
@@ -205,15 +207,17 @@ function InfoRow({ icon, label, value, copyValue, link }: InfoRowProps) {
 // Main Component
 // ============================================================================
 
-export function PRMetadataCard({ result, payload, isDryRun }: PRMetadataCardProps) {
+export function PRMetadataCard({ result, payload, isDryRun, jobState }: PRMetadataCardProps) {
   const prInfo = useMemo(() => extractPRInfo(result), [result]);
   const commitInfo = useMemo(() => extractCommitInfo(result), [result]);
   const branchInfo = useMemo(() => extractBranchInfo(result, payload), [result, payload]);
   const repoInfo = useMemo(() => extractRepoInfo(payload), [payload]);
 
   const hasAnyInfo = Boolean(prInfo || commitInfo || branchInfo.source || repoInfo.owner);
+  const isPendingOrRunning = jobState === 'pending' || jobState === 'running';
 
-  if (!hasAnyInfo && !isDryRun) {
+  // Always show the card for scribe jobs to provide context
+  if (!hasAnyInfo && !isDryRun && !isPendingOrRunning) {
     return null;
   }
 
@@ -361,16 +365,49 @@ export function PRMetadataCard({ result, payload, isDryRun }: PRMetadataCardProp
         {/* Dry Run Notice */}
         {isDryRun && !prInfo && (
           <div className="py-3">
-            <div className="flex items-start gap-3 p-3 bg-ak-surface-3/50 rounded-lg">
-              <span className="text-lg">ℹ️</span>
+            <div className="flex items-start gap-3 p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg">
+              <span className="text-lg">🔬</span>
               <div className="text-sm text-ak-text-secondary">
-                <p className="font-medium text-ak-text-primary mb-1">Dry Run Mode</p>
-                <p>No changes were made to GitHub. The preview above shows what would have been created.</p>
+                <p className="font-medium text-amber-400 mb-1">Dry Run Mode</p>
+                <p>No changes were made to GitHub. This preview shows what would be created.</p>
                 {branchInfo.source && (
-                  <p className="mt-1">
-                    Would create branch <code className="text-xs bg-ak-surface-3 px-1 rounded">{branchInfo.source}</code> from <code className="text-xs bg-ak-surface-3 px-1 rounded">{branchInfo.target}</code>
+                  <p className="mt-2 text-ak-text-primary">
+                    Would create branch <code className="text-xs bg-ak-surface-3 px-1.5 py-0.5 rounded">{branchInfo.source}</code> from <code className="text-xs bg-ak-surface-3 px-1.5 py-0.5 rounded">{branchInfo.target}</code>
                   </p>
                 )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Pending/Running Job Notice */}
+        {isPendingOrRunning && !prInfo && !isDryRun && (
+          <div className="py-3">
+            <div className="flex items-start gap-3 p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg">
+              <span className="text-lg animate-pulse">⏳</span>
+              <div className="text-sm text-ak-text-secondary">
+                <p className="font-medium text-blue-400 mb-1">
+                  {jobState === 'pending' ? 'Waiting to Start' : 'In Progress'}
+                </p>
+                <p>GitHub integration details will appear once the job completes.</p>
+                {branchInfo.source && (
+                  <p className="mt-2 text-ak-text-primary">
+                    Target branch: <code className="text-xs bg-ak-surface-3 px-1.5 py-0.5 rounded">{branchInfo.source}</code>
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* No PR Created (failed job without PR) */}
+        {jobState === 'failed' && !prInfo && !isDryRun && (
+          <div className="py-3">
+            <div className="flex items-start gap-3 p-3 bg-red-500/10 border border-red-500/20 rounded-lg">
+              <span className="text-lg">❌</span>
+              <div className="text-sm text-ak-text-secondary">
+                <p className="font-medium text-red-400 mb-1">Pull Request Not Created</p>
+                <p>The job failed before a pull request could be created. Check the error details above.</p>
               </div>
             </div>
           </div>

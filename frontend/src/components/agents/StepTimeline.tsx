@@ -55,14 +55,58 @@ const EVENT_ICONS: Record<string, string> = {
   'info': 'ℹ️',
 };
 
+/** Human-friendly event type labels */
+const EVENT_TYPE_LABELS: Record<string, string> = {
+  'step_start': 'Step Started',
+  'step_complete': 'Step Completed',
+  'step_failed': 'Step Failed',
+  'doc_read': 'Document Read',
+  'file_created': 'File Created',
+  'file_modified': 'File Modified',
+  'mcp_connect': 'Gateway Connection',
+  'mcp_call': 'GitHub Operation',
+  'ai_call': 'AI Processing',
+  'ai_parse_error': 'Parse Warning',
+  'tool_call': 'Tool Invocation',
+  'tool_result': 'Tool Result',
+  'decision': 'Decision Made',
+  'plan_step': 'Plan Step',
+  'reasoning': 'Reasoning Summary',
+  'error': 'Error',
+  'info': 'Info',
+};
+
+/** Get human-friendly label for event type */
+function getEventTypeLabel(type: string): string {
+  return EVENT_TYPE_LABELS[type] || type.split('_').map(w => 
+    w.charAt(0).toUpperCase() + w.slice(1)
+  ).join(' ');
+}
+
 const STEP_LABELS: Record<string, string> = {
-  'branch-setup': 'Branch Setup',
-  'analyze-content': 'Content Analysis',
-  'generate-content': 'Content Generation',
-  'reflect-critique': 'Quality Review',
-  'commit-changes': 'Commit Changes',
-  'create-pr': 'Pull Request',
-  'completion': 'Completed',
+  // Scribe workflow steps
+  'branch-setup': '🌿 Branch Setup',
+  'analyze-content': '🔍 Content Analysis',
+  'generate-content': '✍️ Content Generation',
+  'reflect-critique': '🔬 Quality Review',
+  'commit-changes': '💾 Commit Changes',
+  'create-pr': '🔀 Pull Request',
+  'completion': '✅ Completed',
+  // Common steps
+  'initialization': '🚀 Initialization',
+  'planning': '📋 Planning',
+  'execution': '⚡ Execution',
+  'validation': '✓ Validation',
+  'cleanup': '🧹 Cleanup',
+  // Trace workflow steps
+  'parse-requirements': '📄 Parse Requirements',
+  'generate-tests': '🧪 Generate Tests',
+  'validate-tests': '✓ Validate Tests',
+  // Proto workflow steps
+  'analyze-goal': '🎯 Analyze Goal',
+  'scaffold': '🏗️ Scaffold',
+  'implement': '💻 Implement',
+  'test-prototype': '🧪 Test Prototype',
 };
 
 function getEventIcon(type: string): string {
@@ -265,8 +309,15 @@ function EventRow({ event, isLast }: EventRowProps) {
           {/* Quick preview of reasoning if available */}
           {event.reasoningSummary && !showDetails && (
             <p className="text-xs text-ak-text-secondary mt-1 line-clamp-1" data-testid="reasoning-preview">
-              💭 {event.reasoningSummary}
+              💭 <span className="italic">{event.reasoningSummary}</span>
             </p>
+          )}
+          
+          {/* Event type badge for clarity */}
+          {!showDetails && !event.reasoningSummary && event.eventType !== 'step_start' && event.eventType !== 'step_complete' && (
+            <span className="text-[10px] text-ak-text-secondary/70 mt-0.5 inline-block">
+              {getEventTypeLabel(event.eventType)}
+            </span>
           )}
         </div>
 
@@ -281,36 +332,50 @@ function EventRow({ event, isLast }: EventRowProps) {
       {/* Expanded Details */}
       {showDetails && (
         <div className="px-3 pb-3 space-y-3 ml-9">
-          {/* Reasoning Summary - highlighted */}
+          {/* Reasoning Summary - highlighted with better label */}
           {event.reasoningSummary && (
             <div 
-              className="bg-purple-500/10 border border-purple-500/20 rounded-lg p-3"
+              className="bg-gradient-to-r from-purple-500/10 to-indigo-500/10 border border-purple-500/20 rounded-lg p-3"
               data-testid="reasoning-summary"
             >
-              <div className="text-xs text-purple-400 font-medium mb-1">💭 Reasoning</div>
-              <p className="text-sm text-ak-text-primary">{event.reasoningSummary}</p>
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-sm">💭</span>
+                <span className="text-xs font-semibold text-purple-400 uppercase tracking-wider">
+                  Reasoning Summary
+                </span>
+              </div>
+              <p className="text-sm text-ak-text-primary leading-relaxed">{event.reasoningSummary}</p>
             </div>
           )}
 
-          {/* Asked / Did / Why grid */}
+          {/* Asked / Did / Why grid - Explainability UI */}
           {(event.askedWhat || event.didWhat || event.whyReason) && (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               {event.askedWhat && (
-                <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-3">
-                  <div className="text-xs text-blue-400 font-medium mb-1">❓ Asked</div>
-                  <p className="text-sm text-ak-text-primary">{event.askedWhat}</p>
+                <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-3 hover:bg-blue-500/15 transition-colors">
+                  <div className="flex items-center gap-1.5 mb-2">
+                    <span className="text-sm">❓</span>
+                    <span className="text-xs font-semibold text-blue-400 uppercase tracking-wider">Asked</span>
+                  </div>
+                  <p className="text-sm text-ak-text-primary leading-relaxed">{event.askedWhat}</p>
                 </div>
               )}
               {event.didWhat && (
-                <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-lg p-3">
-                  <div className="text-xs text-emerald-400 font-medium mb-1">✓ Did</div>
-                  <p className="text-sm text-ak-text-primary">{event.didWhat}</p>
+                <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-lg p-3 hover:bg-emerald-500/15 transition-colors">
+                  <div className="flex items-center gap-1.5 mb-2">
+                    <span className="text-sm">✓</span>
+                    <span className="text-xs font-semibold text-emerald-400 uppercase tracking-wider">Action Taken</span>
+                  </div>
+                  <p className="text-sm text-ak-text-primary leading-relaxed">{event.didWhat}</p>
                 </div>
               )}
               {event.whyReason && (
-                <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-3">
-                  <div className="text-xs text-amber-400 font-medium mb-1">💡 Why</div>
-                  <p className="text-sm text-ak-text-primary">{event.whyReason}</p>
+                <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-3 hover:bg-amber-500/15 transition-colors">
+                  <div className="flex items-center gap-1.5 mb-2">
+                    <span className="text-sm">💡</span>
+                    <span className="text-xs font-semibold text-amber-400 uppercase tracking-wider">Rationale</span>
+                  </div>
+                  <p className="text-sm text-ak-text-primary leading-relaxed">{event.whyReason}</p>
                 </div>
               )}
             </div>
@@ -357,7 +422,29 @@ function EventRow({ event, isLast }: EventRowProps) {
 
 export function StepTimeline({ traces }: StepTimelineProps) {
   const [filter, setFilter] = useState<FilterType>('all');
-  const [expandedSteps, setExpandedSteps] = useState<Set<string>>(new Set());
+  // Smart auto-expand: start with errors and final steps expanded
+  const [expandedSteps, setExpandedSteps] = useState<Set<string>>(() => {
+    const autoExpand = new Set<string>();
+    // Find steps with errors or failures to auto-expand
+    const stepMap = new Map<string, JobTraceEvent[]>();
+    traces.forEach(e => {
+      const sid = e.stepId || 'ungrouped';
+      if (!stepMap.has(sid)) stepMap.set(sid, []);
+      stepMap.get(sid)!.push(e);
+    });
+    // Auto-expand: errors, last step, and completion
+    const stepIds = Array.from(stepMap.keys());
+    stepIds.forEach(stepId => {
+      const events = stepMap.get(stepId)!;
+      const hasError = events.some(e => e.eventType === 'error' || e.eventType === 'step_failed' || e.status === 'failed');
+      const isCompletion = stepId === 'completion' || stepId.includes('complete');
+      const isLast = stepId === stepIds[stepIds.length - 1];
+      if (hasError || isCompletion || isLast) {
+        autoExpand.add(stepId);
+      }
+    });
+    return autoExpand;
+  });
 
   // Group events by stepId
   const stepGroups = useMemo(() => {
@@ -460,10 +547,20 @@ export function StepTimeline({ traces }: StepTimelineProps) {
 
   if (traces.length === 0) {
     return (
-      <div className="text-center py-12 text-ak-text-secondary" data-testid="timeline-empty">
-        <div className="text-4xl mb-3">📋</div>
-        <p className="text-sm">No execution trace available yet.</p>
-        <p className="text-xs mt-1">Events will appear as the job executes.</p>
+      <div className="text-center py-12" data-testid="timeline-empty">
+        <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-ak-surface-2 border border-ak-border mb-4">
+          <span className="text-3xl">📋</span>
+        </div>
+        <h3 className="text-lg font-medium text-ak-text-primary mb-2">No Execution Trace Yet</h3>
+        <p className="text-sm text-ak-text-secondary max-w-md mx-auto">
+          Events will appear here as the agent executes. You&apos;ll see each step, tool call, and decision made during the workflow.
+        </p>
+        <div className="mt-4 flex items-center justify-center gap-4 text-xs text-ak-text-secondary">
+          <span className="flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span>
+            Waiting for events...
+          </span>
+        </div>
       </div>
     );
   }
@@ -514,8 +611,15 @@ export function StepTimeline({ traces }: StepTimelineProps) {
       </div>
 
       {visibleGroups.length === 0 && (
-        <div className="text-center py-8 text-ak-text-secondary">
-          <p className="text-sm">No events match the selected filter.</p>
+        <div className="text-center py-8 bg-ak-surface-2 rounded-lg border border-ak-border">
+          <span className="text-2xl mb-2 block">🔍</span>
+          <p className="text-sm text-ak-text-secondary">No events match the <strong className="text-ak-text-primary">{filter}</strong> filter.</p>
+          <button 
+            onClick={() => setFilter('all')} 
+            className="mt-3 text-xs text-ak-primary hover:underline"
+          >
+            Show all events
+          </button>
         </div>
       )}
     </div>

@@ -328,22 +328,35 @@ export default function JobDetailPage() {
     <div className={containerClass}>
       {/* Header */}
       <div className="mb-6">
-        <Link to="/dashboard/jobs" className="text-ak-primary hover:text-ak-text-primary mb-4 inline-block text-sm">
-          ← Back to Jobs
+        <Link to="/dashboard/jobs" className="text-ak-primary hover:text-ak-text-primary mb-4 inline-flex items-center gap-1 text-sm group">
+          <span className="group-hover:-translate-x-0.5 transition-transform">←</span> Back to Jobs
         </Link>
         <div className="flex items-center justify-between">
           <div>
-        <h1 className="text-2xl font-bold text-ak-text-primary">Job Details</h1>
+            <div className="flex items-center gap-3">
+              <h1 className="text-2xl font-bold text-ak-text-primary">Job Details</h1>
+              {job.state === 'running' && (
+                <span className="flex items-center gap-1.5 px-2.5 py-1 bg-blue-500/20 text-blue-400 rounded-full text-xs font-medium">
+                  <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse"></span>
+                  Running
+                </span>
+              )}
+            </div>
             {requestId && (
-              <p className="text-sm text-ak-text-secondary mt-1">Request ID: {requestId}</p>
+              <div className="flex items-center gap-2 text-sm text-ak-text-secondary mt-1">
+                <span>Request ID:</span>
+                <code className="text-xs bg-ak-surface-3 px-1.5 py-0.5 rounded">{requestId}</code>
+              </div>
             )}
           </div>
           <div className="flex items-center gap-2">
             <button
               onClick={() => loadJob()}
-              className="px-3 py-1.5 text-sm bg-ak-surface-2 hover:bg-ak-surface-3 rounded-lg text-ak-text-primary transition-colors"
+              disabled={isLoading}
+              className="px-3 py-1.5 text-sm bg-ak-surface-2 hover:bg-ak-surface-3 rounded-lg text-ak-text-primary transition-colors disabled:opacity-50 flex items-center gap-1.5"
             >
-              ↻ Refresh
+              <span className={isLoading ? 'animate-spin' : ''}>↻</span>
+              {isLoading ? 'Loading...' : 'Refresh'}
             </button>
           </div>
         </div>
@@ -478,6 +491,7 @@ export default function JobDetailPage() {
                 result={job.result}
                 payload={job.payload}
                 isDryRun={Boolean((job.payload as Record<string, unknown>)?.dryRun)}
+                jobState={job.state}
               />
             )}
 
