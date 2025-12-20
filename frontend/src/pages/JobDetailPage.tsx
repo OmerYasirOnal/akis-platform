@@ -366,7 +366,6 @@ export default function JobDetailPage() {
             <label className="text-sm font-medium text-ak-text-secondary">Updated At</label>
             <p className="mt-1 text-sm text-ak-text-primary">{new Date(job.updatedAt).toLocaleString()}</p>
           </div>
-          {/* Correlation ID with copy button */}
           {job.correlationId && (
             <div>
               <label className="text-sm font-medium text-ak-text-secondary">Correlation ID</label>
@@ -382,7 +381,6 @@ export default function JobDetailPage() {
               </div>
             </div>
           )}
-          {/* MCP Gateway URL */}
           {job.mcpGatewayUrl && (
             <div>
               <label className="text-sm font-medium text-ak-text-secondary">MCP Gateway</label>
@@ -588,7 +586,6 @@ export default function JobDetailPage() {
                 <p className="mt-1 text-sm text-ak-danger/80">{job.error}</p>
               </div>
             )}
-            {/* MCP Gateway URL in error context */}
             {job.mcpGatewayUrl && (
               <div className="flex items-center gap-2">
                 <span className="text-sm font-medium text-ak-text-secondary">MCP Gateway:</span>
@@ -597,7 +594,6 @@ export default function JobDetailPage() {
                 </span>
               </div>
             )}
-            {/* Raw Error Payload (collapsible) */}
             {job.rawErrorPayload && (
               <div className="mt-4 pt-4 border-t border-ak-border">
                 <button

@@ -15,6 +15,10 @@ export interface Job {
   errorCode?: string | null;
   /** User-friendly error message */
   errorMessage?: string | null;
+  /** Full structured error payload for debugging (JSON string) */
+  rawErrorPayload?: string | null;
+  /** MCP Gateway URL used for this job (for diagnostics) */
+  mcpGatewayUrl?: string | null;
   /** MCP Gateway correlation id (safe to share, helps debug gateway logs) */
   correlationId?: string | null;
   /** MCP Gateway URL used for this job (safe to share, no secrets) */
