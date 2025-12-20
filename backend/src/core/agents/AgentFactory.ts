@@ -1,4 +1,5 @@
 import type { IAgent } from './IAgent.js';
+import type { TraceRecorder } from '../tracing/TraceRecorder.js';
 
 /**
  * AgentFactory - Creates agents via factory pattern
@@ -13,6 +14,8 @@ export interface AgentDependencies {
     confluenceMCP?: unknown;
     aiService?: unknown;
   };
+  // S1.1: TraceRecorder for explainability
+  traceRecorder?: TraceRecorder;
   [key: string]: unknown;
 }
 
