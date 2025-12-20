@@ -6,6 +6,8 @@
 **Docker:** Available  
 **Postgres:** Running (127.0.0.1:5433)
 
+> 📋 **For QA Team Handoff**: See [QA_TEST_AUTOMATION_HANDOFF.md](./QA_TEST_AUTOMATION_HANDOFF.md) for comprehensive test automation structure, E2E workflows, and next steps.
+
 ---
 
 ## Summary
