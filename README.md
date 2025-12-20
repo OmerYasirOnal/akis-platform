@@ -260,6 +260,60 @@ npm run dev
 # The frontend will start on http://localhost:5173 (default port)
 ```
 
+## Job Details Diagnostics v1
+
+The Job Details page now includes comprehensive debugging capabilities:
+
+### 🔍 New Diagnostic Features
+
+**1. MCP Gateway URL Badge**
+- Shows which MCP Gateway was used for the job
+- Visible in job metadata (both success and failure cases)
+- Helps identify configuration mismatches (local vs hosted gateway)
+
+**2. Correlation ID**
+- Displayed prominently in job metadata
+- One-click copy to clipboard
+- Use for tracing requests across backend → gateway → GitHub logs
+
+**3. Raw Error Payload (Collapsible)**
+- Full structured error details for debugging
+- **Safe by default**: Automatically redacts secrets
+  - GitHub tokens (ghp_, gho_, ghs_, ghr_, ghu_, github_pat_)
+  - npm tokens (ntn_)
+  - JWT tokens and Authorization headers
+- Includes error code, correlation ID, hints, cause, and stack traces
+- Copyable for sharing with support
+
+**4. Structured Error Codes**
+- `MCP_UNREACHABLE` → Gateway not running or unreachable
+- `MCP_TIMEOUT` → Connection timeout
+- `MCP_DNS_FAILED` → Invalid gateway hostname
+- `MCP_UNAUTHORIZED` → Invalid/missing GitHub token
+- `MCP_FORBIDDEN` → Token lacks required scopes
+- `MCP_RATE_LIMITED` → GitHub API rate limit exceeded
+- Each error includes actionable hints
+
+### 📋 Verification Script
+
+Run deterministic verification for all MCP scenarios:
+
+```bash
+./scripts/verify-mcp-scenarios.sh
+```
+
+This script tests:
+- **Scenario A**: Gateway DOWN → MCP_UNREACHABLE error
+- **Scenario B**: Gateway UP → Dry run succeeds without side effects
+- **Scenario C**: Non-dry run → PR creation or structured error
+
+The script provides automated setup/teardown and manual verification instructions for UI testing.
+
+### 📖 Documentation
+
+- [docs/GITHUB_MCP_SETUP.md](docs/GITHUB_MCP_SETUP.md) - Complete MCP setup guide
+- [docs/MCP_ENV_SECURITY_IMPLEMENTATION.md](docs/MCP_ENV_SECURITY_IMPLEMENTATION.md) - Security implementation details
+
 ## CI/CD
 
 Proje GitHub Actions ile otomatik test edilir. Her push ve pull request'te CI workflow çalışır.
