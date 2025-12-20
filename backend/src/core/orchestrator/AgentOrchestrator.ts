@@ -11,6 +11,7 @@ import type { MCPTools } from '../../services/mcp/adapters/index.js';
 import { getEnv } from '../../config/env.js';
 import { GitHubMCPService, McpError, McpConnectionError } from '../../services/mcp/adapters/GitHubMCPService.js';
 import { StaticCheckRunner } from '../../services/checks/index.js';
+import { createTraceRecorder, type TraceRecorder } from '../tracing/TraceRecorder.js';
 
 export const DEV_GITHUB_BOOTSTRAP_TOKEN_PLACEHOLDER = '__DEV_GITHUB_BOOTSTRAP__';
 
@@ -198,6 +199,9 @@ export class AgentOrchestrator {
       throw new DatabaseError(`Failed to update job state: ${error instanceof Error ? error.message : String(error)}`, error);
     }
 
+    // S1.1: Create TraceRecorder for explainability (outside try so it's available in catch)
+    const traceRecorder: TraceRecorder = createTraceRecorder(jobId);
+
     // Execute agent with Planner→Execute→Reflector pipeline
     try {
       if (!job) {
@@ -214,6 +218,7 @@ export class AgentOrchestrator {
       
       const resolvedTools: AgentDependencies = { 
         ...this.tools,
+        traceRecorder, // S1.1: Inject TraceRecorder
         tools: {
           ...(this.tools.tools || {}),
           aiService: this.aiService, // Inject AIService
@@ -489,9 +494,28 @@ export class AgentOrchestrator {
         }
       }
 
+      // S1.1: Flush trace recorder before completing
+      await traceRecorder.flush();
+      
       // Auto-complete on success
       await this.completeJob(jobId, finalResult);
     } catch (error) {
+      // S1.1: Record error in trace and flush before failing
+      try {
+        traceRecorder.recordError(
+          error instanceof Error ? error.message : String(error),
+          error instanceof McpConnectionError ? error.code :
+          error instanceof McpError ? error.code :
+          error instanceof GitHubNotConnectedError ? error.code :
+          error instanceof MissingDependencyError ? error.code :
+          undefined
+        );
+        await traceRecorder.flush();
+      } catch (traceError) {
+        // Don't fail because trace flush failed
+        console.error(`Failed to flush traces for job ${jobId}:`, traceError);
+      }
+      
       // Auto-fail on error (failJob handles its own errors)
       try {
         await this.failJob(jobId, error);
