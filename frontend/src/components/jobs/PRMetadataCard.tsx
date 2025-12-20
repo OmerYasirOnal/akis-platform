@@ -10,6 +10,7 @@
  */
 
 import { useState, useMemo } from 'react';
+import type { JobState } from '../../services/api/types';
 
 // ============================================================================
 // Types
@@ -47,7 +48,7 @@ interface PRMetadataCardProps {
   /** Whether this was a dry run */
   isDryRun?: boolean;
   /** Job state for showing pending/running status */
-  jobState?: 'pending' | 'running' | 'completed' | 'failed';
+  jobState?: JobState;
 }
 
 // ============================================================================
@@ -214,7 +215,8 @@ export function PRMetadataCard({ result, payload, isDryRun, jobState }: PRMetada
   const repoInfo = useMemo(() => extractRepoInfo(payload), [payload]);
 
   const hasAnyInfo = Boolean(prInfo || commitInfo || branchInfo.source || repoInfo.owner);
-  const isPendingOrRunning = jobState === 'pending' || jobState === 'running';
+  const isPendingOrRunning =
+    jobState === 'pending' || jobState === 'running' || jobState === 'awaiting_approval';
 
   // Always show the card for scribe jobs to provide context
   if (!hasAnyInfo && !isDryRun && !isPendingOrRunning) {
@@ -387,7 +389,11 @@ export function PRMetadataCard({ result, payload, isDryRun, jobState }: PRMetada
               <span className="text-lg animate-pulse">⏳</span>
               <div className="text-sm text-ak-text-secondary">
                 <p className="font-medium text-blue-400 mb-1">
-                  {jobState === 'pending' ? 'Waiting to Start' : 'In Progress'}
+                  {jobState === 'pending'
+                    ? 'Waiting to Start'
+                    : jobState === 'awaiting_approval'
+                      ? 'Awaiting Approval'
+                      : 'In Progress'}
                 </p>
                 <p>GitHub integration details will appear once the job completes.</p>
                 {branchInfo.source && (
