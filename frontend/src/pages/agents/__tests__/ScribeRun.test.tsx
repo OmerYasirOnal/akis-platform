@@ -40,9 +40,6 @@ const renderWithProviders = (ui: React.ReactElement) => {
 // Helper to get submit button (type="submit")
 const getSubmitButton = () => screen.getByRole('button', { name: /submit|run/i });
 
-// Helper to flush all pending promises
-const flushPromises = () => new Promise(resolve => setTimeout(resolve, 0));
-
 describe('ScribeRunPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -134,8 +131,8 @@ describe('ScribeRunPage', () => {
     // Mock runAgent to return pending job
     (agentsApi.runAgent as ReturnType<typeof vi.fn>).mockImplementation(() =>
       Promise.resolve({
-        jobId: mockJobId,
-        state: 'pending',
+      jobId: mockJobId,
+      state: 'pending',
       })
     );
 
@@ -144,11 +141,11 @@ describe('ScribeRunPage', () => {
     (agentsApi.getJob as ReturnType<typeof vi.fn>).mockImplementation(() => {
       getJobCallCount++;
       return Promise.resolve({
-        id: mockJobId,
-        type: 'scribe',
+      id: mockJobId,
+      type: 'scribe',
         state: getJobCallCount >= 2 ? 'completed' : 'running',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
         result: getJobCallCount >= 2 ? { summary: 'Docs generated successfully' } : undefined,
       });
     });
@@ -167,11 +164,11 @@ describe('ScribeRunPage', () => {
     // Fill and submit
     const textarea = screen.getByRole('textbox');
     await act(async () => {
-      fireEvent.change(textarea, { target: { value: 'Documentation context' } });
+    fireEvent.change(textarea, { target: { value: 'Documentation context' } });
     });
 
     await act(async () => {
-      fireEvent.click(getSubmitButton());
+    fireEvent.click(getSubmitButton());
     });
 
     // Let runAgent resolve and trigger initial pollJob call
@@ -181,7 +178,7 @@ describe('ScribeRunPage', () => {
 
     // First getJob should have been called (immediate call after runAgent)
     await waitFor(() => {
-      expect(agentsApi.getJob).toHaveBeenCalled();
+        expect(agentsApi.getJob).toHaveBeenCalled();
     });
 
     // Advance time to trigger polling interval (2500ms)
