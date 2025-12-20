@@ -8,6 +8,7 @@ export const auditPhaseEnum = pgEnum('audit_phase', ['plan', 'execute', 'reflect
 /**
  * Trace event types for job execution tracking
  * S1.0: Scribe Observability - structured trace timeline
+ * S1.1: Explainability UI - tool calls, decisions, reasoning
  */
 export const traceEventTypeEnum = pgEnum('trace_event_type', [
   'step_start',    // Agent step started
@@ -22,6 +23,12 @@ export const traceEventTypeEnum = pgEnum('trace_event_type', [
   'ai_parse_error', // AI response parse error (fallback used)
   'error',         // General error event
   'info',          // Informational event
+  // S1.1: Explainability types
+  'tool_call',     // External tool invocation (Asked)
+  'tool_result',   // Tool response (Did)
+  'decision',      // Agent decision point (Why)
+  'plan_step',     // Plan step execution
+  'reasoning',     // Reasoning summary
 ]);
 
 export const jobs = pgTable('jobs', {
@@ -84,6 +91,7 @@ export type NewJobAudit = typeof jobAudits.$inferInsert;
 /**
  * Job traces - stores execution timeline events
  * S1.0: Scribe Observability - structured trace timeline
+ * S1.1: Explainability UI - reasoning summaries, Asked/Did/Why
  */
 export const jobTraces = pgTable('job_traces', {
   id: uuid('id').defaultRandom().primaryKey(),
@@ -93,7 +101,7 @@ export const jobTraces = pgTable('job_traces', {
   stepId: varchar('step_id', { length: 100 }),
   /** Event title/summary */
   title: varchar('title', { length: 500 }).notNull(),
-  /** Event details (JSON for flexibility) */
+  /** Event details (JSON for flexibility) - raw, server-side only */
   detail: jsonb('detail'),
   /** Duration in milliseconds (for timed events) */
   durationMs: integer('duration_ms'),
@@ -107,9 +115,25 @@ export const jobTraces = pgTable('job_traces', {
   errorCode: varchar('error_code', { length: 50 }),
   /** Timestamp of the event */
   timestamp: timestamp('timestamp').defaultNow().notNull(),
+  // S1.1: Explainability fields
+  /** Tool name for tool_call/tool_result events */
+  toolName: varchar('tool_name', { length: 100 }),
+  /** Summary of input/arguments (redacted, user-facing) */
+  inputSummary: text('input_summary'),
+  /** Summary of output/result (redacted, user-facing) */
+  outputSummary: text('output_summary'),
+  /** User-facing reasoning summary (2-4 sentences, never raw chain-of-thought) */
+  reasoningSummary: varchar('reasoning_summary', { length: 1000 }),
+  /** "Asked" - What did the agent ask the tool to do? */
+  askedWhat: text('asked_what'),
+  /** "Did" - What action was taken? */
+  didWhat: text('did_what'),
+  /** "Why" - Why was this action taken? (user-facing reason) */
+  whyReason: text('why_reason'),
 }, (table) => ({
   jobIdIdx: index('idx_job_traces_job_id').on(table.jobId),
   eventTypeIdx: index('idx_job_traces_event_type').on(table.eventType),
+  toolNameIdx: index('idx_job_traces_tool_name').on(table.toolName),
 }));
 
 export type JobTrace = typeof jobTraces.$inferSelect;
@@ -118,6 +142,7 @@ export type NewJobTrace = typeof jobTraces.$inferInsert;
 /**
  * Job artifacts - stores files/documents produced by jobs
  * S1.0: Scribe Observability - artifacts tracking
+ * S1.1: Explainability UI - diff previews for changed files
  */
 export const jobArtifacts = pgTable('job_artifacts', {
   id: uuid('id').defaultRandom().primaryKey(),
@@ -137,6 +162,13 @@ export const jobArtifacts = pgTable('job_artifacts', {
   /** Additional metadata (JSON) */
   metadata: jsonb('metadata'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
+  // S1.1: Diff preview fields
+  /** Unified diff preview for modified files (truncated) */
+  diffPreview: text('diff_preview'),
+  /** Number of lines added */
+  linesAdded: integer('lines_added'),
+  /** Number of lines removed */
+  linesRemoved: integer('lines_removed'),
 }, (table) => ({
   jobIdIdx: index('idx_job_artifacts_job_id').on(table.jobId),
   artifactTypeIdx: index('idx_job_artifacts_type').on(table.artifactType),

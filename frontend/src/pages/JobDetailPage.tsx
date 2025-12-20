@@ -1,11 +1,12 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { api } from '../services/api';
-import type { Job } from '../services/api';
+import type { Job, JobTraceEvent as TraceEventType, JobArtifact as ArtifactType } from '../services/api';
 import { Badge } from '../components/ui/Badge';
 import { Pill } from '../components/ui/Pill';
 import { CodeBlock } from '../components/ui/CodeBlock';
 import { ErrorToast } from '../components/ui/ErrorToast';
+import { ExplainableTimeline } from '../components/agents/ExplainableTimeline';
 
 // ============================================================================
 // Types
@@ -84,40 +85,6 @@ function getErrorHint(errorCode?: string | null): string | null {
 }
 
 /**
- * Get event type icon
- */
-function getEventIcon(eventType: string): string {
-  const icons: Record<string, string> = {
-    'step_start': '▶️',
-    'step_complete': '✅',
-    'step_failed': '❌',
-    'doc_read': '📄',
-    'file_created': '📝',
-    'file_modified': '✏️',
-    'mcp_connect': '🔌',
-    'mcp_call': '⚡',
-    'ai_call': '🤖',
-    'ai_parse_error': '⚠️',
-    'error': '🚫',
-    'info': 'ℹ️',
-  };
-  return icons[eventType] || '•';
-}
-
-/**
- * Get status color class
- */
-function getStatusColor(status?: string): string {
-  const colors: Record<string, string> = {
-    'success': 'text-green-400',
-    'failed': 'text-red-400',
-    'warning': 'text-yellow-400',
-    'info': 'text-blue-400',
-  };
-  return colors[status || 'info'] || 'text-ak-text-secondary';
-}
-
-/**
  * Format bytes to human-readable size
  */
 function formatBytes(bytes?: number): string {
@@ -125,16 +92,6 @@ function formatBytes(bytes?: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
-
-/**
- * Format duration in ms to human-readable
- */
-function formatDuration(ms?: number): string {
-  if (ms === undefined || ms === null) return '-';
-  if (ms < 1000) return `${ms}ms`;
-  if (ms < 60000) return `${(ms / 1000).toFixed(1)}s`;
-  return `${(ms / 60000).toFixed(1)}m`;
 }
 
 /**
@@ -230,56 +187,6 @@ function CollapsibleSection({ title, defaultOpen = false, children }: Collapsibl
         <span className="text-ak-text-secondary">{isOpen ? '▼' : '▶'}</span>
       </button>
       {isOpen && <div className="p-4 bg-ak-surface">{children}</div>}
-    </div>
-  );
-}
-
-interface TimelineItemProps {
-  event: TraceEvent;
-}
-
-function TimelineItem({ event }: TimelineItemProps) {
-  const [expanded, setExpanded] = useState(false);
-
-  return (
-    <div className="flex gap-3 pb-4 border-l-2 border-ak-border pl-4 ml-2 relative">
-      <div className="absolute -left-2 top-0 w-4 h-4 rounded-full bg-ak-surface-2 border-2 border-ak-border flex items-center justify-center text-xs">
-        {getEventIcon(event.eventType)}
-      </div>
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className={`text-sm font-medium ${getStatusColor(event.status)}`}>
-            {event.title}
-          </span>
-          {event.durationMs && (
-            <span className="text-xs text-ak-text-secondary">
-              {formatDuration(event.durationMs)}
-            </span>
-          )}
-          {event.correlationId && (
-            <span className="text-xs text-ak-text-secondary font-mono">
-              [{event.correlationId.slice(0, 8)}...]
-            </span>
-          )}
-        </div>
-        <div className="text-xs text-ak-text-secondary mt-1">
-          {new Date(event.timestamp).toLocaleTimeString()} · {event.eventType}
-          {event.stepId && ` · Step: ${event.stepId}`}
-        </div>
-        {event.detail && (
-          <button
-            onClick={() => setExpanded(!expanded)}
-            className="text-xs text-ak-primary hover:underline mt-1"
-          >
-            {expanded ? 'Hide details' : 'Show details'}
-          </button>
-        )}
-        {expanded && event.detail && (
-          <div className="mt-2 p-2 bg-ak-surface-3 rounded text-xs font-mono overflow-x-auto">
-            <pre>{redactSecrets(JSON.stringify(event.detail, null, 2))}</pre>
-          </div>
-        )}
-      </div>
     </div>
   );
 }
@@ -587,18 +494,13 @@ export default function JobDetailPage() {
           </div>
         )}
 
-        {/* Timeline Tab */}
+        {/* Timeline Tab - S1.1: Explainability UI */}
         {activeTab === 'timeline' && (
-          <div>
-            {traces.length === 0 ? (
-              <EmptyState testId="timeline-empty" message="No trace events recorded for this job" />
-            ) : (
-              <div className="space-y-0" data-testid="timeline-list">
-                {traces.map((event) => (
-                  <TimelineItem key={event.id} event={event} />
-                ))}
-              </div>
-            )}
+          <div data-testid="timeline-list">
+            <ExplainableTimeline 
+              traces={traces as TraceEventType[]} 
+              artifacts={artifacts as ArtifactType[]}
+            />
           </div>
         )}
 

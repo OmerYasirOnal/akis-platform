@@ -18,7 +18,13 @@ export type TraceEventType =
   | 'ai_call'
   | 'ai_parse_error'
   | 'error'
-  | 'info';
+  | 'info'
+  // S1.1: Explainability types
+  | 'tool_call'
+  | 'tool_result'
+  | 'decision'
+  | 'plan_step'
+  | 'reasoning';
 
 export type TraceStatus = 'success' | 'failed' | 'warning' | 'info';
 
@@ -32,6 +38,39 @@ export interface TraceEvent {
   correlationId?: string;
   gatewayUrl?: string;
   errorCode?: string;
+  // S1.1: Explainability fields
+  toolName?: string;
+  inputSummary?: string;
+  outputSummary?: string;
+  reasoningSummary?: string;
+  askedWhat?: string;
+  didWhat?: string;
+  whyReason?: string;
+}
+
+/**
+ * Explainability event for tool calls with Asked/Did/Why/Output
+ */
+export interface ExplainableToolCall {
+  toolName: string;
+  /** What did we ask the tool to do? (user-facing) */
+  asked: string;
+  /** What action was taken? (user-facing) */
+  did: string;
+  /** Why was this action taken? (2-4 sentences, never raw chain-of-thought) */
+  why: string;
+  /** Summary of input arguments (redacted) */
+  inputSummary?: string;
+  /** Summary of output/result (redacted) */
+  outputSummary?: string;
+  /** Was the call successful? */
+  success: boolean;
+  /** Duration in milliseconds */
+  durationMs?: number;
+  /** Correlation ID for tracing */
+  correlationId?: string;
+  /** Raw detail (server-side only, will be redacted) */
+  rawDetail?: Record<string, unknown>;
 }
 
 export interface ArtifactRecord {
@@ -83,23 +122,52 @@ function truncatePreview(preview: string | undefined): string | null {
 }
 
 /**
+ * Maximum size for diff preview
+ */
+const MAX_DIFF_SIZE = 2 * 1024; // 2KB
+
+/**
+ * Truncate diff preview text
+ */
+function truncateDiff(diff: string | undefined): string | null {
+  if (!diff) return null;
+  if (diff.length <= MAX_DIFF_SIZE) return diff;
+  return diff.substring(0, MAX_DIFF_SIZE - 30) + '\n... [diff truncated]';
+}
+
+/**
+ * Patterns for sensitive data that must be redacted
+ */
+const SENSITIVE_PATTERNS = [
+  /token/i,
+  /secret/i,
+  /password/i,
+  /apikey/i,
+  /api_key/i,
+  /authorization/i,
+  /bearer/i,
+];
+
+/**
+ * Token patterns to redact in text
+ */
+const TOKEN_PATTERNS = [
+  /ghp_[A-Za-z0-9_]+/g,       // GitHub PAT
+  /gho_[A-Za-z0-9_]+/g,       // GitHub OAuth
+  /ghs_[A-Za-z0-9_]+/g,       // GitHub App
+  /ghr_[A-Za-z0-9_]+/g,       // GitHub Refresh
+  /sk-[A-Za-z0-9_-]+/g,       // OpenAI
+  /Bearer\s+[A-Za-z0-9._-]+/gi, // Bearer tokens
+];
+
+/**
  * Redact sensitive values from detail objects
  */
 function redactSensitiveData(detail: Record<string, unknown>): Record<string, unknown> {
-  const sensitivePatterns = [
-    /token/i,
-    /secret/i,
-    /password/i,
-    /apikey/i,
-    /api_key/i,
-    /authorization/i,
-    /bearer/i,
-  ];
-  
   const result: Record<string, unknown> = {};
   
   for (const [key, value] of Object.entries(detail)) {
-    const isSensitive = sensitivePatterns.some(p => p.test(key));
+    const isSensitive = SENSITIVE_PATTERNS.some(p => p.test(key));
     
     if (isSensitive && typeof value === 'string') {
       result[key] = '[REDACTED]';
@@ -110,6 +178,17 @@ function redactSensitiveData(detail: Record<string, unknown>): Record<string, un
     }
   }
   
+  return result;
+}
+
+/**
+ * Redact token patterns from text
+ */
+function redactText(text: string): string {
+  let result = text;
+  for (const pattern of TOKEN_PATTERNS) {
+    result = result.replace(pattern, '[REDACTED]');
+  }
   return result;
 }
 
@@ -143,6 +222,14 @@ export class TraceRecorder {
       correlationId: event.correlationId,
       gatewayUrl: event.gatewayUrl,
       errorCode: event.errorCode,
+      // S1.1: Explainability fields
+      toolName: event.toolName?.substring(0, 100),
+      inputSummary: event.inputSummary ? redactText(event.inputSummary) : null,
+      outputSummary: event.outputSummary ? redactText(event.outputSummary) : null,
+      reasoningSummary: event.reasoningSummary?.substring(0, 1000),
+      askedWhat: event.askedWhat ? redactText(event.askedWhat) : null,
+      didWhat: event.didWhat ? redactText(event.didWhat) : null,
+      whyReason: event.whyReason ? redactText(event.whyReason) : null,
     };
 
     this.pendingTraces.push(traceRow);
@@ -332,6 +419,138 @@ export class TraceRecorder {
       detail,
       status: 'info',
     });
+  }
+
+  // =========================================================================
+  // S1.1: Explainability Methods
+  // =========================================================================
+
+  /**
+   * Record an explainable tool call with Asked/Did/Why/Output
+   * This is the primary method for recording tool interactions with reasoning
+   */
+  recordToolCall(call: ExplainableToolCall): void {
+    void this.trace({
+      eventType: 'tool_call',
+      title: `Tool: ${call.toolName}`,
+      toolName: call.toolName,
+      askedWhat: call.asked,
+      didWhat: call.did,
+      whyReason: call.why,
+      inputSummary: call.inputSummary,
+      outputSummary: call.outputSummary,
+      durationMs: call.durationMs,
+      correlationId: call.correlationId,
+      detail: call.rawDetail,
+      status: call.success ? 'success' : 'failed',
+    });
+  }
+
+  /**
+   * Record a decision point with reasoning
+   * Use this when the agent makes a significant decision
+   */
+  recordDecision(options: {
+    title: string;
+    decision: string;
+    reasoning: string;
+    alternatives?: string[];
+    stepId?: string;
+  }): void {
+    void this.trace({
+      eventType: 'decision',
+      title: options.title,
+      stepId: options.stepId,
+      didWhat: options.decision,
+      reasoningSummary: options.reasoning,
+      detail: options.alternatives ? { alternatives: options.alternatives } : undefined,
+      status: 'info',
+    });
+  }
+
+  /**
+   * Record a plan step with reasoning
+   */
+  recordPlanStep(options: {
+    stepId: string;
+    title: string;
+    description: string;
+    reasoning: string;
+    status: 'pending' | 'running' | 'completed' | 'failed';
+  }): void {
+    void this.trace({
+      eventType: 'plan_step',
+      title: options.title,
+      stepId: options.stepId,
+      didWhat: options.description,
+      reasoningSummary: options.reasoning,
+      status: options.status === 'failed' ? 'failed' : 
+              options.status === 'completed' ? 'success' : 'info',
+    });
+  }
+
+  /**
+   * Record a reasoning summary for the current execution phase
+   * This is a user-facing summary (2-4 sentences), never raw chain-of-thought
+   */
+  recordReasoning(options: {
+    phase: string;
+    summary: string;
+    stepId?: string;
+  }): void {
+    void this.trace({
+      eventType: 'reasoning',
+      title: `Reasoning: ${options.phase}`,
+      stepId: options.stepId,
+      reasoningSummary: options.summary,
+      status: 'info',
+    });
+  }
+
+  /**
+   * Record a file modification with diff preview
+   */
+  recordFileModified(options: {
+    path: string;
+    sizeBytes?: number;
+    preview?: string;
+    diffPreview?: string;
+    linesAdded?: number;
+    linesRemoved?: number;
+  }): void {
+    void this.trace({
+      eventType: 'file_modified',
+      title: `Modified: ${options.path}`,
+      detail: { 
+        path: options.path, 
+        sizeBytes: options.sizeBytes,
+        linesAdded: options.linesAdded,
+        linesRemoved: options.linesRemoved,
+      },
+      status: 'success',
+    });
+    
+    void this.recordArtifact({
+      artifactType: 'file_modified',
+      path: options.path,
+      operation: 'modify',
+      sizeBytes: options.sizeBytes,
+      preview: options.preview,
+    });
+    
+    // Store diff info in metadata for the artifact
+    if (options.diffPreview || options.linesAdded !== undefined || options.linesRemoved !== undefined) {
+      // The artifact was just pushed, update its metadata
+      const lastArtifact = this.pendingArtifacts[this.pendingArtifacts.length - 1];
+      if (lastArtifact) {
+        lastArtifact.metadata = {
+          ...((lastArtifact.metadata as Record<string, unknown>) || {}),
+          diffPreview: options.diffPreview ? truncateDiff(options.diffPreview) : undefined,
+          linesAdded: options.linesAdded,
+          linesRemoved: options.linesRemoved,
+        };
+      }
+    }
   }
 
   /**

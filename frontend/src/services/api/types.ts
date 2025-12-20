@@ -45,6 +45,20 @@ export interface JobTraceEvent {
   gatewayUrl?: string;
   errorCode?: string;
   timestamp: string;
+  // S1.1: Explainability fields
+  toolName?: string;
+  /** Summary of input/arguments (redacted, user-facing) */
+  inputSummary?: string;
+  /** Summary of output/result (redacted, user-facing) */
+  outputSummary?: string;
+  /** User-facing reasoning summary (2-4 sentences) */
+  reasoningSummary?: string;
+  /** "Asked" - What did the agent ask the tool to do? */
+  askedWhat?: string;
+  /** "Did" - What action was taken? */
+  didWhat?: string;
+  /** "Why" - Why was this action taken? */
+  whyReason?: string;
 }
 
 export interface JobArtifact {
@@ -57,6 +71,13 @@ export interface JobArtifact {
   preview?: string;
   metadata?: Record<string, unknown>;
   createdAt: string;
+  // S1.1: Diff preview fields
+  /** Unified diff preview for modified files */
+  diffPreview?: string;
+  /** Number of lines added */
+  linesAdded?: number;
+  /** Number of lines removed */
+  linesRemoved?: number;
 }
 
 export interface JobPlan {
