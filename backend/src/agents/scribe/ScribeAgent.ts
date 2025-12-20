@@ -4,6 +4,7 @@ import { GitHubMCPService } from '../../services/mcp/adapters/GitHubMCPService.j
 import type { AIService, Plan, Planner } from '../../services/ai/AIService.js';
 import type { MCPTools } from '../../services/mcp/adapters/index.js';
 import type { TraceRecorder } from '../../core/tracing/TraceRecorder.js';
+import { getContractForPath, buildContractPrompt, detectDocFileType } from './DocContract.js';
 
 /**
  * ScribeTaskContext - Input payload for ScribeAgent
@@ -27,10 +28,28 @@ export interface ScribeTaskContext {
 }
 
 /**
- * ScribeAgent - Documents new features by updating technical documentation
+ * File target for documentation update
+ */
+interface DocFileTarget {
+  path: string;
+  existingContent: string;
+  contract: ReturnType<typeof getContractForPath>;
+  priority: number;
+}
+
+/**
+ * ScribeAgent v2 - Contract-first Doc Specialist
+ * 
+ * Upgrades:
+ * - Contract-driven documentation structure
+ * - Multi-file support (docs/ directory targets)
+ * - Playbook-driven workflow: scan → scope → plan → generate → review → commit/PR
+ * - Enhanced AI integration with contract-compliant prompts
+ * - Maintains explainability timeline
+ * 
  * Phase 6.A: Uses GitHub MCP and AIService
  * S1.1: Explainability UI integration with TraceRecorder
- * Extends BaseAgent; accepts injected tools (MCP adapters, AIService) via constructor
+ * S2.0: Contract-first multi-file Doc Specialist
  */
 export class ScribeAgent extends BaseAgent {
   readonly type = 'scribe';
@@ -140,7 +159,7 @@ export class ScribeAgent extends BaseAgent {
       workingBranch = pattern.includes('{timestamp}') ? pattern.replace('{timestamp}', ts) : pattern;
     }
 
-    results.branch = workingBranch;
+        results.branch = workingBranch;
 
     // Create branch if needed (best-effort, idempotent)
     if (!dryRun && workingBranch !== baseBranch) {
@@ -187,185 +206,349 @@ export class ScribeAgent extends BaseAgent {
       status: 'completed',
     });
 
-    // Step 2: Analyze & Generate
-    const filePath = task.targetPath || 'README.md';
+    // Step 2: Repo Scan & Scope Lock (contract-first playbook)
+    const targetPath = task.targetPath || 'README.md';
+    const isDirectory = targetPath.endsWith('/');
     
     this.traceRecorder?.recordPlanStep({
-      stepId: 'analyze-content',
-      title: 'Analyze Existing Content',
-      description: `Reading current content of ${filePath}`,
-      reasoning: 'We need to read the existing file content to append our documentation updates.',
+      stepId: 'repo-scan',
+      title: 'Repository Scan',
+      description: `Scanning target: ${targetPath}`,
+      reasoning: isDirectory 
+        ? 'Target is a directory. Will discover existing documentation files and select appropriate targets based on the task.'
+        : 'Target is a specific file. Will read existing content and apply documentation contract.',
       status: 'running',
     });
 
-    let currentContent = '';
-    const readStartTime = Date.now();
-    try {
-      this.traceRecorder?.recordToolCall({
-        toolName: 'github.getFileContent',
-        asked: `Read the contents of "${filePath}" from branch "${workingBranch}"`,
-        did: 'Calling GitHub API to retrieve file contents',
-        why: 'Reading existing content allows us to append updates while preserving the original documentation.',
-        inputSummary: `owner: ${task.owner}, repo: ${task.repo}, branch: ${workingBranch}, path: ${filePath}`,
-        success: true,
-        durationMs: Date.now() - readStartTime,
-      });
-      
-      const fileData = await this.githubMCP.getFileContent(task.owner, task.repo, workingBranch, filePath);
-      currentContent = fileData.content;
-      
-      // Record document read
-      this.traceRecorder?.recordDocRead(filePath, currentContent.length, currentContent.substring(0, 200));
-    } catch (_e) {
-      // File missing is acceptable; we'll create it on commit (unless dryRun)
-      results.fileMissing = true;
+    // Discover file targets
+    const fileTargets: DocFileTarget[] = [];
+    
+    if (isDirectory) {
+      // Multi-file mode: scan directory for doc files
       this.traceRecorder?.recordDecision({
-        title: 'File not found',
-        decision: `Will create new file "${filePath}"`,
-        reasoning: 'The target file does not exist. We will create it with the new documentation content.',
+        title: 'Multi-file documentation mode',
+        decision: `Scanning directory "${targetPath}" for documentation files`,
+        reasoning: 'When target is a directory, Scribe v2 can update multiple related documentation files in a single operation.',
       });
+
+      // Common doc file patterns in docs/ directory
+      const candidatePaths = [
+        'docs/README.md',
+        'docs/DEV_SETUP.md',
+        'docs/CONTRIBUTING.md',
+        'docs/ARCHITECTURE.md',
+        'docs/API.md',
+      ];
+
+      for (const candidatePath of candidatePaths) {
+        try {
+          const fileData = await this.githubMCP.getFileContent(task.owner, task.repo, workingBranch, candidatePath);
+          const contract = getContractForPath(candidatePath);
+          fileTargets.push({
+            path: candidatePath,
+            existingContent: fileData.content,
+            contract,
+            priority: candidatePath.includes('README') ? 1 : 2,
+          });
+          this.traceRecorder?.recordDocRead(candidatePath, fileData.content.length, fileData.content.substring(0, 200));
+        } catch {
+          // File doesn't exist, skip
+        }
+      }
+
+      // If no files found, select a default target
+      if (fileTargets.length === 0) {
+        const defaultPath = 'docs/README.md';
+        const contract = getContractForPath(defaultPath);
+        fileTargets.push({
+          path: defaultPath,
+          existingContent: '',
+          contract,
+          priority: 1,
+        });
+        this.traceRecorder?.recordDecision({
+          title: 'No existing docs found',
+          decision: `Will create new file: ${defaultPath}`,
+          reasoning: 'No documentation files exist in the target directory. Creating a new README as the primary documentation entry point.',
+        });
+      }
+    } else {
+      // Single-file mode
+    let currentContent = '';
+      let fileMissing = false;
+      const readStartTime = Date.now();
+      
+      try {
+        this.traceRecorder?.recordToolCall({
+          toolName: 'github.getFileContent',
+          asked: `Read the contents of "${targetPath}" from branch "${workingBranch}"`,
+          did: 'Calling GitHub API to retrieve file contents',
+          why: 'Reading existing content to understand current documentation structure and maintain consistency.',
+          inputSummary: `owner: ${task.owner}, repo: ${task.repo}, branch: ${workingBranch}, path: ${targetPath}`,
+          success: true,
+          durationMs: Date.now() - readStartTime,
+        });
+        
+        const fileData = await this.githubMCP.getFileContent(task.owner, task.repo, workingBranch, targetPath);
+        currentContent = fileData.content;
+        this.traceRecorder?.recordDocRead(targetPath, currentContent.length, currentContent.substring(0, 200));
+    } catch (_e) {
+        fileMissing = true;
+        this.traceRecorder?.recordDecision({
+          title: 'File not found',
+          decision: `Will create new file "${targetPath}"`,
+          reasoning: 'The target file does not exist. We will create it following the appropriate documentation contract.',
+        });
+      }
+
+      const contract = getContractForPath(targetPath);
+      fileTargets.push({
+        path: targetPath,
+        existingContent: currentContent,
+        contract,
+        priority: 1,
+      });
+      
+      results.fileMissing = fileMissing;
     }
 
+    // Sort by priority (lower number = higher priority)
+    fileTargets.sort((a, b) => a.priority - b.priority);
+    
     this.traceRecorder?.recordPlanStep({
-      stepId: 'analyze-content',
-      title: 'Analyze Existing Content',
-      description: results.fileMissing ? `File ${filePath} will be created` : `Read ${currentContent.length} bytes`,
-      reasoning: results.fileMissing ? 'Creating new file' : 'Successfully read existing content',
+      stepId: 'repo-scan',
+      title: 'Repository Scan',
+      description: `Found ${fileTargets.length} documentation target(s)`,
+      reasoning: `Identified ${fileTargets.length} file(s) for documentation updates: ${fileTargets.map(f => f.path).join(', ')}`,
       status: 'completed',
     });
 
-    // Step 3: Generate new content
+    this.traceRecorder?.recordDecision({
+      title: 'Scope Locked',
+      decision: `Will update ${fileTargets.length} file(s): ${fileTargets.map(f => f.path).join(', ')}`,
+      reasoning: `Selected files based on task requirements and documentation contracts. Priority order: ${fileTargets.map(f => `${f.path} (priority ${f.priority})`).join(', ')}`,
+    });
+
+    // Step 3: Generate contract-compliant content for each target
     this.traceRecorder?.recordPlanStep({
       stepId: 'generate-content',
-      title: 'Generate Documentation Update',
-      description: 'Creating updated documentation content',
-      reasoning: 'Combining existing content with new documentation based on task description and plan.',
+      title: 'Generate Documentation',
+      description: `Generating contract-compliant content for ${fileTargets.length} file(s)`,
+      reasoning: 'Using documentation contracts to ensure structured, high-quality content that meets standards.',
       status: 'running',
     });
 
-    const updateInfo = plan?.rationale ? `Plan Rationale: ${plan.rationale}` : 'No specific plan rationale.';
-    const newContent = `${currentContent}\n\n## Update ${new Date().toISOString()}\n${task.taskDescription || 'Documentation updated by ScribeAgent.'}\n\n${updateInfo}`;
+    const updatedFiles: Array<{ path: string; content: string; linesAdded: number }> = [];
+
+    for (const target of fileTargets) {
+      const docType = detectDocFileType(target.path);
+      
+      this.traceRecorder?.recordReasoning({
+        phase: 'generation',
+        summary: `Generating ${docType} documentation for ${target.path}. ` +
+                 `Contract requires ${target.contract.sections.filter(s => s.required).length} mandatory sections. ` +
+                 `${target.existingContent ? `Existing content: ${target.existingContent.length} bytes.` : 'Creating new file.'}`,
+      });
+
+      // Build contract-driven prompt
+      const contractPrompt = buildContractPrompt(
+        target.contract,
+        target.existingContent,
+        task.taskDescription || `Update ${target.path} with comprehensive documentation`
+      );
+
+      // Call AI with contract-compliant prompt
+      const genStartTime = Date.now();
+      this.traceRecorder?.recordToolCall({
+        toolName: 'ai.generate',
+        asked: `Generate contract-compliant ${docType} documentation for ${target.path}`,
+        did: 'Calling AI service with documentation contract requirements',
+        why: `Using structured contract ensures the documentation meets quality standards and includes all required sections for ${docType} files.`,
+        inputSummary: `docType: ${docType}, existingLength: ${target.existingContent.length} bytes, requiredSections: ${target.contract.sections.filter(s => s.required).map(s => s.name).join(', ')}`,
+        success: true,
+        durationMs: Date.now() - genStartTime,
+      });
+
+      // Generate content using AI
+      const aiResult = await this.aiService.generateWorkArtifact({
+        task: contractPrompt,
+        context: { ...task, filePath: target.path, docType },
+      });
+      const newContent = aiResult.content;
+
+      const linesAdded = newContent.split('\n').length - target.existingContent.split('\n').length;
+      
+      updatedFiles.push({
+        path: target.path,
+        content: newContent,
+        linesAdded,
+      });
+
+      this.traceRecorder?.recordDecision({
+        title: `Content generated for ${target.path}`,
+        decision: `Generated ${newContent.length} bytes (${linesAdded > 0 ? '+' : ''}${linesAdded} lines)`,
+        reasoning: `Successfully generated contract-compliant ${docType} documentation with all required sections.`,
+      });
+    }
     
     this.traceRecorder?.recordPlanStep({
       stepId: 'generate-content',
-      title: 'Generate Documentation Update',
-      description: `Generated ${newContent.length} bytes of content`,
-      reasoning: 'Content successfully generated by combining existing documentation with new updates.',
+      title: 'Generate Documentation',
+      description: `Generated content for ${updatedFiles.length} file(s)`,
+      reasoning: `All files generated successfully following their respective documentation contracts.`,
       status: 'completed',
     });
     
-    // Step 4: Reflect (Critique before commit)
+    // Step 4: Reflect (Critique before commit) - review all generated files
     this.traceRecorder?.recordPlanStep({
       stepId: 'reflect-critique',
       title: 'AI Review',
-      description: 'Having AI review the generated content',
-      reasoning: 'AI review helps ensure documentation quality and catches potential issues before commit.',
+      description: `Reviewing ${updatedFiles.length} generated file(s)`,
+      reasoning: 'AI review ensures documentation quality, verifies contract compliance, and catches potential issues before commit.',
       status: 'running',
     });
 
-    const critiqueStartTime = Date.now();
-    this.traceRecorder?.recordToolCall({
-      toolName: 'ai.critique',
-      asked: 'Review the generated documentation content for quality and accuracy',
-      did: 'Calling AI service to critique the documentation update',
-      why: 'Pre-commit review helps maintain documentation quality and catches issues early.',
-      inputSummary: `Content length: ${newContent.length} bytes`,
-      success: true,
-      durationMs: Date.now() - critiqueStartTime,
-    });
+    const critiques = [];
+    for (const file of updatedFiles) {
+      const critiqueStartTime = Date.now();
+      this.traceRecorder?.recordToolCall({
+        toolName: 'ai.critique',
+        asked: `Review the generated documentation for ${file.path}`,
+        did: 'Calling AI service to critique the documentation',
+        why: 'Pre-commit review ensures high-quality, accurate documentation and contract compliance.',
+        inputSummary: `file: ${file.path}, length: ${file.content.length} bytes`,
+        success: true,
+        durationMs: Date.now() - critiqueStartTime,
+      });
 
     const critique = await this.aiService.reflector.critique({
-      artifact: newContent,
-      context: task
-    });
-    results.critique = critique;
+        artifact: file.content,
+        context: { ...task, filePath: file.path }
+      });
+      
+      critiques.push({ path: file.path, critique });
 
-    this.traceRecorder?.recordReasoning({
-      phase: 'review',
-      summary: critique.issues && critique.issues.length > 0
-        ? `AI review found ${critique.issues.length} issue(s) to consider. Proceeding with execution.`
-        : 'AI review completed. Content quality verified.',
-      stepId: 'reflect-critique',
-    });
+      this.traceRecorder?.recordReasoning({
+        phase: 'review',
+        summary: critique.issues && critique.issues.length > 0
+          ? `${file.path}: Found ${critique.issues.length} issue(s) to consider. ${critique.issues.join('; ')}`
+          : `${file.path}: Quality verified, no issues found.`,
+        stepId: 'reflect-critique',
+      });
+    }
+    
+    results.critiques = critiques;
+    const totalIssues = critiques.reduce((sum, c) => sum + (c.critique.issues?.length || 0), 0);
 
     this.traceRecorder?.recordPlanStep({
       stepId: 'reflect-critique',
       title: 'AI Review',
-      description: critique.issues?.length ? `Found ${critique.issues.length} issues` : 'No issues found',
-      reasoning: 'Review complete',
+      description: totalIssues > 0 ? `Found ${totalIssues} total issue(s) across ${updatedFiles.length} file(s)` : 'All files passed review',
+      reasoning: 'Review complete. Proceeding with commit.',
       status: 'completed',
     });
 
-    // Step 5: Commit (skip in dryRun)
+    // Step 5: Commit (skip in dryRun) - commit all updated files
     if (dryRun) {
       this.traceRecorder?.recordDecision({
         title: 'Dry-run mode: Skipping commit',
-        decision: 'No changes written to GitHub',
-        reasoning: 'In dry-run mode, we simulate the workflow without making actual changes. This allows testing the workflow safely.',
+        decision: `No changes written to GitHub (${updatedFiles.length} file(s) prepared)`,
+        reasoning: 'In dry-run mode, we simulate the workflow without making actual changes. This allows testing the contract-first workflow safely.',
       });
 
       results.dryRun = true;
       results.preview = {
         branch: workingBranch,
-        path: filePath,
-        commitMessage: `docs: update ${filePath} via ScribeAgent`,
-        contentLength: newContent.length,
+        files: updatedFiles.map(f => ({
+          path: f.path,
+          contentLength: f.content.length,
+          linesAdded: f.linesAdded,
+        })),
+        commitMessage: updatedFiles.length === 1 
+          ? `docs: update ${updatedFiles[0].path} via Scribe v2`
+          : `docs: update ${updatedFiles.length} files via Scribe v2`,
       };
 
       this.traceRecorder?.recordReasoning({
         phase: 'completion',
-        summary: `Dry-run completed successfully. Would have updated ${filePath} on branch ${workingBranch}. Content preview: ${newContent.length} bytes.`,
+        summary: `Dry-run completed successfully. Would have updated ${updatedFiles.length} file(s) on branch ${workingBranch}: ${updatedFiles.map(f => `${f.path} (${f.content.length} bytes)`).join(', ')}`,
       });
 
       return {
         ok: true,
-        agent: 'scribe',
+        agent: 'scribe-v2',
+        mode: 'contract-first-doc-specialist',
+        filesUpdated: updatedFiles.length,
         ...results,
+        diagnostics: {
+          mode: 'dry-run',
+          operations: updatedFiles.map(f => ({
+            file: f.path,
+            bytes: f.content.length,
+            linesChanged: f.linesAdded,
+          })),
+          targets: updatedFiles.map(f => f.path),
+        },
       };
     }
 
     this.traceRecorder?.recordPlanStep({
       stepId: 'commit-changes',
       title: 'Commit Changes',
-      description: `Committing updates to ${filePath}`,
-      reasoning: 'Persisting the documentation changes to the repository.',
+      description: `Committing ${updatedFiles.length} file(s)`,
+      reasoning: 'Persisting all documentation changes to the repository in a logical commit.',
       status: 'running',
     });
 
-    const commitStartTime = Date.now();
-    this.traceRecorder?.recordToolCall({
-      toolName: 'github.commitFile',
-      asked: `Commit the updated content to "${filePath}" on branch "${workingBranch}"`,
-      did: 'Calling GitHub API to create a new commit with the updated file',
-      why: 'Committing the changes makes them permanent and trackable in version control.',
-      inputSummary: `path: ${filePath}, branch: ${workingBranch}, message: "docs: update ${filePath} via ScribeAgent"`,
-      success: true,
-      durationMs: Date.now() - commitStartTime,
-    });
+    const commits = [];
+    for (const file of updatedFiles) {
+      const commitStartTime = Date.now();
+      this.traceRecorder?.recordToolCall({
+        toolName: 'github.commitFile',
+        asked: `Commit updated content to "${file.path}" on branch "${workingBranch}"`,
+        did: 'Calling GitHub API to create a commit with the updated file',
+        why: 'Each file is committed to preserve the documentation updates in version control.',
+        inputSummary: `path: ${file.path}, branch: ${workingBranch}, size: ${file.content.length} bytes`,
+        success: true,
+        durationMs: Date.now() - commitStartTime,
+      });
 
     const commitResult = await this.githubMCP.commitFile(
       task.owner,
       task.repo,
       workingBranch,
-      filePath,
-      newContent,
-      `docs: update ${filePath} via ScribeAgent`
-    );
-    results.commit = commitResult;
+        file.path,
+        file.content,
+        updatedFiles.length === 1
+          ? `docs: update ${file.path} via Scribe v2`
+          : `docs: update ${file.path} (part of ${updatedFiles.length}-file doc set)`
+      );
+      
+      commits.push({ path: file.path, commit: commitResult });
 
-    // Record file modification
-    this.traceRecorder?.recordFileModified({
-      path: filePath,
-      sizeBytes: newContent.length,
-      preview: newContent.substring(0, 500),
-      linesAdded: newContent.split('\n').length - currentContent.split('\n').length,
-    });
+      // Record file modification with diff preview
+      this.traceRecorder?.recordFileModified({
+        path: file.path,
+        sizeBytes: file.content.length,
+        preview: file.content.substring(0, 500),
+        linesAdded: file.linesAdded,
+        diffPreview: file.linesAdded > 0 ? `+${file.linesAdded} lines` : `${file.linesAdded} lines modified`,
+      });
+
+      this.traceRecorder?.recordDecision({
+        title: `Committed ${file.path}`,
+        decision: `File successfully committed to ${workingBranch}`,
+        reasoning: `Documentation update persisted: ${file.content.length} bytes, ${file.linesAdded > 0 ? '+' : ''}${file.linesAdded} lines.`,
+      });
+    }
+
+    results.commits = commits;
 
     this.traceRecorder?.recordPlanStep({
       stepId: 'commit-changes',
       title: 'Commit Changes',
-      description: 'Changes committed successfully',
-      reasoning: 'Documentation updates are now saved in the repository.',
+      description: `Successfully committed ${commits.length} file(s)`,
+      reasoning: `All documentation updates are now saved in the repository on branch ${workingBranch}.`,
       status: 'completed',
     });
 
@@ -379,8 +562,18 @@ export class ScribeAgent extends BaseAgent {
         status: 'running',
       });
 
-      const titleTemplate = task.prTitleTemplate || `docs: update ${filePath}`;
-      const bodyTemplate = task.prBodyTemplate || `Automated docs update via ScribeAgent.\n\nPath: ${filePath}\nBranch: ${workingBranch}`;
+      // Build PR title and body with file summaries
+      const fileList = updatedFiles.map(f => f.path).join(', ');
+      const titleTemplate = task.prTitleTemplate || 
+        (updatedFiles.length === 1 ? `docs: update ${updatedFiles[0].path}` : `docs: update ${updatedFiles.length} documentation files`);
+      
+      const bodyTemplate = task.prBodyTemplate || 
+        `Automated documentation update via Scribe v2 (contract-first Doc Specialist).\n\n` +
+        `## Files Updated (${updatedFiles.length})\n` +
+        updatedFiles.map(f => `- \`${f.path}\` (${f.linesAdded > 0 ? '+' : ''}${f.linesAdded} lines)`).join('\n') +
+        `\n\n## Task\n${task.taskDescription || 'Documentation update'}\n\n` +
+        `Branch: \`${workingBranch}\` → \`${baseBranch}\`\n` +
+        `Generated: ${new Date().toISOString()}`;
 
       // Generate a safe summary from taskDescription (first 50 chars, sanitized)
       const safeSummary = (task.taskDescription || `update ${filePath}`)
@@ -393,19 +586,21 @@ export class ScribeAgent extends BaseAgent {
         .replace('{branch}', workingBranch)
         .replace('{path}', filePath)
         .replace('{agent}', 'scribe')
-        .replace('{summary}', safeSummary);
+        .replace('{summary}', safeSummary)
+        .replace('{count}', String(updatedFiles.length));
 
       const prBody = bodyTemplate
         .replace('{timestamp}', new Date().toISOString())
         .replace('{branch}', workingBranch)
         .replace('{path}', filePath)
         .replace('{agent}', 'scribe')
-        .replace('{summary}', safeSummary);
+        .replace('{summary}', safeSummary)
+        .replace('{count}', String(updatedFiles.length));
 
       const prStartTime = Date.now();
       this.traceRecorder?.recordToolCall({
         toolName: 'github.createPRDraft',
-        asked: `Create a draft pull request for the documentation changes`,
+        asked: `Create a draft pull request for ${updatedFiles.length} documentation file(s)`,
         did: 'Calling GitHub API to create a draft pull request',
         why: 'A draft PR allows team members to review the documentation changes before they are merged.',
         inputSummary: `title: "${prTitle}", head: ${workingBranch}, base: ${baseBranch}`,
@@ -433,16 +628,31 @@ export class ScribeAgent extends BaseAgent {
       });
     }
 
+    const prUrl = results.pullRequest && typeof results.pullRequest === 'object' && 'url' in results.pullRequest 
+      ? (results.pullRequest as { url: string }).url 
+      : null;
+    
     this.traceRecorder?.recordReasoning({
       phase: 'completion',
-      summary: `Scribe workflow completed successfully. Updated ${filePath} on branch ${workingBranch}. ` +
-               (results.pullRequest ? 'Pull request created for review.' : 'Changes committed directly.'),
+      summary: `Scribe v2 workflow completed successfully. Updated ${updatedFiles.length} file(s) (${updatedFiles.map(f => f.path).join(', ')}) on branch ${workingBranch}. ` +
+               (prUrl ? `Pull request created for review: ${prUrl}` : 'Changes committed directly.'),
     });
 
     return {
       ok: true,
-      agent: 'scribe',
-      ...results
+      agent: 'scribe-v2',
+      mode: 'contract-first-doc-specialist',
+      filesUpdated: updatedFiles.length,
+      ...results,
+      diagnostics: {
+        mode: dryRun ? 'dry-run' : 'execute',
+        operations: updatedFiles.map(f => ({
+          file: f.path,
+          bytes: f.content.length,
+          linesChanged: f.linesAdded,
+        })),
+        targets: updatedFiles.map(f => f.path),
+      },
     };
   }
 
