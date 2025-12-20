@@ -168,16 +168,34 @@ pnpm install
 pnpm dev
 ```
 
-Frontend runs at http://localhost:3001
+Frontend runs at http://localhost:5173
 
 #### Run Frontend Tests
 
 ```bash
-pnpm test        # Vitest
+pnpm test        # Vitest (unit tests)
+pnpm test:e2e    # Playwright (E2E smoke tests, requires backend + MCP)
 pnpm typecheck   # TypeScript
 pnpm lint        # ESLint
 pnpm build       # Production build
 ```
+
+**E2E Tests (Playwright):**
+
+The E2E test suite (`frontend/tests/e2e/scribe.smoke.spec.ts`) requires:
+- Backend running at `http://localhost:3000`
+- MCP Gateway running at `http://localhost:4010`
+- `SCRIBE_DEV_GITHUB_BOOTSTRAP=true` (dev/test only)
+- Test user credentials via env vars:
+  ```bash
+  E2E_EMAIL="qa@example.com"
+  E2E_PASSWORD="Passw0rd!"
+  E2E_OWNER="my-github-org"
+  E2E_REPO="my-repo"
+  E2E_BRANCH="main"
+  ```
+
+See `docs/QA_SCRIBE_AUTOMATION.md` for full E2E workflows and CI integration.
 
 ---
 
@@ -302,27 +320,39 @@ Run the full CI-equivalent verification locally:
 
 **Output**: Pass/Fail summary + logs in `/tmp/verify-*.log`
 
-### Automated Scribe Smoke (dev/test only)
+### Automated Scribe Smoke (CLI, dev/test only)
 
-Use the new deterministic smoke runner to verify Scribe dry-run execution without OAuth:
+Use the deterministic CLI smoke runner to verify Scribe dry-run execution:
 
 ```bash
-export SCRIBE_DEV_GITHUB_BOOTSTRAP=true
-export SCRIBE_DEV_BOOTSTRAP_GITHUB_TOKEN="ghp_<dev_pat>"
+# Start backend (in separate terminal)
+cd backend && pnpm dev
 
+# Set required environment variables
+export SCRIBE_DEV_GITHUB_BOOTSTRAP=true
 export SCRIBE_SMOKE_EMAIL="qa@example.com"
 export SCRIBE_SMOKE_PASSWORD="Passw0rd!"
 export SCRIBE_SMOKE_OWNER="my-github-org"
 export SCRIBE_SMOKE_REPO="my-repo"
 export SCRIBE_SMOKE_BRANCH="main"
 
+# Run smoke test
 pnpm exec tsx scripts/scribe-smoke.ts
 ```
 
+**What it does:**
+1. Creates a test user via email/password signup
+2. Uses `/test/github/bootstrap` to mock GitHub OAuth (dev/test only)
+3. Creates a Scribe dry-run job
+4. Polls until terminal state
+5. Validates trace and artifacts presence
+6. Outputs PASS ✅ or FAIL ❌ with details
+
 **Notes:**
-- Never set `SCRIBE_DEV_GITHUB_BOOTSTRAP=true` in production.
-- The helper route (`POST /test/github/bootstrap`) is only registered in development/test and requires an authenticated session.
+- ⚠️ Never set `SCRIBE_DEV_GITHUB_BOOTSTRAP=true` in production.
+- The helper route (`POST /test/github/bootstrap`) is only registered in non-production environments.
 - The smoke runner uses dry-run jobs and fails fast with actionable hints.
+- For full E2E workflows including UI tests, see `docs/QA_SCRIBE_AUTOMATION.md`.
 
 ---
 
@@ -427,8 +457,9 @@ The PR automation (`scripts/akis-pr-autoflow.sh`) scans for token prefixes:
 
 1. **Read**: `docs/PROJECT_STATUS.md` for current capabilities
 2. **Explore**: Run `./scripts/verify-local.sh` to validate your setup
-3. **Try**: Navigate to http://localhost:3001 and run a Scribe job
-4. **Contribute**: See `CONTRIBUTING.md` for guidelines
+3. **Try**: Navigate to http://localhost:5173 and run a Scribe job
+4. **QA**: See `docs/QA_SCRIBE_AUTOMATION.md` for automated smoke/E2E workflows
+5. **Contribute**: See `CONTRIBUTING.md` for guidelines
 
 ---
 
@@ -436,6 +467,7 @@ The PR automation (`scripts/akis-pr-autoflow.sh`) scans for token prefixes:
 
 **Documentation:**
 - MCP Setup: `docs/GITHUB_MCP_SETUP.md`
+- QA Automation: `docs/QA_SCRIBE_AUTOMATION.md`
 - Testing: `backend/test/README.md`
 - Project Status: `docs/PROJECT_STATUS.md`
 
@@ -445,6 +477,7 @@ The PR automation (`scripts/akis-pr-autoflow.sh`) scans for token prefixes:
 **CI/CD:**
 - All PRs run automated checks (backend + frontend)
 - Merge requires CI green ✅
+- Nightly smoke tests (CLI + Playwright E2E) run on `main`
 
 ---
 
