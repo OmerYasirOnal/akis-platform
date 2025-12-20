@@ -8,6 +8,7 @@ import { CodeBlock } from '../components/ui/CodeBlock';
 import { ErrorToast } from '../components/ui/ErrorToast';
 import { StepTimeline } from '../components/agents/StepTimeline';
 import { ArtifactPreview, PRMetadataCard } from '../components/jobs';
+import { PlanView } from '../components/jobs/PlanView';
 
 // ============================================================================
 // Types
@@ -616,7 +617,7 @@ export default function JobDetailPage() {
           </div>
         )}
 
-        {/* Plan Tab */}
+        {/* Plan Tab - PR-1: Contract-first plan view */}
         {activeTab === 'plan' && (
           <div>
             <div className="mb-4">
@@ -633,7 +634,11 @@ export default function JobDetailPage() {
             {!includePlan ? (
               <EmptyState message="Check 'Load plan data' to view the plan" />
             ) : job.plan ? (
-          <CodeBlock data={job.plan} title="Plan Details" />
+              <PlanView
+                plan={job.plan}
+                jobState={job.state}
+                requiresApproval={job.requiresApproval}
+              />
             ) : (
               <EmptyState message="No plan data available for this job" />
             )}

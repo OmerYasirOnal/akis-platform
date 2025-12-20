@@ -99,6 +99,13 @@
       "when": 1766253000000,
       "tag": "0013_add_job_approval",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1766340000000,
+      "tag": "0014_add_plan_contract_columns",
+      "breakpoints": true
     }
   ]
 }

@@ -75,16 +75,32 @@ export type Job = typeof jobs.$inferSelect;
 export type NewJob = typeof jobs.$inferInsert;
 
 /**
- * Job plans - stores planning phase output
+ * Job plans - stores planning phase output (contract-first)
  * Phase 5.E: Plan storage for complex agents
+ * PR-1: Extended with plan_markdown and plan_json for contract-first workflow
  */
 export const jobPlans = pgTable('job_plans', {
   id: uuid('id').defaultRandom().primaryKey(),
   jobId: uuid('job_id').notNull().references(() => jobs.id, { onDelete: 'cascade' }),
-  steps: jsonb('steps').notNull(), // Array<{id: string; title: string; detail?: string}>
+  /** Legacy: Array of plan steps (backward compat) */
+  steps: jsonb('steps'), // Array<{id: string; title: string; detail?: string}>
+  /** Legacy: Plan rationale (backward compat) */
   rationale: text('rationale'),
+  /** 
+   * PR-1: Contract-first plan document (Markdown)
+   * Contains: Objective, Scope, Plan, Validation, Rollback, Docs, AI Disclosure, Evidence
+   */
+  planMarkdown: text('plan_markdown'),
+  /**
+   * PR-1: Structured plan data (JSON)
+   * For programmatic access to plan sections
+   */
+  planJson: jsonb('plan_json'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
-});
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => ({
+  jobIdIdx: index('idx_job_plans_job_id').on(table.jobId),
+}));
 
 export type JobPlan = typeof jobPlans.$inferSelect;
 export type NewJobPlan = typeof jobPlans.$inferInsert;
