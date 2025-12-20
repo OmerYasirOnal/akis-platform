@@ -185,32 +185,70 @@ async function waitForJobCompletion(api: APIRequestContext, env: SmokeEnv, jobId
 }
 
 async function verifyJobDetailsUI(page: Page, job: JobDetails) {
+  // Verify correlation ID is visible
   await expect(page.getByText('Correlation ID:')).toBeVisible();
   if (job.correlationId) {
     await expect(page.locator('code').filter({ hasText: job.correlationId })).toBeVisible();
   }
 
+  // Verify PR Metadata Card is visible for Scribe jobs (Overview tab)
+  await page.getByRole('button', { name: 'Overview' }).click();
+  await expect(page.getByTestId('pr-metadata-card')).toBeVisible();
+
+  // Timeline Tab - verify step grouping and filters
   await page.getByRole('button', { name: 'Timeline' }).click();
   if ((job.trace?.length ?? 0) > 0) {
-    await expect(page.getByTestId('timeline-list')).toBeVisible();
+    await expect(page.getByTestId('step-timeline')).toBeVisible();
+    
+    // Verify filter tabs are present
+    await expect(page.getByRole('button', { name: /all/i })).toBeVisible();
+    await expect(page.getByRole('button', { name: /reasoning/i })).toBeVisible();
+    await expect(page.getByRole('button', { name: /tools/i })).toBeVisible();
+    
+    // Check for at least one reasoning summary (visible as preview or in expanded state)
+    const hasReasoning = job.trace?.some(t => t.eventType === 'reasoning' || (t as { reasoningSummary?: string }).reasoningSummary);
+    if (hasReasoning) {
+      // Click Reasoning filter to show only reasoning events
+      await page.getByRole('button', { name: /reasoning/i }).first().click();
+      // Should see at least one event with reasoning content
+      await expect(page.locator('[data-testid="reasoning-preview"], [data-testid="reasoning-summary"]').first()).toBeVisible({ timeout: 5000 });
+    }
+    
+    // Switch back to All
+    await page.getByRole('button', { name: /all/i }).first().click();
   } else {
     await expect(page.getByTestId('timeline-empty')).toBeVisible();
   }
 
+  // Documents Read Tab - verify ArtifactPreview cards
   await page.getByRole('button', { name: 'Documents Read' }).click();
   const docCount = (job.artifacts ?? []).filter((artifact) => artifact.artifactType === 'doc_read').length;
   if (docCount > 0) {
-    await expect(page.getByTestId('documents-table')).toBeVisible();
+    await expect(page.getByTestId('documents-list')).toBeVisible();
+    // Verify at least one artifact card is present
+    await expect(page.getByTestId('artifact-card').first()).toBeVisible();
   } else {
     await expect(page.getByTestId('documents-empty')).toBeVisible();
   }
 
+  // Files Produced Tab - verify ArtifactPreview cards with preview capability
   await page.getByRole('button', { name: 'Files Produced' }).click();
   const fileCount = (job.artifacts ?? []).filter((artifact) =>
     ['file_created', 'file_modified'].includes(artifact.artifactType)
   ).length;
   if (fileCount > 0) {
-    await expect(page.getByTestId('files-table')).toBeVisible();
+    await expect(page.getByTestId('files-list')).toBeVisible();
+    // Verify at least one artifact card is present
+    const firstCard = page.getByTestId('artifact-card').first();
+    await expect(firstCard).toBeVisible();
+    
+    // Test preview functionality - click preview button if available
+    const previewToggle = firstCard.getByTestId('preview-toggle');
+    if (await previewToggle.isVisible()) {
+      await previewToggle.click();
+      // Verify preview content or diff viewer appears
+      await expect(page.locator('[data-testid="diff-viewer"], pre').first()).toBeVisible();
+    }
   } else {
     await expect(page.getByTestId('files-empty')).toBeVisible();
   }

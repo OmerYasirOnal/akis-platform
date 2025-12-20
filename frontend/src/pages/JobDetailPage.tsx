@@ -6,7 +6,8 @@ import { Badge } from '../components/ui/Badge';
 import { Pill } from '../components/ui/Pill';
 import { CodeBlock } from '../components/ui/CodeBlock';
 import { ErrorToast } from '../components/ui/ErrorToast';
-import { ExplainableTimeline } from '../components/agents/ExplainableTimeline';
+import { StepTimeline } from '../components/agents/StepTimeline';
+import { ArtifactPreview, PRMetadataCard } from '../components/jobs';
 
 // ============================================================================
 // Types
@@ -82,16 +83,6 @@ function getErrorHint(errorCode?: string | null): string | null {
   }
 
   return hint || null;
-}
-
-/**
- * Format bytes to human-readable size
- */
-function formatBytes(bytes?: number): string {
-  if (bytes === undefined || bytes === null) return '-';
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 /**
@@ -337,22 +328,35 @@ export default function JobDetailPage() {
     <div className={containerClass}>
       {/* Header */}
       <div className="mb-6">
-        <Link to="/dashboard/jobs" className="text-ak-primary hover:text-ak-text-primary mb-4 inline-block text-sm">
-          ← Back to Jobs
+        <Link to="/dashboard/jobs" className="text-ak-primary hover:text-ak-text-primary mb-4 inline-flex items-center gap-1 text-sm group">
+          <span className="group-hover:-translate-x-0.5 transition-transform">←</span> Back to Jobs
         </Link>
         <div className="flex items-center justify-between">
           <div>
-        <h1 className="text-2xl font-bold text-ak-text-primary">Job Details</h1>
+            <div className="flex items-center gap-3">
+              <h1 className="text-2xl font-bold text-ak-text-primary">Job Details</h1>
+              {job.state === 'running' && (
+                <span className="flex items-center gap-1.5 px-2.5 py-1 bg-blue-500/20 text-blue-400 rounded-full text-xs font-medium">
+                  <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse"></span>
+                  Running
+                </span>
+              )}
+            </div>
             {requestId && (
-              <p className="text-sm text-ak-text-secondary mt-1">Request ID: {requestId}</p>
+              <div className="flex items-center gap-2 text-sm text-ak-text-secondary mt-1">
+                <span>Request ID:</span>
+                <code className="text-xs bg-ak-surface-3 px-1.5 py-0.5 rounded">{requestId}</code>
+              </div>
             )}
           </div>
           <div className="flex items-center gap-2">
             <button
               onClick={() => loadJob()}
-              className="px-3 py-1.5 text-sm bg-ak-surface-2 hover:bg-ak-surface-3 rounded-lg text-ak-text-primary transition-colors"
+              disabled={isLoading}
+              className="px-3 py-1.5 text-sm bg-ak-surface-2 hover:bg-ak-surface-3 rounded-lg text-ak-text-primary transition-colors disabled:opacity-50 flex items-center gap-1.5"
             >
-              ↻ Refresh
+              <span className={isLoading ? 'animate-spin' : ''}>↻</span>
+              {isLoading ? 'Loading...' : 'Refresh'}
             </button>
           </div>
         </div>
@@ -465,6 +469,7 @@ export default function JobDetailPage() {
         {/* Overview Tab */}
         {activeTab === 'overview' && (
           <div className="space-y-6">
+            {/* Stats Grid */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="bg-ak-surface-2 rounded-lg p-4 border border-ak-border">
                 <h4 className="text-xs font-medium text-ak-text-secondary uppercase tracking-wider mb-2">Trace Events</h4>
@@ -480,6 +485,16 @@ export default function JobDetailPage() {
               </div>
             </div>
 
+            {/* PR/Branch/Commit Metadata - Prominent display for Scribe jobs */}
+            {job.type === 'scribe' && (
+              <PRMetadataCard
+                result={job.result}
+                payload={job.payload}
+                isDryRun={Boolean((job.payload as Record<string, unknown>)?.dryRun)}
+                jobState={job.state}
+              />
+            )}
+
             {job.payload != null && (
               <CollapsibleSection title="Payload" defaultOpen>
                 <CodeBlock data={job.payload as Record<string, unknown>} />
@@ -494,43 +509,27 @@ export default function JobDetailPage() {
           </div>
         )}
 
-        {/* Timeline Tab - S1.1: Explainability UI */}
+        {/* Timeline Tab - S1.1: Explainability UI with Step Grouping */}
         {activeTab === 'timeline' && (
           <div data-testid="timeline-list">
-            <ExplainableTimeline 
-              traces={traces as TraceEventType[]} 
-              artifacts={artifacts as ArtifactType[]}
-            />
+            <StepTimeline traces={traces as TraceEventType[]} />
           </div>
         )}
 
         {/* Documents Read Tab */}
         {activeTab === 'documents' && (
-          <div>
+          <div data-testid="documents-list">
             {documentsRead.length === 0 ? (
               <EmptyState testId="documents-empty" message="No documents were read during this job" />
             ) : (
-              <div className="overflow-x-auto" data-testid="documents-table">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-ak-border">
-                      <th className="text-left py-3 px-4 text-ak-text-secondary font-medium">Path</th>
-                      <th className="text-left py-3 px-4 text-ak-text-secondary font-medium">Size</th>
-                      <th className="text-left py-3 px-4 text-ak-text-secondary font-medium">Timestamp</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {documentsRead.map((doc) => (
-                      <tr key={doc.id} className="border-b border-ak-border hover:bg-ak-surface-2">
-                        <td className="py-3 px-4 font-mono text-ak-text-primary">{doc.path}</td>
-                        <td className="py-3 px-4 text-ak-text-secondary">{formatBytes(doc.sizeBytes)}</td>
-                        <td className="py-3 px-4 text-ak-text-secondary">
-                          {new Date(doc.createdAt).toLocaleString()}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              <div className="space-y-3">
+                {documentsRead.map((doc) => (
+                  <ArtifactPreview 
+                    key={doc.id} 
+                    artifact={doc as ArtifactType} 
+                    showFullPath 
+                  />
+                ))}
               </div>
             )}
           </div>
@@ -538,51 +537,21 @@ export default function JobDetailPage() {
 
         {/* Files Produced Tab */}
         {activeTab === 'files' && (
-          <div>
+          <div data-testid="files-list">
             {filesProduced.length === 0 ? (
               <EmptyState
                 testId="files-empty"
                 message="No files were created or modified during this job"
               />
             ) : (
-              <div className="overflow-x-auto" data-testid="files-table">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-ak-border">
-                      <th className="text-left py-3 px-4 text-ak-text-secondary font-medium">Path</th>
-                      <th className="text-left py-3 px-4 text-ak-text-secondary font-medium">Operation</th>
-                      <th className="text-left py-3 px-4 text-ak-text-secondary font-medium">Size</th>
-                      <th className="text-left py-3 px-4 text-ak-text-secondary font-medium">Preview</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filesProduced.map((file) => (
-                      <tr key={file.id} className="border-b border-ak-border hover:bg-ak-surface-2">
-                        <td className="py-3 px-4 font-mono text-ak-text-primary">{file.path}</td>
-                        <td className="py-3 px-4">
-                          <span className={`px-2 py-0.5 rounded text-xs font-medium ${
-                            file.operation === 'create' ? 'bg-green-500/20 text-green-400' : 'bg-yellow-500/20 text-yellow-400'
-                          }`}>
-                            {file.operation}
-                          </span>
-                        </td>
-                        <td className="py-3 px-4 text-ak-text-secondary">{formatBytes(file.sizeBytes)}</td>
-                        <td className="py-3 px-4">
-                          {file.preview ? (
-                            <details className="cursor-pointer">
-                              <summary className="text-ak-primary hover:underline">View preview</summary>
-                              <pre className="mt-2 p-2 bg-ak-surface-3 rounded text-xs overflow-x-auto">
-                                {file.preview}
-                              </pre>
-                            </details>
-                          ) : (
-                            <span className="text-ak-text-secondary">-</span>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              <div className="space-y-3">
+                {filesProduced.map((file) => (
+                  <ArtifactPreview 
+                    key={file.id} 
+                    artifact={file as ArtifactType} 
+                    showFullPath 
+                  />
+                ))}
               </div>
             )}
           </div>
