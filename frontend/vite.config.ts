@@ -8,6 +8,7 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     setupFiles: './src/test/setup.ts',
+    exclude: ['tests/e2e/**', 'node_modules/**', 'dist/**'],
     // Define test-specific environment variables for import.meta.env
     env: {
       VITE_AGENTS_ENABLED: 'true',
