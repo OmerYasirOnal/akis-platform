@@ -12,6 +12,8 @@ import { getEnv } from '../../config/env.js';
 import { GitHubMCPService, McpError, McpConnectionError } from '../../services/mcp/adapters/GitHubMCPService.js';
 import { StaticCheckRunner } from '../../services/checks/index.js';
 
+export const DEV_GITHUB_BOOTSTRAP_TOKEN_PLACEHOLDER = '__DEV_GITHUB_BOOTSTRAP__';
+
 /**
  * Custom error for missing GitHub integration
  */
@@ -230,7 +232,22 @@ export class AgentOrchestrator {
         }
         
         // Resolve user's GitHub OAuth token
-        const userGitHubToken = await this.resolveGitHubToken(userId);
+        let userGitHubToken = await this.resolveGitHubToken(userId);
+        const devBootstrapEnabled = this.isDevGitHubBootstrapEnabled(job.type, payload, env);
+        if (userGitHubToken === DEV_GITHUB_BOOTSTRAP_TOKEN_PLACEHOLDER) {
+          userGitHubToken = null;
+        }
+
+        if (!userGitHubToken && devBootstrapEnabled) {
+          userGitHubToken = this.getDevBootstrapToken(env);
+          if (!userGitHubToken) {
+            throw new MissingDependencyError(
+              'SCRIBE_DEV_BOOTSTRAP_GITHUB_TOKEN',
+              'Set SCRIBE_DEV_BOOTSTRAP_GITHUB_TOKEN (or GITHUB_TOKEN) in your .env when SCRIBE_DEV_GITHUB_BOOTSTRAP=true.'
+            );
+          }
+          console.warn(`[DevBootstrap] Using shared GitHub token for dry-run job ${jobId}`);
+        }
         
         if (!userGitHubToken) {
           throw new GitHubNotConnectedError(
@@ -484,6 +501,22 @@ export class AgentOrchestrator {
       }
       throw error;
     }
+  }
+
+  private isDevGitHubBootstrapEnabled(agentType: string, payload: Record<string, unknown>, env: ReturnType<typeof getEnv>): boolean {
+    if (env.NODE_ENV === 'production') {
+      return false;
+    }
+    if (process.env.SCRIBE_DEV_GITHUB_BOOTSTRAP !== 'true') {
+      return false;
+    }
+    const maybePayload = payload as { dryRun?: unknown } | undefined;
+    const isDryRun = Boolean(maybePayload?.dryRun === true);
+    return agentType === 'scribe' && isDryRun;
+  }
+
+  private getDevBootstrapToken(env: ReturnType<typeof getEnv>): string | null {
+    return env.SCRIBE_DEV_BOOTSTRAP_GITHUB_TOKEN || env.GITHUB_TOKEN || null;
   }
 
   /**

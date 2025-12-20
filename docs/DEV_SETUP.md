@@ -302,6 +302,28 @@ Run the full CI-equivalent verification locally:
 
 **Output**: Pass/Fail summary + logs in `/tmp/verify-*.log`
 
+### Automated Scribe Smoke (dev/test only)
+
+Use the new deterministic smoke runner to verify Scribe dry-run execution without OAuth:
+
+```bash
+export SCRIBE_DEV_GITHUB_BOOTSTRAP=true
+export SCRIBE_DEV_BOOTSTRAP_GITHUB_TOKEN="ghp_<dev_pat>"
+
+export SCRIBE_SMOKE_EMAIL="qa@example.com"
+export SCRIBE_SMOKE_PASSWORD="Passw0rd!"
+export SCRIBE_SMOKE_OWNER="my-github-org"
+export SCRIBE_SMOKE_REPO="my-repo"
+export SCRIBE_SMOKE_BRANCH="main"
+
+pnpm exec tsx scripts/scribe-smoke.ts
+```
+
+**Notes:**
+- Never set `SCRIBE_DEV_GITHUB_BOOTSTRAP=true` in production.
+- The helper route (`POST /test/github/bootstrap`) is only registered in development/test and requires an authenticated session.
+- The smoke runner uses dry-run jobs and fails fast with actionable hints.
+
 ---
 
 ## Development Workflow
