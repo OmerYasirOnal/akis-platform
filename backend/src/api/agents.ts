@@ -410,6 +410,8 @@ export async function agentsRoutes(fastify: FastifyInstance) {
           error: job.error,
           errorCode: job.errorCode,
           errorMessage: job.errorMessage,
+          rawErrorPayload: job.rawErrorPayload,
+          mcpGatewayUrl: job.mcpGatewayUrl,
           correlationId,
           createdAt: job.createdAt,
           updatedAt: job.updatedAt,
