@@ -575,16 +575,23 @@ export class ScribeAgent extends BaseAgent {
         `Branch: \`${workingBranch}\` → \`${baseBranch}\`\n` +
         `Generated: ${new Date().toISOString()}`;
 
+      const templatePath =
+        typeof task.targetPath === 'string' && task.targetPath.length > 0
+          ? task.targetPath
+          : updatedFiles.length === 1
+            ? updatedFiles[0].path
+            : 'docs/';
+
       // Generate a safe summary from taskDescription (first 50 chars, sanitized)
-      const safeSummary = (task.taskDescription || `update ${filePath}`)
+      const safeSummary = (task.taskDescription || `update ${templatePath}`)
         .replace(/[^a-zA-Z0-9\s\-_]/g, '')
         .substring(0, 50)
-        .trim() || `update ${filePath}`;
+        .trim() || `update ${templatePath}`;
 
       const prTitle = titleTemplate
         .replace('{timestamp}', new Date().toISOString())
         .replace('{branch}', workingBranch)
-        .replace('{path}', filePath)
+        .replace('{path}', templatePath)
         .replace('{agent}', 'scribe')
         .replace('{summary}', safeSummary)
         .replace('{count}', String(updatedFiles.length));
@@ -592,7 +599,7 @@ export class ScribeAgent extends BaseAgent {
       const prBody = bodyTemplate
         .replace('{timestamp}', new Date().toISOString())
         .replace('{branch}', workingBranch)
-        .replace('{path}', filePath)
+        .replace('{path}', templatePath)
         .replace('{agent}', 'scribe')
         .replace('{summary}', safeSummary)
         .replace('{count}', String(updatedFiles.length));
