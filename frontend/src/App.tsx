@@ -54,6 +54,7 @@ import DashboardSettingsNotificationsPage from './pages/dashboard/settings/Dashb
 import JobsListPage from './pages/JobsListPage';
 import JobDetailPage from './pages/JobDetailPage';
 import NewJobPage from './pages/NewJobPage';
+import { ErrorBoundary } from './components/ErrorBoundary';
 
 function App() {
   const { t } = useI18n();
@@ -133,7 +134,14 @@ function App() {
             <Route path="jobs">
               <Route index element={<JobsListPage />} />
               <Route path="new" element={<NewJobPage />} />
-              <Route path=":id" element={<JobDetailPage />} />
+              <Route
+                path=":id"
+                element={
+                  <ErrorBoundary fallbackPath="/dashboard/jobs" fallbackLabel="Jobs">
+                    <JobDetailPage />
+                  </ErrorBoundary>
+                }
+              />
             </Route>
             <Route path="agents">
               <Route index element={<DashboardAgentsIndexPage />} />

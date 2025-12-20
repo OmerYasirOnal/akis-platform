@@ -11,10 +11,14 @@ export interface Job {
   payload?: unknown;
   result?: unknown;
   error?: string;
-  /** Structured error code for classification (e.g., AI_RATE_LIMITED) */
+  /** Structured error code for classification (e.g., AI_RATE_LIMITED, MCP_UNREACHABLE) */
   errorCode?: string | null;
   /** User-friendly error message */
   errorMessage?: string | null;
+  /** Full structured error payload for debugging (JSON string) */
+  rawErrorPayload?: string | null;
+  /** MCP Gateway URL used for this job (for diagnostics) */
+  mcpGatewayUrl?: string | null;
   /** MCP Gateway correlation id (safe to share, helps debug gateway logs) */
   correlationId?: string | null;
   /** Request ID from the API response */

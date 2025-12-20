@@ -40,6 +40,9 @@ const renderWithProviders = (ui: React.ReactElement) => {
 // Helper to get submit button (type="submit")
 const getSubmitButton = () => screen.getByRole('button', { name: /submit|run/i });
 
+// Helper to flush all pending promises
+const flushPromises = () => new Promise(resolve => setTimeout(resolve, 0));
+
 describe('ScribeRunPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();

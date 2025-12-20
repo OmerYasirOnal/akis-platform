@@ -31,10 +31,14 @@ export const jobs = pgTable('jobs', {
   payload: jsonb('payload'),
   result: jsonb('result'),
   error: varchar('error', { length: 1000 }),
-  /** Structured error code for classification (e.g., AI_RATE_LIMITED) */
+  /** Structured error code for classification (e.g., AI_RATE_LIMITED, MCP_UNREACHABLE) */
   errorCode: varchar('error_code', { length: 50 }),
   /** User-friendly error message */
   errorMessage: varchar('error_message', { length: 500 }),
+  /** Full structured error payload for debugging (JSON-serialized) */
+  rawErrorPayload: text('raw_error_payload'),
+  /** MCP Gateway URL used for this job (for diagnostics) */
+  mcpGatewayUrl: varchar('mcp_gateway_url', { length: 255 }),
   /** Whether this job requires strong-model validation before completion */
   requiresStrictValidation: boolean('requires_strict_validation').default(false).notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
