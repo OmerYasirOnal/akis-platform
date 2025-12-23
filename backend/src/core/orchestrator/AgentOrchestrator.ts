@@ -304,33 +304,47 @@ export class AgentOrchestrator {
       const context = job.payload || {};
 
       // Phase 5.D: Planning phase (if required)
+      // PR-2: Planning failures are now fatal - no more silent success
       let plan: Plan | undefined;
       if (playbook.requiresPlanning && this.aiService) {
-        try {
-          // Call agent's plan method
-          if (agent.plan) {
+        // Call agent's plan method
+        if (agent.plan) {
+          try {
             plan = await agent.plan(this.aiService.planner, context);
+          } catch (planError) {
+            // PR-2: Planning failure is fatal - throw immediately
+            const errorMessage = planError instanceof Error ? planError.message : String(planError);
+            console.error(`[AgentOrchestrator] Planning failed for job ${jobId}:`, planError);
+            throw new Error(`Planning phase failed: ${errorMessage}`);
+          }
 
-            // Persist plan to DB
+          // Persist plan to DB - failure here is also fatal
+          try {
             const newPlan: NewJobPlan = {
               jobId,
               steps: plan.steps as unknown as Record<string, unknown>,
               rationale: plan.rationale || null,
             };
             await db.insert(jobPlans).values(newPlan);
+          } catch (dbError) {
+            // PR-2: DB failure during plan persistence is fatal
+            const errorMessage = dbError instanceof Error ? dbError.message : String(dbError);
+            console.error(`[AgentOrchestrator] Failed to persist plan for job ${jobId}:`, dbError);
+            throw new DatabaseError(`Failed to persist plan: ${errorMessage}`, dbError);
+          }
 
-            // Audit: log plan phase
+          // Audit: log plan phase
+          try {
             const planAudit: NewJobAudit = {
               jobId,
               phase: 'plan',
               payload: plan as unknown as Record<string, unknown>,
             };
             await db.insert(jobAudits).values(planAudit);
+          } catch (auditError) {
+            // Audit failure is non-fatal but logged
+            console.warn(`[AgentOrchestrator] Failed to write plan audit for job ${jobId}:`, auditError);
           }
-        } catch (planError) {
-          // If planning fails, log but continue (unless critical)
-          console.error(`Planning failed for job ${jobId}:`, planError);
-          // For now, continue without plan
         }
       }
 
