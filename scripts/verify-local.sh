@@ -2,6 +2,7 @@
 #
 # verify-local.sh
 # End-to-end local verification matching CI gates
+# Compatible with bash 3.2+ (macOS default)
 #
 set -euo pipefail
 
@@ -9,7 +10,7 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$REPO_ROOT"
 
 EVIDENCE_FILE="$REPO_ROOT/docs/QA_EVIDENCE.md"
-TIMESTAMP=$(date -u +"%Y-%m-%d %H:%M:%S UTC")
+TIMESTAMP=$(date -u +"%Y-%m-%d %H:%M:%S UTC" 2>/dev/null || date +"%Y-%m-%d %H:%M:%S")
 GIT_SHA=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 GIT_BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
 
@@ -21,45 +22,94 @@ echo "  Branch: $GIT_BRANCH"
 echo "  Commit: $GIT_SHA"
 echo ""
 
-# Results tracking
-declare -A RESULTS
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# PREFLIGHT CHECKS
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+echo "🔍 Preflight checks..."
+
+# Check Docker is running (required for db-up)
+if ! docker info >/dev/null 2>&1; then
+  echo ""
+  echo "❌ PREFLIGHT FAILED: Docker Desktop is not running."
+  echo ""
+  echo "   Please start Docker Desktop and re-run this script."
+  echo "   On macOS: open -a Docker"
+  echo ""
+  exit 1
+fi
+echo "   ✅ Docker is running"
+
+# Ensure we're in repo root
+if [[ ! -f "$REPO_ROOT/pnpm-lock.yaml" ]] && [[ ! -d "$REPO_ROOT/backend" ]]; then
+  echo ""
+  echo "❌ PREFLIGHT FAILED: Not in repo root."
+  echo "   Current directory: $(pwd)"
+  echo "   Expected: devagents repo root"
+  echo ""
+  exit 1
+fi
+echo "   ✅ In repo root"
+
+echo ""
+
+# Results tracking (bash 3.2 compatible - no associative arrays)
+RESULTS=""
 FAILED=0
+
+record_result() {
+  local name="$1"
+  local status="$2"
+  RESULTS="${RESULTS}${name}:${status}|"
+}
+
+get_result() {
+  local name="$1"
+  echo "$RESULTS" | tr '|' '\n' | grep "^${name}:" | cut -d: -f2 || echo "⚠️ SKIP"
+}
 
 run_gate() {
   local name="$1"
   local command="$2"
   echo "▶️  Running: $name"
   if eval "$command" > /tmp/verify-${name}.log 2>&1; then
-    RESULTS["$name"]="✅ PASS"
+    record_result "$name" "✅ PASS"
     echo "   ✅ PASS"
   else
-    RESULTS["$name"]="❌ FAIL"
+    record_result "$name" "❌ FAIL"
     FAILED=$((FAILED + 1))
     echo "   ❌ FAIL (see /tmp/verify-${name}.log)"
   fi
   echo ""
 }
 
-# Phase 1: Dependencies
+# Phase 1: Dependencies (ensure dev dependencies are installed)
+echo "▶️  Ensuring development dependencies are installed..."
+unset NODE_ENV 2>/dev/null || true
+export NODE_ENV=development
+export npm_config_production=false
 run_gate "install" "pnpm install --frozen-lockfile"
 
 # Phase 2: Database
 echo "▶️  Starting PostgreSQL..."
-./scripts/db-up.sh > /tmp/verify-db-up.log 2>&1 || {
-  RESULTS["db-up"]="❌ FAIL"
+if ./scripts/db-up.sh > /tmp/verify-db-up.log 2>&1; then
+  record_result "db-up" "✅ PASS"
+  echo "   ✅ PASS"
+else
+  record_result "db-up" "❌ FAIL"
   FAILED=$((FAILED + 1))
-  echo "   ❌ FAIL starting DB"
-}
-RESULTS["db-up"]="✅ PASS"
+  echo "   ❌ FAIL starting DB (see /tmp/verify-db-up.log)"
+fi
+echo ""
 
 # Wait for DB and run migrations
 export DATABASE_URL="postgresql://postgres:postgres@localhost:5433/akis_v2"
 echo "▶️  Running migrations..."
 if (cd backend && pnpm db:migrate) > /tmp/verify-migrate.log 2>&1; then
-  RESULTS["migrations"]="✅ PASS"
+  record_result "migrations" "✅ PASS"
   echo "   ✅ PASS"
 else
-  RESULTS["migrations"]="❌ FAIL"
+  record_result "migrations" "❌ FAIL"
   FAILED=$((FAILED + 1))
   echo "   ❌ FAIL (see /tmp/verify-migrate.log)"
 fi
@@ -68,7 +118,7 @@ echo ""
 # Phase 3: Backend gates
 run_gate "backend-typecheck" "(cd backend && pnpm typecheck)"
 run_gate "backend-lint" "(cd backend && pnpm lint)"
-run_gate "backend-test" "(cd backend && DATABASE_URL=$DATABASE_URL pnpm test)"
+run_gate "backend-test" "(cd backend && pnpm test)"
 
 # Phase 4: Frontend gates
 run_gate "frontend-typecheck" "(cd frontend && pnpm typecheck)"
@@ -91,7 +141,8 @@ cat > "$EVIDENCE_FILE" <<EOF
 EOF
 
 for gate in install db-up migrations backend-typecheck backend-lint backend-test frontend-typecheck frontend-lint frontend-test frontend-build; do
-  echo "| ${gate} | ${RESULTS[$gate]:-⚠️ SKIP} |" >> "$EVIDENCE_FILE"
+  status=$(get_result "$gate")
+  echo "| ${gate} | ${status} |" >> "$EVIDENCE_FILE"
 done
 
 cat >> "$EVIDENCE_FILE" <<EOF
@@ -130,7 +181,8 @@ echo "━━━━━━━━━━━━━━━━━━━━━━━━�
 echo "📊 VERIFICATION SUMMARY"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 for gate in install db-up migrations backend-typecheck backend-lint backend-test frontend-typecheck frontend-lint frontend-test frontend-build; do
-  echo "${RESULTS[$gate]:-⚠️ SKIP}  $gate"
+  status=$(get_result "$gate")
+  echo "${status}  $gate"
 done
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
@@ -141,4 +193,3 @@ else
   echo "✅ All gates passed"
   exit 0
 fi
-

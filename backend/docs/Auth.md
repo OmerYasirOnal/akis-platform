@@ -617,7 +617,7 @@ docker-compose -f docker-compose.dev.yml up -d
 cd backend
 cp .env.example .env
 # Edit .env and set DATABASE_URL to match Docker Compose config
-# Example: DATABASE_URL=postgresql://postgres:postgres@localhost:5432/akis_dev
+# Example: DATABASE_URL=postgresql://postgres:postgres@localhost:5433/akis_v2
 ```
 
 3. **Run database migrations:**

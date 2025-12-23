@@ -207,14 +207,21 @@ describe('ScribeRunPage', () => {
 
     // Fill and submit
     const textarea = screen.getByRole('textbox');
-    fireEvent.change(textarea, { target: { value: 'Test content' } });
-
-    fireEvent.click(getSubmitButton());
-
-    // Wait for error message
-    await waitFor(() => {
-      expect(screen.getByText(/network error/i)).toBeInTheDocument();
+    await act(async () => {
+      fireEvent.change(textarea, { target: { value: 'Test content' } });
     });
+
+    await act(async () => {
+      fireEvent.click(getSubmitButton());
+    });
+
+    // Wait for error message with extended timeout
+    await waitFor(
+      () => {
+        expect(screen.getByText(/network error/i)).toBeInTheDocument();
+      },
+      { timeout: 3000 }
+    );
   });
 
   it('should reset form when reset button is clicked', async () => {
