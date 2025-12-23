@@ -23,7 +23,7 @@ const envSchema = z
       ),
     DATABASE_URL: z.string().url(),
     POSTGRES_HOST: z.string().default('localhost'),
-    POSTGRES_PORT: z.coerce.number().default(5432),
+    POSTGRES_PORT: z.coerce.number().default(5433),
     POSTGRES_DB: z.string().default('akis_v2'),
     POSTGRES_USER: z.string().default('postgres'),
     POSTGRES_PASSWORD: z.string().default('postgres'),
