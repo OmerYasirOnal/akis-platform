@@ -189,7 +189,7 @@ pnpm install
 # Copy template and configure
 cp .env.example .env
 # Edit .env with your values:
-#   DATABASE_URL=postgresql://user:pass@localhost:5432/akis_v2
+#   DATABASE_URL=postgresql://user:pass@localhost:5433/akis_v2  ⚠️ Port 5433!
 #   GITHUB_MCP_BASE_URL=http://localhost:4010/mcp
 #   (See .env.example for all options)
 
@@ -200,6 +200,8 @@ pnpm db:migrate
 pnpm dev
 # → http://localhost:3000/health
 ```
+
+> ⚠️ **Önemli**: Local dev DB portu **5433**'tür (5432 değil!). Port uyuşmazlığı sorunları için [LOCAL_DEV_QUICKSTART.md](docs/local-dev/LOCAL_DEV_QUICKSTART.md) troubleshooting bölümüne bakın.
 
 ### 3. Frontend Setup
 
@@ -313,6 +315,34 @@ The script provides automated setup/teardown and manual verification instruction
 
 - [docs/GITHUB_MCP_SETUP.md](docs/GITHUB_MCP_SETUP.md) - Complete MCP setup guide
 - [docs/MCP_ENV_SECURITY_IMPLEMENTATION.md](docs/MCP_ENV_SECURITY_IMPLEMENTATION.md) - Security implementation details
+
+## 🧪 API Smoke Test
+
+Backend API'nin düzgün çalıştığını doğrulamak için:
+
+```bash
+# DB'yi başlat ve migrationları uygula
+./scripts/db-up.sh
+export DATABASE_URL="postgresql://postgres:postgres@localhost:5433/akis_v2"
+pnpm -C backend db:migrate
+
+# Backend'i başlat (ayrı terminal)
+pnpm -C backend dev
+
+# Smoke test'i çalıştır
+./scripts/dev-smoke-jobs.sh
+```
+
+Bu script şunları test eder:
+- `/health` endpoint'i
+- Job listeleme (`GET /api/agents/jobs`)
+- Job oluşturma (`POST /api/agents/jobs`)
+- Job detay (`GET /api/agents/jobs/:id`)
+- Job include query (`GET /api/agents/jobs/:id?include=trace,artifacts`)
+
+> 💡 **Troubleshooting**: 500 hatası veya "table not found" görüyorsanız, DB port uyuşmazlığı olabilir. Bkz: [LOCAL_DEV_QUICKSTART.md](docs/local-dev/LOCAL_DEV_QUICKSTART.md#-troubleshooting-db-port-mismatch)
+
+---
 
 ## CI/CD
 
