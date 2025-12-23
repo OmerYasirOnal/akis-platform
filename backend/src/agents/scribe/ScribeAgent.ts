@@ -5,6 +5,10 @@ import type { AIService, Plan, Planner } from '../../services/ai/AIService.js';
 import type { MCPTools } from '../../services/mcp/adapters/index.js';
 import type { TraceRecorder } from '../../core/tracing/TraceRecorder.js';
 import { getContractForPath, buildContractPrompt, detectDocFileType } from './DocContract.js';
+import { createPlanGenerator, type PlanContext, type GeneratedPlan } from '../../core/planning/PlanGenerator.js';
+import { db } from '../../db/client.js';
+import { jobPlans } from '../../db/schema.js';
+import { eq } from 'drizzle-orm';
 
 /**
  * ScribeTaskContext - Input payload for ScribeAgent
@@ -25,6 +29,10 @@ export interface ScribeTaskContext {
   /** Optional PR title/body templates from agent config */
   prTitleTemplate?: string;
   prBodyTemplate?: string | null;
+  /** PR-1: Whether this job requires human approval before execution */
+  requiresApproval?: boolean;
+  /** PR-1: Job ID for plan artifact storage */
+  jobId?: string;
 }
 
 /**
@@ -56,6 +64,8 @@ export class ScribeAgent extends BaseAgent {
   private githubMCP?: GitHubMCPService;
   private aiService?: AIService;
   private traceRecorder?: TraceRecorder;
+  /** PR-1: Generated plan for contract-first workflow */
+  private generatedPlan?: GeneratedPlan;
 
   constructor(deps?: AgentDependencies) {
     super();
@@ -75,6 +85,128 @@ export class ScribeAgent extends BaseAgent {
     this.playbook.requiresPlanning = true;
     // Disable orchestrator-level reflection because we do "reflect-before-commit" internally
     this.playbook.requiresReflection = false;
+  }
+
+  /**
+   * PR-1: Generate and persist contract-first plan
+   * This method creates the plan artifact and stores it in the database
+   */
+  async generateContractPlan(context: ScribeTaskContext): Promise<GeneratedPlan> {
+    const planGenerator = createPlanGenerator(this.aiService);
+    
+    // Build plan context from task context
+    const planContext: PlanContext = {
+      jobId: context.jobId || 'unknown',
+      agentType: this.type,
+      taskDescription: context.taskDescription || 'Update documentation',
+      targetPath: context.targetPath,
+      repositoryOwner: context.owner,
+      repositoryName: context.repo,
+      baseBranch: context.baseBranch,
+      featureBranch: context.featureBranch,
+      dryRun: context.dryRun === true,
+      requiresApproval: context.requiresApproval === true,
+    };
+
+    // Record plan generation start
+    this.traceRecorder?.startStep('generate-plan', 'Generating contract-first plan');
+
+    // Generate the plan
+    const plan = await planGenerator.generatePlan(planContext);
+
+    // Validate the plan
+    const validation = planGenerator.validatePlan(plan.markdown);
+    if (!validation.valid) {
+      this.traceRecorder?.failStep('generate-plan', 'Plan validation failed', validation.errors.join('; '));
+      throw new Error(`Plan validation failed: ${validation.errors.join('; ')}`);
+    }
+
+    // Record any warnings
+    if (validation.warnings.length > 0) {
+      this.traceRecorder?.recordInfo(`Plan warnings: ${validation.warnings.join('; ')}`);
+    }
+
+    // Store the plan
+    this.generatedPlan = plan;
+
+    // Persist to database if we have a jobId
+    if (context.jobId) {
+      await this.persistPlan(context.jobId, plan);
+    }
+
+    // Record plan artifact
+    this.traceRecorder?.recordArtifact({
+      artifactType: 'doc_read', // Use existing type for compatibility
+      path: 'plan.md',
+      operation: 'create',
+      preview: plan.markdown.substring(0, 1000),
+      sizeBytes: plan.markdown.length,
+      metadata: {
+        planVersion: plan.json.version,
+        requiresApproval: plan.requiresApproval,
+        sections: Object.keys(plan.json.sections),
+      },
+    });
+
+    this.traceRecorder?.completeStep('generate-plan', 'Contract-first plan generated', {
+      requiresApproval: plan.requiresApproval,
+      sections: Object.keys(plan.json.sections).length,
+    });
+
+    // Record reasoning summary
+    this.traceRecorder?.recordReasoning({
+      phase: 'planning',
+      summary: `Contract-first plan generated successfully. ` +
+               `Approval ${plan.requiresApproval ? 'required' : 'not required'}. ` +
+               `${plan.json.sections.plan.length} execution steps planned. ` +
+               `Risk level: ${(plan.json.metadata as Record<string, unknown>)?.riskLevel || 'unknown'}.`,
+    });
+
+    return plan;
+  }
+
+  /**
+   * PR-1: Persist plan to database
+   */
+  private async persistPlan(jobId: string, plan: GeneratedPlan): Promise<void> {
+    try {
+      // Check if plan already exists for this job
+      const existing = await db.select().from(jobPlans).where(eq(jobPlans.jobId, jobId)).limit(1);
+
+      if (existing.length > 0) {
+        // Update existing plan
+        await db.update(jobPlans)
+          .set({
+            planMarkdown: plan.markdown,
+            planJson: plan.json,
+            updatedAt: new Date(),
+          })
+          .where(eq(jobPlans.jobId, jobId));
+      } else {
+        // Insert new plan
+        await db.insert(jobPlans).values({
+          jobId,
+          planMarkdown: plan.markdown,
+          planJson: plan.json,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        });
+      }
+    } catch (error) {
+      // Log but don't fail - plan persistence is not critical to execution
+      console.error('Failed to persist plan:', error);
+      this.traceRecorder?.recordError('Plan persistence failed', 'PLAN_PERSIST_ERROR', {
+        jobId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
+  /**
+   * PR-1: Get the generated plan (for external access)
+   */
+  getGeneratedPlan(): GeneratedPlan | undefined {
+    return this.generatedPlan;
   }
 
   /**

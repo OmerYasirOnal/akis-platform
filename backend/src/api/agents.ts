@@ -684,24 +684,30 @@ export async function agentsRoutes(fastify: FastifyInstance) {
         }
 
         // Update job with approval info
+        const approvedAt = new Date();
         await db
           .update(jobs)
           .set({
             approvedBy: user.id,
-            approvedAt: new Date(),
+            approvedAt,
             approvalComment: body.comment || null,
             updatedAt: new Date(),
           })
           .where(eq(jobs.id, params.id));
 
-        // TODO: Trigger execution of approved job (create new EXECUTE job)
-        // For now, just mark as approved - execution must be triggered separately
+        // PR-1: Resume job execution after approval
+        try {
+          await orchestrator.resumeApprovedJob(params.id);
+        } catch (resumeError) {
+          // Log but don't fail the approval - job is still marked approved
+          console.error(`Failed to resume job ${params.id} after approval:`, resumeError);
+        }
 
         return reply.code(200).send({
           success: true,
-          message: 'Job approved successfully',
+          message: 'Job approved successfully. Execution resumed.',
           approvedBy: user.id,
-          approvedAt: new Date().toISOString(),
+          approvedAt: approvedAt.toISOString(),
         });
       } catch (error) {
         const errorResponse = formatErrorResponse(request, error);
