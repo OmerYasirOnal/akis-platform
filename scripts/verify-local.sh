@@ -88,7 +88,13 @@ echo "▶️  Ensuring development dependencies are installed..."
 unset NODE_ENV 2>/dev/null || true
 export NODE_ENV=development
 export npm_config_production=false
-run_gate "install" "pnpm install --frozen-lockfile"
+
+# Install backend and frontend dependencies separately (no root package.json)
+install_deps() {
+  (cd backend && pnpm install --frozen-lockfile) && \
+  (cd frontend && pnpm install --frozen-lockfile)
+}
+run_gate "install" "install_deps"
 
 # Phase 2: Database
 echo "▶️  Starting PostgreSQL..."
