@@ -85,7 +85,10 @@ docs/AKIS_Proje_Takibi*.xlsx
 *.xlsx
 
 # Binary research documents (keep as markdown summaries instead)
+# EXCEPT graduation/academic docs which are archived intentionally
 docs/*.pdf
 docs/*.docx
 docs/~$*.docx
-docs/academic/*.docx
+# Allow academic archive (graduation documents)
+!docs/academic/**/*.pdf
+!docs/academic/**/*.docx
