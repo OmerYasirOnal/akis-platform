@@ -51,7 +51,7 @@ test.describe('Local UI Smoke Test', () => {
     }
   });
 
-  test('health endpoint is accessible', async ({ page, request }) => {
+  test('health endpoint is accessible', async ({ request }) => {
     // Test backend health endpoint directly
     const response = await request.get('http://localhost:3000/health');
     expect(response.ok()).toBeTruthy();
