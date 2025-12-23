@@ -87,7 +87,7 @@ describe('PRMetadataCard', () => {
         // No pullRequest object
       };
 
-      const { container } = render(
+      render(
         <PRMetadataCard result={result} isDryRun={false} jobState="completed" />
       );
       

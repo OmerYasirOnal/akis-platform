@@ -2,9 +2,8 @@
  * PR-2: Feedback Loop Tests
  * Tests for comments and revision functionality
  */
-import { describe, it, beforeEach, mock } from 'node:test';
+import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { AgentOrchestrator } from '../../src/core/orchestrator/AgentOrchestrator.js';
 import { AgentStateMachine } from '../../src/core/state/AgentStateMachine.js';
 
 describe('PR-2: Feedback Loop', () => {
