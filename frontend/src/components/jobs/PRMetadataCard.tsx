@@ -307,6 +307,7 @@ export function PRMetadataCard({ result, payload, isDryRun, jobState }: PRMetada
         )}
 
         {/* PR Info - Prominent Display */}
+        {/* PR-2: Fix undefined rendering - only show if we have valid PR data */}
         {prInfo && prInfo.url && (
           <div className="py-3">
             <div className="flex items-center gap-3">
@@ -320,9 +321,15 @@ export function PRMetadataCard({ result, payload, isDryRun, jobState }: PRMetada
                     className="text-sm font-medium text-ak-primary hover:underline"
                     data-testid="pr-link"
                   >
-                    {prInfo.title || `Pull Request #${prInfo.number}`}
+                    {/* PR-2: Handle all cases - title, number, or fallback to "View Pull Request" */}
+                    {prInfo.title 
+                      ? prInfo.title 
+                      : prInfo.number 
+                        ? `Pull Request #${prInfo.number}`
+                        : 'View Pull Request'}
                   </a>
-                  {prInfo.number && (
+                  {/* PR-2: Only show number badge if we have a valid number */}
+                  {typeof prInfo.number === 'number' && prInfo.number > 0 && (
                     <span className="text-xs text-ak-text-secondary">#{prInfo.number}</span>
                   )}
                   {prInfo.state && (

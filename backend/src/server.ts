@@ -4,8 +4,13 @@ import { getEnv } from './config/env.js';
 import { corsPlugin } from './plugins/security/cors.js';
 import { cookiesPlugin } from './plugins/security/cookies.js';
 import { helmetPlugin } from './plugins/security/helmet.js';
+import { runSchemaGuard } from './utils/schemaGuard.js';
 
 const env = getEnv();
+
+// PR-2: Run schema guard before starting server (dev-only exit on failure)
+await runSchemaGuard();
+
 const app = await buildApp();
 
 // Safe JSON parser that handles empty bodies
