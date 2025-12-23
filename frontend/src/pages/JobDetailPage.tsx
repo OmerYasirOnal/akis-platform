@@ -9,6 +9,7 @@ import { ErrorToast } from '../components/ui/ErrorToast';
 import { StepTimeline } from '../components/agents/StepTimeline';
 import { ArtifactPreview, PRMetadataCard } from '../components/jobs';
 import { PlanView } from '../components/jobs/PlanView';
+import { FeedbackTab } from '../components/jobs/FeedbackTab';
 
 // ============================================================================
 // Types
@@ -40,7 +41,7 @@ interface Artifact {
   createdAt: string;
 }
 
-type TabId = 'overview' | 'timeline' | 'documents' | 'files' | 'preview' | 'plan' | 'audit' | 'raw';
+type TabId = 'overview' | 'timeline' | 'documents' | 'files' | 'preview' | 'plan' | 'feedback' | 'audit' | 'raw';
 
 // ============================================================================
 // Helper Functions
@@ -468,6 +469,7 @@ export default function JobDetailPage() {
             <TabButton id="preview" label="Preview Files" count={previewFiles.length} active={activeTab === 'preview'} onClick={setActiveTab} />
           )}
           <TabButton id="plan" label="Plan" active={activeTab === 'plan'} onClick={setActiveTab} />
+          <TabButton id="feedback" label="Feedback" active={activeTab === 'feedback'} onClick={setActiveTab} />
           <TabButton id="audit" label="Audit" active={activeTab === 'audit'} onClick={setActiveTab} />
           <TabButton id="raw" label="Raw" active={activeTab === 'raw'} onClick={setActiveTab} />
         </div>
@@ -644,6 +646,11 @@ export default function JobDetailPage() {
             )}
         </div>
       )}
+
+        {/* Feedback Tab - PR-2: Feedback Loop */}
+        {activeTab === 'feedback' && (
+          <FeedbackTab job={job} />
+        )}
 
         {/* Audit Tab */}
         {activeTab === 'audit' && (

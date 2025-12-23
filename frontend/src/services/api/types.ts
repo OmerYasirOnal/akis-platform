@@ -44,6 +44,11 @@ export interface Job {
   rejectedAt?: string | null;
   /** Comment on approval/rejection */
   approvalComment?: string | null;
+  // PR-2: Revision chain
+  /** Parent job ID for revision chain */
+  parentJobId?: string | null;
+  /** Revision instruction */
+  revisionNote?: string | null;
 }
 
 export interface JobTraceEvent {
@@ -114,6 +119,32 @@ export interface JobAudit {
   phase: string;
   payload: unknown;
   createdAt: string;
+}
+
+// PR-2: Feedback Loop Types
+export interface JobComment {
+  id: string;
+  jobId: string;
+  userId?: string;
+  text: string;
+  createdAt: string;
+}
+
+export interface RevisionInfo {
+  parentJob?: {
+    id: string;
+    state: JobState;
+    createdAt: string;
+  } | null;
+  revisions: Array<{
+    id: string;
+    state: JobState;
+    revisionNote?: string;
+    createdAt: string;
+    completedAt?: string;
+  }>;
+  isRevision: boolean;
+  revisionNote?: string;
 }
 
 export interface JobsListResponse {

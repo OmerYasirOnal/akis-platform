@@ -281,6 +281,7 @@ export class ScribeAgent extends BaseAgent {
       task.featureBranch && task.featureBranch.length > 0 ? task.featureBranch : baseBranch;
 
     // Config-driven branch creation when featureBranch is not explicitly provided
+    // PR-2: Properly interpolate all template placeholders
     if (!dryRun && (!task.featureBranch || task.featureBranch === baseBranch)) {
       const pattern = task.branchPattern || 'docs/scribe-{timestamp}';
       const ts = new Date()
@@ -288,7 +289,12 @@ export class ScribeAgent extends BaseAgent {
         .replace(/[-:]/g, '')
         .replace(/\..+$/, '')
         .replace('T', '-'); // YYYYMMDD-HHMMSS
-      workingBranch = pattern.includes('{timestamp}') ? pattern.replace('{timestamp}', ts) : pattern;
+      
+      // Replace all supported placeholders
+      workingBranch = pattern
+        .replace('{timestamp}', ts)
+        .replace('{agent}', 'scribe')  // PR-2: Interpolate agent type
+        .replace('{date}', ts.split('-')[0]); // YYYYMMDD format for {date}
     }
 
         results.branch = workingBranch;

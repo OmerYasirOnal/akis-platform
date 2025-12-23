@@ -61,6 +61,11 @@ export const jobs = pgTable('jobs', {
   rejectedAt: timestamp('rejected_at'),
   /** Comment on approval/rejection */
   approvalComment: text('approval_comment'),
+  // PR-2: Revision chain support
+  /** Parent job ID for revision chain (null if original job) */
+  parentJobId: uuid('parent_job_id'),
+  /** User instruction for revision (what to change) */
+  revisionNote: text('revision_note'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 }, (table) => ({
@@ -69,6 +74,8 @@ export const jobs = pgTable('jobs', {
   // S1.2: Index for approval queries
   requiresApprovalIdx: index('idx_jobs_requires_approval').on(table.requiresApproval),
   approvedByIdx: index('idx_jobs_approved_by').on(table.approvedBy),
+  // PR-2: Index for revision chain queries
+  parentJobIdIdx: index('idx_jobs_parent_job_id').on(table.parentJobId),
 }));
 
 export type Job = typeof jobs.$inferSelect;
@@ -119,6 +126,24 @@ export const jobAudits = pgTable('job_audits', {
 
 export type JobAudit = typeof jobAudits.$inferSelect;
 export type NewJobAudit = typeof jobAudits.$inferInsert;
+
+/**
+ * Job comments - stores user feedback on jobs
+ * PR-2: Feedback loop - users can leave comments for revision
+ */
+export const jobComments = pgTable('job_comments', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  jobId: uuid('job_id').notNull().references(() => jobs.id, { onDelete: 'cascade' }),
+  userId: uuid('user_id').references(() => users.id),
+  commentText: text('comment_text').notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => ({
+  jobIdIdx: index('idx_job_comments_job_id').on(table.jobId),
+  createdAtIdx: index('idx_job_comments_created_at').on(table.createdAt),
+}));
+
+export type JobComment = typeof jobComments.$inferSelect;
+export type NewJobComment = typeof jobComments.$inferInsert;
 
 /**
  * Job traces - stores execution timeline events
