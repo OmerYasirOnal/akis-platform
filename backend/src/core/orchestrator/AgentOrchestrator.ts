@@ -761,6 +761,127 @@ export class AgentOrchestrator {
   }
 
   /**
+   * PR-1: Resume an approved job (transition from awaiting_approval to running)
+   * Called after human approval to continue job execution
+   * @param jobId - Job ID
+   * @throws JobNotFoundError if job doesn't exist
+   * @throws InvalidStateTransitionError if job is not in awaiting_approval state
+   * @throws DatabaseError if DB operations fail
+   */
+  async resumeApprovedJob(jobId: string): Promise<void> {
+    // Load job from DB
+    const [job] = await db.select().from(jobs).where(eq(jobs.id, jobId)).limit(1);
+    if (!job) {
+      throw new JobNotFoundError(jobId);
+    }
+
+    // Validate state is awaiting_approval
+    if (job.state !== 'awaiting_approval') {
+      throw new InvalidStateTransitionError(jobId, job.state, 'resume');
+    }
+
+    // Validate approval
+    if (!job.approvedBy || !job.approvedAt) {
+      throw new InvalidStateTransitionError(jobId, job.state, 'resume (not approved)');
+    }
+
+    // Transition to running
+    try {
+      await db.update(jobs).set({ 
+        state: 'running', 
+        updatedAt: new Date() 
+      }).where(eq(jobs.id, jobId));
+    } catch (error) {
+      throw new DatabaseError(`Failed to update job state: ${error instanceof Error ? error.message : String(error)}`, error);
+    }
+
+    // Re-create state machine for running state
+    const stateMachine = new AgentStateMachine('running');
+    this.stateMachines.set(jobId, stateMachine);
+
+    // Continue execution in background (non-blocking)
+    this.continueJobExecution(jobId, job).catch(error => {
+      console.error(`Failed to continue job ${jobId} after approval:`, error);
+    });
+  }
+
+  /**
+   * PR-1: Continue job execution after approval
+   * Internal method that executes the approved plan
+   */
+  private async continueJobExecution(jobId: string, job: typeof jobs.$inferSelect): Promise<void> {
+    const traceRecorder = createTraceRecorder(jobId);
+
+    try {
+      // Record approval and resume in trace
+      traceRecorder.recordInfo(`Job resumed after approval by ${job.approvedBy}`);
+
+      // TODO: PR-1 Phase 2 - Implement full execution continuation
+      // For now, we mark as completed with a note that execution was approved
+      const result = {
+        approved: true,
+        approvedBy: job.approvedBy,
+        approvedAt: job.approvedAt,
+        message: 'Job approved and execution resumed. Full execution continuation pending PR-1 Phase 2 implementation.',
+      };
+
+      await traceRecorder.flush();
+      await this.completeJob(jobId, result);
+    } catch (error) {
+      try {
+        traceRecorder.recordError(
+          error instanceof Error ? error.message : String(error),
+          'EXECUTION_FAILED'
+        );
+        await traceRecorder.flush();
+      } catch (traceError) {
+        console.error(`Failed to flush traces for job ${jobId}:`, traceError);
+      }
+
+      await this.failJob(jobId, error);
+      throw error;
+    }
+  }
+
+  /**
+   * PR-1: Transition job to awaiting_approval state
+   * Called when plan generation is complete and approval is required
+   * @param jobId - Job ID
+   * @throws JobNotFoundError if job doesn't exist
+   * @throws InvalidStateTransitionError if state transition is invalid
+   * @throws DatabaseError if DB operations fail
+   */
+  async awaitApproval(jobId: string): Promise<void> {
+    // Load state machine from DB if not in memory
+    let stateMachine = this.stateMachines.get(jobId);
+    if (!stateMachine) {
+      const [job] = await db.select().from(jobs).where(eq(jobs.id, jobId)).limit(1);
+      if (!job) {
+        throw new JobNotFoundError(jobId);
+      }
+      stateMachine = new AgentStateMachine(job.state as 'pending' | 'running' | 'completed' | 'failed');
+      this.stateMachines.set(jobId, stateMachine);
+    }
+
+    // Validate state is running
+    const currentState = stateMachine.getState();
+    if (currentState !== 'running') {
+      throw new InvalidStateTransitionError(jobId, currentState, 'await_approval');
+    }
+
+    // Update database
+    try {
+      await db.update(jobs).set({ 
+        state: 'awaiting_approval',
+        requiresApproval: true,
+        updatedAt: new Date() 
+      }).where(eq(jobs.id, jobId));
+    } catch (error) {
+      throw new DatabaseError(`Failed to update job state: ${error instanceof Error ? error.message : String(error)}`, error);
+    }
+  }
+
+  /**
    * Execute an agent by type with given context
    * @param agentType - Type of agent to execute
    * @param context - Task context

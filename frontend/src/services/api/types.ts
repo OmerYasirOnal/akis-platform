@@ -96,9 +96,18 @@ export interface JobArtifact {
 }
 
 export interface JobPlan {
-  steps: unknown[];
+  id: string;
+  jobId: string;
+  /** Legacy: Plan steps array */
+  steps?: unknown[];
+  /** Legacy: Plan rationale */
   rationale?: string;
+  /** PR-1: Contract-first plan document (Markdown) */
+  planMarkdown?: string | null;
+  /** PR-1: Structured plan data (JSON) */
+  planJson?: unknown;
   createdAt: string;
+  updatedAt?: string;
 }
 
 export interface JobAudit {
