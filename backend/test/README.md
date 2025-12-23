@@ -33,7 +33,7 @@ test/
 pnpm test
 
 # Run with explicit DATABASE_URL (for integration tests)
-DATABASE_URL="postgres://user:pass@localhost:5432/akis_v2" pnpm test
+DATABASE_URL="postgresql://postgres:postgres@localhost:5433/akis_v2" pnpm test
 
 # Run in CI mode
 pnpm test:ci
