@@ -2,7 +2,7 @@ import { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { AgentOrchestrator } from '../core/orchestrator/AgentOrchestrator.js';
 import { db } from '../db/client.js';
-import { jobs, jobPlans, jobAudits, jobTraces, jobArtifacts, agentConfigs } from '../db/schema.js';
+import { jobs, jobPlans, jobAudits, jobTraces, jobArtifacts, agentConfigs, jobComments } from '../db/schema.js';
 import { eq, desc, and, sql, asc } from 'drizzle-orm';
 import { JobNotFoundError } from '../core/errors.js';
 import { metrics } from './metrics.js';
@@ -792,6 +792,338 @@ export async function agentsRoutes(fastify: FastifyInstance) {
           rejectedBy: user.id,
           rejectedAt: new Date().toISOString(),
         });
+      } catch (error) {
+        const errorResponse = formatErrorResponse(request, error);
+        const statusCode = getStatusCodeForError(errorResponse.error.code);
+        reply.code(statusCode).send(errorResponse);
+      }
+    }
+  );
+
+  // ============================================================================
+  // PR-2: Feedback Loop - Comments & Revisions
+  // ============================================================================
+
+  // GET /api/agents/jobs/:id/comments - Get job comments
+  fastify.get(
+    '/api/agents/jobs/:id/comments',
+    {
+      schema: {
+        description: 'Get all comments for a job',
+        tags: ['agents'],
+        params: {
+          type: 'object',
+          required: ['id'],
+          properties: {
+            id: { type: 'string', format: 'uuid' },
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      try {
+        const params = jobIdParamsSchema.parse(request.params);
+
+        // Verify job exists
+        const [job] = await db.select().from(jobs).where(eq(jobs.id, params.id)).limit(1);
+        if (!job) {
+          throw new JobNotFoundError(params.id);
+        }
+
+        // Get comments
+        const comments = await db
+          .select()
+          .from(jobComments)
+          .where(eq(jobComments.jobId, params.id))
+          .orderBy(asc(jobComments.createdAt));
+
+        return { comments };
+      } catch (error) {
+        const errorResponse = formatErrorResponse(request, error);
+        const statusCode = getStatusCodeForError(errorResponse.error.code);
+        reply.code(statusCode).send(errorResponse);
+      }
+    }
+  );
+
+  // POST /api/agents/jobs/:id/comments - Add a comment to a job
+  fastify.post(
+    '/api/agents/jobs/:id/comments',
+    {
+      schema: {
+        description: 'Add a comment to a job (PR-2 feedback loop)',
+        tags: ['agents'],
+        params: {
+          type: 'object',
+          required: ['id'],
+          properties: {
+            id: { type: 'string', format: 'uuid' },
+          },
+        },
+        body: {
+          type: 'object',
+          required: ['text'],
+          properties: {
+            text: { type: 'string', minLength: 1, maxLength: 5000 },
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      try {
+        // Require authentication
+        const user = await requireAuth(request);
+
+        const params = jobIdParamsSchema.parse(request.params);
+        const body = request.body as { text: string };
+
+        // Verify job exists
+        const [job] = await db.select().from(jobs).where(eq(jobs.id, params.id)).limit(1);
+        if (!job) {
+          throw new JobNotFoundError(params.id);
+        }
+
+        // Insert comment
+        const [comment] = await db
+          .insert(jobComments)
+          .values({
+            jobId: params.id,
+            userId: user.id,
+            commentText: body.text,
+          })
+          .returning();
+
+        // Record audit event
+        await db.insert(jobAudits).values({
+          jobId: params.id,
+          phase: 'execute', // Use execute phase for user feedback
+          payload: {
+            type: 'USER_COMMENT_ADDED',
+            commentId: comment.id,
+            userId: user.id,
+            textPreview: body.text.substring(0, 100),
+          },
+        });
+
+        return reply.code(201).send({
+          success: true,
+          comment: {
+            id: comment.id,
+            jobId: comment.jobId,
+            userId: comment.userId,
+            text: comment.commentText,
+            createdAt: comment.createdAt,
+          },
+        });
+      } catch (error) {
+        const errorResponse = formatErrorResponse(request, error);
+        const statusCode = getStatusCodeForError(errorResponse.error.code);
+        reply.code(statusCode).send(errorResponse);
+      }
+    }
+  );
+
+  // POST /api/agents/jobs/:id/revise - Request a revision (create new job with parent link)
+  fastify.post(
+    '/api/agents/jobs/:id/revise',
+    {
+      schema: {
+        description: 'Request a revision of a completed job (PR-2 feedback loop)',
+        tags: ['agents'],
+        params: {
+          type: 'object',
+          required: ['id'],
+          properties: {
+            id: { type: 'string', format: 'uuid' },
+          },
+        },
+        body: {
+          type: 'object',
+          required: ['instruction'],
+          properties: {
+            instruction: { type: 'string', minLength: 1, maxLength: 5000 },
+            mode: { type: 'string', enum: ['edit', 'regenerate'], default: 'edit' },
+            scope: { type: 'string', enum: ['files', 'plan', 'both'], default: 'files' },
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      try {
+        // Require authentication
+        const user = await requireAuth(request);
+
+        const params = jobIdParamsSchema.parse(request.params);
+        const body = request.body as { instruction: string; mode?: string; scope?: string };
+
+        // Load parent job
+        const [parentJob] = await db.select().from(jobs).where(eq(jobs.id, params.id)).limit(1);
+        if (!parentJob) {
+          throw new JobNotFoundError(params.id);
+        }
+
+        // Validate parent job is completed or failed (can revise either)
+        if (parentJob.state !== 'completed' && parentJob.state !== 'failed') {
+          return reply.code(400).send({
+            error: {
+              code: 'INVALID_STATE',
+              message: `Cannot revise a job in state "${parentJob.state}". Only completed or failed jobs can be revised.`,
+            },
+          });
+        }
+
+        // Get parent job's artifacts (files produced)
+        const parentArtifacts = await db
+          .select()
+          .from(jobArtifacts)
+          .where(eq(jobArtifacts.jobId, params.id));
+
+        // Get parent job's comments (as context)
+        const parentComments = await db
+          .select()
+          .from(jobComments)
+          .where(eq(jobComments.jobId, params.id))
+          .orderBy(asc(jobComments.createdAt));
+
+        // Build enhanced payload for revision job
+        const parentPayload = (parentJob.payload || {}) as Record<string, unknown>;
+        const revisionPayload = {
+          ...parentPayload,
+          // Add revision context
+          revisionContext: {
+            parentJobId: params.id,
+            instruction: body.instruction,
+            mode: body.mode || 'edit',
+            scope: body.scope || 'files',
+            // Include parent artifacts as documents to edit
+            parentArtifacts: parentArtifacts.map(a => ({
+              type: a.artifactType,
+              path: a.path,
+              operation: a.operation,
+              preview: a.preview,
+              metadata: a.metadata,
+            })),
+            // Include parent comments as feedback context
+            feedbackComments: parentComments.map(c => ({
+              text: c.commentText,
+              createdAt: c.createdAt,
+            })),
+          },
+          // Ensure userId is set
+          userId: user.id,
+        };
+
+        // Create revision job
+        const newJobId = await orchestrator.submitJob({
+          type: parentJob.type,
+          payload: revisionPayload,
+          requiresStrictValidation: parentJob.requiresStrictValidation,
+        });
+
+        // Update revision job with parent reference
+        await db
+          .update(jobs)
+          .set({
+            parentJobId: params.id,
+            revisionNote: body.instruction,
+          })
+          .where(eq(jobs.id, newJobId));
+
+        // Record audit event on parent
+        await db.insert(jobAudits).values({
+          jobId: params.id,
+          phase: 'execute',
+          payload: {
+            type: 'REVISION_REQUESTED',
+            childJobId: newJobId,
+            instruction: body.instruction.substring(0, 200),
+            mode: body.mode || 'edit',
+            requestedBy: user.id,
+          },
+        });
+
+        // Start the revision job
+        try {
+          await orchestrator.startJob(newJobId);
+        } catch (startError) {
+          console.error(`Failed to start revision job ${newJobId}:`, startError);
+          // Job is still created, user can retry
+        }
+
+        return reply.code(201).send({
+          success: true,
+          message: 'Revision job created',
+          newJobId,
+          parentJobId: params.id,
+        });
+      } catch (error) {
+        const errorResponse = formatErrorResponse(request, error);
+        const statusCode = getStatusCodeForError(errorResponse.error.code);
+        reply.code(statusCode).send(errorResponse);
+      }
+    }
+  );
+
+  // GET /api/agents/jobs/:id/revisions - Get revision chain (children of this job)
+  fastify.get(
+    '/api/agents/jobs/:id/revisions',
+    {
+      schema: {
+        description: 'Get revision chain for a job (child jobs)',
+        tags: ['agents'],
+        params: {
+          type: 'object',
+          required: ['id'],
+          properties: {
+            id: { type: 'string', format: 'uuid' },
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      try {
+        const params = jobIdParamsSchema.parse(request.params);
+
+        // Verify job exists
+        const [job] = await db.select().from(jobs).where(eq(jobs.id, params.id)).limit(1);
+        if (!job) {
+          throw new JobNotFoundError(params.id);
+        }
+
+        // Get child revisions
+        const revisions = await db
+          .select({
+            id: jobs.id,
+            state: jobs.state,
+            revisionNote: jobs.revisionNote,
+            createdAt: jobs.createdAt,
+            completedAt: jobs.updatedAt,
+          })
+          .from(jobs)
+          .where(eq(jobs.parentJobId, params.id))
+          .orderBy(desc(jobs.createdAt));
+
+        // Get parent job if this is a revision
+        let parentJob = null;
+        if (job.parentJobId) {
+          const [parent] = await db
+            .select({
+              id: jobs.id,
+              state: jobs.state,
+              createdAt: jobs.createdAt,
+            })
+            .from(jobs)
+            .where(eq(jobs.id, job.parentJobId))
+            .limit(1);
+          parentJob = parent || null;
+        }
+
+        return {
+          parentJob,
+          revisions,
+          isRevision: Boolean(job.parentJobId),
+          revisionNote: job.revisionNote,
+        };
       } catch (error) {
         const errorResponse = formatErrorResponse(request, error);
         const statusCode = getStatusCodeForError(errorResponse.error.code);
