@@ -206,6 +206,50 @@ pnpm -C backend test
 ./scripts/db-up.sh
 ```
 
+### Migrations ran but tables are missing at runtime (500 errors)
+
+**Cause**: Migrations ran against a different database (port mismatch)
+
+This happens when `backend/.env.local` has a different DATABASE_URL than what you're using at runtime.
+
+**How env files are resolved:**
+1. Shell export (`export DATABASE_URL=...`) takes highest priority
+2. `backend/.env.local` (gitignored, local overrides)
+3. `backend/.env` (base config)
+
+**Diagnosis:**
+```bash
+# Check what drizzle sees
+grep DATABASE_URL backend/.env backend/.env.local 2>/dev/null
+
+# Check what Docker is using
+docker ps | grep pg
+# Should show: 0.0.0.0:5433->5432/tcp
+
+# Check current shell
+echo $DATABASE_URL
+```
+
+**Fix:**
+```bash
+# Ensure .env.local uses 5433 (not 5432)
+sed -i '' 's/5432/5433/g' backend/.env.local
+
+# Or set explicitly in shell
+export DATABASE_URL="postgresql://postgres:postgres@localhost:5433/akis_v2"
+
+# Re-run migrations
+pnpm -C backend db:migrate
+
+# Verify with smoke test
+./scripts/dev-smoke-jobs.sh
+```
+
+**Prevention:**
+- The `drizzle.config.ts` now warns if it detects port 5432
+- Always export DATABASE_URL before running `db:migrate`
+- The standard port for this project is **5433**, not 5432
+
 ### verify-local.sh fails on macOS
 
 **Cause**: Script now fixed! If still failing:
