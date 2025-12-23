@@ -22,6 +22,37 @@ echo "  Branch: $GIT_BRANCH"
 echo "  Commit: $GIT_SHA"
 echo ""
 
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# PREFLIGHT CHECKS
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+echo "🔍 Preflight checks..."
+
+# Check Docker is running (required for db-up)
+if ! docker info >/dev/null 2>&1; then
+  echo ""
+  echo "❌ PREFLIGHT FAILED: Docker Desktop is not running."
+  echo ""
+  echo "   Please start Docker Desktop and re-run this script."
+  echo "   On macOS: open -a Docker"
+  echo ""
+  exit 1
+fi
+echo "   ✅ Docker is running"
+
+# Ensure we're in repo root
+if [[ ! -f "$REPO_ROOT/pnpm-lock.yaml" ]] && [[ ! -d "$REPO_ROOT/backend" ]]; then
+  echo ""
+  echo "❌ PREFLIGHT FAILED: Not in repo root."
+  echo "   Current directory: $(pwd)"
+  echo "   Expected: devagents repo root"
+  echo ""
+  exit 1
+fi
+echo "   ✅ In repo root"
+
+echo ""
+
 # Results tracking (bash 3.2 compatible - no associative arrays)
 RESULTS=""
 FAILED=0
@@ -52,7 +83,11 @@ run_gate() {
   echo ""
 }
 
-# Phase 1: Dependencies
+# Phase 1: Dependencies (ensure dev dependencies are installed)
+echo "▶️  Ensuring development dependencies are installed..."
+unset NODE_ENV 2>/dev/null || true
+export NODE_ENV=development
+export npm_config_production=false
 run_gate "install" "pnpm install --frozen-lockfile"
 
 # Phase 2: Database
