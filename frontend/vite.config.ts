@@ -4,6 +4,11 @@ import react from '@vitejs/plugin-react';
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
+  server: {
+    // Bind to 127.0.0.1 explicitly to avoid IPv6 ECONNREFUSED issues
+    host: '127.0.0.1',
+    port: 5173,
+  },
   test: {
     environment: 'jsdom',
     globals: true,
