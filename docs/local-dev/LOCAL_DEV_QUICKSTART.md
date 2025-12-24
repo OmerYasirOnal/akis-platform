@@ -304,6 +304,28 @@ devagents/
 4. **Check ./scripts/** for automation helpers
 5. **Use pnpm -C <workspace>** to run commands in specific workspace
 
+## 🐛 Common Issues
+
+### IPv6 ECONNREFUSED (macOS)
+If Playwright tests fail with `ECONNREFUSED` to `127.0.0.1:5173`:
+- **Cause**: macOS/Vite binds to `::1` (IPv6) by default, not `127.0.0.1` (IPv4)
+- **Fix**: Vite config now sets `host: '127.0.0.1'` explicitly
+- **Workaround**: Use `localhost` instead of `127.0.0.1` in URLs
+
+### MCP Gateway Tests Failing
+If backend tests fail on "MCP Gateway Integration":
+- **Cause**: Tests try to connect to `localhost:4010` but no MCP Gateway is running
+- **Fix**: Tests are skipped by default via `SKIP_MCP_TESTS=true`
+- **Run MCP tests**: `pnpm -C backend test:mcp` (requires running gateway)
+
+### Port Already in Use
+If you get "EADDRINUSE" errors:
+```bash
+# Find and kill process on port
+lsof -ti:3000 | xargs kill -9  # Backend
+lsof -ti:5173 | xargs kill -9  # Frontend
+```
+
 ## 🆘 Still Stuck?
 
 1. Check `backend/.env` and `frontend/.env` exist and are configured
@@ -314,6 +336,6 @@ devagents/
 
 ---
 
-**Last Updated**: 2025-12-23  
+**Last Updated**: 2025-12-25  
 **Maintainer**: Dev Team
 
