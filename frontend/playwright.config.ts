@@ -1,6 +1,7 @@
 import { defineConfig, devices, type ReporterDescription } from '@playwright/test';
 
-const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? 'http://localhost:5173';
+// Use 127.0.0.1 to avoid IPv6 localhost (::1) ECONNREFUSED issues on macOS
+const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? 'http://127.0.0.1:5173';
 
 const reporters: ReporterDescription[] = [
   ['list'],
