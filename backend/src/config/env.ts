@@ -1,5 +1,22 @@
-import 'dotenv/config';
+import { config as loadEnv } from 'dotenv';
+import { resolve } from 'node:path';
 import { z } from 'zod';
+
+// =============================================================================
+// ENV LOADING (Correct Precedence)
+// =============================================================================
+// Priority: 1) Shell exports  2) .env.local  3) .env
+// .env.local overrides .env, but shell exports override both
+// =============================================================================
+
+// Get backend directory (where .env files are located)
+const backendDir = resolve(import.meta.dirname, '../../');
+
+// Load .env first (base defaults)
+loadEnv({ path: resolve(backendDir, '.env') });
+
+// Load .env.local second (local overrides) - this WILL override .env values
+loadEnv({ path: resolve(backendDir, '.env.local'), override: true });
 
 /**
  * Environment schema validation (fail-fast)
@@ -90,6 +107,10 @@ const envSchema = z
     AI_MODEL_VALIDATION: z.string().optional(),
     OPENROUTER_MODEL: z.string().optional(),
     OPENAI_MODEL: z.string().optional(),
+    
+    // OpenRouter optional headers
+    OPENROUTER_SITE_URL: z.string().url().optional(),
+    OPENROUTER_APP_NAME: z.string().optional(),
     
     // GitHub private key (base64 encoded)
     GITHUB_PRIVATE_KEY_BASE64: z.string().optional(),
@@ -226,6 +247,9 @@ export interface AIConfig {
   modelDefault: string;
   modelPlanner: string;
   modelValidation: string;
+  // OpenRouter optional headers
+  siteUrl?: string;
+  appName?: string;
 }
 
 /**
@@ -273,6 +297,10 @@ export function getAIConfig(env: Env): AIConfig {
   const modelPlanner = env.AI_MODEL_PLANNER || legacyModel || defaultModel;
   const modelValidation = env.AI_MODEL_VALIDATION || legacyModel || defaultModel;
   
+  // OpenRouter optional headers
+  const siteUrl = env.OPENROUTER_SITE_URL;
+  const appName = env.OPENROUTER_APP_NAME;
+  
   return {
     provider,
     apiKey,
@@ -280,6 +308,8 @@ export function getAIConfig(env: Env): AIConfig {
     modelDefault,
     modelPlanner,
     modelValidation,
+    siteUrl,
+    appName,
   };
 }
 
