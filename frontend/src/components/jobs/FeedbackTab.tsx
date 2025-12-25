@@ -24,15 +24,22 @@ interface FeedbackTabProps {
 // API Helpers
 // ============================================================================
 
-const API_BASE = import.meta.env.VITE_API_URL ?? '/api';
+// Use backend URL from env, ensuring /api prefix is included
+const API_BASE = import.meta.env.VITE_API_URL 
+  ? `${import.meta.env.VITE_API_URL}/api` 
+  : '/api';
 
 async function fetchComments(jobId: string): Promise<JobComment[]> {
   const res = await fetch(`${API_BASE}/agents/jobs/${jobId}/comments`, {
     credentials: 'include',
   });
-  if (!res.ok) throw new Error('Failed to fetch comments');
+  if (!res.ok) {
+    // Return empty array for 404 (no comments yet)
+    if (res.status === 404) return [];
+    throw new Error('Failed to fetch comments');
+  }
   const data = await res.json();
-  return data.comments.map((c: { commentText?: string; text?: string; [key: string]: unknown }) => ({
+  return (data.comments || []).map((c: { commentText?: string; text?: string; [key: string]: unknown }) => ({
     ...c,
     text: c.commentText || c.text || '',
   }));
@@ -42,7 +49,13 @@ async function fetchRevisions(jobId: string): Promise<RevisionInfo> {
   const res = await fetch(`${API_BASE}/agents/jobs/${jobId}/revisions`, {
     credentials: 'include',
   });
-  if (!res.ok) throw new Error('Failed to fetch revisions');
+  if (!res.ok) {
+    // Return default for 404 (no revisions yet)
+    if (res.status === 404) {
+      return { parentJob: null, revisions: [], isRevision: false, revisionNote: null };
+    }
+    throw new Error('Failed to fetch revisions');
+  }
   return res.json();
 }
 
