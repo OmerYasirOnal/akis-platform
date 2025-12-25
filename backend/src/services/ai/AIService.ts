@@ -11,6 +11,43 @@
 
 import { getEnv, getAIConfig, type AIConfig } from '../../config/env.js';
 import { AIRateLimitedError, AIProviderError } from '../../core/errors.js';
+import { z } from 'zod';
+
+// =============================================================================
+// JSON Schema Definitions for AI Responses
+// =============================================================================
+
+/**
+ * Schema for Plan response from AI
+ */
+const PlanSchema = z.object({
+  steps: z.array(z.object({
+    id: z.string(),
+    title: z.string(),
+    detail: z.string().optional(),
+  })).min(1),
+  rationale: z.string().optional(),
+});
+
+/**
+ * Schema for Critique response from AI
+ */
+const CritiqueSchema = z.object({
+  issues: z.array(z.string()),
+  recommendations: z.array(z.string()),
+  severity: z.enum(['low', 'medium', 'high']).optional(),
+});
+
+/**
+ * Schema for Validation response from AI
+ */
+const ValidationSchema = z.object({
+  passed: z.boolean(),
+  confidence: z.number().min(0).max(1),
+  issues: z.array(z.string()),
+  suggestions: z.array(z.string()),
+  summary: z.string(),
+});
 
 // =============================================================================
 // Types and Interfaces
@@ -370,40 +407,140 @@ class RealAIService implements AIService {
   }
 
   /**
-   * Parse JSON from AI response, handling markdown code blocks
+   * Extract JSON from AI response, handling markdown code blocks and extra text
    */
-  private parseJsonResponse<T>(response: string, fallback: T): T {
+  private extractJsonString(response: string): string {
+    // Try to extract JSON from markdown code blocks first
+    const codeBlockMatch = response.match(/```(?:json)?\s*([\s\S]*?)```/);
+    if (codeBlockMatch) {
+      return codeBlockMatch[1].trim();
+    }
+    
+    // Try to find JSON object/array in the response
+    const jsonObjectMatch = response.match(/\{[\s\S]*\}/);
+    const jsonArrayMatch = response.match(/\[[\s\S]*\]/);
+    
+    if (jsonObjectMatch) {
+      return jsonObjectMatch[0];
+    }
+    if (jsonArrayMatch) {
+      return jsonArrayMatch[0];
+    }
+    
+    return response.trim();
+  }
+
+  /**
+   * Parse and validate JSON from AI response with schema validation
+   * @param response Raw AI response string
+   * @param schema Zod schema for validation
+   * @param context Description of what we're parsing (for logging)
+   * @returns Parsed and validated response
+   * @throws AIProviderError if parsing/validation fails after repair attempt
+   */
+  private async parseWithSchema<T>(
+    response: string,
+    schema: z.ZodSchema<T>,
+    context: string
+  ): Promise<T> {
+    const jsonStr = this.extractJsonString(response);
+    
+    // First attempt: parse and validate
     try {
-      // Try to extract JSON from markdown code blocks
-      const jsonMatch = response.match(/```(?:json)?\s*([\s\S]*?)```/);
-      const jsonStr = jsonMatch ? jsonMatch[1].trim() : response.trim();
+      const parsed = JSON.parse(jsonStr);
+      const validated = schema.parse(parsed);
+      return validated;
+    } catch (firstError) {
+      console.warn(`[AIService] First parse attempt failed for ${context}: ${firstError instanceof Error ? firstError.message : 'unknown'}`);
+      
+      // Log raw response (redacted) for debugging
+      const redactedResponse = response.length > 500 
+        ? response.substring(0, 500) + '...(truncated)'
+        : response;
+      console.warn(`[AIService] Raw response (redacted): ${redactedResponse}`);
+      
+      // Repair attempt: ask AI to fix the JSON
+      try {
+        const repairPrompt = `The following text was supposed to be valid JSON but failed to parse. 
+Return ONLY the corrected JSON with no explanation or additional text.
+The JSON should match this structure: ${JSON.stringify(schema._def)}
+
+Original response:
+${response.substring(0, 2000)}
+
+Return ONLY valid JSON:`;
+
+        const repairedResponse = await this.chatCompletion(
+          [{ role: 'user', content: repairPrompt }],
+          this.config.modelDefault,
+          { temperature: 0, maxTokens: 2048 }
+        );
+        
+        const repairedJsonStr = this.extractJsonString(repairedResponse);
+        const reparsed = JSON.parse(repairedJsonStr);
+        const revalidated = schema.parse(reparsed);
+        
+        console.log(`[AIService] Successfully repaired JSON for ${context}`);
+        return revalidated;
+      } catch (repairError) {
+        // Both attempts failed - throw with details
+        const errorMessage = repairError instanceof Error ? repairError.message : 'unknown';
+        console.error(`[AIService] JSON repair failed for ${context}: ${errorMessage}`);
+        console.error(`[AIService] Model: ${this.config.modelDefault}`);
+        
+        throw new AIProviderError(
+          'AI_INVALID_RESPONSE',
+          `Failed to parse AI response for ${context} after repair attempt. ` +
+          `Error: ${errorMessage}. ` +
+          `Raw response saved in logs.`,
+          this.config.provider
+        );
+      }
+    }
+  }
+
+  /**
+   * Legacy fallback parser - used only for non-critical parsing
+   * @deprecated Use parseWithSchema for structured responses
+   */
+  private parseJsonResponseLegacy<T>(response: string, fallback: T): T {
+    try {
+      const jsonStr = this.extractJsonString(response);
       return JSON.parse(jsonStr) as T;
     } catch {
-      // If parsing fails, return fallback
-      console.warn('Failed to parse AI JSON response, using fallback');
+      console.warn('[AIService] Legacy JSON parse failed, using fallback');
       return fallback;
     }
   }
 
   /**
-   * Plan a task - uses AI_MODEL_PLANNER
+   * Plan a task - uses AI_MODEL_PLANNER with strict JSON schema validation
    */
   async planTask(input: PlanInput): Promise<Plan> {
     const systemPrompt = `You are an AI planning assistant for the AKIS platform.
 Your task is to create execution plans for autonomous agents.
-Always respond with valid JSON in this exact format:
+
+CRITICAL: You MUST respond with ONLY valid JSON in this EXACT format:
 {
   "steps": [
     { "id": "step-1", "title": "Step title", "detail": "Optional detailed description" }
   ],
   "rationale": "Brief explanation of why this plan achieves the goal"
-}`;
+}
+
+Requirements:
+- steps array MUST have at least 1 step
+- Each step MUST have "id" and "title" fields
+- "detail" is optional but recommended
+- "rationale" explains the plan approach
+- NO text before or after the JSON
+- NO markdown code blocks`;
 
     const userPrompt = `Create an execution plan for the ${input.agent} agent.
 Goal: ${input.goal}
 ${input.context ? `Context: ${JSON.stringify(input.context)}` : ''}
 
-Respond ONLY with the JSON plan, no additional text.`;
+Respond with ONLY the JSON plan object.`;
 
     const response = await this.chatCompletion(
       [
@@ -414,12 +551,7 @@ Respond ONLY with the JSON plan, no additional text.`;
       { temperature: 0.5 }
     );
 
-    return this.parseJsonResponse<Plan>(response, {
-      steps: [
-        { id: 'step-1', title: `Execute ${input.agent} task`, detail: input.goal },
-      ],
-      rationale: 'Default plan generated due to parsing error',
-    });
+    return this.parseWithSchema(response, PlanSchema, 'planTask');
   }
 
   /**
@@ -455,17 +587,25 @@ Generate the requested content.`;
   }
 
   /**
-   * Reflect on artifact - uses AI_MODEL_DEFAULT
+   * Reflect on artifact - uses AI_MODEL_DEFAULT with strict JSON schema validation
    */
   async reflectOnArtifact(input: ReflectionInput): Promise<Critique> {
     const systemPrompt = `You are an AI code review and quality assessment assistant for the AKIS platform.
 Analyze the given artifact and provide constructive feedback.
-Always respond with valid JSON in this exact format:
+
+CRITICAL: You MUST respond with ONLY valid JSON in this EXACT format:
 {
   "issues": ["List of identified issues or problems"],
   "recommendations": ["List of specific recommendations for improvement"],
   "severity": "low" | "medium" | "high"
-}`;
+}
+
+Requirements:
+- "issues" MUST be an array of strings (can be empty if no issues)
+- "recommendations" MUST be an array of strings
+- "severity" MUST be exactly one of: "low", "medium", or "high"
+- NO text before or after the JSON
+- NO markdown code blocks`;
 
     let checkResultsSummary = '';
     if (input.checkResults) {
@@ -499,7 +639,7 @@ Always respond with valid JSON in this exact format:
 ${artifactStr.substring(0, 8000)}${artifactStr.length > 8000 ? '\n... (truncated)' : ''}
 ${input.context ? `\nContext: ${JSON.stringify(input.context)}` : ''}${checkResultsSummary}
 
-Respond ONLY with the JSON critique, no additional text.`;
+Respond with ONLY the JSON critique object.`;
 
     const response = await this.chatCompletion(
       [
@@ -510,28 +650,34 @@ Respond ONLY with the JSON critique, no additional text.`;
       { temperature: 0.3 }
     );
 
-    return this.parseJsonResponse<Critique>(response, {
-      issues: ['Unable to parse AI response'],
-      recommendations: ['Please review the artifact manually'],
-      severity: 'medium',
-    });
+    return this.parseWithSchema(response, CritiqueSchema, 'reflectOnArtifact');
   }
 
   /**
-   * Validate with strong model - uses AI_MODEL_VALIDATION
+   * Validate with strong model - uses AI_MODEL_VALIDATION with strict JSON schema validation
    */
   async validateWithStrongModel(input: ValidationInput): Promise<ValidationResult> {
     const systemPrompt = `You are an expert AI validator for the AKIS platform.
 Your job is to perform final quality validation before marking a job as complete.
 Be thorough and critical. Only pass artifacts that meet high quality standards.
-Always respond with valid JSON in this exact format:
+
+CRITICAL: You MUST respond with ONLY valid JSON in this EXACT format:
 {
   "passed": true | false,
   "confidence": 0.0 to 1.0,
   "issues": ["List of any issues found"],
   "suggestions": ["List of improvement suggestions"],
   "summary": "Brief summary of validation result"
-}`;
+}
+
+Requirements:
+- "passed" MUST be a boolean (true or false)
+- "confidence" MUST be a number between 0.0 and 1.0
+- "issues" MUST be an array of strings
+- "suggestions" MUST be an array of strings  
+- "summary" MUST be a non-empty string
+- NO text before or after the JSON
+- NO markdown code blocks`;
 
     const artifactStr = typeof input.artifact === 'string'
       ? input.artifact
@@ -560,7 +706,7 @@ ${artifactStr.substring(0, 10000)}${artifactStr.length > 10000 ? '\n... (truncat
 
 ${contextParts.length > 0 ? `Additional Context:\n${contextParts.join('\n')}` : ''}
 
-Respond ONLY with the JSON validation result, no additional text.`;
+Respond with ONLY the JSON validation result object.`;
 
     const response = await this.chatCompletion(
       [
@@ -571,13 +717,7 @@ Respond ONLY with the JSON validation result, no additional text.`;
       { temperature: 0.2 }
     );
 
-    return this.parseJsonResponse<ValidationResult>(response, {
-      passed: false,
-      confidence: 0,
-      issues: ['Unable to parse validation response'],
-      suggestions: ['Please validate manually'],
-      summary: 'Validation parsing failed',
-    });
+    return this.parseWithSchema(response, ValidationSchema, 'validateWithStrongModel');
   }
 }
 
