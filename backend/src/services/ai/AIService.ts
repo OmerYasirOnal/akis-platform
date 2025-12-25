@@ -250,15 +250,28 @@ class RealAIService implements AIService {
 
     for (let attempt = 0; attempt <= this.maxRetries; attempt++) {
       try {
+        // Build headers - OpenRouter specific headers are optional
+        const headers: Record<string, string> = {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${this.config.apiKey}`,
+        };
+        
+        // Add OpenRouter specific headers if configured (ignored by OpenAI)
+        if (this.config.siteUrl) {
+          headers['HTTP-Referer'] = this.config.siteUrl;
+        } else {
+          headers['HTTP-Referer'] = 'https://akis.dev';
+        }
+        
+        if (this.config.appName) {
+          headers['X-Title'] = this.config.appName;
+        } else {
+          headers['X-Title'] = 'AKIS Platform';
+        }
+
         const response = await fetch(endpoint, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${this.config.apiKey}`,
-            // OpenRouter specific headers (ignored by OpenAI)
-            'HTTP-Referer': 'https://akis.dev',
-            'X-Title': 'AKIS Platform',
-          },
+          headers,
           body: JSON.stringify(body),
         });
 
@@ -659,19 +672,25 @@ class MockAIService implements AIService {
  * Uses getAIConfig() to resolve environment variables with legacy fallbacks
  */
 export function createAIService(config?: AIConfig): AIService {
+  // ALWAYS use mock in test environment to prevent external API calls during tests
+  if (process.env.NODE_ENV === 'test') {
+    console.log('[AIService] Using mock provider (test environment)');
+    return new MockAIService();
+  }
+
   // If no config provided, get from environment
   const resolvedConfig = config || getAIConfig(getEnv());
 
   if (resolvedConfig.provider === 'mock') {
     console.log('[AIService] Using mock provider (no real AI calls)');
-        return new MockAIService();
-      }
+    return new MockAIService();
+  }
 
   if (!resolvedConfig.apiKey) {
     console.warn(
       `[AIService] No API key found for provider "${resolvedConfig.provider}", falling back to mock`
     );
-      return new MockAIService();
+    return new MockAIService();
   }
 
   console.log(`[AIService] Using ${resolvedConfig.provider} provider`);

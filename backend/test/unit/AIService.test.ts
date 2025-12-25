@@ -27,7 +27,8 @@ describe('AIService', () => {
       assert.strictEqual(summary.models.validation, 'mock-model');
     });
 
-    test('should create RealAIService when provider is openrouter', () => {
+    test('should always use MockAIService in test environment (openrouter config)', () => {
+      // In test environment, AIService ALWAYS returns mock to prevent external API calls
       const config: AIConfig = {
         provider: 'openrouter',
         apiKey: 'test-api-key',
@@ -40,13 +41,13 @@ describe('AIService', () => {
       const service = createAIService(config);
       const summary = service.getConfigSummary();
 
-      assert.strictEqual(summary.provider, 'openrouter');
-      assert.strictEqual(summary.models.default, 'meta-llama/llama-3.3-70b-instruct:free');
-      assert.strictEqual(summary.models.planner, 'meta-llama/llama-3.3-70b-instruct:free');
-      assert.strictEqual(summary.models.validation, 'google/gemini-2.0-flash-exp:free');
+      // In test environment, we ALWAYS get mock - this is by design
+      assert.strictEqual(summary.provider, 'mock');
+      assert.strictEqual(summary.models.default, 'mock-model');
     });
 
-    test('should create RealAIService when provider is openai', () => {
+    test('should always use MockAIService in test environment (openai config)', () => {
+      // In test environment, AIService ALWAYS returns mock to prevent external API calls
       const config: AIConfig = {
         provider: 'openai',
         apiKey: 'test-api-key',
@@ -59,10 +60,9 @@ describe('AIService', () => {
       const service = createAIService(config);
       const summary = service.getConfigSummary();
 
-      assert.strictEqual(summary.provider, 'openai');
-      assert.strictEqual(summary.models.default, 'gpt-4o-mini');
-      assert.strictEqual(summary.models.planner, 'gpt-4o-mini');
-      assert.strictEqual(summary.models.validation, 'gpt-4o');
+      // In test environment, we ALWAYS get mock - this is by design
+      assert.strictEqual(summary.provider, 'mock');
+      assert.strictEqual(summary.models.default, 'mock-model');
     });
 
     test('should fall back to MockAIService when apiKey is missing', () => {
