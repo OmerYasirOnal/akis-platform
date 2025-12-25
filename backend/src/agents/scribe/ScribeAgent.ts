@@ -4,7 +4,7 @@ import { GitHubMCPService } from '../../services/mcp/adapters/GitHubMCPService.j
 import type { AIService, Plan, Planner } from '../../services/ai/AIService.js';
 import type { MCPTools } from '../../services/mcp/adapters/index.js';
 import type { TraceRecorder } from '../../core/tracing/TraceRecorder.js';
-import { getContractForPath, buildContractPrompt, detectDocFileType } from './DocContract.js';
+import { getContractForPath, buildContractPrompt, detectDocFileType, type RepoContext } from './DocContract.js';
 import { createPlanGenerator, type PlanContext, type GeneratedPlan } from '../../core/planning/PlanGenerator.js';
 import { db } from '../../db/client.js';
 import { jobPlans } from '../../db/schema.js';
@@ -207,6 +207,93 @@ export class ScribeAgent extends BaseAgent {
    */
   getGeneratedPlan(): GeneratedPlan | undefined {
     return this.generatedPlan;
+  }
+
+  /**
+   * Gather repository context for grounded documentation
+   * Reads key files to provide evidence for AI generation
+   */
+  private async gatherRepoContext(owner: string, repo: string, branch: string): Promise<RepoContext> {
+    const context: RepoContext = {
+      keyFiles: [],
+      techStack: [],
+    };
+
+    if (!this.githubMCP) {
+      return context;
+    }
+
+    // Key files to read for documentation context
+    const keyFilePaths = [
+      'package.json',
+      'README.md',
+      'LICENSE',
+      'tsconfig.json',
+      'vite.config.ts',
+      'src/index.ts',
+      'src/main.ts',
+      'src/App.tsx',
+      '.env.example',
+    ];
+
+    for (const filePath of keyFilePaths) {
+      try {
+        const fileData = await this.githubMCP.getFileContent(owner, repo, branch, filePath);
+        
+        // Truncate content to avoid huge prompts
+        const preview = fileData.content.substring(0, 1500);
+        
+        context.keyFiles!.push({
+          path: filePath,
+          preview: preview + (fileData.content.length > 1500 ? '\n... (truncated)' : ''),
+        });
+
+        // Detect tech stack from package.json
+        if (filePath === 'package.json') {
+          try {
+            const pkg = JSON.parse(fileData.content);
+            const deps = { ...pkg.dependencies, ...pkg.devDependencies };
+            
+            if (deps.react) context.techStack!.push('React');
+            if (deps.vue) context.techStack!.push('Vue');
+            if (deps.next) context.techStack!.push('Next.js');
+            if (deps.fastify) context.techStack!.push('Fastify');
+            if (deps.express) context.techStack!.push('Express');
+            if (deps.typescript) context.techStack!.push('TypeScript');
+            if (deps.vite) context.techStack!.push('Vite');
+            if (deps.tailwindcss) context.techStack!.push('Tailwind CSS');
+            if (deps['drizzle-orm']) context.techStack!.push('Drizzle ORM');
+            if (deps.zod) context.techStack!.push('Zod');
+            
+            // Detect package manager
+            if (pkg.packageManager?.includes('pnpm')) {
+              context.packageManager = 'pnpm';
+            } else if (pkg.packageManager?.includes('yarn')) {
+              context.packageManager = 'yarn';
+            } else {
+              context.packageManager = 'npm';
+            }
+          } catch {
+            // JSON parse failed, skip
+          }
+        }
+
+        // Detect license
+        if (filePath === 'LICENSE') {
+          const content = fileData.content.toLowerCase();
+          if (content.includes('mit license')) context.license = 'MIT';
+          else if (content.includes('apache')) context.license = 'Apache-2.0';
+          else if (content.includes('gpl')) context.license = 'GPL';
+          else context.license = 'See LICENSE file';
+        }
+
+        this.traceRecorder?.recordDocRead(filePath, fileData.content.length, preview.substring(0, 100));
+      } catch {
+        // File doesn't exist, skip
+      }
+    }
+
+    return context;
   }
 
   /**
@@ -467,12 +554,31 @@ export class ScribeAgent extends BaseAgent {
       reasoning: `Selected files based on task requirements and documentation contracts. Priority order: ${fileTargets.map(f => `${f.path} (priority ${f.priority})`).join(', ')}`,
     });
 
+    // Step 2.5: Gather Repository Context for grounded documentation
+    this.traceRecorder?.recordPlanStep({
+      stepId: 'gather-context',
+      title: 'Gather Repository Context',
+      description: 'Reading key repository files for grounded documentation',
+      reasoning: 'Grounded documentation requires reading actual repository files to avoid hallucination.',
+      status: 'running',
+    });
+
+    const repoContext = await this.gatherRepoContext(task.owner, task.repo, workingBranch);
+    
+    this.traceRecorder?.recordPlanStep({
+      stepId: 'gather-context',
+      title: 'Gather Repository Context',
+      description: `Gathered context from ${repoContext.keyFiles?.length || 0} key files`,
+      reasoning: `Found: ${repoContext.techStack?.join(', ') || 'unknown stack'}, ${repoContext.packageManager || 'unknown'} package manager`,
+      status: 'completed',
+    });
+
     // Step 3: Generate contract-compliant content for each target
     this.traceRecorder?.recordPlanStep({
       stepId: 'generate-content',
       title: 'Generate Documentation',
-      description: `Generating contract-compliant content for ${fileTargets.length} file(s)`,
-      reasoning: 'Using documentation contracts to ensure structured, high-quality content that meets standards.',
+      description: `Generating repo-grounded content for ${fileTargets.length} file(s)`,
+      reasoning: 'Using documentation contracts + repository evidence to ensure accurate, non-hallucinated content.',
       status: 'running',
     });
 
@@ -485,24 +591,26 @@ export class ScribeAgent extends BaseAgent {
         phase: 'generation',
         summary: `Generating ${docType} documentation for ${target.path}. ` +
                  `Contract requires ${target.contract.sections.filter(s => s.required).length} mandatory sections. ` +
+                 `Using ${repoContext.keyFiles?.length || 0} repo files as evidence. ` +
                  `${target.existingContent ? `Existing content: ${target.existingContent.length} bytes.` : 'Creating new file.'}`,
       });
 
-      // Build contract-driven prompt
+      // Build contract-driven prompt WITH repo context
       const contractPrompt = buildContractPrompt(
         target.contract,
         target.existingContent,
-        task.taskDescription || `Update ${target.path} with comprehensive documentation`
+        task.taskDescription || `Update ${target.path} with comprehensive documentation`,
+        repoContext
       );
 
-      // Call AI with contract-compliant prompt
+      // Call AI with contract-compliant, repo-grounded prompt
       const genStartTime = Date.now();
       this.traceRecorder?.recordToolCall({
         toolName: 'ai.generate',
-        asked: `Generate contract-compliant ${docType} documentation for ${target.path}`,
-        did: 'Calling AI service with documentation contract requirements',
-        why: `Using structured contract ensures the documentation meets quality standards and includes all required sections for ${docType} files.`,
-        inputSummary: `docType: ${docType}, existingLength: ${target.existingContent.length} bytes, requiredSections: ${target.contract.sections.filter(s => s.required).map(s => s.name).join(', ')}`,
+        asked: `Generate repo-grounded ${docType} documentation for ${target.path}`,
+        did: 'Calling AI service with documentation contract + repository evidence',
+        why: `Using structured contract + actual repo files ensures accurate documentation with no hallucination.`,
+        inputSummary: `docType: ${docType}, existingLength: ${target.existingContent.length} bytes, repoFiles: ${repoContext.keyFiles?.length || 0}, requiredSections: ${target.contract.sections.filter(s => s.required).map(s => s.name).join(', ')}`,
         success: true,
         durationMs: Date.now() - genStartTime,
       });
@@ -510,7 +618,7 @@ export class ScribeAgent extends BaseAgent {
       // Generate content using AI
       const aiResult = await this.aiService.generateWorkArtifact({
         task: contractPrompt,
-        context: { ...task, filePath: target.path, docType },
+        context: { ...task, filePath: target.path, docType, repoContext },
       });
       const newContent = aiResult.content;
 
@@ -525,7 +633,7 @@ export class ScribeAgent extends BaseAgent {
       this.traceRecorder?.recordDecision({
         title: `Content generated for ${target.path}`,
         decision: `Generated ${newContent.length} bytes (${linesAdded > 0 ? '+' : ''}${linesAdded} lines)`,
-        reasoning: `Successfully generated contract-compliant ${docType} documentation with all required sections.`,
+        reasoning: `Successfully generated repo-grounded ${docType} documentation using ${repoContext.keyFiles?.length || 0} source files.`,
       });
     }
     

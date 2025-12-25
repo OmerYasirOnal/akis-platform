@@ -330,16 +330,51 @@ export interface DocSet {
 }
 
 /**
- * Build a contract-compliant content prompt for AI
+ * Repository context for grounded documentation
+ */
+export interface RepoContext {
+  /** Key files read from repository */
+  keyFiles?: {
+    path: string;
+    preview: string;
+  }[];
+  /** Package manager info */
+  packageManager?: 'npm' | 'pnpm' | 'yarn' | 'unknown';
+  /** Tech stack indicators */
+  techStack?: string[];
+  /** License type */
+  license?: string;
+}
+
+/**
+ * Quality Review Rubric for documentation
+ */
+export const QUALITY_RUBRIC = {
+  completeness: 'All required sections present with meaningful content',
+  accuracy: 'Information matches actual repository files (no hallucination)',
+  actionability: 'Setup/usage instructions are copy-paste ready commands',
+  consistency: 'Consistent formatting, terminology, and style throughout',
+  grounding: 'Every claim is backed by evidence from repository files',
+};
+
+/**
+ * Build a contract-compliant, repo-grounded content prompt for AI
+ * 
+ * Key improvements for v2:
+ * - Requires citing repository files before writing
+ * - Explicit no-hallucination directive
+ * - Quality review rubric included
+ * - Produces PR-ready markdown diffs
  */
 export function buildContractPrompt(
   contract: DocTypeContract,
   existingContent: string,
-  taskDescription: string
+  taskDescription: string,
+  repoContext?: RepoContext
 ): string {
   const requiredSections = contract.sections
     .filter(s => s.required)
-    .map(s => `- ${s.name}: ${s.description}`)
+    .map(s => `- **${s.name}** (REQUIRED): ${s.description}${s.hints ? ` [Hints: ${s.hints.join(', ')}]` : ''}`)
     .join('\n');
   
   const optionalSections = contract.sections
@@ -347,37 +382,69 @@ export function buildContractPrompt(
     .map(s => `- ${s.name}: ${s.description}`)
     .join('\n');
 
-  return `You are a technical documentation specialist. Generate high-quality ${contract.fileType} documentation.
+  // Build repo context section if available
+  let repoContextSection = '';
+  if (repoContext?.keyFiles?.length) {
+    repoContextSection = `
+**Repository Evidence** (use ONLY this information):
+${repoContext.keyFiles.map(f => `
+[${f.path}]:
+\`\`\`
+${f.preview}
+\`\`\``).join('\n')}
+
+${repoContext.techStack?.length ? `Tech Stack Detected: ${repoContext.techStack.join(', ')}` : ''}
+${repoContext.packageManager ? `Package Manager: ${repoContext.packageManager}` : ''}
+${repoContext.license ? `License: ${repoContext.license}` : ''}
+`;
+  }
+
+  return `You are a technical documentation specialist creating production-grade ${contract.fileType} documentation.
+
+**CRITICAL RULES (MUST FOLLOW)**:
+1. ONLY use information from the repository evidence provided below
+2. DO NOT hallucinate features, commands, or configurations that are not in the evidence
+3. If information is missing, note it as "TODO: Add [topic]" rather than making it up
+4. Every command, endpoint, or technical detail MUST come from the repository files
+5. Output ONLY valid Markdown - no explanations, no meta-commentary
 
 **Task**: ${taskDescription}
 
 **Documentation Contract (${contract.fileType})**:
-Required sections:
+
+Required sections (MUST include all):
 ${requiredSections}
 
-Optional sections (include if relevant):
+Optional sections (include if evidence supports):
 ${optionalSections}
+
+**Quality Review Rubric** (your output will be scored on):
+- Completeness: ${QUALITY_RUBRIC.completeness}
+- Accuracy: ${QUALITY_RUBRIC.accuracy}
+- Actionability: ${QUALITY_RUBRIC.actionability}
+- Consistency: ${QUALITY_RUBRIC.consistency}
+- Grounding: ${QUALITY_RUBRIC.grounding}
 
 **Quality Requirements**:
 - Tone: ${contract.qualityRules.tone}
 - Minimum length: ${contract.qualityRules.minLength || 200} characters
-${contract.qualityRules.requireCodeExamples ? '- Must include code examples' : ''}
-${contract.qualityRules.requireLinks ? '- Must include relevant links' : ''}
-
-**Existing Content** (if any):
+${contract.qualityRules.requireCodeExamples ? '- MUST include working code examples from repository' : ''}
+${contract.qualityRules.requireLinks ? '- Include relevant internal links to other docs' : ''}
+${repoContextSection}
+**Existing Content** (preserve structure if updating):
 \`\`\`
 ${existingContent || '(none - creating new file)'}
 \`\`\`
 
-**Instructions**:
-1. Analyze the existing content structure
-2. Generate or update content following the contract
-3. Ensure all required sections are present
-4. Use appropriate Markdown formatting
-5. Include practical examples where applicable
-6. Maintain consistency with existing style if content exists
-7. Output ONLY the complete updated Markdown content (no explanations, no meta-commentary)
+**Instructions for High-Quality Output**:
+1. READ the repository evidence carefully - cite it in your documentation
+2. For README: Include project overview, features (from actual code), tech stack, setup commands (from package.json)
+3. For setup guides: Extract exact commands from package.json scripts
+4. For API docs: Use actual endpoint paths and response shapes
+5. Include ONLY verifiable information - when unsure, add TODO placeholders
+6. Format with proper Markdown: headers, code blocks, lists, tables where appropriate
+7. Make setup instructions copy-paste ready (use exact commands from evidence)
 
-**Output**:`;
+**Output the complete updated Markdown document**:`;
 }
 
