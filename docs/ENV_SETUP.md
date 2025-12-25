@@ -165,6 +165,66 @@ docker ps | grep postgres
 
 ---
 
+## 🤖 AI Provider Konfigürasyonu
+
+AKIS, LLM tabanlı işlemler için OpenRouter veya OpenAI kullanabilir.
+
+### Provider Seçimi
+
+| Değişken | Değerler | Varsayılan |
+|----------|----------|------------|
+| `AI_PROVIDER` | `mock`, `openrouter`, `openai` | `mock` |
+
+### Mock Provider (Varsayılan)
+
+Test ve geliştirme için. **Gerçek API çağrısı yapmaz**.
+
+```env
+AI_PROVIDER=mock
+```
+
+### OpenRouter (Real AI)
+
+Gerçek LLM yanıtları için OpenRouter kullanın:
+
+```env
+# backend/.env.local (NO SECRETS IN .env!)
+AI_PROVIDER=openrouter
+AI_API_KEY=sk-or-v1-***
+AI_BASE_URL=https://openrouter.ai/api/v1
+
+# Model seçimi (ücretsiz modeller)
+AI_MODEL_DEFAULT=meta-llama/llama-3.3-70b-instruct:free
+AI_MODEL_PLANNER=tngtech/deepseek-r1t-chimera:free
+AI_MODEL_VALIDATION=google/gemini-2.0-flash-exp:free
+
+# Opsiyonel OpenRouter header'ları
+OPENROUTER_SITE_URL=https://your-site.com
+OPENROUTER_APP_NAME=Your App Name
+```
+
+### API Key Öncelik Sırası
+
+```
+1. AI_API_KEY                  ← Öncelikli
+2. OPENROUTER_API_KEY          ← Legacy fallback
+3. OPENAI_API_KEY              ← OpenAI provider için
+```
+
+### Yaygın Hatalar
+
+| Hata | Neden | Çözüm |
+|------|-------|-------|
+| 401 Unauthorized | API key geçersiz/eksik | `.env.local`'da `AI_API_KEY` kontrol et |
+| 429 Rate Limited | Çok fazla istek | Bekle veya farklı model dene |
+| "Mock generated content..." | `AI_PROVIDER=mock` | `AI_PROVIDER=openrouter` olarak değiştir |
+
+### Test Ortamı
+
+> ⚠️ **Önemli**: Test ortamında (`NODE_ENV=test`) AI her zaman **mock** kullanır. Bu, CI/CD'de external API çağrılarını önler.
+
+---
+
 ## 📊 Environment Variable Referansı
 
 ### Backend
@@ -177,6 +237,11 @@ docker ps | grep postgres
 | `LOG_LEVEL`               | ❌      | `info`              | Pino log seviyesi                |
 | `CORS_ORIGINS`            | ❌      | `http://localhost:5173` | İzin verilen CORS originleri |
 | `GITHUB_MCP_BASE_URL`     | ❌      | -                   | MCP Gateway URL'i                |
+| `AI_PROVIDER`             | ❌      | `mock`              | AI provider: mock/openrouter/openai |
+| `AI_API_KEY`              | ❌      | -                   | AI API key (OpenRouter/OpenAI)   |
+| `AI_MODEL_DEFAULT`        | ❌      | Provider-specific   | Varsayılan LLM modeli            |
+| `AI_MODEL_PLANNER`        | ❌      | Provider-specific   | Planlama LLM modeli              |
+| `AI_MODEL_VALIDATION`     | ❌      | Provider-specific   | Doğrulama LLM modeli             |
 
 ### Frontend
 

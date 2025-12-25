@@ -143,6 +143,30 @@ GITHUB_TOKEN=your_github_pat
 GITHUB_MCP_BASE_URL=http://localhost:4010/mcp
 ```
 
+### Real AI (OpenRouter) - Optional
+
+Varsayılanda AI mock modunda çalışır. Gerçek LLM yanıtları için:
+
+1. `backend/.env.local` oluşturun (git'e commit edilmez!)
+2. Aşağıdaki değerleri ekleyin:
+
+```bash
+# backend/.env.local (DO NOT COMMIT!)
+AI_PROVIDER=openrouter
+AI_API_KEY=sk-or-v1-***  # OpenRouter API key
+AI_MODEL_DEFAULT=meta-llama/llama-3.3-70b-instruct:free
+AI_MODEL_PLANNER=tngtech/deepseek-r1t-chimera:free
+AI_MODEL_VALIDATION=google/gemini-2.0-flash-exp:free
+```
+
+3. Backend'i yeniden başlatın
+
+**Mock'a dönmek için**: `.env.local`'dan `AI_PROVIDER` satırını silin veya `AI_PROVIDER=mock` yapın.
+
+**Yaygın Hatalar:**
+- **401**: API key geçersiz → OpenRouter dashboard'dan kontrol edin
+- **429**: Rate limit → Bekleyin veya farklı model deneyin
+
 ### Frontend (.env)
 
 Copy `frontend/.env.example` to `frontend/.env`:
