@@ -207,5 +207,100 @@ describe('AIService', () => {
       assert.strictEqual(typeof service.reflector.critique, 'function');
     });
   });
+
+  describe('JSON Schema Validation', () => {
+    const mockConfig: AIConfig = {
+      provider: 'mock',
+      modelDefault: 'mock',
+      modelPlanner: 'mock',
+      modelValidation: 'mock',
+    };
+
+    test('planTask returns schema-compliant Plan', async () => {
+      const service = createAIService(mockConfig);
+      
+      const plan = await service.planTask({
+        agent: 'scribe',
+        goal: 'Update documentation',
+      });
+
+      // Verify Plan schema compliance
+      assert.ok(Array.isArray(plan.steps), 'steps must be an array');
+      assert.ok(plan.steps.length >= 1, 'steps array must have at least 1 step');
+      
+      for (const step of plan.steps) {
+        assert.ok(typeof step.id === 'string', 'step.id must be a string');
+        assert.ok(typeof step.title === 'string', 'step.title must be a string');
+        if (step.detail !== undefined) {
+          assert.ok(typeof step.detail === 'string', 'step.detail must be a string if present');
+        }
+      }
+      
+      if (plan.rationale !== undefined) {
+        assert.ok(typeof plan.rationale === 'string', 'rationale must be a string if present');
+      }
+    });
+
+    test('reflectOnArtifact returns schema-compliant Critique', async () => {
+      const service = createAIService(mockConfig);
+      
+      const critique = await service.reflectOnArtifact({
+        artifact: 'Sample code to review',
+      });
+
+      // Verify Critique schema compliance
+      assert.ok(Array.isArray(critique.issues), 'issues must be an array');
+      assert.ok(Array.isArray(critique.recommendations), 'recommendations must be an array');
+      
+      for (const issue of critique.issues) {
+        assert.ok(typeof issue === 'string', 'each issue must be a string');
+      }
+      
+      for (const rec of critique.recommendations) {
+        assert.ok(typeof rec === 'string', 'each recommendation must be a string');
+      }
+      
+      if (critique.severity !== undefined) {
+        assert.ok(['low', 'medium', 'high'].includes(critique.severity), 'severity must be low, medium, or high');
+      }
+    });
+
+    test('validateWithStrongModel returns schema-compliant ValidationResult', async () => {
+      const service = createAIService(mockConfig);
+      
+      const result = await service.validateWithStrongModel({
+        artifact: 'Code to validate',
+      });
+
+      // Verify ValidationResult schema compliance
+      assert.ok(typeof result.passed === 'boolean', 'passed must be a boolean');
+      assert.ok(typeof result.confidence === 'number', 'confidence must be a number');
+      assert.ok(result.confidence >= 0 && result.confidence <= 1, 'confidence must be between 0 and 1');
+      assert.ok(Array.isArray(result.issues), 'issues must be an array');
+      assert.ok(Array.isArray(result.suggestions), 'suggestions must be an array');
+      assert.ok(typeof result.summary === 'string', 'summary must be a string');
+      
+      for (const issue of result.issues) {
+        assert.ok(typeof issue === 'string', 'each issue must be a string');
+      }
+      
+      for (const suggestion of result.suggestions) {
+        assert.ok(typeof suggestion === 'string', 'each suggestion must be a string');
+      }
+    });
+
+    test('mock service returns consistent deterministic responses', async () => {
+      const service = createAIService(mockConfig);
+      
+      // Call same method twice
+      const plan1 = await service.planTask({ agent: 'scribe', goal: 'test' });
+      const plan2 = await service.planTask({ agent: 'scribe', goal: 'test' });
+      
+      // Mock should return consistent structure (not necessarily identical content)
+      assert.strictEqual(plan1.steps.length, plan2.steps.length, 'Mock should return consistent step count');
+      assert.ok(plan1.rationale, 'Mock plan should have rationale');
+      assert.ok(plan2.rationale, 'Mock plan should have rationale');
+    });
+  });
 });
 
