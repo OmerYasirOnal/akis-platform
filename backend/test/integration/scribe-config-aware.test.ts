@@ -7,24 +7,39 @@ import assert from 'node:assert';
 import { buildApp } from '../../src/server.app.js';
 import { db } from '../../src/db/client.js';
 import { users, agentConfigs, jobs } from '../../src/db/schema.js';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
 
 // Check if DATABASE_URL is set (required for DB-dependent tests)
+const SKIP_DB_TESTS = process.env.SKIP_DB_TESTS === 'true';
 const hasDatabase = !!process.env.DATABASE_URL;
+const SHOULD_SKIP = SKIP_DB_TESTS || !hasDatabase;
 
-test('Scribe config-aware job creation', { skip: !hasDatabase }, async (t) => {
-  if (!hasDatabase) {
-    console.log('Skipping DB-dependent tests: DATABASE_URL not set');
+test('Scribe config-aware job creation', { skip: SHOULD_SKIP }, async (t) => {
+  if (SHOULD_SKIP) {
+    const reason = SKIP_DB_TESTS ? 'SKIP_DB_TESTS is set' : 'DATABASE_URL not set';
+    console.log(`[Scribe Config Integration] SKIPPED: ${reason}`);
     return;
   }
 
+  // Connectivity check to fail fast with actionable error (prevent cascading cancellations)
+  try {
+    await db.execute(sql`SELECT 1`);
+  } catch (err: unknown) {
+    const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+    throw new Error(
+      `[Scribe Config Integration] FATAL: Database is unreachable but SKIP_DB_TESTS is NOT set. ` +
+      `Check if Docker/Postgres is running or set SKIP_DB_TESTS=true. ` +
+      `Error: ${errorMessage}`
+    );
+  }
+
   const app = await buildApp();
-  
+
   // Test user credentials
   const testUserId = randomUUID();
   const testEmail = `test-scribe-${Date.now()}@example.com`;
-  
+
   // Cleanup function
   const cleanup = async () => {
     try {
@@ -141,7 +156,7 @@ test('Scribe config-aware job creation', { skip: !hasDatabase }, async (t) => {
     assert.strictEqual(listResponse.statusCode, 200);
     const listBody = JSON.parse(listResponse.body);
     assert.ok(Array.isArray(listBody.items), 'items should be an array');
-    
+
     const createdJob = listBody.items.find((j: { id: string }) => j.id === body.jobId);
     assert.ok(createdJob, 'Created job should appear in list');
     assert.strictEqual(createdJob.type, 'scribe');
@@ -171,14 +186,14 @@ test('Scribe config-aware job creation', { skip: !hasDatabase }, async (t) => {
       [400, 401, 404, 500].includes(response.statusCode),
       `Expected 400/401/404/500, got ${response.statusCode}`
     );
-    
+
     if (response.statusCode !== 401) {
       const body = JSON.parse(response.body);
       assert.ok(body.error, 'Should have error object');
       assert.ok(body.error.message, 'Should have error message');
       // Error message should be actionable
       assert.ok(
-        body.error.message.includes('configuration') || 
+        body.error.message.includes('configuration') ||
         body.error.message.includes('auth'),
         'Error message should mention configuration or auth'
       );

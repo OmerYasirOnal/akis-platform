@@ -48,7 +48,9 @@ export interface BranchesResponse {
   defaultBranch: string;
 }
 
-export interface ApiError {
+// NOTE: This file returns data models for GitHub discovery endpoints.
+// Canonical client error contract is `ApiError` from `./HttpClient` (re-exported via `services/api/index.ts`).
+export interface GitHubDiscoveryErrorResponse {
   error: {
     code: string;
     message: string;

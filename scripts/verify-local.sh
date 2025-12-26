@@ -124,7 +124,7 @@ echo ""
 # Phase 3: Backend gates
 run_gate "backend-typecheck" "(cd backend && pnpm typecheck)"
 run_gate "backend-lint" "(cd backend && pnpm lint)"
-run_gate "backend-test" "(cd backend && pnpm test)"
+run_gate "backend-test" "(cd backend && pnpm run test:ci)"
 
 # Phase 4: Frontend gates
 run_gate "frontend-typecheck" "(cd frontend && pnpm typecheck)"
@@ -163,7 +163,9 @@ cat >> "$EVIDENCE_FILE" <<EOF
 pnpm install
 ./scripts/db-up.sh
 cd backend && pnpm db:migrate
-cd backend && pnpm typecheck && pnpm lint && pnpm test
+cd backend && pnpm typecheck && pnpm lint
+cd backend && pnpm test           # Unit tests (FAST, no DB)
+cd backend && pnpm run test:ci    # Full suite (requires DB)
 cd frontend && pnpm typecheck && pnpm lint && pnpm test && pnpm build
 \`\`\`
 
@@ -171,6 +173,7 @@ cd frontend && pnpm typecheck && pnpm lint && pnpm test && pnpm build
 
 - MCP Gateway verification is optional (not blocking for core development)
 - Integration tests require PostgreSQL running on port 5433
+  - Set \`SKIP_DB_TESTS=true\` to skip DB-dependent integration tests if DB is unavailable.
 - Frontend build produces a static artifact in \`frontend/dist/\`
 
 ## Notes
