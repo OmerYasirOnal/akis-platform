@@ -11,7 +11,6 @@
  */
 
 import type { EmbeddingProvider } from './interfaces.js';
-import { EmbeddingError } from './interfaces.js';
 
 /**
  * Stub embedding provider configuration
