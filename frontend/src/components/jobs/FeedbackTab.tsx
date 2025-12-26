@@ -52,7 +52,7 @@ async function fetchRevisions(jobId: string): Promise<RevisionInfo> {
   if (!res.ok) {
     // Return default for 404 (no revisions yet)
     if (res.status === 404) {
-      return { parentJob: null, revisions: [], isRevision: false, revisionNote: null };
+      return { parentJob: null, revisions: [], isRevision: false, revisionNote: undefined };
     }
     throw new Error('Failed to fetch revisions');
   }
