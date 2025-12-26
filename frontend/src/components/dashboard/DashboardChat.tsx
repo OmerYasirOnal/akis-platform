@@ -1,5 +1,5 @@
 
-import React, { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { cn } from '../../utils/cn';
 import Button from '../common/Button';
 import Card from '../common/Card';

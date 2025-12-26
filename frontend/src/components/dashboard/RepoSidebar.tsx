@@ -1,7 +1,8 @@
 
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { cn } from '../../utils/cn';
-import { githubDiscoveryApi, GitHubRepo, GitHubOwner } from '../../services/api/github-discovery';
+import { githubDiscoveryApi } from '../../services/api/github-discovery';
+import type { GitHubOwner, GitHubRepo } from '../../services/api/github-discovery';
 
 interface RepoSidebarProps {
     className?: string;
