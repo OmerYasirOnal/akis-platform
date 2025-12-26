@@ -124,7 +124,7 @@ echo ""
 # Phase 3: Backend gates
 run_gate "backend-typecheck" "(cd backend && pnpm typecheck)"
 run_gate "backend-lint" "(cd backend && pnpm lint)"
-run_gate "backend-test" "(cd backend && pnpm test)"
+run_gate "backend-test" "(cd backend && pnpm run test:ci)"
 
 # Phase 4: Frontend gates
 run_gate "frontend-typecheck" "(cd frontend && pnpm typecheck)"
