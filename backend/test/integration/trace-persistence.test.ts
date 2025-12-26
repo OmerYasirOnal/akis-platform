@@ -11,7 +11,7 @@ import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert';
 import { db } from '../../src/db/client.js';
 import { jobs, jobTraces, traceEventTypeEnum } from '../../src/db/schema.js';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
 
 /** Trace event types from the Drizzle schema */
@@ -27,6 +27,18 @@ describe('Trace Persistence', () => {
       console.log('[Trace Persistence] SKIPPED: SKIP_DB_TESTS is set');
       return;
     }
+
+    // Connectivity check to fail fast with actionable error (prevent cascading cancellations)
+    try {
+      await db.execute(sql`SELECT 1`);
+    } catch (err: any) {
+      throw new Error(
+        `[Trace Persistence] FATAL: Database is unreachable but SKIP_DB_TESTS is NOT set. ` +
+        `Check if Docker/Postgres is running or set SKIP_DB_TESTS=true. ` +
+        `Error: ${err.message}`
+      );
+    }
+
     // Create a test job to attach traces to
     testJobId = randomUUID();
     await db.insert(jobs).values({
