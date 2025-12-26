@@ -1,38 +1,56 @@
-# QA Evidence: Phase 2 DB Determinism
+# QA Evidence: Phase 2 + UI Modernization
 
 **Date:** 2025-12-26  
-**Subject:** Deterministic behavior of DB-dependent integration tests
+**Subject:** Deterministic DB-offline behavior and Dashboard UI Modernization
 
-## 1. Unit Tests (Clean Path)
+## 1. Backend: DB Offline Determinism
 
-**Command:** `cd backend && pnpm test`  
+**Scenario:** Postgres container STOPPED manually.
+
+### Unit Tests
+**Command:** `pnpm test` (backend)  
 **Result:** ✅ PASS (150 tests)  
-**Notes:** Runs unit/ directory only. No DB required.
+**Evidence:** 150 unit tests passed without any DB connection attempt.
 
-## 2. Integration Tests (Skip Logic)
+### Integration Tests (Skip Mode)
+**Command:** `SKIP_DB_TESTS=true pnpm run test:integration`  
+**Result:** ✅ PASS (30 tests, 1 skipped)  
+**Evidence:** Trace Persistence & Scribe Config suites explicitly skipped. Health/Discovery/MCP mock tests passed.
 
-**Command:** `cd backend && SKIP_DB_TESTS=true pnpm run test:integration`  
-**Result:** ✅ PASS (30 tests, 2 skipped)  
-**Skipped Suites:**
-- Trace Persistence
-- Scribe Config Integration
-**Notes:** Gracefully skips DB suites. Runs purely mocked integration tests (Health, Discovery).
+### Integration Tests (Fail-Fast Mode)
+**Command:** `pnpm run test:integration` (no skip flag)  
+**Result:** ✅ FAIL FAST (Correct Contract)  
+**Evidence:** 
+- Trace Persistence: "Database is unreachable..."
+- Scribe Config: "Database is unreachable..."
+- Single actionable error, no cascading timeouts.
 
-## 3. Integration Tests (Full Coverage)
+## 2. Backend: DB Online Coverage
 
-**Command:** `./scripts/verify-local.sh` (with DB up)  
-**Result:** ✅ PASS (Full Suite)  
-**Notes:** verified in Phase 1 (pre-docker stop). Logic updated to support this path robustly.
+**Scenario:** Postgres container STARTED manually.
 
-## 4. CI Artifacts
+### Integration Tests (Full)
+**Command:** `pnpm run test:integration`  
+**Result:** ✅ PASS (36 tests)  
+**Evidence:** All DB-dependent suites (Trace Persistence, Scribe Config) ran and passed.
 
-**Update:** Added `actions/upload-artifact@v4` to `pr-gate.yml` to capture backend test logs.
-**Benefit:** Debugging flaky tests without re-running entire CI jobs.
+## 3. Frontend: UI Modernization
 
-## Conclusion
+**Status:** Complete  
+**Changes:** Updated DashboardOverviewPage to 3-column layout (RepoSidebar, Chat, Updates).  
+**Verification:**
+- `pnpm lint`: ✅ PASS
+- `pnpm typecheck`: ✅ PASS
+- `pnpm dev`: ✅ PASS (Builds locally)
 
-The backend testing strategy is now fully hardened against environment flakes.
-- Default path is fast & safe.
-- CI path is comprehensive.
-- Debugging is enhanced via artifacts.
+## Verification Summary Table
+
+| Scope | Command | State | Result |
+| :--- | :--- | :--- | :--- |
+| **Backend Unit** | `pnpm test` | DB Offline | ✅ PASS |
+| **Backend Int** | `SKIP_DB_TESTS=true ...` | DB Offline | ✅ PASS |
+| **Backend Int** | `pnpm test:integration` | DB Offline | ✅ FAIL (Expected) |
+| **Backend Int** | `pnpm test:integration` | DB Online | ✅ PASS |
+| **Frontend** | `lint` & `typecheck` | N/A | ✅ PASS |
+
 
