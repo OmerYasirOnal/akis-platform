@@ -31,11 +31,12 @@ describe('Trace Persistence', () => {
     // Connectivity check to fail fast with actionable error (prevent cascading cancellations)
     try {
       await db.execute(sql`SELECT 1`);
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
       throw new Error(
         `[Trace Persistence] FATAL: Database is unreachable but SKIP_DB_TESTS is NOT set. ` +
         `Check if Docker/Postgres is running or set SKIP_DB_TESTS=true. ` +
-        `Error: ${err.message}`
+        `Error: ${errorMessage}`
       );
     }
 
