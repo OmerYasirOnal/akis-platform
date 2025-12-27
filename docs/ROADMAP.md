@@ -1,12 +1,12 @@
 # AKIS Platform — Roadmap & Milestones
 
-> **Schedule Anchor:** `docs/PROJECT_TRACKING_BASELINE.md` (source: spreadsheet)  
-> **Last Synced:** 2025-12-18
+> **Schedule Anchor:** `docs/PROJECT_TRACKING_BASELINE.md` (canonical markdown; spreadsheet is a local planning artifact)  
+> **Last Updated:** 2025-12-18
 
 ### Planning Chain
 
 ```
-docs/PROJECT_TRACKING_BASELINE.md  (schedule anchor, spreadsheet source)
+docs/PROJECT_TRACKING_BASELINE.md  (schedule anchor, canonical markdown)
           ↓
 docs/ROADMAP.md                    (this file: phase overview)
           ↓
@@ -243,11 +243,26 @@ V2 RepoOps agent development starts only after:
 
 | Document | Purpose |
 |----------|---------|
-| `docs/PROJECT_TRACKING_BASELINE.md` | Schedule anchor (from spreadsheet) |
+| `docs/PROJECT_TRACKING_BASELINE.md` | Schedule anchor (canonical markdown) |
 | `docs/NEXT.md` | Immediate actions |
 | `.cursor/context/CONTEXT_SCOPE.md` | Scope & requirements |
 | `.cursor/context/CONTEXT_ARCHITECTURE.md` | Technical architecture |
 
 ---
 
-*Roadmap synced with `AKIS_Proje_Takibi_Profesyonel_SON_guncel_v2.xlsx`. Task IDs and dates preserved exactly.*
+## Phase 4+ (Proposed, Gated)
+
+These phases are proposals only and do not change the baseline schedule.
+
+**Gate:** Start only after Phase 1 production demo + Phase 2 hosting baseline.
+
+**References:** `docs/plans/PHASE4_5_FUTURE_BETS_CONCEPT.md`, `docs/plans/FUTURE_PROPOSALS_PHASE4_5.md`
+
+| Phase | Focus | Status | Gate |
+|-------|-------|--------|------|
+| 4 | Premium Quality RAG System (self-hosted OCI, open-source LLM + advanced RAG) | Proposed | Phase 1 production demo + Phase 2 hosting baseline |
+| 5 | AKIS Operator / Device-Link (secure tunnel + controlled computer operations) | Proposed | Phase 1 production demo + Phase 2 hosting baseline |
+
+---
+
+*Roadmap is canonical markdown; spreadsheets are local planning artifacts and may be out of date.*

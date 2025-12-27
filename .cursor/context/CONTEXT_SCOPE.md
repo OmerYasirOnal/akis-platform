@@ -13,6 +13,7 @@
 > - Documentation Audit: `docs/DOCS_AUDIT_REPORT.md`
 > - Roadmap: `docs/ROADMAP.md`
 > - Next Actions: `docs/NEXT.md`
+> - Current Status Snapshot: `.cursor/context/AKIS_STATUS_ROADMAP.md`
 >
 > **Execution Order (Scribe First):**
 > 1. Scribe stabilization (S0.4.6)

@@ -138,6 +138,17 @@ docs/PROJECT_TRACKING_BASELINE.md  →  docs/ROADMAP.md  →  docs/NEXT.md (this
 
 ---
 
+### Future Bets (Gated)
+
+These are future proposals only and are not active priorities.
+
+- Snapshot reference: `.cursor/context/AKIS_STATUS_ROADMAP.md`
+- Roadmap reference: `docs/ROADMAP.md` (Phase 4+ section)
+- Future proposals mirror: `docs/plans/FUTURE_PROPOSALS_PHASE4_5.md`
+- Concept memo: `docs/plans/PHASE4_5_FUTURE_BETS_CONCEPT.md`
+
+---
+
 ## V2 RepoOps Gating Criteria
 
 V2 RepoOps agent development is **BLOCKED** until ALL criteria are green:
