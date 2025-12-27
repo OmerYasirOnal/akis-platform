@@ -2,7 +2,7 @@
 
 > **Schedule Anchor:** `docs/PROJECT_TRACKING_BASELINE.md` (derived from spreadsheet)  
 > **Audit Report:** `docs/DOCS_AUDIT_REPORT.md`  
-> **Last Updated:** 2025-12-18
+> **Last Updated:** 2025-12-27
 
 ### Planning Chain
 
@@ -12,11 +12,11 @@ docs/PROJECT_TRACKING_BASELINE.md  →  docs/ROADMAP.md  →  docs/NEXT.md (this
 
 ---
 
-## Current Focus (2025-12-18)
+## Current Focus (2025-12-27)
 
 | Priority | Task | Status | Sprint |
 |----------|------|--------|--------|
-| **P0** | S0.4.6 Scribe Config Dashboard | 🔄 In Progress | S0.4.6 |
+| **P0** | S0.4.6 Scribe Config Dashboard | ✅ Complete | S0.4.6 |
 | P1 | Scribe temel akış | 📋 Next | S1.0.1 |
 | P2 | Trace/Proto MVP | 📋 Planned | S1.0.2 |
 | P3 | Job loglama v1 | 📋 Planned | S1.5.1 |
@@ -38,15 +38,16 @@ docs/PROJECT_TRACKING_BASELINE.md  →  docs/ROADMAP.md  →  docs/NEXT.md (this
 |------|-------------|--------|
 | Step 1 | Pre-flight checks (GitHub connection) | ✅ Complete |
 | Step 2 | SearchableSelect for Owner/Repo/Branch | ✅ Complete (verified) |
-| Step 3 | Target platform configuration | 🔄 In Progress |
-| Step 4 | Advanced options | 📋 Pending |
-| Step 5 | Review and save | 📋 Pending |
+| Step 3 | Target platform configuration | ✅ Complete |
+| Step 4 | Advanced options | ✅ Complete |
+| Step 5 | Review and save | ✅ Complete |
 
 **Exit Criteria:**
 - [x] Step 2 SearchableSelect works (SCRIBE_STEP2_VERIFICATION.md)
-- [ ] All 5 steps functional
-- [ ] TypeScript/Lint/Tests pass
-- [ ] Job creation endpoint connected
+- [x] All 5 steps functional
+- [x] TypeScript/Lint/Tests pass
+- [x] Job creation endpoint connected
+- [x] QA evidence: `docs/qa/QA_EVIDENCE_S0.4.6.md`
 
 ---
 
@@ -174,7 +175,7 @@ V2 RepoOps agent development is **BLOCKED** until ALL criteria are green:
 |----|--------|-------------|--------|
 | **#90** | S0.4.2 + S0.4.4 | Email-based multi-step authentication | ✅ Merged |
 | **#93** | S0.4.5 | OAuth + onboarding fix, i18n loading gate | ✅ Merged |
-| — | S0.4.6 | Scribe Config Dashboard | 🔄 In Progress |
+| — | S0.4.6 | Scribe Config Dashboard | ✅ Complete |
 
 ---
 

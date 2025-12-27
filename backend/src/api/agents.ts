@@ -241,6 +241,18 @@ export async function agentsRoutes(fastify: FastifyInstance) {
             if (typeof config.autoMerge === 'boolean') {
               (enrichedPayload as Record<string, unknown>).autoMerge = config.autoMerge;
             }
+            if (config.triggerMode) {
+              (enrichedPayload as Record<string, unknown>).triggerMode = config.triggerMode;
+            }
+            if (config.scheduleCron) {
+              (enrichedPayload as Record<string, unknown>).scheduleCron = config.scheduleCron;
+            }
+            if (config.includeGlobs && config.includeGlobs.length > 0) {
+              (enrichedPayload as Record<string, unknown>).includeGlobs = config.includeGlobs;
+            }
+            if (config.excludeGlobs && config.excludeGlobs.length > 0) {
+              (enrichedPayload as Record<string, unknown>).excludeGlobs = config.excludeGlobs;
+            }
           } else {
             // Legacy payload: try to get userId if auth is available
             try {
@@ -1132,4 +1144,3 @@ export async function agentsRoutes(fastify: FastifyInstance) {
     }
   );
 }
-
