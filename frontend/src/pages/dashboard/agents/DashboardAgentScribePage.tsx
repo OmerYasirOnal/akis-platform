@@ -24,6 +24,19 @@ import {
 
 type WizardStep = 1 | 2 | 3 | 4 | 5;
 
+const parseGlobs = (value: string): string[] | null => {
+  const items = value
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean);
+  return items.length > 0 ? items : null;
+};
+
+const formatGlobs = (globs?: string[] | null): string => {
+  if (!globs || globs.length === 0) return '';
+  return globs.join(', ');
+};
+
 const DashboardAgentScribePage = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -33,9 +46,11 @@ const DashboardAgentScribePage = () => {
   const [wizardStep, setWizardStep] = useState<WizardStep>(1);
   const [wizardData, setWizardData] = useState<Partial<ConfigUpdatePayload>>({});
   const [saving, setSaving] = useState(false);
+  const [creatingJob, setCreatingJob] = useState(false);
   const [testing, setTesting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [step3Touched, setStep3Touched] = useState(false);
 
   // GitHub Discovery State
   const [githubOwners, setGithubOwners] = useState<GitHubOwner[]>([]);
@@ -205,6 +220,37 @@ const DashboardAgentScribePage = () => {
     [githubBranches]
   );
 
+  const confluenceSpaceKey = useMemo(() => {
+    const raw = (wizardData.targetConfig as { space_key?: string })?.space_key;
+    return typeof raw === 'string' ? raw.trim() : '';
+  }, [wizardData.targetConfig]);
+
+  const docsPath = useMemo(() => {
+    const raw = (wizardData.targetConfig as { docs_path?: string })?.docs_path;
+    if (typeof raw === 'string' && raw.trim().length > 0) {
+      return raw.trim();
+    }
+    return 'docs/';
+  }, [wizardData.targetConfig]);
+
+  const step3Errors = useMemo(() => {
+    const errors: string[] = [];
+    if (!wizardData.targetPlatform) {
+      errors.push('Select a target platform to continue.');
+    }
+    if (wizardData.targetPlatform === 'confluence') {
+      if (!integrationStatus?.confluence.connected) {
+        errors.push('Connect Confluence to continue.');
+      }
+      if (!confluenceSpaceKey) {
+        errors.push('Confluence space key is required.');
+      }
+    }
+    return errors;
+  }, [wizardData.targetPlatform, integrationStatus?.confluence.connected, confluenceSpaceKey]);
+
+  const canProceedStep3 = step3Errors.length === 0;
+
   // Handler for repo selection (also sets default branch)
   const handleRepoSelect = (repoName: string) => {
     const repo = githubRepos.find(r => r.name === repoName);
@@ -226,6 +272,7 @@ const DashboardAgentScribePage = () => {
   useEffect(() => {
     if (config) {
       setWizardData({
+        enabled: config.enabled,
         repositoryOwner: config.repositoryOwner || '',
         repositoryName: config.repositoryName || '',
         baseBranch: config.baseBranch || 'main',
@@ -243,7 +290,19 @@ const DashboardAgentScribePage = () => {
     }
   }, [config]);
 
+  useEffect(() => {
+    if (wizardStep === 4 && !wizardData.triggerMode) {
+      setWizardData((prev) => ({ ...prev, triggerMode: 'manual' }));
+    }
+  }, [wizardStep, wizardData.triggerMode]);
+
   const handleWizardNext = () => {
+    if (wizardStep === 3) {
+      setStep3Touched(true);
+      if (!canProceedStep3) {
+        return;
+      }
+    }
     if (wizardStep < 5) {
       setWizardStep((s) => (s + 1) as WizardStep);
     }
@@ -255,31 +314,120 @@ const DashboardAgentScribePage = () => {
     }
   };
 
-  const handleSaveConfig = async () => {
+  const buildConfigPayload = (enabledOverride?: boolean): ConfigUpdatePayload => {
+    const repositoryOwner = wizardData.repositoryOwner?.trim();
+    const repositoryName = wizardData.repositoryName?.trim();
+    const baseBranch = wizardData.baseBranch?.trim() || 'main';
+    const branchPattern = (wizardData.branchPattern || 'docs/scribe-{timestamp}').trim();
+    const targetPlatform = wizardData.targetPlatform;
+    const targetConfig =
+      targetPlatform === 'confluence'
+        ? (confluenceSpaceKey ? { space_key: confluenceSpaceKey } : {})
+        : targetPlatform === 'github_repo'
+          ? { docs_path: docsPath }
+          : wizardData.targetConfig || {};
+
+    return {
+      enabled: enabledOverride ?? wizardData.enabled ?? false,
+      repositoryOwner: repositoryOwner || undefined,
+      repositoryName: repositoryName || undefined,
+      baseBranch,
+      branchPattern,
+      targetPlatform,
+      targetConfig,
+      triggerMode: wizardData.triggerMode ?? 'manual',
+      scheduleCron: wizardData.scheduleCron?.trim() || null,
+      prTitleTemplate: wizardData.prTitleTemplate?.trim() || undefined,
+      prBodyTemplate: wizardData.prBodyTemplate?.trim() || null,
+      autoMerge: wizardData.autoMerge ?? false,
+      includeGlobs: wizardData.includeGlobs ?? null,
+      excludeGlobs: wizardData.excludeGlobs ?? null,
+    };
+  };
+
+  const validateWizardRequiredFields = (): boolean => {
+    const issues: string[] = [];
+
+    if (!wizardData.repositoryOwner?.trim() || !wizardData.repositoryName?.trim() || !wizardData.baseBranch?.trim()) {
+      issues.push('Repository owner, name, and base branch are required.');
+    }
+
+    if (!integrationStatus?.github.connected) {
+      issues.push('GitHub must be connected before saving.');
+    }
+
+    if (!canProceedStep3) {
+      issues.push(...step3Errors);
+    }
+
+    if (issues.length > 0) {
+      setError(issues.join(' '));
+      return false;
+    }
+
+    return true;
+  };
+
+  const saveWizardConfig = async (enabledOverride?: boolean) => {
     setSaving(true);
     setError(null);
     try {
-      const updated = await agentConfigsApi.updateConfig('scribe', {
-        ...wizardData,
-        enabled: true,
-      });
+      const payload = buildConfigPayload(enabledOverride);
+      const updated = await agentConfigsApi.updateConfig('scribe', payload);
       setConfig(updated.config);
-      setWizardStep(1); // Reset wizard
+      return updated.config;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save configuration');
+      return null;
     } finally {
       setSaving(false);
     }
   };
 
-  const handleRunTestJob = async () => {
-    if (!config) {
-      setError('No configuration found. Please complete the setup wizard first.');
+  const handleSaveAndCreateJob = async () => {
+    if (!validateWizardRequiredFields()) {
+      setStep3Touched(true);
       return;
     }
-    
+
+    setCreatingJob(true);
+    try {
+      const updatedConfig = await saveWizardConfig(true);
+      if (!updatedConfig) return;
+      const result = await agentsApi.runAgent('scribe', {
+        mode: 'from_config',
+        dryRun: false,
+      });
+      navigate(`/dashboard/jobs/${result.jobId}`);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to create job';
+      setError(message.includes('configuration') ? message : `Failed to create job: ${message}`);
+    } finally {
+      setCreatingJob(false);
+    }
+  };
+
+  const handleSaveOnly = async () => {
+    if (!validateWizardRequiredFields()) {
+      setStep3Touched(true);
+      return;
+    }
+    await saveWizardConfig(true);
+  };
+
+  const handleRunTestJob = async () => {
+    let activeConfig = config;
+    if (!activeConfig) {
+      if (!validateWizardRequiredFields()) {
+        setStep3Touched(true);
+        return;
+      }
+      activeConfig = await saveWizardConfig(wizardData.enabled ?? false);
+      if (!activeConfig) return;
+    }
+
     // Validate config has required fields
-    if (!config.repositoryOwner || !config.repositoryName || !config.baseBranch) {
+    if (!activeConfig.repositoryOwner || !activeConfig.repositoryName || !activeConfig.baseBranch) {
       setError('Configuration incomplete. Please ensure repository owner, name, and base branch are set.');
       return;
     }
@@ -291,7 +439,7 @@ const DashboardAgentScribePage = () => {
     }
 
     // Validate Confluence if selected
-    if (config.targetPlatform === 'confluence' && !integrationStatus?.confluence.connected) {
+    if (activeConfig.targetPlatform === 'confluence' && !integrationStatus?.confluence.connected) {
       setError('Confluence target selected but not connected. Please connect Confluence or change target platform.');
       return;
     }
@@ -351,6 +499,21 @@ const DashboardAgentScribePage = () => {
       setTesting(false);
     }
   };
+
+  const effectiveTriggerMode = wizardData.triggerMode || 'manual';
+  const triggerModeLabel =
+    effectiveTriggerMode === 'on_pr_merge'
+      ? 'On PR merge'
+      : effectiveTriggerMode === 'scheduled'
+        ? 'Scheduled'
+        : 'Manual';
+
+  const targetPlatformLabel =
+    wizardData.targetPlatform === 'confluence'
+      ? `Confluence${confluenceSpaceKey ? ` (${confluenceSpaceKey})` : ''}`
+      : wizardData.targetPlatform === 'github_repo'
+        ? `GitHub repository docs (${docsPath})`
+        : 'Not set';
 
   if (loading) {
     return (
@@ -576,13 +739,13 @@ const DashboardAgentScribePage = () => {
           </Card>
         )}
 
-        {/* Wizard Step 3: Target Platform */}
+        {/* Wizard Step 3: Target platform configuration */}
         {wizardStep === 3 && (
           <Card className="space-y-6 bg-ak-surface-2">
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <h2 className="text-lg font-semibold text-ak-text-primary">
-                  Step 3 of 5: Target Platform
+                  Step 3 of 5: Target platform configuration
                 </h2>
                 <button
                   onClick={handleWizardBack}
@@ -591,6 +754,9 @@ const DashboardAgentScribePage = () => {
                   ← Back
                 </button>
               </div>
+              <p className="text-sm text-ak-text-secondary">
+                Choose where Scribe should publish documentation updates and confirm required fields.
+              </p>
             </div>
 
             <div className="space-y-4">
@@ -612,7 +778,7 @@ const DashboardAgentScribePage = () => {
                         setWizardData({
                           ...wizardData,
                           targetPlatform: e.target.value as 'github_repo',
-                          targetConfig: {}, // Clear Confluence config
+                          targetConfig: { docs_path: docsPath },
                         })
                       }
                       className="h-4 w-4 text-ak-primary focus:ring-ak-primary"
@@ -637,6 +803,9 @@ const DashboardAgentScribePage = () => {
                         setWizardData({
                           ...wizardData,
                           targetPlatform: e.target.value as 'confluence',
+                          targetConfig: {
+                            ...(wizardData.targetConfig || {}),
+                          },
                         })
                       }
                       className="h-4 w-4 text-ak-primary focus:ring-ak-primary"
@@ -681,7 +850,7 @@ const DashboardAgentScribePage = () => {
                   <Input
                     label="Confluence Space Key"
                     placeholder="ENGDOCS"
-                    value={(wizardData.targetConfig as { space_key?: string })?.space_key || ''}
+                    value={confluenceSpaceKey}
                     onChange={(e) =>
                       setWizardData({
                         ...wizardData,
@@ -700,7 +869,7 @@ const DashboardAgentScribePage = () => {
                 <Input
                   label="Documentation Path (Optional)"
                   placeholder="docs/"
-                  value={(wizardData.targetConfig as { docs_path?: string })?.docs_path || 'docs/'}
+                  value={docsPath}
                   onChange={(e) =>
                     setWizardData({
                       ...wizardData,
@@ -715,16 +884,24 @@ const DashboardAgentScribePage = () => {
               )}
             </div>
 
+            {step3Touched && step3Errors.length > 0 && (
+              <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4">
+                <p className="text-sm font-medium text-amber-400">Please resolve the following:</p>
+                <ul className="ml-5 list-disc text-sm text-amber-400">
+                  {step3Errors.map((issue) => (
+                    <li key={issue}>{issue}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
             <div className="flex justify-end gap-3">
               <Button variant="outline" onClick={handleWizardBack}>
                 ← Back
               </Button>
               <Button 
-                onClick={handleWizardNext} 
-                disabled={
-                  !wizardData.targetPlatform || 
-                  (wizardData.targetPlatform === 'confluence' && (!integrationStatus?.confluence.connected || !(wizardData.targetConfig as { space_key?: string })?.space_key))
-                }
+                onClick={handleWizardNext}
+                disabled={!canProceedStep3}
               >
                 Continue →
               </Button>
@@ -732,13 +909,13 @@ const DashboardAgentScribePage = () => {
           </Card>
         )}
 
-        {/* Wizard Step 4: Trigger Mode */}
+        {/* Wizard Step 4: Advanced options */}
         {wizardStep === 4 && (
           <Card className="space-y-6 bg-ak-surface-2">
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <h2 className="text-lg font-semibold text-ak-text-primary">
-                  Step 4 of 5: Trigger Mode
+                  Step 4 of 5: Advanced options
                 </h2>
                 <button
                   onClick={handleWizardBack}
@@ -747,15 +924,18 @@ const DashboardAgentScribePage = () => {
                   ← Back
                 </button>
               </div>
+              <p className="text-sm text-ak-text-secondary">
+                Optional settings. You can skip this step and use defaults.
+              </p>
             </div>
 
             <div className="space-y-4">
               <div>
                 <label className="mb-2 block text-sm font-medium text-ak-text-primary">
-                  When should Scribe run?
+                  Trigger mode (optional)
                 </label>
                 <div className="space-y-3">
-                  <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-ak-primary bg-ak-primary/10 p-4">
+                  <label className={`flex cursor-pointer items-start gap-3 rounded-xl border p-4 ${wizardData.triggerMode === 'on_pr_merge' ? 'border-ak-primary bg-ak-primary/10' : 'border-ak-border bg-ak-surface hover:border-ak-primary'}`}>
                     <input
                       type="radio"
                       name="triggerMode"
@@ -770,16 +950,13 @@ const DashboardAgentScribePage = () => {
                       className="mt-1 h-4 w-4 text-ak-primary focus:ring-ak-primary"
                     />
                     <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <p className="font-medium text-ak-text-primary">On PR Merge</p>
-                        <span className="text-xs text-ak-primary">⭐ Recommended</span>
-                      </div>
+                      <p className="font-medium text-ak-text-primary">On PR Merge</p>
                       <p className="text-sm text-ak-text-secondary">
-                        Scribe runs automatically when a PR is merged to your base branch.
+                        Runs automatically when a PR is merged to your base branch.
                       </p>
                     </div>
                   </label>
-                  <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-ak-border bg-ak-surface p-4 hover:border-ak-primary">
+                  <label className={`flex cursor-pointer items-start gap-3 rounded-xl border p-4 ${wizardData.triggerMode === 'scheduled' ? 'border-ak-primary bg-ak-primary/10' : 'border-ak-border bg-ak-surface hover:border-ak-primary'}`}>
                     <input
                       type="radio"
                       name="triggerMode"
@@ -796,11 +973,11 @@ const DashboardAgentScribePage = () => {
                     <div className="flex-1">
                       <p className="font-medium text-ak-text-primary">On Schedule</p>
                       <p className="text-sm text-ak-text-secondary">
-                        Run at specific times (daily, weekly). Good for batch updates.
+                        Run at specific times (daily, weekly).
                       </p>
                     </div>
                   </label>
-                  <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-ak-border bg-ak-surface p-4 hover:border-ak-primary">
+                  <label className={`flex cursor-pointer items-start gap-3 rounded-xl border p-4 ${wizardData.triggerMode === 'manual' ? 'border-ak-primary bg-ak-primary/10' : 'border-ak-border bg-ak-surface hover:border-ak-primary'}`}>
                     <input
                       type="radio"
                       name="triggerMode"
@@ -817,29 +994,90 @@ const DashboardAgentScribePage = () => {
                     <div className="flex-1">
                       <p className="font-medium text-ak-text-primary">Manual Only</p>
                       <p className="text-sm text-ak-text-secondary">
-                        Only run when you click "Run Now". For full control over updates.
+                        Only run when you click "Run Now" or create a job manually.
                       </p>
                     </div>
                   </label>
                 </div>
               </div>
 
+              {wizardData.triggerMode === 'scheduled' && (
+                <Input
+                  label="Schedule (Cron) - Optional"
+                  placeholder="0 9 * * 1"
+                  value={wizardData.scheduleCron || ''}
+                  onChange={(e) => setWizardData({ ...wizardData, scheduleCron: e.target.value })}
+                  description="Cron expression for scheduled runs (leave empty to skip scheduling)"
+                />
+              )}
+
               <Card className="bg-ak-surface">
-                <div className="space-y-2">
-                  <p className="text-sm font-medium text-ak-text-primary">ⓘ About PR-First Workflow</p>
-                  <p className="text-xs text-ak-text-secondary">
-                    Scribe creates a separate branch and opens a Pull Request for every documentation update.
-                    This is safer than direct commits because:
-                  </p>
-                  <ul className="ml-4 list-disc space-y-1 text-xs text-ak-text-secondary">
-                    <li>Changes are reviewed before merging</li>
-                    <li>Full Git history and traceability</li>
-                    <li>Easy to revert if something goes wrong</li>
-                  </ul>
-                  <p className="text-xs text-ak-text-secondary">
-                    This is the same model used by Dependabot and Renovate.
-                  </p>
+                <h3 className="mb-3 text-sm font-semibold text-ak-text-primary">PR Behavior (Optional)</h3>
+                <div className="space-y-3">
+                  <Input
+                    label="PR Title Template"
+                    placeholder="docs(scribe): {summary}"
+                    value={wizardData.prTitleTemplate || ''}
+                    onChange={(e) => setWizardData({ ...wizardData, prTitleTemplate: e.target.value })}
+                    description="Template for pull request titles"
+                  />
+                  <Input
+                    label="PR Body Template"
+                    placeholder="Summary: {summary}"
+                    value={wizardData.prBodyTemplate || ''}
+                    onChange={(e) => setWizardData({ ...wizardData, prBodyTemplate: e.target.value })}
+                    description="Template for pull request descriptions"
+                  />
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id="autoMerge"
+                      checked={wizardData.autoMerge || false}
+                      onChange={(e) => setWizardData({ ...wizardData, autoMerge: e.target.checked })}
+                      className="h-4 w-4 rounded border-ak-border text-ak-primary focus:ring-ak-primary"
+                    />
+                    <label htmlFor="autoMerge" className="text-sm text-ak-text-primary">
+                      Enable auto-merge (optional, requires explicit opt-in)
+                    </label>
+                  </div>
+                  {wizardData.autoMerge && (
+                    <div className="rounded-lg border border-ak-danger bg-ak-danger/10 p-3">
+                      <p className="text-xs text-ak-danger">
+                        ⚠️ Auto-merge is enabled. Changes may merge without manual review.
+                      </p>
+                    </div>
+                  )}
                 </div>
+              </Card>
+
+              <Card className="bg-ak-surface">
+                <h3 className="mb-3 text-sm font-semibold text-ak-text-primary">File Filters (Optional)</h3>
+                <div className="space-y-3">
+                  <Input
+                    label="Include Globs"
+                    placeholder="src/**, docs/**"
+                    value={formatGlobs(wizardData.includeGlobs)}
+                    onChange={(e) =>
+                      setWizardData({ ...wizardData, includeGlobs: parseGlobs(e.target.value) })
+                    }
+                    description="Comma-separated patterns to include"
+                  />
+                  <Input
+                    label="Exclude Globs"
+                    placeholder="*.test.ts"
+                    value={formatGlobs(wizardData.excludeGlobs)}
+                    onChange={(e) =>
+                      setWizardData({ ...wizardData, excludeGlobs: parseGlobs(e.target.value) })
+                    }
+                    description="Comma-separated patterns to exclude"
+                  />
+                </div>
+              </Card>
+
+              <Card className="bg-ak-surface">
+                <p className="text-xs text-ak-text-secondary">
+                  Defaults apply if any advanced option is left blank. You can update these later.
+                </p>
               </Card>
             </div>
 
@@ -847,20 +1085,20 @@ const DashboardAgentScribePage = () => {
               <Button variant="outline" onClick={handleWizardBack}>
                 ← Back
               </Button>
-              <Button onClick={handleWizardNext} disabled={!wizardData.triggerMode}>
+              <Button onClick={handleWizardNext}>
                 Continue →
               </Button>
             </div>
           </Card>
         )}
 
-        {/* Wizard Step 5: Review & Test */}
+        {/* Wizard Step 5: Review and save */}
         {wizardStep === 5 && (
           <Card className="space-y-6 bg-ak-surface-2">
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <h2 className="text-lg font-semibold text-ak-text-primary">
-                  Step 5 of 5: Review & Test
+                  Step 5 of 5: Review and save
                 </h2>
                 <button
                   onClick={handleWizardBack}
@@ -869,38 +1107,100 @@ const DashboardAgentScribePage = () => {
                   ← Back
                 </button>
               </div>
+              <p className="text-sm text-ak-text-secondary">
+                Review your configuration and save. You can jump back to edit any step.
+              </p>
             </div>
 
             <div className="space-y-4">
               <Card className="bg-ak-surface">
-                <h3 className="mb-3 text-sm font-semibold text-ak-text-primary">📋 Playbook Preview</h3>
-                <div className="space-y-2 text-sm text-ak-text-secondary">
-                  <p>
-                    When a PR is merged to {wizardData.repositoryOwner}/{wizardData.repositoryName} ({wizardData.baseBranch} branch):
-                  </p>
-                  <ol className="ml-4 list-decimal space-y-1">
-                    <li>Scribe analyzes the changed files</li>
-                    <li>Generates/updates documentation content</li>
-                    <li>Creates branch: {wizardData.branchPattern?.replace('{timestamp}', '20251215-143022')}</li>
-                    <li>Commits changes and updates Confluence ({wizardData.targetConfig && typeof wizardData.targetConfig === 'object' && 'space_key' in wizardData.targetConfig ? String(wizardData.targetConfig.space_key) : 'N/A'})</li>
-                    <li>Opens a PR targeting {wizardData.baseBranch} branch</li>
-                    <li>Awaits manual review and merge</li>
-                  </ol>
-                  <p className="mt-2 text-xs">
-                    ⓘ No direct commits to {wizardData.baseBranch}. All changes require PR approval.
-                  </p>
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <h3 className="text-sm font-semibold text-ak-text-primary">Review Summary</h3>
+                  <div className="flex flex-wrap gap-2">
+                    <Button variant="ghost" size="md" className="px-3 py-1 text-xs" onClick={() => setWizardStep(2)}>
+                      Edit Step 2
+                    </Button>
+                    <Button variant="ghost" size="md" className="px-3 py-1 text-xs" onClick={() => setWizardStep(3)}>
+                      Edit Step 3
+                    </Button>
+                    <Button variant="ghost" size="md" className="px-3 py-1 text-xs" onClick={() => setWizardStep(4)}>
+                      Edit Step 4
+                    </Button>
+                  </div>
+                </div>
+                <div className="mt-4 space-y-3 text-sm">
+                  <div className="flex justify-between gap-4">
+                    <span className="text-ak-text-secondary">Repository</span>
+                    <span className="text-ak-text-primary">
+                      {wizardData.repositoryOwner && wizardData.repositoryName
+                        ? `${wizardData.repositoryOwner}/${wizardData.repositoryName}`
+                        : 'Not set'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between gap-4">
+                    <span className="text-ak-text-secondary">Base Branch</span>
+                    <span className="text-ak-text-primary">{wizardData.baseBranch || 'main'}</span>
+                  </div>
+                  <div className="flex justify-between gap-4">
+                    <span className="text-ak-text-secondary">Branch Pattern</span>
+                    <span className="text-ak-text-primary">
+                      {wizardData.branchPattern || 'docs/scribe-{timestamp}'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between gap-4">
+                    <span className="text-ak-text-secondary">Target Platform</span>
+                    <span className="text-ak-text-primary">{targetPlatformLabel}</span>
+                  </div>
+                  <div className="flex justify-between gap-4">
+                    <span className="text-ak-text-secondary">Trigger Mode</span>
+                    <span className="text-ak-text-primary">{triggerModeLabel}</span>
+                  </div>
+                  <div className="flex justify-between gap-4">
+                    <span className="text-ak-text-secondary">Schedule</span>
+                    <span className="text-ak-text-primary">{wizardData.scheduleCron || 'Not set'}</span>
+                  </div>
+                  <div className="flex justify-between gap-4">
+                    <span className="text-ak-text-secondary">PR Title Template</span>
+                    <span className="text-ak-text-primary">
+                      {wizardData.prTitleTemplate || 'Default'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between gap-4">
+                    <span className="text-ak-text-secondary">PR Body Template</span>
+                    <span className="text-ak-text-primary">
+                      {wizardData.prBodyTemplate || 'Default'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between gap-4">
+                    <span className="text-ak-text-secondary">Auto-merge</span>
+                    <span className="text-ak-text-primary">
+                      {wizardData.autoMerge ? 'Enabled' : 'Disabled'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between gap-4">
+                    <span className="text-ak-text-secondary">Include Globs</span>
+                    <span className="text-ak-text-primary">
+                      {formatGlobs(wizardData.includeGlobs) || 'Not set'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between gap-4">
+                    <span className="text-ak-text-secondary">Exclude Globs</span>
+                    <span className="text-ak-text-primary">
+                      {formatGlobs(wizardData.excludeGlobs) || 'Not set'}
+                    </span>
+                  </div>
                 </div>
               </Card>
 
               <Card className="bg-ak-surface">
-                <h3 className="mb-3 text-sm font-semibold text-ak-text-primary">🧪 Test Your Configuration</h3>
+                <h3 className="mb-3 text-sm font-semibold text-ak-text-primary">Optional: Run Test Job</h3>
                 <p className="mb-4 text-sm text-ak-text-secondary">
-                  Run a test job to verify everything works. This is a dry-run: no real changes will be made.
+                  Run a dry-run to verify the configuration. No real changes will be made.
                 </p>
                 <Button
                   variant="outline"
                   onClick={handleRunTestJob}
-                  disabled={testing}
+                  disabled={testing || saving || creatingJob}
                 >
                   {testing ? 'Running...' : 'Run Test Job'}
                 </Button>
@@ -917,8 +1217,11 @@ const DashboardAgentScribePage = () => {
               <Button variant="outline" onClick={handleWizardBack}>
                 ← Back
               </Button>
-              <Button onClick={handleSaveConfig} disabled={saving}>
-                {saving ? 'Saving...' : 'Save & Enable Scribe'}
+              <Button variant="outline" onClick={handleSaveOnly} disabled={saving || creatingJob}>
+                {saving ? 'Saving...' : 'Save Only'}
+              </Button>
+              <Button onClick={handleSaveAndCreateJob} disabled={saving || creatingJob}>
+                {creatingJob ? 'Creating...' : 'Save & Create Job'}
               </Button>
             </div>
           </Card>

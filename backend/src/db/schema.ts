@@ -388,7 +388,7 @@ export const agentConfigs = pgTable('agent_configs', {
   branchPattern: varchar('branch_pattern', { length: 255 }).default('docs/{agent}-{timestamp}'),
   
   // Target settings (JSON for flexibility)
-  targetPlatform: varchar('target_platform', { length: 50 }), // 'confluence', 'notion', 'github_wiki'
+  targetPlatform: varchar('target_platform', { length: 50 }), // 'confluence', 'notion', 'github_wiki', 'github_repo'
   targetConfig: jsonb('target_config').notNull().default({}),
   
   // Trigger settings
