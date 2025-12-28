@@ -325,7 +325,35 @@ export async function registerOAuthRoutes(fastify: FastifyInstance) {
     
     return redirect(reply, authUrl);
   });
-  
+
+  if (config.NODE_ENV !== 'production') {
+    /**
+     * DEV ONLY: alias for legacy callback paths (e.g., /auth/oauth/github/cb)
+     * Keeps local OAuth callback mismatches from breaking the flow.
+     */
+    fastify.get('/oauth/:provider/cb', async (request: FastifyRequest, reply: FastifyReply) => {
+      const params = request.params as { provider: string };
+      const query = request.query as Record<string, string | string[] | undefined>;
+      const search = new URLSearchParams();
+
+      for (const [key, value] of Object.entries(query)) {
+        if (Array.isArray(value)) {
+          value.forEach((item) => {
+            if (item) {
+              search.append(key, item);
+            }
+          });
+        } else if (value) {
+          search.append(key, value);
+        }
+      }
+
+      const queryString = search.toString();
+      const target = `/auth/oauth/${params.provider}/callback${queryString ? `?${queryString}` : ''}`;
+      return redirect(reply, target);
+    });
+  }
+
   /**
    * GET /auth/oauth/:provider/callback
    * Handles OAuth callback from provider

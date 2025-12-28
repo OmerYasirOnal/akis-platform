@@ -6,7 +6,12 @@ export interface CorsPluginOptions {
   origins: string[];
 }
 
-const LOCALHOST_VITE = 'http://localhost:5173';
+const DEV_ORIGINS = [
+  'http://localhost:5173',
+  'http://127.0.0.1:5173',
+  'http://localhost:5174',
+  'http://127.0.0.1:5174',
+];
 
 export const corsPlugin = fp<CorsPluginOptions>(
   async (fastify: FastifyInstance, options: CorsPluginOptions) => {
@@ -17,7 +22,12 @@ export const corsPlugin = fp<CorsPluginOptions>(
         .map((origin) => origin.replace(/\/$/, ''))
     );
 
-    normalizedOrigins.add(LOCALHOST_VITE);
+    const shouldAllowDevOrigins = process.env.NODE_ENV !== 'production';
+    if (shouldAllowDevOrigins) {
+      for (const origin of DEV_ORIGINS) {
+        normalizedOrigins.add(origin);
+      }
+    }
 
     const allowAll = normalizedOrigins.has('*');
 
@@ -47,5 +57,4 @@ export const corsPlugin = fp<CorsPluginOptions>(
 );
 
 export type CorsPlugin = typeof corsPlugin;
-
 
