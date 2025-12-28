@@ -75,6 +75,7 @@ export enum McpErrorCode {
   // Protocol errors
   MCP_PROTOCOL_ERROR = 'MCP_PROTOCOL_ERROR',
   MCP_TOOL_NOT_FOUND = 'MCP_TOOL_NOT_FOUND',
+  MCP_RESOURCE_NOT_FOUND = 'MCP_RESOURCE_NOT_FOUND',
   
   // Server errors
   MCP_SERVER_ERROR = 'MCP_SERVER_ERROR',
@@ -384,6 +385,14 @@ export class GitHubMCPService {
       if (json.error.code === -32601) {
         errorCode = McpErrorCode.MCP_TOOL_NOT_FOUND;
         hint = 'MCP tool not found. This may indicate a protocol mismatch or outdated gateway.';
+      }
+      if (
+        json.error.code === -32603 &&
+        typeof json.error.message === 'string' &&
+        /resource not found/i.test(json.error.message)
+      ) {
+        errorCode = McpErrorCode.MCP_RESOURCE_NOT_FOUND;
+        hint = 'Resource not found. Check owner/repo/path/branch or token access.';
       }
       
       throw new McpError({
