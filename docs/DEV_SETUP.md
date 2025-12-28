@@ -53,11 +53,18 @@ The project uses **PostgreSQL 16** on port **5433** (not the default 5432) to av
 - Creates database `akis_v2`
 - Uses credentials: `postgres` / `postgres`
 - Persists data in named volume `devagents_pgdata`
+- Uses restart policy `unless-stopped` in dev so Postgres returns after Docker restarts
 
 #### Stop Database
 
 ```bash
 ./scripts/db-down.sh
+```
+
+If you want to keep the container stopped without removing it:
+
+```bash
+docker compose -f docker-compose.dev.yml stop pg
 ```
 
 **Data persists** in the Docker volume. To completely reset:
@@ -483,4 +490,3 @@ The PR automation (`scripts/akis-pr-autoflow.sh`) scans for token prefixes:
 
 **Last Updated**: 2025-12-20  
 **Maintainer**: Development Team
-
