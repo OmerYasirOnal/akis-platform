@@ -8,6 +8,7 @@ export default defineConfig({
     // Bind to 127.0.0.1 explicitly to avoid IPv6 ECONNREFUSED issues
     host: '127.0.0.1',
     port: 5173,
+    strictPort: true,
   },
   test: {
     environment: 'jsdom',
