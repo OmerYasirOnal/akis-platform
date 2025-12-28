@@ -47,7 +47,7 @@ Kalite, güvenlik ve performans kontrolleri için:
 
 ## 👨‍💻 Geliştirme Rehberleri
 
+- [Cursor + Codex Strategy](../CURSOR_CODEX_STRATEGY.md)
 - [Rules & Guardrails](../.cursor/rules/rules.mdc)
 - [Constraints](../.cursor/constraints.md)
 - [Glossary](../.cursor/glossary.md)
-

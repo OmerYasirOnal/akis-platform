@@ -36,6 +36,7 @@ docs/NEXT.md                       (immediate actions + gating)
 
 ## Canonical Docs
 
+- [Cursor + Codex Strategy](CURSOR_CODEX_STRATEGY.md) – Cursor/Codex kullanım kuralları
 - [CONTEXT_SCOPE (.cursor)](.cursor/context/CONTEXT_SCOPE.md) – problemin tanımı ve hedefler
 - [CONTEXT_ARCHITECTURE (.cursor)](.cursor/context/CONTEXT_ARCHITECTURE.md) – mimari kararlar ve teknoloji yığını
 - [UI_DESIGN_SYSTEM](docs/UI_DESIGN_SYSTEM.md) – tasarım token'ları ve komponent kuralları
@@ -378,4 +379,3 @@ Detaylı dokümantasyon için [docs/](docs/) klasörüne bakın.
 ## Lisans
 
 MIT License - Bkz. [LICENSE](LICENSE) dosyası.
-
