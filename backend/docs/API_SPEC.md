@@ -81,7 +81,17 @@ Submit a new agent job.
 ```json
 {
   "type": "scribe" | "trace" | "proto",
+  "agentType": "scribe" | "trace" | "proto",
   "payload": { ... },
+  "agentConfig": { ... },
+  "modelConfig": {
+    "providerId": "string",
+    "modelId": "string",
+    "optionalNonSecretTuning": {
+      "temperature": 0.2,
+      "maxOutputTokens": 8000
+    }
+  },
   "requiresStrictValidation": false
 }
 ```
@@ -90,9 +100,15 @@ Submit a new agent job.
 
 | Type | Required Fields | Description |
 |------|-----------------|-------------|
-| `scribe` | `doc` (string) | Documentation content/topic |
+| `scribe` | `doc` (string) **or** repo payload (`owner`, `repo`, `baseBranch`) | Documentation content/topic. V1 Task Composer sends repo coordinates in `agentConfig` and task prompt in `payload.taskDescription`. |
 | `trace` | `spec` (string) | Requirements/specification text |
 | `proto` | `feature` (string) | Feature description for prototyping |
+
+**Notes (Task Composer V1)**:
+- `agentType` mirrors `type` for forward compatibility.
+- `modelConfig` is configuration-only (no secrets); stored on the job record for reproducibility.
+- `agentConfig` carries per-agent options (Scribe repo coordinates, include/exclude globs, dryRun, etc.).
+- Trace/Proto payloads may be sent but are disabled in the UI for V1.
 
 **Response (200)**:
 ```json
@@ -122,7 +138,17 @@ Get job status and result.
 {
   "id": "uuid-string",
   "type": "scribe",
+  "agentType": "scribe",
   "state": "completed",
+  "modelProviderId": "openai",
+  "modelId": "gpt-4o-mini",
+  "modelConfig": {
+    "providerId": "openai",
+    "modelId": "gpt-4o-mini",
+    "optionalNonSecretTuning": {
+      "temperature": 0.2
+    }
+  },
   "payload": { ... },
   "result": { ... },
   "error": null,
@@ -607,4 +633,3 @@ Prometheus metrics endpoint.
 http_requests_total{method="GET",path="/health",status="200"} 42
 ...
 ```
-

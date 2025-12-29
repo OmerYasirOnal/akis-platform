@@ -34,6 +34,14 @@ export const traceEventTypeEnum = pgEnum('trace_event_type', [
 export const jobs = pgTable('jobs', {
   id: uuid('id').defaultRandom().primaryKey(),
   type: varchar('type', { length: 50 }).notNull(),
+  /** Agent type (mirrors type, kept for forward-compatible agent routing) */
+  agentType: varchar('agent_type', { length: 50 }).default('scribe').notNull(),
+  /** Selected model provider (non-secret) */
+  modelProviderId: varchar('model_provider_id', { length: 100 }),
+  /** Selected model identifier */
+  modelId: varchar('model_id', { length: 255 }),
+  /** Non-secret model tuning/params */
+  modelConfig: jsonb('model_config').default({}),
   state: jobStateEnum('state').default('pending').notNull(),
   payload: jsonb('payload'),
   result: jsonb('result'),

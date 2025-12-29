@@ -27,12 +27,31 @@ export interface RunAgentResponse {
   state: JobState;
 }
 
+export interface ModelConfig {
+  providerId: string;
+  modelId: string;
+  optionalNonSecretTuning?: Record<string, string | number | boolean>;
+}
+
+export interface RunAgentRequest {
+  type: AgentType;
+  agentType?: AgentType;
+  payload?: unknown;
+  agentConfig?: Record<string, unknown>;
+  modelConfig?: ModelConfig;
+  requiresStrictValidation?: boolean;
+}
+
 export interface JobDetail {
   id: string;
   type: AgentType;
+  agentType?: AgentType;
   state: JobState;
   createdAt: string;
   updatedAt: string;
+  modelProviderId?: string | null;
+  modelId?: string | null;
+  modelConfig?: Record<string, unknown>;
   payload?: unknown;
   result?: unknown;
   error?: unknown;
@@ -84,19 +103,19 @@ export const agentsApi = {
     return agents;
   },
 
-  runAgent: async (type: AgentType, payload: unknown): Promise<RunAgentResponse> => {
-    return httpClient.post<RunAgentResponse>(
-      '/api/agents/jobs',
-      {
-        type,
-        payload,
-      },
-      withCredentials
-    );
+  runAgent: async (
+    requestOrType: RunAgentRequest | AgentType,
+    payload?: unknown
+  ): Promise<RunAgentResponse> => {
+    const request: RunAgentRequest =
+      typeof requestOrType === 'string'
+        ? { type: requestOrType, agentType: requestOrType, payload }
+        : requestOrType;
+
+    return httpClient.post<RunAgentResponse>('/api/agents/jobs', request, withCredentials);
   },
 
   getJob: async (jobId: string): Promise<JobDetail> => {
     return httpClient.get<JobDetail>(`/api/agents/jobs/${jobId}`, withCredentials);
   },
 };
-

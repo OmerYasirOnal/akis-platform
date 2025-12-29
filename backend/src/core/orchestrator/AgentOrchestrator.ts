@@ -114,7 +114,9 @@ export class AgentOrchestrator {
    */
   async submitJob(input: { 
     type: string; 
+    agentType?: string;
     payload?: unknown; 
+    modelConfig?: { providerId?: string; modelId?: string; optionalNonSecretTuning?: Record<string, unknown> };
     requiresStrictValidation?: boolean;
   }): Promise<string> {
     // Validate input type against registered agents
@@ -125,10 +127,17 @@ export class AgentOrchestrator {
       );
     }
 
+    const modelProviderId = input.modelConfig?.providerId;
+    const modelId = input.modelConfig?.modelId;
+
     const jobId = randomUUID();
     const newJob: NewJob = {
       id: jobId,
       type: input.type,
+      agentType: input.agentType ?? input.type,
+      modelProviderId,
+      modelId,
+      modelConfig: input.modelConfig ? { ...input.modelConfig } : {},
       state: 'pending',
       payload: input.payload || null,
       result: null,

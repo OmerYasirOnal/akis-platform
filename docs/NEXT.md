@@ -16,6 +16,7 @@ docs/PROJECT_TRACKING_BASELINE.md  →  docs/ROADMAP.md  →  docs/NEXT.md (this
 
 | Priority | Task | Status | Sprint |
 |----------|------|--------|--------|
+| **P0** | Dashboard Task Composer V1 (Scribe-first) | 🚧 In progress | S1.0.1 |
 | **P0** | S0.4.6 Scribe Config Dashboard | ✅ Complete | S0.4.6 |
 | P1 | Scribe temel akış | 📋 Next | S1.0.1 |
 | P2 | Trace/Proto MVP | 📋 Planned | S1.0.2 |

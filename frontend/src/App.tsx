@@ -54,6 +54,7 @@ import DashboardSettingsNotificationsPage from './pages/dashboard/settings/Dashb
 import JobsListPage from './pages/JobsListPage';
 import JobDetailPage from './pages/JobDetailPage';
 import NewJobPage from './pages/NewJobPage';
+import DashboardTaskComposerPage from './pages/DashboardTaskComposerPage';
 import { ErrorBoundary } from './components/ErrorBoundary';
 
 function App() {
@@ -150,6 +151,7 @@ function App() {
               <Route path="trace" element={<DashboardAgentTracePage />} />
               <Route path="proto" element={<DashboardAgentProtoPage />} />
             </Route>
+            <Route path="task-composer" element={<DashboardTaskComposerPage />} />
             <Route path="integrations" element={<DashboardIntegrationsPage />} />
             <Route path="settings">
               <Route index element={<Navigate to="profile" replace />} />

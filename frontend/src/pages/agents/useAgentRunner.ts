@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { AgentType, JobDetail } from '../../services/api/agents';
+import type { AgentType, JobDetail, ModelConfig } from '../../services/api/agents';
 import { agentsApi } from '../../services/api/agents';
 
 const POLL_INTERVAL_MS = 2500;
@@ -78,13 +78,36 @@ export const useAgentRunner = (type: AgentType) => {
   );
 
   const runAgent = useCallback(
-    async (payload: unknown) => {
+    async (
+      payload: unknown,
+      options?: {
+        agentType?: AgentType;
+        modelConfig?: ModelConfig;
+        agentConfig?: Record<string, unknown>;
+        requiresStrictValidation?: boolean;
+      }
+    ) => {
       setIsSubmitting(true);
       setError(null);
       setJob(null);
 
       try {
-        const response = await agentsApi.runAgent(type, payload);
+        const shouldUseExtendedRequest =
+          options?.agentConfig ||
+          options?.modelConfig ||
+          options?.agentType ||
+          options?.requiresStrictValidation;
+
+        const response = shouldUseExtendedRequest
+          ? await agentsApi.runAgent({
+              type,
+              agentType: options?.agentType ?? type,
+              payload,
+              agentConfig: options?.agentConfig,
+              modelConfig: options?.modelConfig,
+              requiresStrictValidation: options?.requiresStrictValidation,
+            })
+          : await agentsApi.runAgent(type, payload);
         if (!isMountedRef.current) {
           return;
         }
@@ -93,6 +116,7 @@ export const useAgentRunner = (type: AgentType) => {
         const newJob: JobDetail = {
           id: response.jobId,
           type,
+          agentType: options?.agentType ?? type,
           state: response.state,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
@@ -131,4 +155,3 @@ export const useAgentRunner = (type: AgentType) => {
     isPolling,
   };
 };
-

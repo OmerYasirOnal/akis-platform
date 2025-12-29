@@ -37,9 +37,18 @@ const protoPayloadSchema = z.object({
   goal: z.string().min(1, 'goal field is required and must be a non-empty string').optional(),
 }).passthrough(); // Allow additional fields
 
+const modelConfigSchema = z.object({
+  providerId: z.string().min(1, 'providerId is required'),
+  modelId: z.string().min(1, 'modelId is required'),
+  optionalNonSecretTuning: z.record(z.union([z.string(), z.number(), z.boolean()])).optional(),
+});
+
 const submitJobSchema = z.object({
   type: z.enum(['scribe', 'trace', 'proto']),
+  agentType: z.enum(['scribe', 'trace', 'proto']).optional(),
   payload: z.unknown().optional(),
+  agentConfig: z.record(z.any()).optional(),
+  modelConfig: modelConfigSchema.partial().optional(),
   /** If true, the job will use a stronger model for final validation */
   requiresStrictValidation: z.boolean().optional().default(false),
 }).superRefine((data, ctx) => {
@@ -111,6 +120,25 @@ const submitJobSchema = z.object({
       path: ['payload'],
     });
   }
+
+  // Optional consistency check for agentType/type
+  if (data.agentType && data.agentType !== data.type) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: `agentType "${data.agentType}" must match type "${data.type}"`,
+      path: ['agentType'],
+    });
+  }
+
+  if (data.modelConfig) {
+    if (!data.modelConfig.providerId || !data.modelConfig.modelId) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'modelConfig requires providerId and modelId',
+        path: ['modelConfig'],
+      });
+    }
+  }
 });
 
 const jobIdParamsSchema = z.object({
@@ -147,7 +175,17 @@ export async function agentsRoutes(fastify: FastifyInstance) {
           required: ['type'],
           properties: {
             type: { type: 'string', enum: ['scribe', 'trace', 'proto'] },
+            agentType: { type: 'string', enum: ['scribe', 'trace', 'proto'] },
             payload: { type: 'object' },
+            agentConfig: { type: 'object' },
+            modelConfig: {
+              type: 'object',
+              properties: {
+                providerId: { type: 'string' },
+                modelId: { type: 'string' },
+                optionalNonSecretTuning: { type: 'object' },
+              },
+            },
             requiresStrictValidation: { type: 'boolean', default: false },
           },
         },
@@ -167,108 +205,156 @@ export async function agentsRoutes(fastify: FastifyInstance) {
         // Validate request body with Zod
         const body = submitJobSchema.parse(request.body);
 
+        const agentType = body.agentType ?? body.type;
+
         // S0.4.6: Handle config-aware payloads for Scribe
         let enrichedPayload = body.payload;
         
-        if (body.type === 'scribe' && body.payload && typeof body.payload === 'object') {
-          const payload = body.payload as Record<string, unknown>;
-          const isConfigAware = 
-            payload.mode === 'from_config' || 
-            payload.mode === 'test' || 
-            payload.mode === 'run' || 
-            typeof payload.config_id === 'string';
+        if (body.type === 'scribe') {
+          const payloadObject =
+            body.payload && typeof body.payload === 'object'
+              ? ({ ...(body.payload as Record<string, unknown>) } as Record<string, unknown>)
+              : null;
 
-          if (isConfigAware) {
-            // Load user config and derive payload
-            let userId: string | undefined;
-            
-            try {
-              const user = await requireAuth(request);
-              userId = user.id;
-            } catch (authError) {
-              const errorResponse = formatErrorResponse(request, authError);
-              reply.code(401).send(errorResponse);
-              return;
-            }
+          if (payloadObject) {
+            const isConfigAware =
+              payloadObject.mode === 'from_config' ||
+              payloadObject.mode === 'test' ||
+              payloadObject.mode === 'run' ||
+              typeof payloadObject.config_id === 'string';
 
-            // Load config from DB
-            let config;
-            try {
-              config = await db.query.agentConfigs.findFirst({
-                where: and(
-                  eq(agentConfigs.userId, userId),
-                  eq(agentConfigs.agentType, 'scribe')
-                ),
-              });
-            } catch (dbError) {
-              throw new Error(`Failed to load Scribe configuration: ${dbError instanceof Error ? dbError.message : String(dbError)}`);
-            }
+            if (isConfigAware) {
+              // Load user config and derive payload
+              let userId: string | undefined;
+              
+              try {
+                const user = await requireAuth(request);
+                userId = user.id;
+              } catch (authError) {
+                const errorResponse = formatErrorResponse(request, authError);
+                reply.code(401).send(errorResponse);
+                return;
+              }
 
-            if (!config) {
-              throw new Error('Scribe configuration not found. Please configure Scribe first at /dashboard/agents/scribe');
-            }
+              // Load config from DB
+              let config;
+              try {
+                config = await db.query.agentConfigs.findFirst({
+                  where: and(
+                    eq(agentConfigs.userId, userId),
+                    eq(agentConfigs.agentType, 'scribe')
+                  ),
+                });
+              } catch (dbError) {
+                throw new Error(`Failed to load Scribe configuration: ${dbError instanceof Error ? dbError.message : String(dbError)}`);
+              }
 
-            // Validate config has required fields
-            if (!config.repositoryOwner || !config.repositoryName || !config.baseBranch) {
-              throw new Error('Scribe configuration incomplete. Missing repository owner, name, or base branch. Please complete configuration at /dashboard/agents/scribe');
-            }
+              if (!config) {
+                throw new Error('Scribe configuration not found. Please configure Scribe first at /dashboard/agents/scribe');
+              }
 
-            // Transform config to legacy payload format
-            enrichedPayload = {
-              ...payload, // Keep mode, dryRun, etc.
-              owner: config.repositoryOwner,
-              repo: config.repositoryName,
-              baseBranch: config.baseBranch,
-              userId, // Add userId for orchestrator
-            };
-            
-            // Add optional fields from config
-            if (config.branchPattern) {
-              (enrichedPayload as Record<string, unknown>).branchPattern = config.branchPattern;
-            }
-            if (config.targetPlatform) {
-              (enrichedPayload as Record<string, unknown>).targetPlatform = config.targetPlatform;
-            }
-            if (config.targetConfig && typeof config.targetConfig === 'object' && config.targetConfig !== null) {
-              (enrichedPayload as Record<string, unknown>).targetConfig = config.targetConfig;
-            }
-            if (config.prTitleTemplate) {
-              (enrichedPayload as Record<string, unknown>).prTitleTemplate = config.prTitleTemplate;
-            }
-            if (typeof config.prBodyTemplate === 'string' || config.prBodyTemplate === null) {
-              (enrichedPayload as Record<string, unknown>).prBodyTemplate = config.prBodyTemplate;
-            }
-            if (typeof config.autoMerge === 'boolean') {
-              (enrichedPayload as Record<string, unknown>).autoMerge = config.autoMerge;
-            }
-            if (config.triggerMode) {
-              (enrichedPayload as Record<string, unknown>).triggerMode = config.triggerMode;
-            }
-            if (config.scheduleCron) {
-              (enrichedPayload as Record<string, unknown>).scheduleCron = config.scheduleCron;
-            }
-            if (config.includeGlobs && config.includeGlobs.length > 0) {
-              (enrichedPayload as Record<string, unknown>).includeGlobs = config.includeGlobs;
-            }
-            if (config.excludeGlobs && config.excludeGlobs.length > 0) {
-              (enrichedPayload as Record<string, unknown>).excludeGlobs = config.excludeGlobs;
-            }
-          } else {
-            // Legacy payload: try to get userId if auth is available
-            try {
-              const user = await requireAuth(request);
-              enrichedPayload = { ...payload, userId: user.id };
-            } catch {
-              // No auth required for legacy payloads (backward compat)
-              enrichedPayload = payload;
+              // Validate config has required fields
+              if (!config.repositoryOwner || !config.repositoryName || !config.baseBranch) {
+                throw new Error('Scribe configuration incomplete. Missing repository owner, name, or base branch. Please complete configuration at /dashboard/agents/scribe');
+              }
+
+              // Transform config to legacy payload format
+              enrichedPayload = {
+                ...payloadObject, // Keep mode, dryRun, etc.
+                owner: config.repositoryOwner,
+                repo: config.repositoryName,
+                baseBranch: config.baseBranch,
+                userId, // Add userId for orchestrator
+              };
+              
+              // Add optional fields from config
+              if (config.branchPattern) {
+                (enrichedPayload as Record<string, unknown>).branchPattern = config.branchPattern;
+              }
+              if (config.targetPlatform) {
+                (enrichedPayload as Record<string, unknown>).targetPlatform = config.targetPlatform;
+              }
+              if (config.targetConfig && typeof config.targetConfig === 'object' && config.targetConfig !== null) {
+                (enrichedPayload as Record<string, unknown>).targetConfig = config.targetConfig;
+              }
+              if (config.prTitleTemplate) {
+                (enrichedPayload as Record<string, unknown>).prTitleTemplate = config.prTitleTemplate;
+              }
+              if (typeof config.prBodyTemplate === 'string' || config.prBodyTemplate === null) {
+                (enrichedPayload as Record<string, unknown>).prBodyTemplate = config.prBodyTemplate;
+              }
+              if (typeof config.autoMerge === 'boolean') {
+                (enrichedPayload as Record<string, unknown>).autoMerge = config.autoMerge;
+              }
+              if (config.triggerMode) {
+                (enrichedPayload as Record<string, unknown>).triggerMode = config.triggerMode;
+              }
+              if (config.scheduleCron) {
+                (enrichedPayload as Record<string, unknown>).scheduleCron = config.scheduleCron;
+              }
+              if (config.includeGlobs && config.includeGlobs.length > 0) {
+                (enrichedPayload as Record<string, unknown>).includeGlobs = config.includeGlobs;
+              }
+              if (config.excludeGlobs && config.excludeGlobs.length > 0) {
+                (enrichedPayload as Record<string, unknown>).excludeGlobs = config.excludeGlobs;
+              }
+            } else {
+              // Legacy payload: try to get userId if auth is available
+              try {
+                const user = await requireAuth(request);
+                enrichedPayload = { ...payloadObject, userId: user.id };
+              } catch {
+                // No auth required for legacy payloads (backward compat)
+                enrichedPayload = payloadObject;
+              }
             }
           }
+
+          // Merge agentConfig if provided (Task Composer V1)
+          if (body.agentConfig && typeof body.agentConfig === 'object') {
+            const config = body.agentConfig as Record<string, unknown>;
+            const basePayload =
+              enrichedPayload && typeof enrichedPayload === 'object'
+                ? { ...(enrichedPayload as Record<string, unknown>) }
+                : {};
+
+            enrichedPayload = {
+              ...basePayload,
+              owner: config.repositoryOwner ?? config.owner ?? basePayload.owner,
+              repo: config.repositoryName ?? config.repo ?? basePayload.repo,
+              baseBranch: config.baseBranch ?? basePayload.baseBranch,
+              featureBranch: config.featureBranch ?? basePayload.featureBranch,
+              targetPath: config.targetPath ?? config.taskPath ?? basePayload.targetPath,
+              branchPattern: config.branchPattern ?? basePayload.branchPattern,
+              includeGlobs: config.includeGlobs ?? basePayload.includeGlobs,
+              excludeGlobs: config.excludeGlobs ?? basePayload.excludeGlobs,
+              targetPlatform: config.targetPlatform ?? basePayload.targetPlatform,
+              targetConfig: config.targetConfig ?? basePayload.targetConfig,
+              dryRun: config.dryRun ?? basePayload.dryRun,
+              agentConfig: config,
+              modelConfig: body.modelConfig,
+            };
+          }
+        }
+
+        if (body.type !== 'scribe' && body.agentConfig && typeof body.agentConfig === 'object') {
+          const basePayload =
+            enrichedPayload && typeof enrichedPayload === 'object'
+              ? { ...(enrichedPayload as Record<string, unknown>) }
+              : {};
+          enrichedPayload = {
+            ...basePayload,
+            agentConfig: body.agentConfig,
+            modelConfig: body.modelConfig,
+          };
         }
 
         // Submit job (creates DB row with pending state)
         const jobId = await orchestrator.submitJob({
           type: body.type,
+          agentType,
           payload: enrichedPayload,
+          modelConfig: body.modelConfig,
           requiresStrictValidation: body.requiresStrictValidation,
         });
 
@@ -474,7 +560,11 @@ export async function agentsRoutes(fastify: FastifyInstance) {
         const response: Record<string, unknown> = {
           id: job.id,
           type: job.type,
+          agentType: job.agentType ?? job.type,
           state: job.state,
+          modelProviderId: job.modelProviderId,
+          modelId: job.modelId,
+          modelConfig: job.modelConfig,
           payload: job.payload,
           result: job.result,
           error: job.error,
@@ -1028,7 +1118,18 @@ export async function agentsRoutes(fastify: FastifyInstance) {
         // Create revision job
         const newJobId = await orchestrator.submitJob({
           type: parentJob.type,
+          agentType: parentJob.agentType ?? parentJob.type,
           payload: revisionPayload,
+          modelConfig: parentJob.modelConfig
+            ? {
+                providerId: (parentJob.modelConfig as Record<string, unknown>).providerId as string | undefined,
+                modelId: (parentJob.modelConfig as Record<string, unknown>).modelId as string | undefined,
+                optionalNonSecretTuning: (parentJob.modelConfig as Record<string, unknown>).optionalNonSecretTuning as Record<string, unknown> | undefined,
+              }
+            : {
+                providerId: parentJob.modelProviderId ?? undefined,
+                modelId: parentJob.modelId ?? undefined,
+              },
           requiresStrictValidation: parentJob.requiresStrictValidation,
         });
 

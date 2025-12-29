@@ -6,6 +6,7 @@ import Button from '../components/common/Button';
 const dashboardLinks = [
   { label: 'Overview', to: '/dashboard' },
   { label: 'Jobs', to: '/dashboard/jobs' },
+  { label: 'Task Composer', to: '/dashboard/task-composer' },
   { label: 'Agents', to: '/dashboard/agents' },
   { label: 'Integrations', to: '/dashboard/integrations' },
   { label: 'Settings', to: '/dashboard/settings/profile' },
