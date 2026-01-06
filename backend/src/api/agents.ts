@@ -4,10 +4,12 @@ import { AgentOrchestrator } from '../core/orchestrator/AgentOrchestrator.js';
 import { db } from '../db/client.js';
 import { jobs, jobPlans, jobAudits, jobTraces, jobArtifacts, agentConfigs, jobComments } from '../db/schema.js';
 import { eq, desc, and, sql, asc } from 'drizzle-orm';
-import { JobNotFoundError } from '../core/errors.js';
+import { JobNotFoundError, MissingAIKeyError, ModelNotAllowedError } from '../core/errors.js';
 import { metrics } from './metrics.js';
 import { formatErrorResponse, getStatusCodeForError } from '../utils/errorHandler.js';
 import { requireAuth } from '../utils/auth.js';
+import { getUserAiKeyStatus } from '../services/ai/user-ai-keys.js';
+import { getScribeModelAllowlist, isModelAllowed } from '../services/ai/modelAllowlist.js';
 
 // Request validation schemas
 // Legacy payload schema (backward compatible)
@@ -167,101 +169,133 @@ export async function agentsRoutes(fastify: FastifyInstance) {
         // Validate request body with Zod
         const body = submitJobSchema.parse(request.body);
 
-        // S0.4.6: Handle config-aware payloads for Scribe
+        // S0.4.6+: Handle config-aware payloads for Scribe
         let enrichedPayload = body.payload;
-        
-        if (body.type === 'scribe' && body.payload && typeof body.payload === 'object') {
-          const payload = body.payload as Record<string, unknown>;
-          const isConfigAware = 
-            payload.mode === 'from_config' || 
-            payload.mode === 'test' || 
-            payload.mode === 'run' || 
-            typeof payload.config_id === 'string';
+        let aiModel: string | undefined;
+        let aiProvider: string | undefined;
 
-          if (isConfigAware) {
-            // Load user config and derive payload
-            let userId: string | undefined;
-            
-            try {
-              const user = await requireAuth(request);
-              userId = user.id;
-            } catch (authError) {
-              const errorResponse = formatErrorResponse(request, authError);
-              reply.code(401).send(errorResponse);
-              return;
+        if (body.type === 'scribe') {
+          let userId: string;
+          try {
+            const user = await requireAuth(request);
+            userId = user.id;
+          } catch (authError) {
+            const errorResponse = formatErrorResponse(request, authError);
+            reply.code(401).send(errorResponse);
+            return;
+          }
+
+          const keyStatus = await getUserAiKeyStatus(userId, 'openai');
+          if (!keyStatus.configured) {
+            throw new MissingAIKeyError('openai');
+          }
+
+          const allowlist = getScribeModelAllowlist();
+          if (allowlist.length === 0) {
+            throw new ModelNotAllowedError('openai', 'unknown', allowlist);
+          }
+
+          if (body.payload && typeof body.payload === 'object') {
+            const payload = body.payload as Record<string, unknown>;
+            const isConfigAware = 
+              payload.mode === 'from_config' || 
+              payload.mode === 'test' || 
+              payload.mode === 'run' || 
+              typeof payload.config_id === 'string';
+
+            let modelOverride: string | null = null;
+
+            if (isConfigAware) {
+              // Load config from DB
+              let config;
+              try {
+                config = await db.query.agentConfigs.findFirst({
+                  where: and(
+                    eq(agentConfigs.userId, userId),
+                    eq(agentConfigs.agentType, 'scribe')
+                  ),
+                });
+              } catch (dbError) {
+                throw new Error(`Failed to load Scribe configuration: ${dbError instanceof Error ? dbError.message : String(dbError)}`);
+              }
+
+              if (!config) {
+                throw new Error('Scribe configuration not found. Please configure Scribe first at /dashboard/agents/scribe');
+              }
+
+              // Validate config has required fields
+              if (!config.repositoryOwner || !config.repositoryName || !config.baseBranch) {
+                throw new Error('Scribe configuration incomplete. Missing repository owner, name, or base branch. Please complete configuration at /dashboard/agents/scribe');
+              }
+
+              modelOverride = config.llmModelOverride ?? null;
+
+              // Transform config to legacy payload format
+              enrichedPayload = {
+                ...payload, // Keep mode, dryRun, etc.
+                owner: config.repositoryOwner,
+                repo: config.repositoryName,
+                baseBranch: config.baseBranch,
+                userId, // Add userId for orchestrator
+              };
+              
+              // Add optional fields from config
+              if (config.branchPattern) {
+                (enrichedPayload as Record<string, unknown>).branchPattern = config.branchPattern;
+              }
+              if (config.targetPlatform) {
+                (enrichedPayload as Record<string, unknown>).targetPlatform = config.targetPlatform;
+              }
+              if (config.targetConfig && typeof config.targetConfig === 'object' && config.targetConfig !== null) {
+                (enrichedPayload as Record<string, unknown>).targetConfig = config.targetConfig;
+              }
+              if (config.prTitleTemplate) {
+                (enrichedPayload as Record<string, unknown>).prTitleTemplate = config.prTitleTemplate;
+              }
+              if (typeof config.prBodyTemplate === 'string' || config.prBodyTemplate === null) {
+                (enrichedPayload as Record<string, unknown>).prBodyTemplate = config.prBodyTemplate;
+              }
+              if (typeof config.autoMerge === 'boolean') {
+                (enrichedPayload as Record<string, unknown>).autoMerge = config.autoMerge;
+              }
+              if (config.triggerMode) {
+                (enrichedPayload as Record<string, unknown>).triggerMode = config.triggerMode;
+              }
+              if (config.scheduleCron) {
+                (enrichedPayload as Record<string, unknown>).scheduleCron = config.scheduleCron;
+              }
+              if (config.includeGlobs && config.includeGlobs.length > 0) {
+                (enrichedPayload as Record<string, unknown>).includeGlobs = config.includeGlobs;
+              }
+              if (config.excludeGlobs && config.excludeGlobs.length > 0) {
+                (enrichedPayload as Record<string, unknown>).excludeGlobs = config.excludeGlobs;
+              }
+            } else {
+              // Legacy payload: require auth for user-scoped AI key
+              enrichedPayload = { ...payload, userId };
+              if (typeof payload.llmModelOverride === 'string') {
+                modelOverride = payload.llmModelOverride;
+              }
+              if (typeof payload.model === 'string') {
+                modelOverride = payload.model;
+              }
             }
 
-            // Load config from DB
-            let config;
-            try {
-              config = await db.query.agentConfigs.findFirst({
-                where: and(
-                  eq(agentConfigs.userId, userId),
-                  eq(agentConfigs.agentType, 'scribe')
-                ),
-              });
-            } catch (dbError) {
-              throw new Error(`Failed to load Scribe configuration: ${dbError instanceof Error ? dbError.message : String(dbError)}`);
+            if (modelOverride && !isModelAllowed(modelOverride, allowlist)) {
+              throw new ModelNotAllowedError('openai', modelOverride, allowlist);
             }
 
-            if (!config) {
-              throw new Error('Scribe configuration not found. Please configure Scribe first at /dashboard/agents/scribe');
+            const modelToUse = modelOverride || allowlist[0];
+            if (!isModelAllowed(modelToUse, allowlist)) {
+              throw new ModelNotAllowedError('openai', modelToUse, allowlist);
             }
 
-            // Validate config has required fields
-            if (!config.repositoryOwner || !config.repositoryName || !config.baseBranch) {
-              throw new Error('Scribe configuration incomplete. Missing repository owner, name, or base branch. Please complete configuration at /dashboard/agents/scribe');
-            }
-
-            // Transform config to legacy payload format
+            aiModel = modelToUse;
+            aiProvider = 'openai';
             enrichedPayload = {
-              ...payload, // Keep mode, dryRun, etc.
-              owner: config.repositoryOwner,
-              repo: config.repositoryName,
-              baseBranch: config.baseBranch,
-              userId, // Add userId for orchestrator
+              ...(enrichedPayload as Record<string, unknown>),
+              llmModelOverride: modelToUse,
             };
-            
-            // Add optional fields from config
-            if (config.branchPattern) {
-              (enrichedPayload as Record<string, unknown>).branchPattern = config.branchPattern;
-            }
-            if (config.targetPlatform) {
-              (enrichedPayload as Record<string, unknown>).targetPlatform = config.targetPlatform;
-            }
-            if (config.targetConfig && typeof config.targetConfig === 'object' && config.targetConfig !== null) {
-              (enrichedPayload as Record<string, unknown>).targetConfig = config.targetConfig;
-            }
-            if (config.prTitleTemplate) {
-              (enrichedPayload as Record<string, unknown>).prTitleTemplate = config.prTitleTemplate;
-            }
-            if (typeof config.prBodyTemplate === 'string' || config.prBodyTemplate === null) {
-              (enrichedPayload as Record<string, unknown>).prBodyTemplate = config.prBodyTemplate;
-            }
-            if (typeof config.autoMerge === 'boolean') {
-              (enrichedPayload as Record<string, unknown>).autoMerge = config.autoMerge;
-            }
-            if (config.triggerMode) {
-              (enrichedPayload as Record<string, unknown>).triggerMode = config.triggerMode;
-            }
-            if (config.scheduleCron) {
-              (enrichedPayload as Record<string, unknown>).scheduleCron = config.scheduleCron;
-            }
-            if (config.includeGlobs && config.includeGlobs.length > 0) {
-              (enrichedPayload as Record<string, unknown>).includeGlobs = config.includeGlobs;
-            }
-            if (config.excludeGlobs && config.excludeGlobs.length > 0) {
-              (enrichedPayload as Record<string, unknown>).excludeGlobs = config.excludeGlobs;
-            }
-          } else {
-            // Legacy payload: try to get userId if auth is available
-            try {
-              const user = await requireAuth(request);
-              enrichedPayload = { ...payload, userId: user.id };
-            } catch {
-              // No auth required for legacy payloads (backward compat)
-              enrichedPayload = payload;
-            }
           }
         }
 
@@ -270,6 +304,8 @@ export async function agentsRoutes(fastify: FastifyInstance) {
           type: body.type,
           payload: enrichedPayload,
           requiresStrictValidation: body.requiresStrictValidation,
+          aiModel,
+          aiProvider,
         });
 
         // Phase 7.B: Record job created metric
@@ -482,6 +518,13 @@ export async function agentsRoutes(fastify: FastifyInstance) {
           errorMessage: job.errorMessage,
           rawErrorPayload: job.rawErrorPayload,
           mcpGatewayUrl: job.mcpGatewayUrl,
+          aiProvider: job.aiProvider,
+          aiModel: job.aiModel,
+          aiTotalDurationMs: job.aiTotalDurationMs,
+          aiInputTokens: job.aiInputTokens,
+          aiOutputTokens: job.aiOutputTokens,
+          aiTotalTokens: job.aiTotalTokens,
+          aiEstimatedCostUsd: job.aiEstimatedCostUsd,
           correlationId,
           createdAt: job.createdAt,
           updatedAt: job.updatedAt,
@@ -1030,6 +1073,8 @@ export async function agentsRoutes(fastify: FastifyInstance) {
           type: parentJob.type,
           payload: revisionPayload,
           requiresStrictValidation: parentJob.requiresStrictValidation,
+          aiModel: parentJob.aiModel ?? undefined,
+          aiProvider: parentJob.aiProvider ?? undefined,
         });
 
         // Update revision job with parent reference
