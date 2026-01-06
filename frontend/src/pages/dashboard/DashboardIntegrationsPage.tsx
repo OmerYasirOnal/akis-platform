@@ -1,21 +1,41 @@
 import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import Card from '../../components/common/Card';
 import Button from '../../components/common/Button';
 import { integrationsApi, type GitHubStatus } from '../../services/api/integrations';
 
 const DashboardIntegrationsPage = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [githubStatus, setGitHubStatus] = useState<GitHubStatus | null>(null);
   const [loadingGitHub, setLoadingGitHub] = useState(true);
-  const [showTokenModal, setShowTokenModal] = useState(false);
-  const [tokenInput, setTokenInput] = useState('');
-  const [tokenError, setTokenError] = useState<string | null>(null);
-  const [submittingToken, setSubmittingToken] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
+  const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
-  // Load GitHub status on mount
+  // Load GitHub status on mount and handle OAuth callback params
   useEffect(() => {
     loadGitHubStatus();
-  }, []);
+
+    // Handle OAuth callback params
+    const githubParam = searchParams.get('github');
+    if (githubParam === 'connected') {
+      setNotification({ type: 'success', message: 'GitHub connected successfully!' });
+      // Clear params from URL
+      setSearchParams({});
+    } else if (githubParam === 'error') {
+      const reason = searchParams.get('reason') || 'unknown';
+      setNotification({ type: 'error', message: `Failed to connect GitHub: ${reason}` });
+      // Clear params from URL
+      setSearchParams({});
+    }
+  }, [searchParams, setSearchParams]);
+
+  // Auto-hide notifications after 5 seconds
+  useEffect(() => {
+    if (notification) {
+      const timer = setTimeout(() => setNotification(null), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [notification]);
 
   const loadGitHubStatus = async () => {
     setLoadingGitHub(true);
@@ -30,29 +50,9 @@ const DashboardIntegrationsPage = () => {
     }
   };
 
-  const handleConnectToken = async () => {
-    if (!tokenInput.trim()) {
-      setTokenError('Token is required');
-      return;
-    }
-
-    setSubmittingToken(true);
-    setTokenError(null);
-
-    try {
-      await integrationsApi.connectGitHubToken(tokenInput.trim());
-      setShowTokenModal(false);
-      setTokenInput('');
-      await loadGitHubStatus();
-    } catch (err: unknown) {
-      if (err instanceof Error) {
-        setTokenError(err.message || 'Failed to connect GitHub');
-      } else {
-        setTokenError('Failed to connect GitHub');
-      }
-    } finally {
-      setSubmittingToken(false);
-    }
+  const handleConnect = () => {
+    // Redirect to OAuth start endpoint
+    integrationsApi.startGitHubOAuth();
   };
 
   const handleDisconnect = async () => {
@@ -63,10 +63,11 @@ const DashboardIntegrationsPage = () => {
     setDisconnecting(true);
     try {
       await integrationsApi.disconnectGitHub();
+      setNotification({ type: 'success', message: 'GitHub disconnected successfully!' });
       await loadGitHubStatus();
     } catch (err) {
       console.error('Failed to disconnect GitHub:', err);
-      alert('Failed to disconnect GitHub');
+      setNotification({ type: 'error', message: 'Failed to disconnect GitHub' });
     } finally {
       setDisconnecting(false);
     }
@@ -82,6 +83,19 @@ const DashboardIntegrationsPage = () => {
           Manage connections between AKIS and external systems.
         </p>
       </header>
+
+      {/* Notification banner */}
+      {notification && (
+        <div
+          className={`rounded-xl border px-4 py-3 ${
+            notification.type === 'success'
+              ? 'border-green-500/30 bg-green-500/10 text-green-400'
+              : 'border-red-500/30 bg-red-500/10 text-red-400'
+          }`}
+        >
+          {notification.message}
+        </div>
+      )}
 
       <div className="grid gap-4 lg:grid-cols-2">
         {/* GitHub Integration */}
@@ -125,7 +139,7 @@ const DashboardIntegrationsPage = () => {
                   <Button
                     variant="primary"
                     className="whitespace-nowrap px-4"
-                    onClick={() => setShowTokenModal(true)}
+                    onClick={handleConnect}
                   >
                     Connect
                   </Button>
@@ -200,75 +214,6 @@ const DashboardIntegrationsPage = () => {
           </p>
         </Card>
       </div>
-
-      {/* Token Modal */}
-      {showTokenModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="w-full max-w-md rounded-xl bg-ak-surface p-6 shadow-xl">
-            <h2 className="mb-4 text-xl font-semibold text-ak-text-primary">
-              Connect GitHub
-            </h2>
-            <p className="mb-4 text-sm text-ak-text-secondary">
-              Enter your GitHub Personal Access Token. The token needs the following scopes:
-            </p>
-            <ul className="mb-4 list-inside list-disc space-y-1 text-xs text-ak-text-secondary">
-              <li>read:user - Read user profile</li>
-              <li>user:email - Read user email</li>
-              <li>repo - Full access to repositories (for reading and creating PRs)</li>
-            </ul>
-            <p className="mb-4 text-xs text-ak-text-secondary">
-              Create a token at:{' '}
-              <a
-                href="https://github.com/settings/tokens/new"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-ak-primary hover:underline"
-              >
-                github.com/settings/tokens/new
-              </a>
-            </p>
-            <div className="space-y-4">
-              <div>
-                <label className="mb-2 block text-sm font-medium text-ak-text-primary">
-                  Personal Access Token
-                </label>
-                <input
-                  type="password"
-                  value={tokenInput}
-                  onChange={(e) => setTokenInput(e.target.value)}
-                  placeholder="ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-                  className="w-full rounded-lg border border-ak-border bg-ak-surface-2 px-3 py-2 text-sm text-ak-text-primary placeholder-ak-text-secondary/50 focus:border-ak-primary focus:outline-none focus:ring-1 focus:ring-ak-primary"
-                />
-                {tokenError && (
-                  <p className="mt-1 text-xs text-red-400">{tokenError}</p>
-                )}
-              </div>
-              <div className="flex gap-3">
-                <Button
-                  variant="primary"
-                  className="flex-1"
-                  onClick={handleConnectToken}
-                  disabled={submittingToken}
-                >
-                  {submittingToken ? 'Connecting...' : 'Connect'}
-                </Button>
-                <Button
-                  variant="secondary"
-                  className="flex-1"
-                  onClick={() => {
-                    setShowTokenModal(false);
-                    setTokenInput('');
-                    setTokenError(null);
-                  }}
-                  disabled={submittingToken}
-                >
-                  Cancel
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

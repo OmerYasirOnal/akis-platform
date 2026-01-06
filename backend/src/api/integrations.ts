@@ -1,11 +1,15 @@
 /**
- * Integrations API - S0.4.6
- * GET /api/integrations/connect/:provider
+ * Integrations API - OAuth-based GitHub integration
+ * GET /api/integrations/github/oauth/start
+ * GET /api/integrations/github/oauth/callback
+ * GET /api/integrations/github/status
+ * DELETE /api/integrations/github
  * GET /api/integrations/github/owners
  * GET /api/integrations/github/repos
  * GET /api/integrations/github/branches
  */
 import { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
+import { randomBytes } from 'crypto';
 import { getEnv } from '../config/env.js';
 import { requireAuth } from '../utils/auth.js';
 import { db } from '../db/client.js';
@@ -56,6 +60,184 @@ async function getGitHubToken(userId: string): Promise<string | null> {
 }
 
 export async function integrationsRoutes(fastify: FastifyInstance) {
+  // GET /api/integrations/github/oauth/start - Start OAuth flow
+  fastify.get(
+    '/api/integrations/github/oauth/start',
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      try {
+        // Require AKIS session
+        await requireAuth(request);
+        const config = getEnv();
+
+        // Check OAuth configuration
+        if (!config.GITHUB_OAUTH_CLIENT_ID || !config.GITHUB_OAUTH_CLIENT_SECRET) {
+          return reply.code(501).send({
+            error: {
+              code: 'GITHUB_OAUTH_NOT_CONFIGURED',
+              message: 'GitHub OAuth is not configured. Set GITHUB_OAUTH_CLIENT_ID and GITHUB_OAUTH_CLIENT_SECRET env vars.',
+            },
+          });
+        }
+
+        if (!config.GITHUB_OAUTH_CALLBACK_URL) {
+          return reply.code(501).send({
+            error: {
+              code: 'GITHUB_OAUTH_NOT_CONFIGURED',
+              message: 'GITHUB_OAUTH_CALLBACK_URL is not configured.',
+            },
+          });
+        }
+
+        // Generate CSRF state token
+        const state = randomBytes(32).toString('hex');
+
+        // Store state in httpOnly cookie (10 min TTL)
+        reply.setCookie('github_oauth_state', state, {
+          httpOnly: true,
+          secure: config.NODE_ENV === 'production',
+          sameSite: 'lax',
+          maxAge: 10 * 60, // 10 minutes
+          path: '/',
+        });
+
+        // Build GitHub authorize URL
+        const githubAuthUrl = new URL('https://github.com/login/oauth/authorize');
+        githubAuthUrl.searchParams.set('client_id', config.GITHUB_OAUTH_CLIENT_ID);
+        githubAuthUrl.searchParams.set('redirect_uri', config.GITHUB_OAUTH_CALLBACK_URL);
+        githubAuthUrl.searchParams.set('scope', 'read:user user:email repo');
+        githubAuthUrl.searchParams.set('state', state);
+
+        // Redirect to GitHub
+        return reply.code(302).header('Location', githubAuthUrl.toString()).send();
+      } catch (err: unknown) {
+        if (err instanceof Error && err.message === 'UNAUTHORIZED') {
+          // User not logged in - redirect to login with returnTo
+          const config = getEnv();
+          const returnTo = encodeURIComponent('/dashboard/integrations');
+          return reply.code(302).header('Location', `${config.APP_PUBLIC_URL}/login?returnTo=${returnTo}`).send();
+        }
+        throw err;
+      }
+    }
+  );
+
+  // GET /api/integrations/github/oauth/callback - OAuth callback from GitHub
+  fastify.get(
+    '/api/integrations/github/oauth/callback',
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const { code, state: receivedState } = request.query as { code?: string; state?: string };
+      const config = getEnv();
+
+      try {
+        // Verify we have an AKIS session
+        const user = await requireAuth(request);
+
+        // Validate code parameter
+        if (!code) {
+          const errorUrl = `${config.APP_PUBLIC_URL}/dashboard/integrations?github=error&reason=missing_code`;
+          return reply.code(302).header('Location', errorUrl).send();
+        }
+
+        // Validate state (CSRF protection)
+        const storedState = request.cookies?.github_oauth_state;
+        if (!storedState || storedState !== receivedState) {
+          const errorUrl = `${config.APP_PUBLIC_URL}/dashboard/integrations?github=error&reason=state_mismatch`;
+          return reply.code(302).header('Location', errorUrl).send();
+        }
+
+        // Clear state cookie
+        reply.clearCookie('github_oauth_state', { path: '/' });
+
+        // Exchange code for access token
+        const tokenResponse = await fetch('https://github.com/login/oauth/access_token', {
+          method: 'POST',
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            client_id: config.GITHUB_OAUTH_CLIENT_ID,
+            client_secret: config.GITHUB_OAUTH_CLIENT_SECRET,
+            code,
+            redirect_uri: config.GITHUB_OAUTH_CALLBACK_URL,
+          }),
+        });
+
+        if (!tokenResponse.ok) {
+          const errorUrl = `${config.APP_PUBLIC_URL}/dashboard/integrations?github=error&reason=token_exchange_failed`;
+          return reply.code(302).header('Location', errorUrl).send();
+        }
+
+        const tokenData = await tokenResponse.json() as { access_token?: string; error?: string };
+        
+        if (tokenData.error || !tokenData.access_token) {
+          const errorUrl = `${config.APP_PUBLIC_URL}/dashboard/integrations?github=error&reason=token_missing`;
+          return reply.code(302).header('Location', errorUrl).send();
+        }
+
+        const accessToken = tokenData.access_token;
+
+        // Fetch GitHub user info
+        const userResponse = await fetch('https://api.github.com/user', {
+          headers: {
+            'Accept': 'application/vnd.github.v3+json',
+            'Authorization': `Bearer ${accessToken}`,
+            'User-Agent': 'AKIS-Platform',
+          },
+        });
+
+        if (!userResponse.ok) {
+          const errorUrl = `${config.APP_PUBLIC_URL}/dashboard/integrations?github=error&reason=user_fetch_failed`;
+          return reply.code(302).header('Location', errorUrl).send();
+        }
+
+        const githubUser = await userResponse.json() as { id: number; login: string };
+
+        // Store/update in database
+        const existingOAuth = await db.query.oauthAccounts.findFirst({
+          where: and(
+            eq(oauthAccounts.userId, user.id),
+            eq(oauthAccounts.provider, 'github')
+          ),
+        });
+
+        // TODO: Encrypt token at rest (similar to AI key storage)
+        // For now storing plaintext, but interface ready for encryption
+        if (existingOAuth) {
+          await db
+            .update(oauthAccounts)
+            .set({
+              accessToken: accessToken,
+              providerAccountId: githubUser.id.toString(),
+              updatedAt: new Date(),
+            })
+            .where(eq(oauthAccounts.id, existingOAuth.id));
+        } else {
+          await db.insert(oauthAccounts).values({
+            userId: user.id,
+            provider: 'github',
+            providerAccountId: githubUser.id.toString(),
+            accessToken: accessToken,
+          });
+        }
+
+        // Redirect back to integrations with success
+        const successUrl = `${config.APP_PUBLIC_URL}/dashboard/integrations?github=connected`;
+        return reply.code(302).header('Location', successUrl).send();
+      } catch (err: unknown) {
+        if (err instanceof Error && err.message === 'UNAUTHORIZED') {
+          // Session lost during callback - redirect to login
+          const returnTo = encodeURIComponent('/dashboard/integrations');
+          return reply.code(302).header('Location', `${config.APP_PUBLIC_URL}/login?returnTo=${returnTo}`).send();
+        }
+        
+        // Unexpected error
+        const errorUrl = `${config.APP_PUBLIC_URL}/dashboard/integrations?github=error&reason=internal_error`;
+        return reply.code(302).header('Location', errorUrl).send();
+      }
+    }
+  );
+
   // GET /api/integrations/github/status - Check GitHub connection status
   fastify.get(
     '/api/integrations/github/status',
@@ -100,79 +282,6 @@ export async function integrationsRoutes(fastify: FastifyInstance) {
     }
   );
 
-  // POST /api/integrations/github/token - Connect GitHub via Personal Access Token
-  fastify.post(
-    '/api/integrations/github/token',
-    async (request: FastifyRequest, reply: FastifyReply) => {
-      try {
-        const user = await requireAuth(request);
-        const { token } = request.body as { token?: string };
-
-        if (!token || typeof token !== 'string' || token.trim().length === 0) {
-          return reply.code(400).send({
-            error: {
-              code: 'INVALID_TOKEN',
-              message: 'token is required and must be a non-empty string',
-            },
-          });
-        }
-
-        // Verify token works by fetching user info
-        let githubUser: { login: string; id: number };
-        try {
-          githubUser = await fetchFromGitHub<{ login: string; id: number }>('/user', token.trim());
-        } catch (_err) {
-          return reply.code(400).send({
-            error: {
-              code: 'INVALID_GITHUB_TOKEN',
-              message: 'GitHub token is invalid or does not have required permissions',
-            },
-          });
-        }
-
-        // Store or update token in database
-        const existingOAuth = await db.query.oauthAccounts.findFirst({
-          where: and(
-            eq(oauthAccounts.userId, user.id),
-            eq(oauthAccounts.provider, 'github')
-          ),
-        });
-
-        if (existingOAuth) {
-          // Update existing
-          await db
-            .update(oauthAccounts)
-            .set({
-              accessToken: token.trim(),
-              providerAccountId: githubUser.id.toString(),
-              updatedAt: new Date(),
-            })
-            .where(eq(oauthAccounts.id, existingOAuth.id));
-        } else {
-          // Insert new
-          await db.insert(oauthAccounts).values({
-            userId: user.id,
-            provider: 'github',
-            providerAccountId: githubUser.id.toString(),
-            accessToken: token.trim(),
-          });
-        }
-
-        return reply.code(200).send({
-          connected: true,
-          login: githubUser.login,
-        });
-      } catch (err: unknown) {
-        if (err instanceof Error && err.message === 'UNAUTHORIZED') {
-          return reply.code(401).send({
-            error: { code: 'UNAUTHORIZED', message: 'Authentication required' },
-          });
-        }
-        throw err;
-      }
-    }
-  );
-
   // DELETE /api/integrations/github - Disconnect GitHub
   // Note: TypeScript definitions for Fastify may not include 'delete' method in some versions
   // Using type assertion as runtime supports it
@@ -193,8 +302,7 @@ export async function integrationsRoutes(fastify: FastifyInstance) {
           );
 
         return reply.code(200).send({
-          success: true,
-          message: 'GitHub disconnected successfully',
+          ok: true,
         });
       } catch (err: unknown) {
         if (err instanceof Error && err.message === 'UNAUTHORIZED') {
@@ -204,79 +312,6 @@ export async function integrationsRoutes(fastify: FastifyInstance) {
         }
         throw err;
       }
-    }
-  );
-
-  // GET /api/integrations/connect/:provider
-  fastify.get(
-    '/api/integrations/connect/:provider',
-    async (request: FastifyRequest, reply: FastifyReply) => {
-      const { provider } = request.params as { provider: string };
-      const { returnTo } = request.query as { returnTo?: string };
-      const config = getEnv();
-
-      // Validate returnTo to prevent open redirect
-      const allowedPaths = [
-        '/dashboard',
-        '/dashboard/agents/scribe',
-        '/dashboard/agents/trace',
-        '/dashboard/agents/proto',
-      ];
-
-      if (returnTo && !allowedPaths.some((path) => returnTo.startsWith(path))) {
-        return reply.code(400).send({
-          error: {
-            code: 'INVALID_RETURN_PATH',
-            message: `Invalid returnTo path. Allowed: ${allowedPaths.join(', ')}`,
-          },
-        });
-      }
-
-      // Check if provider OAuth is configured
-      if (provider === 'github') {
-        if (!config.GITHUB_OAUTH_CLIENT_ID || !config.GITHUB_OAUTH_CLIENT_SECRET) {
-          return reply.code(501).send({
-            error: {
-              code: 'OAUTH_NOT_CONFIGURED',
-              message: 'GitHub OAuth is not configured. Set GITHUB_OAUTH_CLIENT_ID and GITHUB_OAUTH_CLIENT_SECRET env vars.',
-              provider: 'github',
-              missingVars: [
-                !config.GITHUB_OAUTH_CLIENT_ID ? 'GITHUB_OAUTH_CLIENT_ID' : null,
-                !config.GITHUB_OAUTH_CLIENT_SECRET ? 'GITHUB_OAUTH_CLIENT_SECRET' : null,
-              ].filter(Boolean),
-            },
-          });
-        }
-
-        // OAuth flow - redirect to GitHub
-        const callbackUrl = `${config.BACKEND_URL}/auth/oauth/github/callback`;
-        const state = Buffer.from(JSON.stringify({ returnTo: returnTo || '/dashboard' })).toString('base64');
-
-        const githubAuthUrl = new URL('https://github.com/login/oauth/authorize');
-        githubAuthUrl.searchParams.set('client_id', config.GITHUB_OAUTH_CLIENT_ID);
-        githubAuthUrl.searchParams.set('redirect_uri', callbackUrl);
-        githubAuthUrl.searchParams.set('scope', 'read:user user:email repo');
-        githubAuthUrl.searchParams.set('state', state);
-
-        return reply.code(302).header('Location', githubAuthUrl.toString()).send();
-      }
-
-      if (provider === 'confluence') {
-        return reply.code(501).send({
-          error: {
-            code: 'OAUTH_NOT_CONFIGURED',
-            message: 'Confluence OAuth is not yet implemented.',
-            provider: 'confluence',
-          },
-        });
-      }
-
-      return reply.code(400).send({
-        error: {
-          code: 'UNKNOWN_PROVIDER',
-          message: `Unknown provider: ${provider}`,
-        },
-      });
     }
   );
 

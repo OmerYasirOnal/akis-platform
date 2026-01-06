@@ -65,6 +65,8 @@ const envSchema = z
     // OAuth credentials for user login (separate from GitHub App credentials)
     GITHUB_OAUTH_CLIENT_ID: z.string().optional(),
     GITHUB_OAUTH_CLIENT_SECRET: z.string().optional(),
+    GITHUB_OAUTH_CALLBACK_URL: z.string().url().optional(),
+    APP_PUBLIC_URL: z.string().url().optional(),
     GOOGLE_OAUTH_CLIENT_ID: z.string().optional(),
     GOOGLE_OAUTH_CLIENT_SECRET: z.string().optional(),
     // GitHub App Configuration (MCP Integration)

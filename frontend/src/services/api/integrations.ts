@@ -1,5 +1,5 @@
 /**
- * Integrations API Client - S0.4.6
+ * Integrations API Client - OAuth-based GitHub integration
  * For managing external integrations (GitHub, etc.)
  */
 import { HttpClient } from './HttpClient';
@@ -19,18 +19,8 @@ export interface GitHubStatus {
   error?: string;
 }
 
-export interface GitHubConnectTokenRequest {
-  token: string;
-}
-
-export interface GitHubConnectTokenResponse {
-  connected: boolean;
-  login: string;
-}
-
 export interface GitHubDisconnectResponse {
-  success: boolean;
-  message: string;
+  ok: boolean;
 }
 
 /**
@@ -45,13 +35,10 @@ export const integrationsApi = {
   },
 
   /**
-   * Connect GitHub using Personal Access Token
+   * Start GitHub OAuth flow (redirects browser)
    */
-  async connectGitHubToken(token: string): Promise<GitHubConnectTokenResponse> {
-    return httpClient.post<GitHubConnectTokenResponse>(
-      '/api/integrations/github/token',
-      { token }
-    );
+  startGitHubOAuth(): void {
+    window.location.href = `${apiBaseURL}/api/integrations/github/oauth/start`;
   },
 
   /**
@@ -59,14 +46,6 @@ export const integrationsApi = {
    */
   async disconnectGitHub(): Promise<GitHubDisconnectResponse> {
     return httpClient.delete<GitHubDisconnectResponse>('/api/integrations/github');
-  },
-
-  /**
-   * Start GitHub OAuth flow
-   */
-  startGitHubOAuth(returnTo?: string): void {
-    const params = returnTo ? `?returnTo=${encodeURIComponent(returnTo)}` : '';
-    window.location.href = `${apiBaseURL}/api/integrations/connect/github${params}`;
   },
 };
 
