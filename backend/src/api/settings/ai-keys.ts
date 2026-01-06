@@ -64,7 +64,7 @@ export async function aiKeysRoutes(fastify: FastifyInstance) {
   );
 
   // PUT /api/settings/ai-keys
-  fastify.put(
+  (fastify as any).put(
     '/ai-keys',
     {
       config: {
@@ -129,7 +129,7 @@ export async function aiKeysRoutes(fastify: FastifyInstance) {
   );
 
   // DELETE /api/settings/ai-keys
-  fastify.delete(
+  (fastify as any).delete(
     '/ai-keys',
     {
       config: {

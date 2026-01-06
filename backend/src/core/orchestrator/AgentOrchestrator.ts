@@ -542,7 +542,7 @@ export class AgentOrchestrator {
               aiInputTokens: aiTotals.totalInputTokens,
               aiOutputTokens: aiTotals.totalOutputTokens,
               aiTotalTokens: aiTotals.totalTokens,
-              aiEstimatedCostUsd: aiTotals.estimatedCostUsd ?? null,
+              aiEstimatedCostUsd: aiTotals.estimatedCostUsd !== null && aiTotals.estimatedCostUsd !== undefined ? String(aiTotals.estimatedCostUsd) : null,
             })
             .where(eq(jobs.id, jobId));
         }
@@ -584,7 +584,7 @@ export class AgentOrchestrator {
                 aiInputTokens: aiTotals.totalInputTokens,
                 aiOutputTokens: aiTotals.totalOutputTokens,
                 aiTotalTokens: aiTotals.totalTokens,
-                aiEstimatedCostUsd: aiTotals.estimatedCostUsd ?? null,
+                aiEstimatedCostUsd: aiTotals.estimatedCostUsd !== null && aiTotals.estimatedCostUsd !== undefined ? String(aiTotals.estimatedCostUsd) : null,
               })
               .where(eq(jobs.id, jobId));
           }
