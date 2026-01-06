@@ -64,6 +64,7 @@ export async function aiKeysRoutes(fastify: FastifyInstance) {
   );
 
   // PUT /api/settings/ai-keys
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   (fastify as any).put(
     '/ai-keys',
     {
@@ -129,6 +130,7 @@ export async function aiKeysRoutes(fastify: FastifyInstance) {
   );
 
   // DELETE /api/settings/ai-keys
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   (fastify as any).delete(
     '/ai-keys',
     {
