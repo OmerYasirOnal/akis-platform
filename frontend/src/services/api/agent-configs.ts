@@ -88,6 +88,11 @@ export interface ValidationResponse {
   checks: Record<string, ValidationCheck>;
 }
 
+export interface ModelAllowlistResponse {
+  allowlist: string[];
+  defaultModel: string | null;
+}
+
 export interface ConfigUpdatePayload {
   enabled?: boolean;
   repositoryOwner?: string;
@@ -147,6 +152,13 @@ export const agentConfigsApi = {
       withCredentials
     );
   },
+
+  getModelAllowlist: async (agentType: AgentType): Promise<ModelAllowlistResponse> => {
+    return httpClient.get<ModelAllowlistResponse>(
+      `/api/agents/configs/${agentType}/models`,
+      withCredentials
+    );
+  },
 };
 
 export const integrationsApi = {
@@ -160,4 +172,3 @@ export const integrationsApi = {
     );
   },
 };
-

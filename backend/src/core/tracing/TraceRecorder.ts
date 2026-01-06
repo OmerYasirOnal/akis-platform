@@ -117,8 +117,9 @@ function sanitizeDetail(detail: Record<string, unknown> | undefined): Record<str
  */
 function truncatePreview(preview: string | undefined): string | null {
   if (!preview) return null;
-  if (preview.length <= MAX_PREVIEW_SIZE) return preview;
-  return preview.substring(0, MAX_PREVIEW_SIZE - 20) + '\n...[truncated]';
+  const redacted = redactText(preview);
+  if (redacted.length <= MAX_PREVIEW_SIZE) return redacted;
+  return redacted.substring(0, MAX_PREVIEW_SIZE - 20) + '\n...[truncated]';
 }
 
 /**
@@ -131,8 +132,9 @@ const MAX_DIFF_SIZE = 2 * 1024; // 2KB
  */
 function truncateDiff(diff: string | undefined): string | null {
   if (!diff) return null;
-  if (diff.length <= MAX_DIFF_SIZE) return diff;
-  return diff.substring(0, MAX_DIFF_SIZE - 30) + '\n... [diff truncated]';
+  const redacted = redactText(diff);
+  if (redacted.length <= MAX_DIFF_SIZE) return redacted;
+  return redacted.substring(0, MAX_DIFF_SIZE - 30) + '\n... [diff truncated]';
 }
 
 /**
@@ -171,7 +173,19 @@ function redactSensitiveData(detail: Record<string, unknown>): Record<string, un
     
     if (isSensitive && typeof value === 'string') {
       result[key] = '[REDACTED]';
-    } else if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+    } else if (typeof value === 'string') {
+      result[key] = redactText(value);
+    } else if (Array.isArray(value)) {
+      result[key] = value.map((entry) => {
+        if (typeof entry === 'string') {
+          return redactText(entry);
+        }
+        if (typeof entry === 'object' && entry !== null) {
+          return redactSensitiveData(entry as Record<string, unknown>);
+        }
+        return entry;
+      });
+    } else if (typeof value === 'object' && value !== null) {
       result[key] = redactSensitiveData(value as Record<string, unknown>);
     } else {
       result[key] = value;
@@ -247,7 +261,9 @@ export class TraceRecorder {
       sizeBytes: artifact.sizeBytes,
       contentHash: artifact.contentHash,
       preview: truncatePreview(artifact.preview),
-      metadata: artifact.metadata ? sanitizeDetail(artifact.metadata) : null,
+      metadata: artifact.metadata
+        ? sanitizeDetail(redactSensitiveData(artifact.metadata))
+        : null,
     };
 
     this.pendingArtifacts.push(artifactRow);
@@ -639,4 +655,3 @@ export class TraceRecorder {
 export function createTraceRecorder(jobId: string): TraceRecorder {
   return new TraceRecorder(jobId);
 }
-
