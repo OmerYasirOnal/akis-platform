@@ -1,51 +1,39 @@
-import { useEffect, useMemo, useState } from 'react';
+/**
+ * Scribe Single-Page Console
+ * 
+ * Layout:
+ * - Left: Configuration panel (repo/branch/model + Advanced collapsed)
+ * - Right: Glass Box live monitoring (console logs + tabs for preview/diff)
+ * 
+ * Demo mode: Works without backend, uses deterministic simulation
+ */
+import { useEffect, useMemo, useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import Card from '../../../components/common/Card';
-import Input from '../../../components/common/Input';
 import Button from '../../../components/common/Button';
 import SearchableSelect, { type SelectOption } from '../../../components/common/SearchableSelect';
-import { DashboardChat } from '../../../components/dashboard/DashboardChat';
 import {
   githubDiscoveryApi,
   type GitHubOwner,
   type GitHubRepo,
   type GitHubBranch,
 } from '../../../services/api/github-discovery';
+import { useDemoScribeRunner } from '../../../services/agents/scribe';
+import type { ScribeLogEntry } from '../../../services/agents/scribe';
 
-type BranchMode = 'existing' | 'new';
-
-type FallbackRepoMap = Record<string, GitHubRepo[]>;
-
+// Fallback data for demo when GitHub is not connected
 const FALLBACK_OWNERS: GitHubOwner[] = [
   { login: 'akis-platform', type: 'Organization', avatarUrl: '' },
   { login: 'demo-team', type: 'Organization', avatarUrl: '' },
 ];
 
-const FALLBACK_REPOS: FallbackRepoMap = {
+const FALLBACK_REPOS: Record<string, GitHubRepo[]> = {
   'akis-platform': [
-    {
-      name: 'docs-hub',
-      fullName: 'akis-platform/docs-hub',
-      defaultBranch: 'main',
-      private: true,
-      description: 'Documentation workspace for AKIS.',
-    },
-    {
-      name: 'scribe-playground',
-      fullName: 'akis-platform/scribe-playground',
-      defaultBranch: 'main',
-      private: false,
-      description: 'Public demo repository for Scribe.',
-    },
+    { name: 'docs-hub', fullName: 'akis-platform/docs-hub', defaultBranch: 'main', private: true, description: 'Documentation workspace' },
+    { name: 'scribe-playground', fullName: 'akis-platform/scribe-playground', defaultBranch: 'main', private: false, description: 'Demo repository' },
   ],
   'demo-team': [
-    {
-      name: 'product-notes',
-      fullName: 'demo-team/product-notes',
-      defaultBranch: 'main',
-      private: true,
-      description: 'Product notes and release docs.',
-    },
+    { name: 'product-notes', fullName: 'demo-team/product-notes', defaultBranch: 'main', private: true, description: 'Product documentation' },
   ],
 };
 
@@ -55,31 +43,44 @@ const FALLBACK_BRANCHES: GitHubBranch[] = [
   { name: 'docs', isDefault: false },
 ];
 
-const generateBranchName = (repoName?: string) => {
-  const dateStamp = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-  const repoSlug = repoName
-    ? repoName.toLowerCase().replace(/[^a-z0-9]+/g, '-')
-    : 'repo';
-  return `docs/scribe-${repoSlug}-${dateStamp}`;
-};
+type ActiveTab = 'logs' | 'preview' | 'diff';
 
 const DashboardAgentScribePage = () => {
+  // GitHub discovery state
   const [owners, setOwners] = useState<GitHubOwner[]>([]);
   const [repos, setRepos] = useState<GitHubRepo[]>([]);
   const [branches, setBranches] = useState<GitHubBranch[]>([]);
   const [owner, setOwner] = useState('');
   const [repo, setRepo] = useState('');
   const [baseBranch, setBaseBranch] = useState('');
-  const [branchMode, setBranchMode] = useState<BranchMode>('existing');
-  const [newBranch, setNewBranch] = useState('');
+  const [targetPath, setTargetPath] = useState('docs/');
+  const [dryRun, setDryRun] = useState(true);
+
+  // Loading states
   const [loadingOwners, setLoadingOwners] = useState(true);
   const [loadingRepos, setLoadingRepos] = useState(false);
   const [loadingBranches, setLoadingBranches] = useState(false);
   const [usingMockData, setUsingMockData] = useState(false);
   const [githubNotice, setGithubNotice] = useState<string | null>(null);
-  const [setupError, setSetupError] = useState<string | null>(null);
-  const [setupNotice, setSetupNotice] = useState<string | null>(null);
 
+  // Advanced section
+  const [showAdvanced, setShowAdvanced] = useState(false);
+
+  // Glass box panel
+  const [activeTab, setActiveTab] = useState<ActiveTab>('logs');
+  const logsEndRef = useRef<HTMLDivElement>(null);
+
+  // Demo runner
+  const { state: runState, start, cancel, reset, isRunning, isComplete, isIdle } = useDemoScribeRunner();
+
+  // Auto-scroll logs
+  useEffect(() => {
+    if (activeTab === 'logs' && logsEndRef.current) {
+      logsEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [runState.logs, activeTab]);
+
+  // Load owners on mount
   useEffect(() => {
     let active = true;
 
@@ -98,28 +99,25 @@ const DashboardAgentScribePage = () => {
         }
 
         setUsingMockData(true);
-        setGithubNotice('TODO: GitHub listing unavailable. Using mock repositories.');
+        setGithubNotice('Demo mode: Using mock repositories. Connect GitHub for real data.');
         setOwners(FALLBACK_OWNERS);
         setOwner((prev) => prev || FALLBACK_OWNERS[0].login);
       } catch {
         if (!active) return;
         setUsingMockData(true);
-        setGithubNotice('TODO: Connect GitHub to load real repositories. Mock data shown.');
+        setGithubNotice('Demo mode: GitHub not connected. Using mock data.');
         setOwners(FALLBACK_OWNERS);
         setOwner((prev) => prev || FALLBACK_OWNERS[0].login);
       } finally {
-        if (active) {
-          setLoadingOwners(false);
-        }
+        if (active) setLoadingOwners(false);
       }
     };
 
     void loadOwners();
-    return () => {
-      active = false;
-    };
+    return () => { active = false; };
   }, []);
 
+  // Load repos when owner changes
   useEffect(() => {
     if (!owner) {
       setRepos([]);
@@ -152,23 +150,20 @@ const DashboardAgentScribePage = () => {
       } catch {
         if (!active) return;
         setUsingMockData(true);
-        setGithubNotice('TODO: GitHub repo list is mocked until integrations are connected.');
+        setGithubNotice('Demo mode: Repository list mocked.');
         const fallbackRepos = FALLBACK_REPOS[owner] ?? [];
         setRepos(fallbackRepos);
         setRepo((prev) => prev || fallbackRepos[0]?.name || '');
       } finally {
-        if (active) {
-          setLoadingRepos(false);
-        }
+        if (active) setLoadingRepos(false);
       }
     };
 
     void loadRepos();
-    return () => {
-      active = false;
-    };
+    return () => { active = false; };
   }, [owner, usingMockData]);
 
+  // Load branches when repo changes
   useEffect(() => {
     if (!owner || !repo) {
       setBranches([]);
@@ -197,130 +192,152 @@ const DashboardAgentScribePage = () => {
       } catch {
         if (!active) return;
         setUsingMockData(true);
-        setGithubNotice('TODO: Branch list is mocked until integrations are connected.');
+        setGithubNotice('Demo mode: Branch list mocked.');
         setBranches(FALLBACK_BRANCHES);
         setBaseBranch((prev) => prev || 'main');
       } finally {
-        if (active) {
-          setLoadingBranches(false);
-        }
+        if (active) setLoadingBranches(false);
       }
     };
 
     void loadBranches();
-    return () => {
-      active = false;
-    };
+    return () => { active = false; };
   }, [owner, repo, usingMockData]);
 
-  useEffect(() => {
-    setSetupNotice(null);
-    setSetupError(null);
-  }, [owner, repo, baseBranch, branchMode, newBranch]);
-
+  // Memoized options
   const ownerOptions = useMemo<SelectOption[]>(
-    () =>
-      owners.map((item) => ({
-        value: item.login,
-        label: item.login,
-        description: item.type,
-        icon: item.avatarUrl ? (
-          <img src={item.avatarUrl} alt={item.login} className="h-5 w-5 rounded-full" />
-        ) : undefined,
-      })),
+    () => owners.map((item) => ({
+      value: item.login,
+      label: item.login,
+      description: item.type,
+      icon: item.avatarUrl ? (
+        <img src={item.avatarUrl} alt={item.login} className="h-5 w-5 rounded-full" />
+      ) : undefined,
+    })),
     [owners]
   );
 
   const repoOptions = useMemo<SelectOption[]>(
-    () =>
-      repos.map((item) => ({
-        value: item.name,
-        label: item.name,
-        description: item.description || (item.private ? 'Private repository' : 'Public repository'),
-      })),
+    () => repos.map((item) => ({
+      value: item.name,
+      label: item.name,
+      description: item.description || (item.private ? 'Private' : 'Public'),
+    })),
     [repos]
   );
 
   const branchOptions = useMemo<SelectOption[]>(
-    () =>
-      branches.map((item) => ({
-        value: item.name,
-        label: item.name,
-        description: item.isDefault ? 'Default branch' : undefined,
-      })),
+    () => branches.map((item) => ({
+      value: item.name,
+      label: item.name,
+      description: item.isDefault ? 'Default' : undefined,
+    })),
     [branches]
   );
 
-  const chatContext = owner && repo ? { owner, repo } : undefined;
-  const isReady = Boolean(owner.trim()) && Boolean(repo.trim()) && Boolean(baseBranch.trim())
-    && (branchMode === 'existing' || Boolean(newBranch.trim()));
+  const canRun = Boolean(owner.trim()) && Boolean(repo.trim()) && Boolean(baseBranch.trim());
 
-  const handleStart = () => {
-    if (!isReady) {
-      setSetupError('Select a repository and branch strategy before starting Scribe.');
-      return;
+  const handleRunScribe = () => {
+    if (!canRun) return;
+    start({
+      owner,
+      repo,
+      baseBranch,
+      targetPath,
+      dryRun,
+    });
+    setActiveTab('logs');
+  };
+
+  const handleCancel = () => {
+    cancel();
+  };
+
+  const handleReset = () => {
+    reset();
+  };
+
+  const getStatusColor = () => {
+    switch (runState.status) {
+      case 'complete': return 'text-green-400';
+      case 'error':
+      case 'cancelled': return 'text-red-400';
+      case 'idle': return 'text-ak-text-secondary';
+      default: return 'text-ak-primary';
     }
+  };
 
-    setSetupNotice('Setup ready. Start a conversation in the chat panel.');
+  const getStatusText = () => {
+    switch (runState.status) {
+      case 'idle': return 'Ready';
+      case 'scanning': return 'Scanning...';
+      case 'analyzing': return 'Analyzing...';
+      case 'drafting': return 'Drafting...';
+      case 'reviewing': return 'Reviewing...';
+      case 'finalizing': return 'Finalizing...';
+      case 'complete': return 'Complete';
+      case 'cancelled': return 'Cancelled';
+      case 'error': return 'Error';
+      default: return 'Unknown';
+    }
+  };
+
+  const getLogLevelColor = (level: ScribeLogEntry['level']) => {
+    switch (level) {
+      case 'success': return 'text-green-400';
+      case 'error': return 'text-red-400';
+      case 'warning': return 'text-yellow-400';
+      case 'debug': return 'text-gray-500';
+      default: return 'text-ak-text-secondary';
+    }
   };
 
   return (
     <div className="space-y-6">
+      {/* Header */}
       <header className="space-y-2">
-        <h1 className="text-2xl font-semibold text-ak-text-primary">Scribe Console</h1>
+        <div className="flex items-center gap-3">
+          <h1 className="text-2xl font-semibold text-ak-text-primary">Scribe Console</h1>
+          {usingMockData && (
+            <span className="rounded-full border border-ak-border bg-ak-surface-2 px-2 py-0.5 text-[10px] uppercase tracking-[0.15em] text-ak-text-secondary">
+              Demo Mode
+            </span>
+          )}
+        </div>
         <p className="text-sm text-ak-text-secondary">
-          Configure your repo context and run a Scribe conversation from one workspace.
+          Configure and run Scribe documentation agent from a single workspace.
         </p>
       </header>
 
+      {/* Main Grid: Left Config + Right Glass Box */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
-        <div className="space-y-6 lg:col-span-5">
-          <Card className="bg-ak-surface space-y-4">
-            <div className="space-y-2">
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-ak-text-secondary/70">
-                What Scribe can do
-              </p>
-              <h2 className="text-lg font-semibold text-ak-text-primary">Demo Workflow</h2>
-              <p className="text-sm text-ak-text-secondary">
-                Scribe reviews repo changes, drafts docs, and keeps knowledge bases aligned.
-              </p>
-            </div>
-            <ol className="space-y-2 text-sm text-ak-text-secondary">
-              <li>1. Choose the repo and branch strategy.</li>
-              <li>2. Start a Scribe conversation with your ask.</li>
-              <li>3. Review outputs in Jobs and iterate.</li>
-            </ol>
-          </Card>
-
+        {/* Left Panel: Configuration */}
+        <div className="space-y-4 lg:col-span-4">
           <Card className="space-y-5 bg-ak-surface">
             <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-lg font-semibold text-ak-text-primary">Setup</h3>
-                <p className="text-sm text-ak-text-secondary">
-                  Pick a repo and branch strategy for this session.
-                </p>
-              </div>
-              <Link to="/dashboard/integrations" className="text-xs font-semibold text-ak-primary">
-                Manage integrations →
+              <h2 className="text-lg font-semibold text-ak-text-primary">Configuration</h2>
+              <Link to="/dashboard/integrations" className="text-xs font-medium text-ak-primary hover:underline">
+                Integrations →
               </Link>
             </div>
 
-            {githubNotice ? (
+            {githubNotice && (
               <div className="rounded-xl border border-ak-border bg-ak-surface-2 px-3 py-2 text-xs text-ak-text-secondary">
                 {githubNotice}
               </div>
-            ) : null}
+            )}
 
-            <div className="grid gap-4">
+            {/* Repository Selection */}
+            <div className="space-y-4">
               <SearchableSelect
-                label="Repository Owner"
+                label="Owner"
                 placeholder="Select owner"
                 options={ownerOptions}
                 value={owner}
-                onChange={(value) => setOwner(value)}
+                onChange={setOwner}
                 loading={loadingOwners}
                 emptyMessage="No owners available"
-                description={usingMockData ? 'Using mock owners for demo layout.' : undefined}
+                disabled={isRunning}
               />
 
               <SearchableSelect
@@ -328,11 +345,10 @@ const DashboardAgentScribePage = () => {
                 placeholder="Select repository"
                 options={repoOptions}
                 value={repo}
-                onChange={(value) => setRepo(value)}
+                onChange={setRepo}
                 loading={loadingRepos}
-                emptyMessage="No repositories available"
-                disabled={!owner}
-                description={usingMockData ? 'TODO: Replace with GitHub listing once connected.' : undefined}
+                emptyMessage="No repositories"
+                disabled={!owner || isRunning}
               />
 
               <SearchableSelect
@@ -340,81 +356,241 @@ const DashboardAgentScribePage = () => {
                 placeholder="Select branch"
                 options={branchOptions}
                 value={baseBranch}
-                onChange={(value) => setBaseBranch(value)}
+                onChange={setBaseBranch}
                 loading={loadingBranches}
-                emptyMessage="No branches available"
-                disabled={!repo}
+                emptyMessage="No branches"
+                disabled={!repo || isRunning}
                 allowManualInput
               />
             </div>
 
-            <div className="space-y-3">
-              <p className="text-sm font-medium text-ak-text-primary">Branch Strategy</p>
-              <div className="grid gap-2 sm:grid-cols-2">
-                <label className="flex items-start gap-3 rounded-xl border border-ak-border bg-ak-surface-2 px-3 py-3 text-sm text-ak-text-secondary">
-                  <input
-                    type="radio"
-                    name="branch-mode"
-                    checked={branchMode === 'existing'}
-                    onChange={() => setBranchMode('existing')}
-                    className="mt-1 h-4 w-4 border-ak-border text-ak-primary focus:ring-ak-primary"
-                  />
-                  <span>
-                    <span className="font-semibold text-ak-text-primary">Use existing branch</span>
-                    <span className="mt-1 block text-xs text-ak-text-secondary">
-                      Run Scribe against the selected base branch.
-                    </span>
-                  </span>
-                </label>
-                <label className="flex items-start gap-3 rounded-xl border border-ak-border bg-ak-surface-2 px-3 py-3 text-sm text-ak-text-secondary">
-                  <input
-                    type="radio"
-                    name="branch-mode"
-                    checked={branchMode === 'new'}
-                    onChange={() => setBranchMode('new')}
-                    className="mt-1 h-4 w-4 border-ak-border text-ak-primary focus:ring-ak-primary"
-                  />
-                  <span>
-                    <span className="font-semibold text-ak-text-primary">Create new branch</span>
-                    <span className="mt-1 block text-xs text-ak-text-secondary">
-                      Generate docs on a fresh branch and review later.
-                    </span>
-                  </span>
-                </label>
+            {/* Advanced Section */}
+            <div className="border-t border-ak-border pt-4">
+              <button
+                type="button"
+                onClick={() => setShowAdvanced(!showAdvanced)}
+                className="flex w-full items-center justify-between text-sm font-medium text-ak-text-secondary hover:text-ak-text-primary"
+              >
+                <span>Advanced Options</span>
+                <span className="text-xs">{showAdvanced ? '▲' : '▼'}</span>
+              </button>
+
+              {showAdvanced && (
+                <div className="mt-4 space-y-4">
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-ak-text-primary">
+                      Target Path
+                    </label>
+                    <input
+                      type="text"
+                      value={targetPath}
+                      onChange={(e) => setTargetPath(e.target.value)}
+                      disabled={isRunning}
+                      className="w-full rounded-lg border border-ak-border bg-ak-surface-2 px-3 py-2 text-sm text-ak-text-primary placeholder-ak-text-secondary/50 focus:border-ak-primary focus:outline-none focus:ring-1 focus:ring-ak-primary disabled:opacity-50"
+                      placeholder="docs/"
+                    />
+                  </div>
+
+                  <label className="flex items-center gap-3 text-sm text-ak-text-secondary">
+                    <input
+                      type="checkbox"
+                      checked={dryRun}
+                      onChange={(e) => setDryRun(e.target.checked)}
+                      disabled={isRunning}
+                      className="h-4 w-4 rounded border-ak-border bg-ak-surface-2 text-ak-primary focus:ring-ak-primary"
+                    />
+                    <span>Dry run (preview only, no commits)</span>
+                  </label>
+                </div>
+              )}
+            </div>
+
+            {/* Primary CTA */}
+            <div className="space-y-3 border-t border-ak-border pt-4">
+              {isIdle ? (
+                <Button
+                  onClick={handleRunScribe}
+                  disabled={!canRun}
+                  className="w-full justify-center py-3 text-base font-semibold"
+                >
+                  🚀 Run Scribe
+                </Button>
+              ) : isRunning ? (
+                <Button
+                  onClick={handleCancel}
+                  variant="outline"
+                  className="w-full justify-center border-red-500/50 text-red-400 hover:bg-red-500/10"
+                >
+                  ⏹ Cancel Run
+                </Button>
+              ) : (
+                <Button
+                  onClick={handleReset}
+                  variant="outline"
+                  className="w-full justify-center"
+                >
+                  ↺ Reset Console
+                </Button>
+              )}
+
+              {!canRun && isIdle && (
+                <p className="text-center text-xs text-ak-text-secondary">
+                  Select a repository and branch to start
+                </p>
+              )}
+            </div>
+          </Card>
+
+          {/* Status Summary */}
+          {!isIdle && (
+            <Card className="bg-ak-surface-2 p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-medium uppercase tracking-wider text-ak-text-secondary">
+                    Status
+                  </p>
+                  <p className={`text-lg font-semibold ${getStatusColor()}`}>
+                    {getStatusText()}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="text-xs font-medium uppercase tracking-wider text-ak-text-secondary">
+                    Progress
+                  </p>
+                  <p className="text-lg font-semibold text-ak-text-primary">
+                    {runState.progress}%
+                  </p>
+                </div>
+              </div>
+
+              {/* Progress bar */}
+              <div className="mt-3 h-2 overflow-hidden rounded-full bg-ak-bg">
+                <div
+                  className={`h-full transition-all duration-500 ${
+                    runState.status === 'complete'
+                      ? 'bg-green-500'
+                      : runState.status === 'error' || runState.status === 'cancelled'
+                        ? 'bg-red-500'
+                        : 'bg-ak-primary'
+                  }`}
+                  style={{ width: `${runState.progress}%` }}
+                />
+              </div>
+            </Card>
+          )}
+        </div>
+
+        {/* Right Panel: Glass Box Console */}
+        <div className="lg:col-span-8">
+          <Card className="flex h-[600px] flex-col overflow-hidden bg-ak-surface p-0">
+            {/* Tabs Header */}
+            <div className="flex items-center justify-between border-b border-ak-border bg-ak-surface-2 px-4">
+              <div className="flex">
+                {(['logs', 'preview', 'diff'] as ActiveTab[]).map((tab) => (
+                  <button
+                    key={tab}
+                    onClick={() => setActiveTab(tab)}
+                    className={`border-b-2 px-4 py-3 text-sm font-medium transition-colors ${
+                      activeTab === tab
+                        ? 'border-ak-primary text-ak-primary'
+                        : 'border-transparent text-ak-text-secondary hover:text-ak-text-primary'
+                    }`}
+                  >
+                    {tab === 'logs' && '📋 Logs'}
+                    {tab === 'preview' && '📄 Preview'}
+                    {tab === 'diff' && '📝 Diff'}
+                  </button>
+                ))}
+              </div>
+
+              <div className="flex items-center gap-2">
+                <div className={`h-2 w-2 rounded-full ${isRunning ? 'animate-pulse bg-ak-primary' : isComplete ? 'bg-green-500' : 'bg-ak-text-secondary/30'}`} />
+                <span className="text-xs text-ak-text-secondary">
+                  {owner && repo ? `${owner}/${repo}` : 'No repo selected'}
+                </span>
               </div>
             </div>
 
-            {branchMode === 'new' ? (
-              <Input
-                label="New Branch Name"
-                placeholder="docs/scribe-branch"
-                value={newBranch}
-                onChange={(event) => setNewBranch(event.target.value)}
-                rightElement={
-                  <button
-                    type="button"
-                    onClick={() => setNewBranch(generateBranchName(repo))}
-                    className="text-xs font-semibold text-ak-primary"
-                  >
-                    Auto-generate
-                  </button>
-                }
-              />
-            ) : null}
+            {/* Tab Content */}
+            <div className="flex-1 overflow-hidden">
+              {activeTab === 'logs' && (
+                <div className="h-full overflow-y-auto bg-ak-bg p-4 font-mono text-sm">
+                  {runState.logs.length === 0 ? (
+                    <div className="flex h-full flex-col items-center justify-center text-ak-text-secondary/50">
+                      <span className="text-4xl">🤖</span>
+                      <p className="mt-2 text-center">
+                        Press "Run Scribe" to start documentation analysis
+                      </p>
+                      <p className="mt-1 text-xs">
+                        {usingMockData ? 'Demo mode active' : 'Connected to GitHub'}
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-1">
+                      {runState.logs.map((log) => (
+                        <div key={log.id} className="flex gap-2">
+                          <span className="flex-shrink-0 text-ak-text-secondary/50">
+                            {new Date(log.timestamp).toLocaleTimeString()}
+                          </span>
+                          <span className={getLogLevelColor(log.level)}>
+                            {log.message}
+                          </span>
+                        </div>
+                      ))}
+                      <div ref={logsEndRef} />
+                    </div>
+                  )}
+                </div>
+              )}
 
-            {setupError ? <p className="text-xs text-ak-danger">{setupError}</p> : null}
-            {setupNotice ? (
-              <p className="text-xs text-ak-primary">{setupNotice}</p>
-            ) : null}
+              {activeTab === 'preview' && (
+                <div className="h-full overflow-y-auto bg-ak-bg p-4">
+                  {runState.preview ? (
+                    <div className="prose prose-invert prose-sm max-w-none">
+                      <pre className="whitespace-pre-wrap rounded-lg bg-ak-surface-2 p-4 text-sm text-ak-text-primary">
+                        {runState.preview}
+                      </pre>
+                    </div>
+                  ) : (
+                    <div className="flex h-full flex-col items-center justify-center text-ak-text-secondary/50">
+                      <span className="text-4xl">📄</span>
+                      <p className="mt-2">Documentation preview will appear here</p>
+                    </div>
+                  )}
+                </div>
+              )}
 
-            <Button onClick={handleStart} disabled={!isReady}>
-              Start Scribe
-            </Button>
+              {activeTab === 'diff' && (
+                <div className="h-full overflow-y-auto bg-ak-bg p-4">
+                  {runState.diff ? (
+                    <pre className="whitespace-pre-wrap rounded-lg bg-ak-surface-2 p-4 font-mono text-xs">
+                      {runState.diff.split('\n').map((line, idx) => (
+                        <div
+                          key={idx}
+                          className={
+                            line.startsWith('+')
+                              ? 'text-green-400'
+                              : line.startsWith('-')
+                                ? 'text-red-400'
+                                : line.startsWith('@@')
+                                  ? 'text-cyan-400'
+                                  : 'text-ak-text-secondary'
+                          }
+                        >
+                          {line}
+                        </div>
+                      ))}
+                    </pre>
+                  ) : (
+                    <div className="flex h-full flex-col items-center justify-center text-ak-text-secondary/50">
+                      <span className="text-4xl">📝</span>
+                      <p className="mt-2">Diff preview will appear after analysis</p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           </Card>
-        </div>
-
-        <div className="lg:col-span-7">
-          <DashboardChat context={chatContext} />
         </div>
       </div>
     </div>
