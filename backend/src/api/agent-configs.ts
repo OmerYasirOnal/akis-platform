@@ -9,6 +9,7 @@ import { db } from '../db/client.js';
 import { agentConfigs, oauthAccounts } from '../db/schema.js';
 import { eq, and } from 'drizzle-orm';
 import { requireAuth } from '../utils/auth.js';
+import { getScribeModelAllowlist, isModelAllowed } from '../services/ai/modelAllowlist.js';
 
 // Validation schemas
 const agentTypeSchema = z.enum(['scribe', 'trace', 'proto']);
@@ -134,6 +135,21 @@ export async function agentConfigRoutes(fastify: FastifyInstance) {
         });
       }
       const payload = payloadResult.data;
+
+      if (payload.llmModelOverride) {
+        const allowlist = getScribeModelAllowlist();
+        if (!isModelAllowed(payload.llmModelOverride, allowlist)) {
+          return reply.code(400).send({
+            error: {
+              code: 'MODEL_NOT_ALLOWED',
+              message: `Model "${payload.llmModelOverride}" is not allowed.`,
+              details: {
+                allowlist,
+              },
+            },
+          });
+        }
+      }
       
       try {
         const user = await requireAuth(request);
@@ -228,5 +244,36 @@ export async function agentConfigRoutes(fastify: FastifyInstance) {
       }
     }
   );
-}
 
+  // GET /api/agents/configs/:agentType/models
+  fastify.get(
+    '/api/agents/configs/:agentType/models',
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const rawAgentType = (request.params as { agentType: string }).agentType;
+      const agentTypeResult = agentTypeSchema.safeParse(rawAgentType);
+      if (!agentTypeResult.success) {
+        return reply.code(400).send({
+          error: {
+            code: 'INVALID_AGENT_TYPE',
+            message: `Invalid agent type. Must be one of: scribe, trace, proto`,
+          },
+        });
+      }
+
+      if (agentTypeResult.data !== 'scribe') {
+        return reply.code(404).send({
+          error: {
+            code: 'NOT_FOUND',
+            message: 'Model allowlist not available for this agent type.',
+          },
+        });
+      }
+
+      const allowlist = getScribeModelAllowlist();
+      return reply.code(200).send({
+        allowlist,
+        defaultModel: allowlist[0] || null,
+      });
+    }
+  );
+}
