@@ -51,6 +51,8 @@ export interface JobDetail {
   correlationId?: string | null;
   plan?: unknown;
   audit?: unknown[];
+  trace?: unknown[];
+  artifacts?: unknown[];
 }
 
 const agents: AgentDefinition[] = [
@@ -86,23 +88,34 @@ const agents: AgentDefinition[] = [
   },
 ];
 
+export interface RunAgentRequest {
+  type: AgentType;
+  payload: unknown;
+  requiresStrictValidation?: boolean;
+}
+
+export interface GetJobOptions {
+  include?: ('plan' | 'audit' | 'trace' | 'artifacts')[];
+}
+
 export const agentsApi = {
   listAgents: async (): Promise<AgentDefinition[]> => {
     return agents;
   },
 
-  runAgent: async (type: AgentType, payload: unknown): Promise<RunAgentResponse> => {
+  runAgent: async (request: RunAgentRequest): Promise<RunAgentResponse> => {
     return httpClient.post<RunAgentResponse>(
       '/api/agents/jobs',
-      {
-        type,
-        payload,
-      },
+      request,
       withCredentials
     );
   },
 
-  getJob: async (jobId: string): Promise<JobDetail> => {
-    return httpClient.get<JobDetail>(`/api/agents/jobs/${jobId}`, withCredentials);
+  getJob: async (jobId: string, options?: GetJobOptions): Promise<JobDetail> => {
+    const includeParam = options?.include?.join(',');
+    const url = includeParam 
+      ? `/api/agents/jobs/${jobId}?include=${includeParam}`
+      : `/api/agents/jobs/${jobId}`;
+    return httpClient.get<JobDetail>(url, withCredentials);
   },
 };

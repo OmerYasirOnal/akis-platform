@@ -83,7 +83,7 @@ describe('DashboardAgentScribePage', () => {
     });
   });
 
-  it('shows demo mode notice when GitHub discovery fails', async () => {
+  it('shows error notice when GitHub discovery fails', async () => {
     (githubDiscoveryApi.getOwners as ReturnType<typeof vi.fn>).mockRejectedValueOnce(
       new Error('No GitHub connection')
     );
@@ -91,8 +91,8 @@ describe('DashboardAgentScribePage', () => {
     renderWithRouter(<DashboardAgentScribePage />);
 
     await waitFor(() => {
-      // Should show demo mode indicator in the glass box console
-      expect(screen.getByText(/Demo mode active/i)).toBeInTheDocument();
+      // Should show GitHub connection error
+      expect(screen.getByText(/GitHub not connected/i)).toBeInTheDocument();
     });
   });
 
