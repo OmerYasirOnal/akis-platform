@@ -101,7 +101,7 @@ const DashboardAgentScribePage = () => {
         setGithubNotice('TODO: GitHub listing unavailable. Using mock repositories.');
         setOwners(FALLBACK_OWNERS);
         setOwner((prev) => prev || FALLBACK_OWNERS[0].login);
-      } catch (err) {
+      } catch {
         if (!active) return;
         setUsingMockData(true);
         setGithubNotice('TODO: Connect GitHub to load real repositories. Mock data shown.');
@@ -149,7 +149,7 @@ const DashboardAgentScribePage = () => {
         if (!active) return;
         setRepos(result.repos);
         setRepo((prev) => prev || result.repos[0]?.name || '');
-      } catch (err) {
+      } catch {
         if (!active) return;
         setUsingMockData(true);
         setGithubNotice('TODO: GitHub repo list is mocked until integrations are connected.');
@@ -194,7 +194,7 @@ const DashboardAgentScribePage = () => {
         if (!active) return;
         setBranches(result.branches);
         setBaseBranch((prev) => prev || result.defaultBranch || 'main');
-      } catch (err) {
+      } catch {
         if (!active) return;
         setUsingMockData(true);
         setGithubNotice('TODO: Branch list is mocked until integrations are connected.');
