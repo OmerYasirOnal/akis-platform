@@ -36,13 +36,6 @@ export interface JobDetail {
   payload?: unknown;
   result?: unknown;
   error?: unknown;
-  aiProvider?: string | null;
-  aiModel?: string | null;
-  aiTotalDurationMs?: number | null;
-  aiInputTokens?: number | null;
-  aiOutputTokens?: number | null;
-  aiTotalTokens?: number | null;
-  aiEstimatedCostUsd?: number | string | null;
   /** Structured error code for classification (e.g., AI_RATE_LIMITED) */
   errorCode?: string | null;
   /** User-friendly error message */
@@ -106,3 +99,4 @@ export const agentsApi = {
     return httpClient.get<JobDetail>(`/api/agents/jobs/${jobId}`, withCredentials);
   },
 };
+

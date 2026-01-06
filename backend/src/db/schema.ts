@@ -1,4 +1,4 @@
-import { pgTable, uuid, varchar, jsonb, timestamp, pgEnum, text, index, boolean, integer, uniqueIndex, numeric } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, varchar, jsonb, timestamp, pgEnum, text, index, boolean, integer, uniqueIndex } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 
 export const jobStateEnum = pgEnum('job_state', ['pending', 'running', 'completed', 'failed', 'awaiting_approval']);
@@ -46,20 +46,6 @@ export const jobs = pgTable('jobs', {
   rawErrorPayload: text('raw_error_payload'),
   /** MCP Gateway URL used for this job (for diagnostics) */
   mcpGatewayUrl: varchar('mcp_gateway_url', { length: 255 }),
-  /** AI provider used for this job (e.g., openai) */
-  aiProvider: varchar('ai_provider', { length: 50 }),
-  /** AI model used for this job (e.g., gpt-4o-mini) */
-  aiModel: varchar('ai_model', { length: 255 }),
-  /** Aggregate AI duration (ms) */
-  aiTotalDurationMs: integer('ai_total_duration_ms'),
-  /** Aggregate input tokens */
-  aiInputTokens: integer('ai_input_tokens'),
-  /** Aggregate output tokens */
-  aiOutputTokens: integer('ai_output_tokens'),
-  /** Aggregate total tokens */
-  aiTotalTokens: integer('ai_total_tokens'),
-  /** Estimated cost in USD (optional, estimate) */
-  aiEstimatedCostUsd: numeric('ai_estimated_cost_usd', { precision: 12, scale: 6 }),
   /** Whether this job requires strong-model validation before completion */
   requiresStrictValidation: boolean('requires_strict_validation').default(false).notNull(),
   // S1.2: Approval system for PLAN_ONLY → EXECUTE workflow
@@ -362,25 +348,6 @@ export const oauthAccounts = pgTable('oauth_accounts', {
 
 export type OAuthAccount = typeof oauthAccounts.$inferSelect;
 export type NewOAuthAccount = typeof oauthAccounts.$inferInsert;
-
-export const userAiKeys = pgTable('user_ai_keys', {
-  id: uuid('id').defaultRandom().primaryKey(),
-  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
-  provider: varchar('provider', { length: 50 }).notNull(),
-  encryptedKey: text('encrypted_key').notNull(),
-  keyIv: varchar('key_iv', { length: 64 }).notNull(),
-  keyTag: varchar('key_tag', { length: 64 }).notNull(),
-  keyVersion: varchar('key_version', { length: 20 }).notNull(),
-  last4: varchar('last4', { length: 4 }).notNull(),
-  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
-  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
-}, (table) => ({
-  userProviderUnique: uniqueIndex('idx_user_ai_keys_user_provider').on(table.userId, table.provider),
-  userIdIdx: index('idx_user_ai_keys_user_id').on(table.userId),
-}));
-
-export type UserAiKey = typeof userAiKeys.$inferSelect;
-export type NewUserAiKey = typeof userAiKeys.$inferInsert;
 
 // Users relations - includes oauth accounts
 export const usersRelations = relations(users, ({ many }) => ({

@@ -7,7 +7,7 @@ import { Pill } from '../components/ui/Pill';
 import { CodeBlock } from '../components/ui/CodeBlock';
 import { ErrorToast } from '../components/ui/ErrorToast';
 import { StepTimeline } from '../components/agents/StepTimeline';
-import { ArtifactPreview, PRMetadataCard, RunSummaryPanel } from '../components/jobs';
+import { ArtifactPreview, PRMetadataCard } from '../components/jobs';
 import { PlanView } from '../components/jobs/PlanView';
 import { FeedbackTab } from '../components/jobs/FeedbackTab';
 
@@ -70,8 +70,6 @@ function getErrorHint(errorCode?: string | null): string | null {
     '429': 'Rate limit exceeded - too many requests, please retry later',
     '500': 'Internal server error - an unexpected error occurred',
     '502': 'Bad gateway - MCP gateway or upstream service is unavailable',
-    'AI_KEY_MISSING': 'OpenAI API key is missing. Add one in Settings → API Keys before running Scribe.',
-    'MODEL_NOT_ALLOWED': 'Selected model is not allowlisted. Choose a model from the allowlist.',
   };
 
   const code = String(errorCode);
@@ -98,7 +96,6 @@ function redactSecrets(text: string): string {
     .replace(/ghp_[A-Za-z0-9_]+/g, 'ghp_[REDACTED]')
     .replace(/gho_[A-Za-z0-9_]+/g, 'gho_[REDACTED]')
     .replace(/ghs_[A-Za-z0-9_]+/g, 'ghs_[REDACTED]')
-    .replace(/sk-[A-Za-z0-9_-]+/g, 'sk-[REDACTED]')
     .replace(/Bearer\s+[A-Za-z0-9._-]+/gi, 'Bearer [REDACTED]')
     .replace(/"token":\s*"[^"]+"/gi, '"token": "[REDACTED]"')
     .replace(/"authorization":\s*"[^"]+"/gi, '"authorization": "[REDACTED]"');
@@ -429,8 +426,6 @@ export default function JobDetailPage() {
           )}
         </div>
       </div>
-
-      <RunSummaryPanel job={job} traces={traces as TraceEventType[]} />
 
       {/* Error Card (if failed) */}
       {(job.error || job.errorCode || job.errorMessage) && (

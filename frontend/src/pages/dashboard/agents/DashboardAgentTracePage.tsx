@@ -1,36 +1,47 @@
-import { Link } from 'react-router-dom';
 import Card from '../../../components/common/Card';
+import Input from '../../../components/common/Input';
 import Button from '../../../components/common/Button';
 
 const DashboardAgentTracePage = () => (
   <div className="space-y-6">
     <header className="space-y-2">
-      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-ak-text-secondary/70">
-        Coming Soon
-      </p>
-      <h1 className="text-2xl font-semibold text-ak-text-primary">Trace</h1>
+      <h1 className="text-2xl font-semibold text-ak-text-primary">
+        Trace Configuration
+      </h1>
       <p className="text-sm text-ak-text-secondary">
-        Trace will turn issue trackers into structured test plans. For now, the dashboard
-        focuses on Scribe workflows.
+        TODO: Connect to persistence layer. This is a themed placeholder for
+        Trace settings.
       </p>
     </header>
 
-    <Card className="space-y-3 bg-ak-surface">
-      <h2 className="text-lg font-semibold text-ak-text-primary">Planned capabilities</h2>
-      <ul className="space-y-2 text-sm text-ak-text-secondary">
-        <li>1. Jira and Linear issue ingestion.</li>
-        <li>2. Automated test case generation with QA review gates.</li>
-        <li>3. Export to Cucumber or Playwright suites.</li>
-      </ul>
-      <p className="text-xs text-ak-text-secondary">
-        TODO: Enable Trace once backend workflows are finalized.
-      </p>
+    <Card className="space-y-4 bg-ak-surface">
+      <h2 className="text-lg font-semibold text-ak-text-primary">
+        Jira Connection
+      </h2>
+      <Input label="Jira Site URL" placeholder="https://yourworkspace.atlassian.net" />
+      <Input label="API Token (masked)" placeholder="••••••••••" />
+      <Input label="Projects" placeholder="AKIS, PLATFORM" />
+      <Button className="justify-center">Save connection</Button>
     </Card>
 
-    <Button as={Link} to="/dashboard/scribe" variant="outline" className="justify-center">
-      Go to Scribe Console
-    </Button>
+    <Card className="space-y-4 bg-ak-surface">
+      <h2 className="text-lg font-semibold text-ak-text-primary">
+        Output Preferences
+      </h2>
+      <Input
+        label="Cucumber Output Path"
+        placeholder="./tests/generated"
+      />
+      <Input
+        label="Coverage Report Email"
+        placeholder="qa-lead@example.com"
+      />
+      <Button variant="outline" className="justify-center">
+        Generate sample report
+      </Button>
+    </Card>
   </div>
 );
 
 export default DashboardAgentTracePage;
+
