@@ -2,10 +2,11 @@
  * Scribe Single-Page Console
  * 
  * Layout:
- * - Left: Configuration panel (repo/branch/model + Advanced collapsed)
- * - Right: Glass Box live monitoring (console logs + tabs for preview/diff)
+ * - Top: Horizontal configuration bar (full width)
+ * - Bottom: Workspace with Logs/Preview/Diff tabs
  * 
  * Real mode: Connects to backend and submits actual jobs
+ * MCP-aligned: GitHub operations go through MCP Gateway
  */
 import { useEffect, useMemo, useState, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
@@ -14,7 +15,6 @@ import Button from '../../../components/common/Button';
 import SearchableSelect, { type SelectOption } from '../../../components/common/SearchableSelect';
 import {
   githubDiscoveryApi,
-  type GitHubOwner,
   type GitHubRepo,
   type GitHubBranch,
 } from '../../../services/api/github-discovery';
@@ -43,22 +43,26 @@ interface Artifact {
 }
 
 const DashboardAgentScribePage = () => {
+  // GitHub OAuth user (read-only owner)
+  const [connectedGitHubUser, setConnectedGitHubUser] = useState<string>('');
+  
   // GitHub discovery state
-  const [owners, setOwners] = useState<GitHubOwner[]>([]);
   const [repos, setRepos] = useState<GitHubRepo[]>([]);
   const [branches, setBranches] = useState<GitHubBranch[]>([]);
-  const [owner, setOwner] = useState('');
   const [repo, setRepo] = useState('');
   const [baseBranch, setBaseBranch] = useState('');
   const [targetPath, setTargetPath] = useState('docs/');
   const [dryRun, setDryRun] = useState(true);
 
+  // Auto-branch name preview
+  const [autoBranchName, setAutoBranchName] = useState<string>('');
+
   // Loading states
-  const [loadingOwners, setLoadingOwners] = useState(true);
   const [loadingRepos, setLoadingRepos] = useState(false);
   const [loadingBranches, setLoadingBranches] = useState(false);
   const [githubError, setGithubError] = useState<string | null>(null);
-  const [githubConnected, setGithubConnected] = useState<boolean | null>(null);
+  // Track if GitHub is connected (used internally, no need to expose in render)
+  const githubConnectedRef = useRef<boolean | null>(null);
 
   // Job execution state
   const [currentJob, setCurrentJob] = useState<JobDetail | null>(null);
@@ -80,7 +84,7 @@ const DashboardAgentScribePage = () => {
     }
   }, [logs, activeTab]);
 
-  // Check GitHub connection status first
+  // Check GitHub connection status and get username
   useEffect(() => {
     let active = true;
 
@@ -88,10 +92,30 @@ const DashboardAgentScribePage = () => {
       try {
         const status = await integrationsApi.getGitHubStatus();
         if (!active) return;
-        setGithubConnected(status.connected);
+        
+        githubConnectedRef.current = status.connected;
+        
+        if (status.connected && status.login) {
+          setConnectedGitHubUser(status.login);
+        } else if (status.connected) {
+          // Connected but no login field - try to load from owners
+          try {
+            const ownersResult = await githubDiscoveryApi.getOwners();
+            if (!active) return;
+            if (ownersResult.owners.length > 0) {
+              // Use first owner (the user) as the connected user
+              const userOwner = ownersResult.owners.find(o => o.type === 'User');
+              setConnectedGitHubUser(userOwner?.login || ownersResult.owners[0].login);
+            }
+          } catch {
+            // Fallback: use empty string, will show error
+            setGithubError('Could not determine GitHub username.');
+          }
+        }
       } catch {
         if (!active) return;
-        setGithubConnected(false);
+        githubConnectedRef.current = false;
+        setGithubError('GitHub not connected. Please connect at /dashboard/integrations.');
       }
     };
 
@@ -99,51 +123,9 @@ const DashboardAgentScribePage = () => {
     return () => { active = false; };
   }, []);
 
-  // Load owners on mount (only if GitHub is connected)
+  // Load repos when GitHub is connected
   useEffect(() => {
-    if (githubConnected === null) {
-      // Still checking status
-      return;
-    }
-
-    if (!githubConnected) {
-      // Not connected - show error and don't try to load
-      setLoadingOwners(false);
-      setGithubError('GitHub not connected. Please connect GitHub at /dashboard/integrations to use Scribe.');
-      return;
-    }
-
-    let active = true;
-
-    const loadOwners = async () => {
-      setLoadingOwners(true);
-      setGithubError(null);
-      try {
-        const result = await githubDiscoveryApi.getOwners();
-        if (!active) return;
-
-        if (result.owners.length > 0) {
-          setOwners(result.owners);
-          setOwner((prev) => prev || result.owners[0].login);
-        } else {
-          setGithubError('No GitHub organizations found. Please check your GitHub connection.');
-        }
-      } catch (error) {
-        if (!active) return;
-        setGithubError('Failed to load GitHub organizations. Please try reconnecting at /dashboard/integrations.');
-        console.error('Failed to load GitHub owners:', error);
-      } finally {
-        if (active) setLoadingOwners(false);
-      }
-    };
-
-    void loadOwners();
-    return () => { active = false; };
-  }, [githubConnected]);
-
-  // Load repos when owner changes
-  useEffect(() => {
-    if (!owner) {
+    if (!connectedGitHubUser) {
       setRepos([]);
       setRepo('');
       return;
@@ -159,10 +141,12 @@ const DashboardAgentScribePage = () => {
       setBaseBranch('');
 
       try {
-        const result = await githubDiscoveryApi.getRepos(owner);
+        const result = await githubDiscoveryApi.getRepos(connectedGitHubUser);
         if (!active) return;
         setRepos(result.repos);
-        setRepo((prev) => prev || result.repos[0]?.name || '');
+        if (result.repos.length > 0) {
+          setRepo(result.repos[0].name);
+        }
       } catch (error) {
         if (!active) return;
         console.error('Failed to load repos:', error);
@@ -174,11 +158,11 @@ const DashboardAgentScribePage = () => {
 
     void loadRepos();
     return () => { active = false; };
-  }, [owner]);
+  }, [connectedGitHubUser]);
 
   // Load branches when repo changes
   useEffect(() => {
-    if (!owner || !repo) {
+    if (!connectedGitHubUser || !repo) {
       setBranches([]);
       setBaseBranch('');
       return;
@@ -191,10 +175,10 @@ const DashboardAgentScribePage = () => {
       setBranches([]);
 
       try {
-        const result = await githubDiscoveryApi.getBranches(owner, repo);
+        const result = await githubDiscoveryApi.getBranches(connectedGitHubUser, repo);
         if (!active) return;
         setBranches(result.branches);
-        setBaseBranch((prev) => prev || result.defaultBranch || 'main');
+        setBaseBranch(result.defaultBranch || 'main');
       } catch (error) {
         if (!active) return;
         console.error('Failed to load branches:', error);
@@ -206,7 +190,23 @@ const DashboardAgentScribePage = () => {
 
     void loadBranches();
     return () => { active = false; };
-  }, [owner, repo]);
+  }, [connectedGitHubUser, repo]);
+
+  // Auto-generate branch name preview
+  useEffect(() => {
+    if (repo && baseBranch) {
+      const now = new Date();
+      const yyyy = now.getFullYear();
+      const mm = String(now.getMonth() + 1).padStart(2, '0');
+      const dd = String(now.getDate()).padStart(2, '0');
+      const HH = String(now.getHours()).padStart(2, '0');
+      const MM = String(now.getMinutes()).padStart(2, '0');
+      const SS = String(now.getSeconds()).padStart(2, '0');
+      setAutoBranchName(`scribe/docs-${yyyy}${mm}${dd}-${HH}${MM}${SS}`);
+    } else {
+      setAutoBranchName('');
+    }
+  }, [repo, baseBranch]);
 
   // Poll job status
   const pollJobStatus = useCallback(async (jobId: string) => {
@@ -271,18 +271,6 @@ const DashboardAgentScribePage = () => {
   }, [currentJob, isPolling, pollJobStatus]);
 
   // Memoized options
-  const ownerOptions = useMemo<SelectOption[]>(
-    () => owners.map((item) => ({
-      value: item.login,
-      label: item.login,
-      description: item.type,
-      icon: item.avatarUrl ? (
-        <img src={item.avatarUrl} alt={item.login} className="h-5 w-5 rounded-full" />
-      ) : undefined,
-    })),
-    [owners]
-  );
-
   const repoOptions = useMemo<SelectOption[]>(
     () => repos.map((item) => ({
       value: item.name,
@@ -301,7 +289,7 @@ const DashboardAgentScribePage = () => {
     [branches]
   );
 
-  const canRun = Boolean(owner.trim()) && Boolean(repo.trim()) && Boolean(baseBranch.trim()) && !isPolling;
+  const canRun = Boolean(connectedGitHubUser) && Boolean(repo.trim()) && Boolean(baseBranch.trim()) && !isPolling;
 
   const handleRunScribe = async () => {
     if (!canRun) return;
@@ -315,7 +303,7 @@ const DashboardAgentScribePage = () => {
       id: `start-${Date.now()}`,
       timestamp: new Date(),
       level: 'info',
-      message: `Starting Scribe workflow for ${owner}/${repo} (${baseBranch})...`,
+      message: `Starting Scribe workflow for ${connectedGitHubUser}/${repo} (${baseBranch})...`,
     };
     setLogs([initialLog]);
     setActiveTab('logs');
@@ -325,11 +313,12 @@ const DashboardAgentScribePage = () => {
       const response = await agentsApi.runAgent({
         type: 'scribe',
         payload: {
-          owner,
+          owner: connectedGitHubUser,
           repo,
           baseBranch,
           targetPath,
           dryRun,
+          // featureBranch not sent - backend will auto-generate
         },
       });
 
@@ -416,284 +405,286 @@ const DashboardAgentScribePage = () => {
     <div className="space-y-6">
       {/* Header */}
       <header className="space-y-2">
-        <div className="flex items-center gap-3">
-          <h1 className="text-2xl font-semibold text-ak-text-primary">Scribe Console</h1>
-        </div>
+        <h1 className="text-2xl font-semibold text-ak-text-primary">Scribe Console</h1>
         <p className="text-sm text-ak-text-secondary">
-          Configure and run Scribe documentation agent from a single workspace.
+          Configure and run Scribe documentation agent.
         </p>
       </header>
 
-      {/* Main Grid: Left Config + Right Glass Box */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
-        {/* Left Panel: Configuration */}
-        <div className="space-y-4 lg:col-span-4">
-          <Card className="space-y-5 bg-ak-surface">
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-ak-text-primary">Configuration</h2>
-              <Link to="/dashboard/integrations" className="text-xs font-medium text-ak-primary hover:underline">
-                Integrations →
-              </Link>
+      {/* Horizontal Configuration Bar */}
+      <Card className="bg-ak-surface p-6">
+        <div className="space-y-5">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-ak-text-primary">Configuration</h2>
+            <Link to="/dashboard/integrations" className="text-xs font-medium text-ak-primary hover:underline">
+              Integrations →
+            </Link>
+          </div>
+
+          {githubError && (
+            <div className="rounded-xl border border-red-500/50 bg-red-500/10 px-3 py-2 text-xs text-red-400">
+              {githubError}
+            </div>
+          )}
+
+          {/* Main Config Row */}
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+            {/* Owner - Read Only */}
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-ak-text-primary">Owner</label>
+              <input
+                type="text"
+                value={connectedGitHubUser ? `@${connectedGitHubUser}` : 'Not connected'}
+                readOnly
+                disabled={!connectedGitHubUser}
+                className="w-full rounded-lg border border-ak-border bg-ak-surface-2 px-3 py-2 text-sm text-ak-text-primary disabled:opacity-50 cursor-not-allowed"
+              />
             </div>
 
-            {githubError && (
-              <div className="rounded-xl border border-red-500/50 bg-red-500/10 px-3 py-2 text-xs text-red-400">
-                {githubError}
+            {/* Repository Dropdown */}
+            <SearchableSelect
+              label="Repository"
+              placeholder="Select repository"
+              options={repoOptions}
+              value={repo}
+              onChange={setRepo}
+              loading={loadingRepos}
+              emptyMessage="No repositories"
+              disabled={(!connectedGitHubUser || isRunning) || undefined}
+            />
+
+            {/* Base Branch Dropdown (NO allowManualInput) */}
+            <SearchableSelect
+              label="Base Branch"
+              placeholder="Select branch"
+              options={branchOptions}
+              value={baseBranch}
+              onChange={setBaseBranch}
+              loading={loadingBranches}
+              emptyMessage="No branches"
+              disabled={(!repo || isRunning) || undefined}
+            />
+          </div>
+
+          {/* Branch Preview */}
+          {autoBranchName && (
+            <div className="rounded-lg bg-ak-surface-2 px-3 py-2 text-xs text-ak-text-secondary">
+              Branch will be created: <code className="text-ak-primary">{autoBranchName}</code>
+            </div>
+          )}
+
+          {/* Advanced Options */}
+          <div className="border-t border-ak-border pt-4">
+            <button
+              type="button"
+              onClick={() => setShowAdvanced(!showAdvanced)}
+              className="flex w-full items-center justify-between text-sm font-medium text-ak-text-secondary hover:text-ak-text-primary"
+            >
+              <span>Advanced Options</span>
+              <span className="text-xs">{showAdvanced ? '▲' : '▼'}</span>
+            </button>
+
+            {showAdvanced && (
+              <div className="mt-4 space-y-4">
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-ak-text-primary">
+                    Target Path
+                  </label>
+                  <input
+                    type="text"
+                    value={targetPath}
+                    onChange={(e) => setTargetPath(e.target.value)}
+                    disabled={isRunning || false}
+                    className="w-full rounded-lg border border-ak-border bg-ak-surface-2 px-3 py-2 text-sm text-ak-text-primary placeholder-ak-text-secondary/50 focus:border-ak-primary focus:outline-none focus:ring-1 focus:ring-ak-primary disabled:opacity-50"
+                    placeholder="docs/"
+                  />
+                </div>
+
+                <label className="flex items-center gap-3 text-sm text-ak-text-secondary">
+                  <input
+                    type="checkbox"
+                    checked={dryRun}
+                    onChange={(e) => setDryRun(e.target.checked)}
+                    disabled={isRunning || false}
+                    className="h-4 w-4 rounded border-ak-border bg-ak-surface-2 text-ak-primary focus:ring-ak-primary"
+                  />
+                  <span>Dry run (preview only, no commits)</span>
+                </label>
               </div>
             )}
+          </div>
 
-            {/* Repository Selection */}
-            <div className="space-y-4">
-              <SearchableSelect
-                label="Owner"
-                placeholder="Select owner"
-                options={ownerOptions}
-                value={owner}
-                onChange={setOwner}
-                loading={loadingOwners}
-                emptyMessage="No owners available"
-                disabled={isRunning || undefined}
-              />
-
-              <SearchableSelect
-                label="Repository"
-                placeholder="Select repository"
-                options={repoOptions}
-                value={repo}
-                onChange={setRepo}
-                loading={loadingRepos}
-                emptyMessage="No repositories"
-                disabled={(!owner || isRunning) || undefined}
-              />
-
-              <SearchableSelect
-                label="Base Branch"
-                placeholder="Select branch"
-                options={branchOptions}
-                value={baseBranch}
-                onChange={setBaseBranch}
-                loading={loadingBranches}
-                emptyMessage="No branches"
-                disabled={(!repo || isRunning) || undefined}
-                allowManualInput
-              />
-            </div>
-
-            {/* Advanced Section */}
-            <div className="border-t border-ak-border pt-4">
-              <button
-                type="button"
-                onClick={() => setShowAdvanced(!showAdvanced)}
-                className="flex w-full items-center justify-between text-sm font-medium text-ak-text-secondary hover:text-ak-text-primary"
+          {/* Run Button Row */}
+          <div className="flex flex-wrap items-center gap-3 border-t border-ak-border pt-4">
+            {isIdle ? (
+              <Button
+                onClick={handleRunScribe}
+                disabled={!canRun}
+                className="justify-center py-3 text-base font-semibold"
               >
-                <span>Advanced Options</span>
-                <span className="text-xs">{showAdvanced ? '▲' : '▼'}</span>
+                🚀 Run Scribe
+              </Button>
+            ) : isRunning ? (
+              <Button
+                variant="outline"
+                disabled
+                className="justify-center border-ak-primary/50 text-ak-primary"
+              >
+                ⏳ Running...
+              </Button>
+            ) : (
+              <Button
+                onClick={handleReset}
+                variant="outline"
+                className="justify-center"
+              >
+                ↺ Reset Console
+              </Button>
+            )}
+
+            {!canRun && isIdle && (
+              <p className="text-xs text-ak-text-secondary">
+                {githubError ? 'Connect GitHub to continue' : 'Select repository and branch'}
+              </p>
+            )}
+          </div>
+        </div>
+      </Card>
+
+      {/* Status Summary (if job running/complete) */}
+      {!isIdle && currentJob && (
+        <Card className="bg-ak-surface-2 p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs font-medium uppercase tracking-wider text-ak-text-secondary">
+                Status
+              </p>
+              <p className={`text-lg font-semibold ${getStatusColor()}`}>
+                {getStatusText()}
+              </p>
+            </div>
+            <div className="text-right">
+              <p className="text-xs font-medium uppercase tracking-wider text-ak-text-secondary">
+                Job ID
+              </p>
+              <p className="text-xs font-mono text-ak-text-primary">
+                {currentJob.id.substring(0, 8)}...
+              </p>
+            </div>
+          </div>
+        </Card>
+      )}
+
+      {/* Logs/Preview/Diff Workspace */}
+      <Card className="flex h-[600px] flex-col overflow-hidden bg-ak-surface p-0">
+        {/* Tabs Header */}
+        <div className="flex items-center justify-between border-b border-ak-border bg-ak-surface-2 px-4">
+          <div className="flex">
+            {(['logs', 'preview', 'diff'] as ActiveTab[]).map((tab) => (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className={`border-b-2 px-4 py-3 text-sm font-medium transition-colors ${
+                  activeTab === tab
+                    ? 'border-ak-primary text-ak-primary'
+                    : 'border-transparent text-ak-text-secondary hover:text-ak-text-primary'
+                }`}
+              >
+                {tab === 'logs' && '📋 Logs'}
+                {tab === 'preview' && '📄 Preview'}
+                {tab === 'diff' && '📝 Diff'}
               </button>
+            ))}
+          </div>
 
-              {showAdvanced && (
-                <div className="mt-4 space-y-4">
-                  <div className="space-y-2">
-                    <label className="block text-sm font-medium text-ak-text-primary">
-                      Target Path
-                    </label>
-                    <input
-                      type="text"
-                      value={targetPath}
-                      onChange={(e) => setTargetPath(e.target.value)}
-                      disabled={isRunning || false}
-                      className="w-full rounded-lg border border-ak-border bg-ak-surface-2 px-3 py-2 text-sm text-ak-text-primary placeholder-ak-text-secondary/50 focus:border-ak-primary focus:outline-none focus:ring-1 focus:ring-ak-primary disabled:opacity-50"
-                      placeholder="docs/"
-                    />
-                  </div>
+          <div className="flex items-center gap-2">
+            <div className={`h-2 w-2 rounded-full ${isRunning ? 'animate-pulse bg-ak-primary' : isComplete ? 'bg-green-500' : 'bg-ak-text-secondary/30'}`} />
+            <span className="text-xs text-ak-text-secondary">
+              {connectedGitHubUser && repo ? `${connectedGitHubUser}/${repo}` : 'No repo selected'}
+            </span>
+          </div>
+        </div>
 
-                  <label className="flex items-center gap-3 text-sm text-ak-text-secondary">
-                    <input
-                      type="checkbox"
-                      checked={dryRun}
-                      onChange={(e) => setDryRun(e.target.checked)}
-                      disabled={isRunning || false}
-                      className="h-4 w-4 rounded border-ak-border bg-ak-surface-2 text-ak-primary focus:ring-ak-primary"
-                    />
-                    <span>Dry run (preview only, no commits)</span>
-                  </label>
+        {/* Tab Content */}
+        <div className="flex-1 overflow-hidden">
+          {activeTab === 'logs' && (
+            <div className="h-full overflow-y-auto bg-ak-bg p-4 font-mono text-sm">
+              {logs.length === 0 ? (
+                <div className="flex h-full flex-col items-center justify-center text-ak-text-secondary/50">
+                  <span className="text-4xl">🤖</span>
+                  <p className="mt-2 text-center">
+                    Press "Run Scribe" to start documentation analysis
+                  </p>
+                  <p className="mt-1 text-xs">
+                    {githubError ? 'Connect GitHub first' : 'MCP-powered workflow'}
+                  </p>
                 </div>
-              )}
-            </div>
-
-            {/* Primary CTA */}
-            <div className="space-y-3 border-t border-ak-border pt-4">
-              {isIdle ? (
-                <Button
-                  onClick={handleRunScribe}
-                  disabled={!canRun}
-                  className="w-full justify-center py-3 text-base font-semibold"
-                >
-                  🚀 Run Scribe
-                </Button>
-              ) : isRunning ? (
-                <Button
-                  variant="outline"
-                  disabled
-                  className="w-full justify-center border-ak-primary/50 text-ak-primary"
-                >
-                  ⏳ Running...
-                </Button>
               ) : (
-                <Button
-                  onClick={handleReset}
-                  variant="outline"
-                  className="w-full justify-center"
-                >
-                  ↺ Reset Console
-                </Button>
-              )}
-
-              {!canRun && isIdle && (
-                <p className="text-center text-xs text-ak-text-secondary">
-                  {githubError ? 'Connect GitHub to continue' : 'Select a repository and branch to start'}
-                </p>
+                <div className="space-y-1">
+                  {logs.map((log) => (
+                    <div key={log.id} className="flex gap-2">
+                      <span className="flex-shrink-0 text-ak-text-secondary/50">
+                        {log.timestamp.toLocaleTimeString()}
+                      </span>
+                      <span className={getLogLevelColor(log.level)}>
+                        {log.message}
+                      </span>
+                    </div>
+                  ))}
+                  <div ref={logsEndRef} />
+                </div>
               )}
             </div>
-          </Card>
+          )}
 
-          {/* Status Summary */}
-          {!isIdle && currentJob && (
-            <Card className="bg-ak-surface-2 p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs font-medium uppercase tracking-wider text-ak-text-secondary">
-                    Status
-                  </p>
-                  <p className={`text-lg font-semibold ${getStatusColor()}`}>
-                    {getStatusText()}
-                  </p>
+          {activeTab === 'preview' && (
+            <div className="h-full overflow-y-auto bg-ak-bg p-4">
+              {preview ? (
+                <div className="prose prose-invert prose-sm max-w-none">
+                  <pre className="whitespace-pre-wrap rounded-lg bg-ak-surface-2 p-4 text-sm text-ak-text-primary">
+                    {preview}
+                  </pre>
                 </div>
-                <div className="text-right">
-                  <p className="text-xs font-medium uppercase tracking-wider text-ak-text-secondary">
-                    Job ID
-                  </p>
-                  <p className="text-xs font-mono text-ak-text-primary">
-                    {currentJob.id.substring(0, 8)}...
-                  </p>
+              ) : (
+                <div className="flex h-full flex-col items-center justify-center text-ak-text-secondary/50">
+                  <span className="text-4xl">📄</span>
+                  <p className="mt-2">Documentation preview will appear here</p>
                 </div>
-              </div>
-            </Card>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'diff' && (
+            <div className="h-full overflow-y-auto bg-ak-bg p-4">
+              {diff ? (
+                <pre className="whitespace-pre-wrap rounded-lg bg-ak-surface-2 p-4 font-mono text-xs">
+                  {diff.split('\n').map((line: string, idx: number) => (
+                    <div
+                      key={idx}
+                      className={
+                        line.startsWith('+')
+                          ? 'text-green-400'
+                          : line.startsWith('-')
+                            ? 'text-red-400'
+                            : line.startsWith('@@')
+                              ? 'text-cyan-400'
+                              : 'text-ak-text-secondary'
+                      }
+                    >
+                      {line}
+                    </div>
+                  ))}
+                </pre>
+              ) : (
+                <div className="flex h-full flex-col items-center justify-center text-ak-text-secondary/50">
+                  <span className="text-4xl">📝</span>
+                  <p className="mt-2">Diff preview will appear after analysis</p>
+                </div>
+              )}
+            </div>
           )}
         </div>
-
-        {/* Right Panel: Glass Box Console */}
-        <div className="lg:col-span-8">
-          <Card className="flex h-[600px] flex-col overflow-hidden bg-ak-surface p-0">
-            {/* Tabs Header */}
-            <div className="flex items-center justify-between border-b border-ak-border bg-ak-surface-2 px-4">
-              <div className="flex">
-                {(['logs', 'preview', 'diff'] as ActiveTab[]).map((tab) => (
-                  <button
-                    key={tab}
-                    onClick={() => setActiveTab(tab)}
-                    className={`border-b-2 px-4 py-3 text-sm font-medium transition-colors ${
-                      activeTab === tab
-                        ? 'border-ak-primary text-ak-primary'
-                        : 'border-transparent text-ak-text-secondary hover:text-ak-text-primary'
-                    }`}
-                  >
-                    {tab === 'logs' && '📋 Logs'}
-                    {tab === 'preview' && '📄 Preview'}
-                    {tab === 'diff' && '📝 Diff'}
-                  </button>
-                ))}
-              </div>
-
-              <div className="flex items-center gap-2">
-                <div className={`h-2 w-2 rounded-full ${isRunning ? 'animate-pulse bg-ak-primary' : isComplete ? 'bg-green-500' : 'bg-ak-text-secondary/30'}`} />
-                <span className="text-xs text-ak-text-secondary">
-                  {owner && repo ? `${owner}/${repo}` : 'No repo selected'}
-                </span>
-              </div>
-            </div>
-
-            {/* Tab Content */}
-            <div className="flex-1 overflow-hidden">
-              {activeTab === 'logs' && (
-                <div className="h-full overflow-y-auto bg-ak-bg p-4 font-mono text-sm">
-                  {logs.length === 0 ? (
-                    <div className="flex h-full flex-col items-center justify-center text-ak-text-secondary/50">
-                      <span className="text-4xl">🤖</span>
-                      <p className="mt-2 text-center">
-                        Press "Run Scribe" to start documentation analysis
-                      </p>
-                      <p className="mt-1 text-xs">
-                        {githubError ? 'Connect GitHub first' : 'Real backend integration'}
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="space-y-1">
-                      {logs.map((log) => (
-                        <div key={log.id} className="flex gap-2">
-                          <span className="flex-shrink-0 text-ak-text-secondary/50">
-                            {log.timestamp.toLocaleTimeString()}
-                          </span>
-                          <span className={getLogLevelColor(log.level)}>
-                            {log.message}
-                          </span>
-                        </div>
-                      ))}
-                      <div ref={logsEndRef} />
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {activeTab === 'preview' && (
-                <div className="h-full overflow-y-auto bg-ak-bg p-4">
-                  {preview ? (
-                    <div className="prose prose-invert prose-sm max-w-none">
-                      <pre className="whitespace-pre-wrap rounded-lg bg-ak-surface-2 p-4 text-sm text-ak-text-primary">
-                        {preview}
-                      </pre>
-                    </div>
-                  ) : (
-                    <div className="flex h-full flex-col items-center justify-center text-ak-text-secondary/50">
-                      <span className="text-4xl">📄</span>
-                      <p className="mt-2">Documentation preview will appear here</p>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {activeTab === 'diff' && (
-                <div className="h-full overflow-y-auto bg-ak-bg p-4">
-                  {diff ? (
-                    <pre className="whitespace-pre-wrap rounded-lg bg-ak-surface-2 p-4 font-mono text-xs">
-                      {diff.split('\n').map((line: string, idx: number) => (
-                        <div
-                          key={idx}
-                          className={
-                            line.startsWith('+')
-                              ? 'text-green-400'
-                              : line.startsWith('-')
-                                ? 'text-red-400'
-                                : line.startsWith('@@')
-                                  ? 'text-cyan-400'
-                                  : 'text-ak-text-secondary'
-                          }
-                        >
-                          {line}
-                        </div>
-                      ))}
-                    </pre>
-                  ) : (
-                    <div className="flex h-full flex-col items-center justify-center text-ak-text-secondary/50">
-                      <span className="text-4xl">📝</span>
-                      <p className="mt-2">Diff preview will appear after analysis</p>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          </Card>
-        </div>
-      </div>
+      </Card>
     </div>
   );
 };

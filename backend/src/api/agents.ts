@@ -10,6 +10,8 @@ import { formatErrorResponse, getStatusCodeForError } from '../utils/errorHandle
 import { requireAuth } from '../utils/auth.js';
 import { getUserAiKeyStatus } from '../services/ai/user-ai-keys.js';
 import { getScribeModelAllowlist, isModelAllowed } from '../services/ai/modelAllowlist.js';
+import { getEnv, getAIConfig } from '../config/env.js';
+import { generateScribeBranchName } from '../utils/branchNaming.js';
 
 // Request validation schemas
 // Legacy payload schema (backward compatible)
@@ -185,13 +187,25 @@ export async function agentsRoutes(fastify: FastifyInstance) {
             return;
           }
 
-          const keyStatus = await getUserAiKeyStatus(userId, 'openai');
-          if (!keyStatus.configured) {
-            throw new MissingAIKeyError('openai');
+          // Demo mode: Check env-based AI configuration first
+          const aiConfig = getAIConfig(getEnv());
+          const allowlist = getScribeModelAllowlist();
+          
+          // Determine AI provider strategy:
+          // 1. If env AI_PROVIDER=openrouter and AI_API_KEY is set -> use env OpenRouter (no user key needed)
+          // 2. If env AI_PROVIDER=openai and AI_API_KEY is set -> use env OpenAI (no user key needed)
+          // 3. Otherwise, check user key configuration
+          const useEnvAI = (aiConfig.provider === 'openrouter' || aiConfig.provider === 'openai') && aiConfig.apiKey;
+          
+          if (!useEnvAI) {
+            // Fallback: require user-configured AI key
+            const keyStatus = await getUserAiKeyStatus(userId, 'openai');
+            if (!keyStatus.configured) {
+              throw new MissingAIKeyError('openai');
+            }
           }
 
-          const allowlist = getScribeModelAllowlist();
-          if (allowlist.length === 0) {
+          if (allowlist.length === 0 && !useEnvAI) {
             throw new ModelNotAllowedError('openai', 'unknown', allowlist);
           }
 
@@ -271,8 +285,14 @@ export async function agentsRoutes(fastify: FastifyInstance) {
                 (enrichedPayload as Record<string, unknown>).excludeGlobs = config.excludeGlobs;
               }
             } else {
-              // Legacy payload: require auth for user-scoped AI key
+              // Legacy payload: enrich with userId and auto-generate branch if not provided
               enrichedPayload = { ...payload, userId };
+              
+              // Auto-generate feature branch if not provided
+              if (!payload.featureBranch) {
+                (enrichedPayload as Record<string, unknown>).featureBranch = generateScribeBranchName();
+              }
+              
               if (typeof payload.llmModelOverride === 'string') {
                 modelOverride = payload.llmModelOverride;
               }
@@ -281,20 +301,29 @@ export async function agentsRoutes(fastify: FastifyInstance) {
               }
             }
 
-            if (modelOverride && !isModelAllowed(modelOverride, allowlist)) {
-              throw new ModelNotAllowedError('openai', modelOverride, allowlist);
-            }
+            // Determine AI model and provider
+            if (useEnvAI) {
+              // Demo mode: use env-based AI configuration
+              aiProvider = aiConfig.provider;
+              aiModel = modelOverride || aiConfig.modelDefault;
+            } else {
+              // User key mode: validate model against allowlist
+              if (modelOverride && !isModelAllowed(modelOverride, allowlist)) {
+                throw new ModelNotAllowedError('openai', modelOverride, allowlist);
+              }
 
-            const modelToUse = modelOverride || allowlist[0];
-            if (!isModelAllowed(modelToUse, allowlist)) {
-              throw new ModelNotAllowedError('openai', modelToUse, allowlist);
-            }
+              const modelToUse = modelOverride || allowlist[0];
+              if (!isModelAllowed(modelToUse, allowlist)) {
+                throw new ModelNotAllowedError('openai', modelToUse, allowlist);
+              }
 
-            aiModel = modelToUse;
-            aiProvider = 'openai';
+              aiModel = modelToUse;
+              aiProvider = 'openai';
+            }
+            
             enrichedPayload = {
               ...(enrichedPayload as Record<string, unknown>),
-              llmModelOverride: modelToUse,
+              llmModelOverride: aiModel,
             };
           }
         }

@@ -27,21 +27,26 @@ describe('DashboardAgentScribePage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
-    // Mock GitHub connected by default
+    // Mock GitHub connected with login field (new API response)
     (integrationsApi.getGitHubStatus as ReturnType<typeof vi.fn>).mockResolvedValue({
       connected: true,
       login: 'test-user',
+      avatarUrl: 'https://example.com/avatar.png',
     });
 
+    // getOwners is still used as fallback if login is not in status
     (githubDiscoveryApi.getOwners as ReturnType<typeof vi.fn>).mockResolvedValue({
-      owners: [{ login: 'demo-team', type: 'Organization', avatarUrl: '' }],
+      owners: [
+        { login: 'test-user', type: 'User', avatarUrl: '' },
+        { login: 'demo-team', type: 'Organization', avatarUrl: '' },
+      ],
     });
 
     (githubDiscoveryApi.getRepos as ReturnType<typeof vi.fn>).mockResolvedValue({
       repos: [
         {
           name: 'docs-hub',
-          fullName: 'demo-team/docs-hub',
+          fullName: 'test-user/docs-hub',
           defaultBranch: 'main',
           private: true,
           description: 'Docs repo',
@@ -55,7 +60,7 @@ describe('DashboardAgentScribePage', () => {
     });
   });
 
-  it('renders the Scribe console layout with configuration panel', async () => {
+  it('renders the Scribe console layout with horizontal configuration bar', async () => {
     renderWithRouter(<DashboardAgentScribePage />);
 
     // Header should show Scribe Console
@@ -66,12 +71,76 @@ describe('DashboardAgentScribePage', () => {
     // Configuration panel should have the Configuration heading
     expect(screen.getByRole('heading', { name: /Configuration/i })).toBeInTheDocument();
     
-    // Form labels should be present (using getAllByText for potential duplicates)
-    const ownerLabels = screen.getAllByText(/Owner/i);
-    expect(ownerLabels.length).toBeGreaterThan(0);
+    // Form labels should be present (using getAllBy for potential duplicates)
+    expect(screen.getAllByText(/Owner/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Repository/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Base Branch/i).length).toBeGreaterThan(0);
+  });
+
+  it('shows GitHub username as read-only owner field', async () => {
+    renderWithRouter(<DashboardAgentScribePage />);
+
+    await waitFor(() => {
+      // Owner should be displayed with @ prefix as read-only
+      const ownerInput = screen.getByDisplayValue('@test-user');
+      expect(ownerInput).toBeInTheDocument();
+      expect(ownerInput).toHaveAttribute('readonly');
+    });
+  });
+
+  it('should NOT show owner as dropdown', async () => {
+    renderWithRouter(<DashboardAgentScribePage />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/Scribe Console/i)).toBeInTheDocument();
+    });
+
+    // Owner should be read-only text, not a searchable dropdown
+    const ownerInput = screen.getByDisplayValue('@test-user');
+    expect(ownerInput).toBeInTheDocument();
     
-    const repoLabels = screen.getAllByText(/Repository/i);
-    expect(repoLabels.length).toBeGreaterThan(0);
+    // There should be no dropdown trigger for owner
+    // Repository and Branch can have dropdowns, but Owner should be read-only
+  });
+
+  it('displays auto-generated branch name preview', async () => {
+    renderWithRouter(<DashboardAgentScribePage />);
+
+    await waitFor(() => {
+      // Wait for repos and branches to load
+      expect(screen.getByDisplayValue('@test-user')).toBeInTheDocument();
+    });
+
+    // Wait for branch preview to appear (after repo and branch are selected)
+    await waitFor(() => {
+      // Branch preview should show pattern like "scribe/docs-YYYYMMDD-HHMMSS"
+      const branchPreview = screen.getByText(/Branch will be created:/i);
+      expect(branchPreview).toBeInTheDocument();
+    });
+
+    // The code element should contain scribe/docs- pattern
+    const codeElement = screen.getByText(/scribe\/docs-/i);
+    expect(codeElement).toBeInTheDocument();
+  });
+
+  it('should NOT show manual branch input anywhere', async () => {
+    renderWithRouter(<DashboardAgentScribePage />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/Scribe Console/i)).toBeInTheDocument();
+    });
+
+    // Expand advanced options
+    const advancedButton = screen.getByText(/Advanced Options/i);
+    fireEvent.click(advancedButton);
+
+    await waitFor(() => {
+      expect(screen.getByText(/Target Path/i)).toBeInTheDocument();
+    });
+
+    // Should NOT have a "Feature Branch" or manual branch input
+    expect(screen.queryByText(/Feature Branch/i)).not.toBeInTheDocument();
+    expect(screen.queryByPlaceholderText(/branch name/i)).not.toBeInTheDocument();
   });
 
   it('shows not connected notice when GitHub is not connected', async () => {
@@ -83,11 +152,10 @@ describe('DashboardAgentScribePage', () => {
     renderWithRouter(<DashboardAgentScribePage />);
 
     await waitFor(() => {
-      expect(screen.getByText(/GitHub not connected/i)).toBeInTheDocument();
+      // Owner should show "Not connected" when GitHub is not connected
+      const ownerInput = screen.getByDisplayValue(/Not connected/i);
+      expect(ownerInput).toBeInTheDocument();
     });
-    
-    // Should guide to integrations
-    expect(screen.getByText(/connect GitHub at \/dashboard\/integrations/i)).toBeInTheDocument();
   });
 
   it('shows glass box console panel with tabs', async () => {
@@ -112,29 +180,20 @@ describe('DashboardAgentScribePage', () => {
     });
   });
 
-  it('shows error notice when GitHub discovery fails', async () => {
-    (githubDiscoveryApi.getOwners as ReturnType<typeof vi.fn>).mockRejectedValueOnce(
-      new Error('Failed to load owners')
+  it('shows error notice when GitHub status fetch fails', async () => {
+    (integrationsApi.getGitHubStatus as ReturnType<typeof vi.fn>).mockRejectedValueOnce(
+      new Error('Failed to check status')
     );
 
     renderWithRouter(<DashboardAgentScribePage />);
 
     await waitFor(() => {
-      // Should show discovery failure message (GitHub is connected but discovery failed)
-      expect(screen.getByText(/Failed to load GitHub organizations/i)).toBeInTheDocument();
+      // Should show connection failure message
+      expect(screen.getByText(/GitHub not connected/i)).toBeInTheDocument();
     });
   });
 
-  it('populates owner dropdown from API', async () => {
-    renderWithRouter(<DashboardAgentScribePage />);
-
-    await waitFor(() => {
-      // The owner should be populated
-      expect(screen.getByText('demo-team')).toBeInTheDocument();
-    });
-  });
-
-  it('has Advanced Options section', async () => {
+  it('has Advanced Options section with targetPath and dryRun', async () => {
     renderWithRouter(<DashboardAgentScribePage />);
 
     await waitFor(() => {
@@ -148,6 +207,14 @@ describe('DashboardAgentScribePage', () => {
     await waitFor(() => {
       expect(screen.getByText(/Target Path/i)).toBeInTheDocument();
       expect(screen.getByText(/Dry run/i)).toBeInTheDocument();
+    });
+  });
+
+  it('shows "MCP-powered workflow" message when idle and connected', async () => {
+    renderWithRouter(<DashboardAgentScribePage />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/MCP-powered workflow/i)).toBeInTheDocument();
     });
   });
 });

@@ -125,6 +125,66 @@ Sprint detayları [docs/PROJECT_TRACKING_BASELINE.md](docs/PROJECT_TRACKING_BASE
 - [Epic] [#24 Phase 9.2 — i18n & Theming Foundations](https://github.com/OmerYasirOnal/akis-platform-devolopment/issues/24)
 - [Epic] [#44 Phase 10 — Next Foundations](https://github.com/OmerYasirOnal/akis-platform-devolopment/issues/44)
 
+## 🎮 Demo Quick Start
+
+Demo için AKIS Scribe'ı hızlıca çalıştırmak için:
+
+### 1. MCP Gateway Başlat
+
+```bash
+# Repo root'undan
+export GITHUB_TOKEN=ghp_your_personal_access_token
+docker compose -f docker-compose.mcp.yml up -d
+
+# Doğrula
+curl http://localhost:4010/health
+# Beklenen: {"status":"ok","service":"akis-github-mcp-gateway"}
+```
+
+### 2. Backend Yapılandır
+
+`backend/.env.local` oluştur:
+
+```bash
+AI_PROVIDER=openrouter
+AI_API_KEY=sk-or-v1-your_key_here
+GITHUB_MCP_BASE_URL=http://localhost:4010/mcp
+DATABASE_URL=postgresql://postgres:postgres@localhost:5433/akis_v2
+```
+
+### 3. Backend Başlat
+
+```bash
+cd backend
+pnpm install
+pnpm db:migrate   # Migration'ları çalıştır
+pnpm dev          # Server'ı başlat
+```
+
+### 4. Frontend Başlat
+
+```bash
+cd frontend
+pnpm install
+pnpm dev          # http://localhost:5173 açılır
+```
+
+### 5. Demo Akışı
+
+1. **Dashboard**: Görsel tutarlılık kontrolü
+2. **Integrations** (`/dashboard/integrations`): GitHub OAuth ile bağlan
+3. **Scribe Console** (`/dashboard/scribe`):
+   - Owner: Bağlı GitHub kullanıcısı (read-only)
+   - Repository ve base branch seç
+   - Branch preview: `scribe/docs-{timestamp}`
+   - **Run Scribe** tıkla
+4. **Gözlemle**:
+   - Adım adım log mesajları
+   - Preview tab: Üretilen dokümantasyon
+   - Diff tab: Dosya seviyesi değişiklikler
+
+---
+
 ## Quickstart
 
 ### Prerequisites
