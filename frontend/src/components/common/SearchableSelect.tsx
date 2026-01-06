@@ -180,26 +180,18 @@ export default function SearchableSelect({
             </svg>
           </button>
 
-          {/* Dropdown Panel - Liquid Glass Effect */}
+          {/* Dropdown Panel */}
           {isOpen && !loading && (
-            <div 
-              className="absolute z-50 mt-1 w-full overflow-hidden rounded-xl border border-ak-border/60 shadow-xl"
-              style={{
-                background: 'rgba(13, 23, 27, 0.95)',
-                backdropFilter: 'blur(20px) saturate(180%)',
-                WebkitBackdropFilter: 'blur(20px) saturate(180%)',
-                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.05)',
-              }}
-            >
+            <div className="absolute z-50 mt-1 w-full overflow-hidden rounded-lg border border-ak-border bg-ak-surface shadow-lg">
               {/* Search Input */}
-              <div className="border-b border-ak-border/50 p-2">
+              <div className="border-b border-ak-border p-2">
                 <input
                   ref={inputRef}
                   type="text"
                   value={searchQuery}
                   onChange={e => setSearchQuery(e.target.value)}
                   placeholder="Search..."
-                  className="w-full rounded-lg border border-ak-border/50 bg-ak-bg/50 px-3 py-1.5 text-sm text-ak-text-primary placeholder-ak-text-secondary/50 focus:border-ak-primary focus:outline-none focus:ring-1 focus:ring-ak-primary/50"
+                  className="w-full rounded border border-ak-border bg-ak-background px-2 py-1 text-sm text-ak-text-primary placeholder-ak-text-secondary/50 focus:border-ak-primary focus:outline-none"
                   autoFocus
                 />
               </div>
@@ -216,10 +208,8 @@ export default function SearchableSelect({
                       key={option.value}
                       type="button"
                       onClick={() => handleSelect(option.value)}
-                      className={`flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm transition-colors ${
-                        option.value === value 
-                          ? 'bg-ak-primary/15 text-ak-primary' 
-                          : 'text-ak-text-primary hover:bg-ak-surface-2/80'
+                      className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-ak-surface-2 ${
+                        option.value === value ? 'bg-ak-primary/10 text-ak-primary' : 'text-ak-text-primary'
                       }`}
                     >
                       {option.icon}
@@ -230,7 +220,7 @@ export default function SearchableSelect({
                         )}
                       </div>
                       {option.value === value && (
-                        <svg className="h-4 w-4 flex-shrink-0 text-ak-primary" viewBox="0 0 20 20" fill="currentColor">
+                        <svg className="h-4 w-4 text-ak-primary" viewBox="0 0 20 20" fill="currentColor">
                           <path
                             fillRule="evenodd"
                             d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"

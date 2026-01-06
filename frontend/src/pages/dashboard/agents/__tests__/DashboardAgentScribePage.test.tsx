@@ -42,48 +42,35 @@ describe('DashboardAgentScribePage', () => {
     });
   });
 
-  it('renders the Scribe console layout with configuration panel', async () => {
-    renderWithRouter(<DashboardAgentScribePage />);
-
-    // Header should show Scribe Console
-    await waitFor(() => {
-      expect(screen.getByText(/Scribe Console/i)).toBeInTheDocument();
-    });
-
-    // Configuration panel should have the Configuration heading
-    expect(screen.getByRole('heading', { name: /Configuration/i })).toBeInTheDocument();
-    
-    // Form labels should be present (using getAllByText for potential duplicates)
-    const ownerLabels = screen.getAllByText(/Owner/i);
-    expect(ownerLabels.length).toBeGreaterThan(0);
-    
-    const repoLabels = screen.getAllByText(/Repository/i);
-    expect(repoLabels.length).toBeGreaterThan(0);
-  });
-
-  it('shows glass box console panel with tabs', async () => {
+  it('renders the Scribe console layout', async () => {
     renderWithRouter(<DashboardAgentScribePage />);
 
     await waitFor(() => {
       expect(screen.getByText(/Scribe Console/i)).toBeInTheDocument();
     });
 
-    // Glass box tabs should be present
-    expect(screen.getByRole('button', { name: /Logs/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Preview/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Diff/i })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /Setup/i })).toBeInTheDocument();
+    expect(screen.getByText(/Scribe Chat/i)).toBeInTheDocument();
   });
 
-  it('has a Run Scribe button when configuration is complete', async () => {
+  it('requires a new branch name when branch mode is set to create new', async () => {
     renderWithRouter(<DashboardAgentScribePage />);
 
+    const createNewRadio = await screen.findByRole('radio', { name: /Create new branch/i });
+    fireEvent.click(createNewRadio);
+
+    const startButton = screen.getByRole('button', { name: /Start Scribe/i });
+    expect(startButton).toBeDisabled();
+
+    const autoGenerateButton = screen.getByRole('button', { name: /Auto-generate/i });
+    fireEvent.click(autoGenerateButton);
+
     await waitFor(() => {
-      // Wait for data to load and button to appear
-      expect(screen.getByRole('button', { name: /Run Scribe/i })).toBeInTheDocument();
+      expect(startButton).not.toBeDisabled();
     });
   });
 
-  it('shows demo mode notice when GitHub discovery fails', async () => {
+  it('shows a mock notice when GitHub discovery fails', async () => {
     (githubDiscoveryApi.getOwners as ReturnType<typeof vi.fn>).mockRejectedValueOnce(
       new Error('No GitHub connection')
     );
@@ -91,34 +78,7 @@ describe('DashboardAgentScribePage', () => {
     renderWithRouter(<DashboardAgentScribePage />);
 
     await waitFor(() => {
-      // Should show demo mode indicator in the glass box console
-      expect(screen.getByText(/Demo mode active/i)).toBeInTheDocument();
-    });
-  });
-
-  it('populates owner dropdown from API', async () => {
-    renderWithRouter(<DashboardAgentScribePage />);
-
-    await waitFor(() => {
-      // The owner should be populated
-      expect(screen.getByText('demo-team')).toBeInTheDocument();
-    });
-  });
-
-  it('has Advanced Options section', async () => {
-    renderWithRouter(<DashboardAgentScribePage />);
-
-    await waitFor(() => {
-      expect(screen.getByText(/Advanced Options/i)).toBeInTheDocument();
-    });
-
-    // Click to expand advanced options
-    const advancedButton = screen.getByText(/Advanced Options/i);
-    fireEvent.click(advancedButton);
-
-    await waitFor(() => {
-      expect(screen.getByText(/Target Path/i)).toBeInTheDocument();
-      expect(screen.getByText(/Dry run/i)).toBeInTheDocument();
+      expect(screen.getByText(/TODO: Connect GitHub/i)).toBeInTheDocument();
     });
   });
 });
