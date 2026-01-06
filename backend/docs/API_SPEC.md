@@ -7,10 +7,8 @@
 
 1. [Health & Meta Endpoints](#health--meta-endpoints)
 2. [Agent Jobs API](#agent-jobs-api)
-3. [Agent Configs API](#agent-configs-api)
-4. [Settings API (AI Keys)](#settings-api-ai-keys)
-5. [Authentication](#authentication)
-6. [Error Handling](#error-handling)
+3. [Authentication](#authentication)
+4. [Error Handling](#error-handling)
 
 ---
 
@@ -112,27 +110,6 @@ Submit a new agent job.
 }
 ```
 
-**Response (412)** - Missing AI key for Scribe:
-```json
-{
-  "error": {
-    "code": "AI_KEY_MISSING",
-    "message": "AI API key is not configured for provider openai. Please add a key in Settings."
-  }
-}
-```
-
-**Response (400)** - Model not allowlisted:
-```json
-{
-  "error": {
-    "code": "MODEL_NOT_ALLOWED",
-    "message": "Model \"gpt-xyz\" is not allowed.",
-    "details": { "allowlist": ["gpt-4o-mini", "gpt-4o"] }
-  }
-}
-```
-
 ### GET /api/agents/jobs/:id
 
 Get job status and result.
@@ -149,15 +126,6 @@ Get job status and result.
   "payload": { ... },
   "result": { ... },
   "error": null,
-  "errorCode": null,
-  "errorMessage": null,
-  "aiProvider": "openai",
-  "aiModel": "gpt-4o-mini",
-  "aiTotalDurationMs": 12345,
-  "aiInputTokens": 1200,
-  "aiOutputTokens": 850,
-  "aiTotalTokens": 2050,
-  "aiEstimatedCostUsd": "0.001234",
   "createdAt": "2024-01-01T00:00:00.000Z",
   "updatedAt": "2024-01-01T00:00:01.000Z"
 }
@@ -188,102 +156,6 @@ List all jobs (paginated).
   "limit": 50,
   "offset": 0
 }
-```
-
----
-
-## Agent Configs API
-
-Base path: `/api/agents/configs`
-
-### GET /api/agents/configs/:agentType
-
-Fetch the authenticated user's agent configuration and integration status.
-
-**Response (200)**:
-```json
-{
-  "config": { ... },
-  "integrationStatus": {
-    "github": { "connected": true },
-    "confluence": { "connected": false }
-  }
-}
-```
-
-### POST /api/agents/configs/:agentType
-
-Upsert configuration (per-user).
-
-**Response (200)**:
-```json
-{
-  "config": { ... },
-  "message": "Configuration saved successfully"
-}
-```
-
-### GET /api/agents/configs/:agentType/models
-
-Return allowlisted models for the agent (Scribe only).
-
-**Response (200)**:
-```json
-{
-  "allowlist": ["gpt-4o-mini", "gpt-4o"],
-  "defaultModel": "gpt-4o-mini"
-}
-```
-
----
-
-## Settings API (AI Keys)
-
-Base path: `/api/settings`
-
-### GET /api/settings/ai-keys/status
-
-Return status-only information for the authenticated user's OpenAI key.
-
-**Response (200)**:
-```json
-{
-  "provider": "openai",
-  "configured": true,
-  "last4": "abcd",
-  "updatedAt": "2025-01-01T12:00:00.000Z"
-}
-```
-
-### PUT /api/settings/ai-keys
-
-Store/update the OpenAI key (never returns plaintext).
-
-**Request Body**:
-```json
-{
-  "provider": "openai",
-  "apiKey": "sk-..."
-}
-```
-
-**Response (200)**:
-```json
-{
-  "provider": "openai",
-  "configured": true,
-  "last4": "abcd",
-  "updatedAt": "2025-01-01T12:00:00.000Z"
-}
-```
-
-### DELETE /api/settings/ai-keys
-
-Remove the user's key.
-
-**Response (200)**:
-```json
-{ "ok": true }
 ```
 
 ---
@@ -735,3 +607,4 @@ Prometheus metrics endpoint.
 http_requests_total{method="GET",path="/health",status="200"} 42
 ...
 ```
+

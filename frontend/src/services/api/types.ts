@@ -21,20 +21,6 @@ export interface Job {
   mcpGatewayUrl?: string | null;
   /** MCP Gateway correlation id (safe to share, helps debug gateway logs) */
   correlationId?: string | null;
-  /** AI provider used for this job (e.g., openai) */
-  aiProvider?: string | null;
-  /** AI model used for this job */
-  aiModel?: string | null;
-  /** Aggregate AI duration in ms */
-  aiTotalDurationMs?: number | null;
-  /** Aggregate input tokens */
-  aiInputTokens?: number | null;
-  /** Aggregate output tokens */
-  aiOutputTokens?: number | null;
-  /** Aggregate total tokens */
-  aiTotalTokens?: number | null;
-  /** Estimated AI cost in USD (string when returned from numeric column) */
-  aiEstimatedCostUsd?: number | string | null;
   /** Request ID from the API response */
   requestId?: string;
   createdAt: string;
