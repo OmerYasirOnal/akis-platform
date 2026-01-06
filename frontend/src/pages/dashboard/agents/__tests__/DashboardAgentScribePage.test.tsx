@@ -8,12 +8,14 @@ import { BrowserRouter } from 'react-router-dom';
 import DashboardAgentScribePage from '../DashboardAgentScribePage';
 import { agentConfigsApi } from '../../../../services/api/agent-configs';
 import { agentsApi } from '../../../../services/api/agents';
+import { aiKeysApi } from '../../../../services/api/ai-keys';
 
 // Mock agentConfigsApi
 vi.mock('../../../../services/api/agent-configs', () => ({
   agentConfigsApi: {
     getConfig: vi.fn(),
     updateConfig: vi.fn(),
+    getModelAllowlist: vi.fn(),
   },
 }));
 
@@ -23,6 +25,12 @@ vi.mock('../../../../services/api/agents', () => ({
     runAgent: vi.fn(),
     getJob: vi.fn(),
     listAgents: vi.fn(),
+  },
+}));
+
+vi.mock('../../../../services/api/ai-keys', () => ({
+  aiKeysApi: {
+    getStatus: vi.fn(),
   },
 }));
 
@@ -53,6 +61,18 @@ describe('DashboardAgentScribePage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockNavigate.mockClear();
+
+    (agentConfigsApi.getModelAllowlist as ReturnType<typeof vi.fn>).mockResolvedValue({
+      allowlist: ['gpt-4o-mini'],
+      defaultModel: 'gpt-4o-mini',
+    });
+
+    (aiKeysApi.getStatus as ReturnType<typeof vi.fn>).mockResolvedValue({
+      provider: 'openai',
+      configured: true,
+      last4: '1234',
+      updatedAt: null,
+    });
   });
 
   describe('GitHub-only mode (Confluence optional)', () => {
@@ -293,4 +313,3 @@ describe('DashboardAgentScribePage', () => {
     });
   });
 });
-

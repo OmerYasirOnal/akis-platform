@@ -14,6 +14,7 @@ import {
   type IntegrationStatus,
   type ConfigUpdatePayload,
 } from '../../../services/api/agent-configs';
+import { aiKeysApi, type AiKeyStatus } from '../../../services/api/ai-keys';
 import { agentsApi } from '../../../services/api/agents';
 import {
   githubDiscoveryApi,
@@ -51,6 +52,13 @@ const DashboardAgentScribePage = () => {
   const [error, setError] = useState<string | null>(null);
   const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [step3Touched, setStep3Touched] = useState(false);
+  const [aiKeyStatus, setAiKeyStatus] = useState<AiKeyStatus | null>(null);
+  const [aiKeyLoading, setAiKeyLoading] = useState(true);
+  const [aiKeyError, setAiKeyError] = useState<string | null>(null);
+  const [modelAllowlist, setModelAllowlist] = useState<string[]>([]);
+  const [modelDefault, setModelDefault] = useState<string | null>(null);
+  const [modelLoading, setModelLoading] = useState(true);
+  const [modelError, setModelError] = useState<string | null>(null);
 
   // GitHub Discovery State
   const [githubOwners, setGithubOwners] = useState<GitHubOwner[]>([]);
@@ -72,6 +80,31 @@ const DashboardAgentScribePage = () => {
       setError(err instanceof Error ? err.message : 'Failed to load configuration');
     } finally {
       setLoading(false);
+    }
+
+    setAiKeyLoading(true);
+    setAiKeyError(null);
+    try {
+      const status = await aiKeysApi.getStatus();
+      setAiKeyStatus(status);
+    } catch (err) {
+      console.error('Failed to load AI key status:', err);
+      setAiKeyError(err instanceof Error ? err.message : 'Failed to load AI key status');
+    } finally {
+      setAiKeyLoading(false);
+    }
+
+    setModelLoading(true);
+    setModelError(null);
+    try {
+      const models = await agentConfigsApi.getModelAllowlist('scribe');
+      setModelAllowlist(models.allowlist);
+      setModelDefault(models.defaultModel);
+    } catch (err) {
+      console.error('Failed to load model allowlist:', err);
+      setModelError(err instanceof Error ? err.message : 'Failed to load model allowlist');
+    } finally {
+      setModelLoading(false);
     }
   }, []);
 
@@ -220,6 +253,16 @@ const DashboardAgentScribePage = () => {
     [githubBranches]
   );
 
+  const modelOptions: SelectOption[] = useMemo(
+    () =>
+      modelAllowlist.map((model) => ({
+        value: model,
+        label: model,
+        description: model === modelDefault ? 'Default' : undefined,
+      })),
+    [modelAllowlist, modelDefault]
+  );
+
   const confluenceSpaceKey = useMemo(() => {
     const raw = (wizardData.targetConfig as { space_key?: string })?.space_key;
     return typeof raw === 'string' ? raw.trim() : '';
@@ -232,6 +275,9 @@ const DashboardAgentScribePage = () => {
     }
     return 'docs/';
   }, [wizardData.targetConfig]);
+
+  const aiKeyMissing = !aiKeyStatus?.configured;
+  const aiKeyBlocked = aiKeyLoading || aiKeyMissing;
 
   const step3Errors = useMemo(() => {
     const errors: string[] = [];
@@ -286,9 +332,16 @@ const DashboardAgentScribePage = () => {
         autoMerge: config.autoMerge || false,
         includeGlobs: config.includeGlobs || undefined,
         excludeGlobs: config.excludeGlobs || undefined,
+        llmModelOverride: config.llmModelOverride || undefined,
       });
     }
   }, [config]);
+
+  useEffect(() => {
+    if (!wizardData.llmModelOverride && modelDefault) {
+      setWizardData((prev) => ({ ...prev, llmModelOverride: modelDefault }));
+    }
+  }, [modelDefault, wizardData.llmModelOverride]);
 
   useEffect(() => {
     if (wizardStep === 4 && !wizardData.triggerMode) {
@@ -342,6 +395,7 @@ const DashboardAgentScribePage = () => {
       autoMerge: wizardData.autoMerge ?? false,
       includeGlobs: wizardData.includeGlobs ?? null,
       excludeGlobs: wizardData.excludeGlobs ?? null,
+      llmModelOverride: wizardData.llmModelOverride ?? null,
     };
   };
 
@@ -416,6 +470,11 @@ const DashboardAgentScribePage = () => {
   };
 
   const handleRunTestJob = async () => {
+    if (aiKeyBlocked) {
+      setError('OpenAI API key is required to run Scribe. Add your key in Settings → API Keys.');
+      return;
+    }
+
     let activeConfig = config;
     if (!activeConfig) {
       if (!validateWizardRequiredFields()) {
@@ -461,6 +520,11 @@ const DashboardAgentScribePage = () => {
   };
 
   const handleRunNow = async () => {
+    if (aiKeyBlocked) {
+      setError('OpenAI API key is required to run Scribe. Add your key in Settings → API Keys.');
+      return;
+    }
+
     if (!config) {
       setError('No configuration found. Please complete the setup wizard first.');
       return;
@@ -1051,6 +1115,25 @@ const DashboardAgentScribePage = () => {
               </Card>
 
               <Card className="bg-ak-surface">
+                <h3 className="mb-3 text-sm font-semibold text-ak-text-primary">Model Selection</h3>
+                {modelError ? (
+                  <p className="text-xs text-ak-danger">{modelError}</p>
+                ) : (
+                  <SearchableSelect
+                    label="Allowed OpenAI Models"
+                    placeholder={modelLoading ? 'Loading models...' : 'Select a model'}
+                    options={modelOptions}
+                    value={wizardData.llmModelOverride || modelDefault || ''}
+                    onChange={(value) => setWizardData({ ...wizardData, llmModelOverride: value })}
+                    loading={modelLoading}
+                    error={modelAllowlist.length === 0 ? 'No models available' : null}
+                    allowManualInput={false}
+                    description="Model list is enforced by the backend allowlist."
+                  />
+                )}
+              </Card>
+
+              <Card className="bg-ak-surface">
                 <h3 className="mb-3 text-sm font-semibold text-ak-text-primary">File Filters (Optional)</h3>
                 <div className="space-y-3">
                   <Input
@@ -1113,6 +1196,21 @@ const DashboardAgentScribePage = () => {
             </div>
 
             <div className="space-y-4">
+              {aiKeyError ? (
+                <div className="rounded-xl border border-ak-danger/60 bg-ak-danger/10 p-4 text-sm text-ak-danger">
+                  {aiKeyError}
+                </div>
+              ) : null}
+              {aiKeyBlocked ? (
+                <Card className="border border-ak-danger/40 bg-ak-danger/10">
+                  <p className="text-sm text-ak-text-primary">
+                    OpenAI API key is required to run Scribe. Add your key before running test or live jobs.
+                  </p>
+                  <Link to="/dashboard/settings/api-keys" className="mt-2 inline-block text-xs font-semibold text-ak-primary">
+                    Configure API key →
+                  </Link>
+                </Card>
+              ) : null}
               <Card className="bg-ak-surface">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <h3 className="text-sm font-semibold text-ak-text-primary">Review Summary</h3>
@@ -1154,6 +1252,12 @@ const DashboardAgentScribePage = () => {
                   <div className="flex justify-between gap-4">
                     <span className="text-ak-text-secondary">Trigger Mode</span>
                     <span className="text-ak-text-primary">{triggerModeLabel}</span>
+                  </div>
+                  <div className="flex justify-between gap-4">
+                    <span className="text-ak-text-secondary">Model</span>
+                    <span className="text-ak-text-primary">
+                      {wizardData.llmModelOverride || modelDefault || 'Default'}
+                    </span>
                   </div>
                   <div className="flex justify-between gap-4">
                     <span className="text-ak-text-secondary">Schedule</span>
@@ -1200,7 +1304,7 @@ const DashboardAgentScribePage = () => {
                 <Button
                   variant="outline"
                   onClick={handleRunTestJob}
-                  disabled={testing || saving || creatingJob}
+                  disabled={testing || saving || creatingJob || aiKeyBlocked}
                 >
                   {testing ? 'Running...' : 'Run Test Job'}
                 </Button>
@@ -1220,7 +1324,7 @@ const DashboardAgentScribePage = () => {
               <Button variant="outline" onClick={handleSaveOnly} disabled={saving || creatingJob}>
                 {saving ? 'Saving...' : 'Save Only'}
               </Button>
-              <Button onClick={handleSaveAndCreateJob} disabled={saving || creatingJob}>
+              <Button onClick={handleSaveAndCreateJob} disabled={saving || creatingJob || aiKeyBlocked}>
                 {creatingJob ? 'Creating...' : 'Save & Create Job'}
               </Button>
             </div>
@@ -1246,7 +1350,7 @@ const DashboardAgentScribePage = () => {
           <Button variant="outline" onClick={() => setConfig(null)}>
             Edit Config
           </Button>
-          <Button onClick={handleRunNow} disabled={testing || !config?.enabled}>
+          <Button onClick={handleRunNow} disabled={testing || !config?.enabled || aiKeyBlocked}>
             {testing ? 'Running...' : 'Run Now'}
         </Button>
       </div>
@@ -1255,25 +1359,48 @@ const DashboardAgentScribePage = () => {
       {/* Pre-flight Checks */}
       <Card className="bg-ak-surface-2">
         <h2 className="mb-4 text-lg font-semibold text-ak-text-primary">Pre-flight Checks</h2>
-        <div className="grid gap-3 md:grid-cols-2">
-          <div className={`rounded-lg border p-3 ${integrationStatus?.github.connected ? 'border-green-500/30 bg-green-500/10' : 'border-ak-border'}`}>
-            <p className="text-sm font-medium text-ak-text-primary">
-              {integrationStatus?.github.connected ? '✓ GitHub' : '✗ GitHub'}
-            </p>
-            <p className="text-xs text-ak-text-secondary">
-              {integrationStatus?.github.connected ? 'Connected' : 'Not connected'}
-            </p>
-          </div>
-          <div className={`rounded-lg border p-3 ${integrationStatus?.confluence.connected ? 'border-green-500/30 bg-green-500/10' : 'border-ak-border'}`}>
-            <p className="text-sm font-medium text-ak-text-primary">
-              {integrationStatus?.confluence.connected ? '✓ Confluence' : '✗ Confluence'}
-            </p>
-            <p className="text-xs text-ak-text-secondary">
-              {integrationStatus?.confluence.connected ? 'Connected' : 'Not connected'}
-            </p>
-          </div>
-        </div>
+              <div className="grid gap-3 md:grid-cols-3">
+                <div className={`rounded-lg border p-3 ${integrationStatus?.github.connected ? 'border-green-500/30 bg-green-500/10' : 'border-ak-border'}`}>
+                  <p className="text-sm font-medium text-ak-text-primary">
+                    {integrationStatus?.github.connected ? '✓ GitHub' : '✗ GitHub'}
+                  </p>
+                  <p className="text-xs text-ak-text-secondary">
+                    {integrationStatus?.github.connected ? 'Connected' : 'Not connected'}
+                  </p>
+                </div>
+                <div className={`rounded-lg border p-3 ${integrationStatus?.confluence.connected ? 'border-green-500/30 bg-green-500/10' : 'border-ak-border'}`}>
+                  <p className="text-sm font-medium text-ak-text-primary">
+                    {integrationStatus?.confluence.connected ? '✓ Confluence' : '✗ Confluence'}
+                  </p>
+                  <p className="text-xs text-ak-text-secondary">
+                    {integrationStatus?.confluence.connected ? 'Connected' : 'Not connected'}
+                  </p>
+                </div>
+                <div className={`rounded-lg border p-3 ${aiKeyStatus?.configured ? 'border-green-500/30 bg-green-500/10' : 'border-ak-danger/40 bg-ak-danger/10'}`}>
+                  <p className="text-sm font-medium text-ak-text-primary">
+                    {aiKeyLoading ? '… OpenAI' : aiKeyStatus?.configured ? '✓ OpenAI Key' : '⚠ OpenAI Key'}
+                  </p>
+                  <p className="text-xs text-ak-text-secondary">
+                    {aiKeyLoading
+                      ? 'Checking key status'
+                      : aiKeyStatus?.configured
+                      ? `Configured (•••• ${aiKeyStatus.last4})`
+                      : 'Missing — add your key to run Scribe'}
+                  </p>
+                  {!aiKeyLoading && !aiKeyStatus?.configured ? (
+                    <Link to="/dashboard/settings/api-keys" className="mt-2 inline-block text-xs font-semibold text-ak-primary">
+                      Add key →
+                    </Link>
+                  ) : null}
+                </div>
+              </div>
       </Card>
+
+      {aiKeyBlocked ? (
+        <div className="rounded-xl border border-ak-danger/50 bg-ak-danger/10 p-4 text-sm text-ak-text-primary">
+          OpenAI API key is required to run Scribe. Add your key in Settings → API Keys.
+        </div>
+      ) : null}
 
       {/* Status Cards */}
       <div className="grid gap-4 md:grid-cols-4">
@@ -1346,11 +1473,23 @@ const DashboardAgentScribePage = () => {
       {/* Quick Actions */}
       <Card className="bg-ak-surface-2">
         <h2 className="mb-4 text-lg font-semibold text-ak-text-primary">Quick Actions</h2>
+        {aiKeyBlocked ? (
+          <p className="mb-3 rounded-lg border border-ak-danger/40 bg-ak-danger/10 px-3 py-2 text-xs text-ak-text-primary">
+            OpenAI API key required. Configure it in Settings → API Keys to run jobs.
+          </p>
+        ) : null}
         <div className="flex flex-wrap gap-3">
-          <Button variant="outline" onClick={handleRunTestJob} disabled={testing}>
+          <Button
+            variant="outline"
+            onClick={handleRunTestJob}
+            disabled={testing || aiKeyBlocked}
+          >
             {testing ? 'Running...' : 'Run Test Job'}
           </Button>
-          <Button onClick={handleRunNow} disabled={testing || !config.enabled}>
+          <Button
+            onClick={handleRunNow}
+            disabled={testing || !config.enabled || aiKeyBlocked}
+          >
             {testing ? 'Running...' : 'Run Now'}
           </Button>
           <Button variant="ghost" as={Link} to="/dashboard/jobs">
