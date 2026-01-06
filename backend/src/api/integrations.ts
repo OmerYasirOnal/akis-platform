@@ -5,7 +5,7 @@
  * GET /api/integrations/github/repos
  * GET /api/integrations/github/branches
  */
-import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
+import { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { getEnv } from '../config/env.js';
 import { requireAuth } from '../utils/auth.js';
 import { db } from '../db/client.js';
@@ -56,6 +56,157 @@ async function getGitHubToken(userId: string): Promise<string | null> {
 }
 
 export async function integrationsRoutes(fastify: FastifyInstance) {
+  // GET /api/integrations/github/status - Check GitHub connection status
+  fastify.get(
+    '/api/integrations/github/status',
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      try {
+        const user = await requireAuth(request);
+        const token = await getGitHubToken(user.id);
+
+        if (!token) {
+          return reply.code(200).send({
+            connected: false,
+          });
+        }
+
+        try {
+          // Verify token works by fetching user info
+          const githubUser = await fetchFromGitHub<{ login: string; avatar_url: string; created_at: string }>(
+            '/user',
+            token
+          );
+
+          return reply.code(200).send({
+            connected: true,
+            login: githubUser.login,
+            avatarUrl: githubUser.avatar_url,
+          });
+        } catch (_err) {
+          // Token exists but is invalid/expired
+          return reply.code(200).send({
+            connected: false,
+            error: 'Token invalid or expired',
+          });
+        }
+      } catch (err: unknown) {
+        if (err instanceof Error && err.message === 'UNAUTHORIZED') {
+          return reply.code(401).send({
+            error: { code: 'UNAUTHORIZED', message: 'Authentication required' },
+          });
+        }
+        throw err;
+      }
+    }
+  );
+
+  // POST /api/integrations/github/token - Connect GitHub via Personal Access Token
+  fastify.post(
+    '/api/integrations/github/token',
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      try {
+        const user = await requireAuth(request);
+        const { token } = request.body as { token?: string };
+
+        if (!token || typeof token !== 'string' || token.trim().length === 0) {
+          return reply.code(400).send({
+            error: {
+              code: 'INVALID_TOKEN',
+              message: 'token is required and must be a non-empty string',
+            },
+          });
+        }
+
+        // Verify token works by fetching user info
+        let githubUser: { login: string; id: number };
+        try {
+          githubUser = await fetchFromGitHub<{ login: string; id: number }>('/user', token.trim());
+        } catch (_err) {
+          return reply.code(400).send({
+            error: {
+              code: 'INVALID_GITHUB_TOKEN',
+              message: 'GitHub token is invalid or does not have required permissions',
+            },
+          });
+        }
+
+        // Store or update token in database
+        const existingOAuth = await db.query.oauthAccounts.findFirst({
+          where: and(
+            eq(oauthAccounts.userId, user.id),
+            eq(oauthAccounts.provider, 'github')
+          ),
+        });
+
+        if (existingOAuth) {
+          // Update existing
+          await db
+            .update(oauthAccounts)
+            .set({
+              accessToken: token.trim(),
+              providerAccountId: githubUser.id.toString(),
+              updatedAt: new Date(),
+            })
+            .where(eq(oauthAccounts.id, existingOAuth.id));
+        } else {
+          // Insert new
+          await db.insert(oauthAccounts).values({
+            userId: user.id,
+            provider: 'github',
+            providerAccountId: githubUser.id.toString(),
+            accessToken: token.trim(),
+          });
+        }
+
+        return reply.code(200).send({
+          connected: true,
+          login: githubUser.login,
+        });
+      } catch (err: unknown) {
+        if (err instanceof Error && err.message === 'UNAUTHORIZED') {
+          return reply.code(401).send({
+            error: { code: 'UNAUTHORIZED', message: 'Authentication required' },
+          });
+        }
+        throw err;
+      }
+    }
+  );
+
+  // DELETE /api/integrations/github - Disconnect GitHub
+  // Note: TypeScript definitions for Fastify may not include 'delete' method in some versions
+  // Using type assertion as runtime supports it
+  (fastify as FastifyInstance & { delete: typeof fastify.get }).delete(
+    '/api/integrations/github',
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      try {
+        const user = await requireAuth(request);
+
+        // Delete OAuth account for GitHub
+        await db
+          .delete(oauthAccounts)
+          .where(
+            and(
+              eq(oauthAccounts.userId, user.id),
+              eq(oauthAccounts.provider, 'github')
+            )
+          );
+
+        return reply.code(200).send({
+          success: true,
+          message: 'GitHub disconnected successfully',
+        });
+      } catch (err: unknown) {
+        if (err instanceof Error && err.message === 'UNAUTHORIZED') {
+          return reply.code(401).send({
+            error: { code: 'UNAUTHORIZED', message: 'Authentication required' },
+          });
+        }
+        throw err;
+      }
+    }
+  );
+
   // GET /api/integrations/connect/:provider
   fastify.get(
     '/api/integrations/connect/:provider',

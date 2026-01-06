@@ -3,12 +3,19 @@ import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
 import DashboardAgentScribePage from '../DashboardAgentScribePage';
 import { githubDiscoveryApi } from '../../../../services/api/github-discovery';
+import { integrationsApi } from '../../../../services/api/integrations';
 
 vi.mock('../../../../services/api/github-discovery', () => ({
   githubDiscoveryApi: {
     getOwners: vi.fn(),
     getRepos: vi.fn(),
     getBranches: vi.fn(),
+  },
+}));
+
+vi.mock('../../../../services/api/integrations', () => ({
+  integrationsApi: {
+    getGitHubStatus: vi.fn(),
   },
 }));
 
@@ -19,6 +26,12 @@ const renderWithRouter = (ui: React.ReactElement) => {
 describe('DashboardAgentScribePage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+
+    // Default: GitHub is connected
+    (integrationsApi.getGitHubStatus as ReturnType<typeof vi.fn>).mockResolvedValue({
+      connected: true,
+      login: 'testuser',
+    });
 
     (githubDiscoveryApi.getOwners as ReturnType<typeof vi.fn>).mockResolvedValue({
       owners: [{ login: 'demo-team', type: 'Organization', avatarUrl: '' }],
@@ -83,7 +96,23 @@ describe('DashboardAgentScribePage', () => {
     });
   });
 
-  it('shows demo mode notice when GitHub discovery fails', async () => {
+  it('shows "GitHub Not Connected" gate when not connected', async () => {
+    (integrationsApi.getGitHubStatus as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      connected: false,
+    });
+
+    renderWithRouter(<DashboardAgentScribePage />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/GitHub Not Connected/i)).toBeInTheDocument();
+      expect(screen.getByText(/Go to Integrations/i)).toBeInTheDocument();
+    });
+
+    // Should NOT show repository dropdowns
+    expect(screen.queryByText(/Owner/i)).not.toBeInTheDocument();
+  });
+
+  it('shows demo mode notice when GitHub discovery fails but is connected', async () => {
     (githubDiscoveryApi.getOwners as ReturnType<typeof vi.fn>).mockRejectedValueOnce(
       new Error('No GitHub connection')
     );
