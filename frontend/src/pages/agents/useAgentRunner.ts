@@ -84,7 +84,7 @@ export const useAgentRunner = (type: AgentType) => {
       setJob(null);
 
       try {
-        const response = await agentsApi.runAgent(type, payload);
+        const response = await agentsApi.runAgent({ type, payload });
         if (!isMountedRef.current) {
           return;
         }

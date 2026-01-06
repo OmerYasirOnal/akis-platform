@@ -1499,72 +1499,49 @@ Actions:
 
 ---
 
-### 5.3 Agent Configuration Pages
+### 5.3 Scribe Single-Page Console
 
-**Path:** `/dashboard/agents/scribe` (same structure for trace, proto)
+**Path:** `/dashboard/agents/scribe`
 
-**Layout:**
+**Purpose:** Run Scribe documentation agent from a single workspace with real-time monitoring.
+
+**Layout:** Split-panel design
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
-│  [Scribe Icon] AKIS Scribe Configuration                     │
-│                                                               │
-│  Status: [Toggle: Enabled ✓]                                │
-│                                                               │
-│  Description:                                                │
-│  Automatically updates documentation from your commits.      │
-│  Monitors GitHub PRs and syncs to Confluence.                │
+│  Scribe Console                                              │
+│  Configure and run Scribe documentation agent                │
 └──────────────────────────────────────────────────────────────┘
 
-┌──────────────────────────────────────────────────────────────┐
-│  Trigger Settings                                            │
-│  ◉ On PR merge (recommended)                                │
-│  ○ On schedule (daily at [time picker])                     │
-│  ○ Manual only                                               │
-└──────────────────────────────────────────────────────────────┘
-
-┌──────────────────────────────────────────────────────────────┐
-│  Target Platforms                                            │
-│  ✓ Confluence                                               │
-│    Space: [Dropdown: ENGDOCS]                                │
-│    Template: [Dropdown: feature_spec]                        │
-│                                                               │
-│  ☐ Notion (Beta)                                            │
-│  ☐ GitHub Wiki                                               │
-└──────────────────────────────────────────────────────────────┘
-
-┌──────────────────────────────────────────────────────────────┐
-│  Playbook (Advanced)                      [Reset to Default] │
-│                                                               │
-│  [YAML Editor with syntax highlighting]                      │
-│                                                               │
-│  scribe:                                                     │
-│    trigger: on_pr_merge                                      │
-│    targets:                                                  │
-│      - confluence_space: "ENGDOCS"                           │
-│        template: "feature_spec"                              │
-│    review: auto_approve                                      │
-│    filters:                                                  │
-│      include_paths: ["src/**", "docs/**"]                   │
-│      exclude_paths: ["*.test.js"]                            │
-│                                                               │
-└──────────────────────────────────────────────────────────────┘
-
-┌──────────────────────────────────────────────────────────────┐
-│  Advanced Options                              [Show/Hide ▼] │
-│                                                               │
-│  Job timeout: [30] seconds                                   │
-│  Retry policy: [2] attempts                                  │
-│  Notification webhook: [Input URL]                           │
-└──────────────────────────────────────────────────────────────┘
-
-[Test Configuration] [Cancel] [Save Changes]
+Left Panel (Configuration):
+┌───────────────────────────┐  Right Panel (Glass Box):
+│ Configuration             │  ┌─────────────────────────────┐
+│ [Link to Integrations →]  │  │ [📋 Logs] [📄 Preview] [📝 Diff]│
+│                           │  │                             │
+│ Owner: [Select]           │  │ Console output:             │
+│ Repository: [Select]      │  │ > Starting Scribe...        │
+│ Base Branch: [Select]     │  │ > Scanning repository...    │
+│                           │  │ > Analyzing docs...         │
+│ Advanced Options ▼        │  │ > Complete ✓                │
+│  Target Path: [docs/]     │  │                             │
+│  ☑ Dry run                │  └─────────────────────────────┘
+│                           │
+│ [🚀 Run Scribe]           │
+│                           │
+│ Status Summary (when run):│
+│  Status: Running          │
+│  Job ID: abc123...        │
+└───────────────────────────┘
 ```
 
-**Test Configuration:**
-- Runs a dry-run job
-- Shows what would happen without making changes
-- Validates playbook syntax
+**Features:**
+- Real GitHub repository integration (requires GitHub OAuth)
+- Live job status polling with real-time logs
+- Preview and diff tabs for generated documentation
+- Dry-run mode for safe testing
+- Direct link to integrations setup
+
+**No Demo Mode:** All operations connect to real backend and GitHub API.
 
 ---
 
