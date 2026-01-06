@@ -1,6 +1,6 @@
 import { FastifyRequest } from 'fastify';
 import { ZodError } from 'zod';
-import { JobNotFoundError, InvalidStateTransitionError, DatabaseError, AIProviderError, type AIErrorCode } from '../core/errors.js';
+import { JobNotFoundError, InvalidStateTransitionError, DatabaseError, AIProviderError, ModelNotAllowedError, type AIErrorCode } from '../core/errors.js';
 
 /**
  * Phase 7.E: Unified error model
@@ -60,13 +60,19 @@ function mapErrorToCode(error: unknown): { code: ErrorCode; message: string; det
 
   // AI Provider errors - include code and user-friendly message
   if (error instanceof AIProviderError) {
+    const details: Record<string, unknown> = {
+      provider: error.provider,
+      retryAfter: error.retryAfter,
+    };
+    if (error instanceof ModelNotAllowedError) {
+      details.model = error.model;
+      details.allowlist = error.allowlist;
+    }
+
     return {
       code: error.code,
       message: error.message,
-      details: {
-        provider: error.provider,
-        retryAfter: error.retryAfter,
-      },
+      details,
     };
   }
 
@@ -110,6 +116,10 @@ export function getStatusCodeForError(code: ErrorCode): number {
       return 429; // Pass through rate limit status
     case 'AI_AUTH_ERROR':
       return 502; // Bad gateway - upstream auth failed
+    case 'AI_KEY_MISSING':
+      return 412; // Precondition failed - missing required key
+    case 'MODEL_NOT_ALLOWED':
+      return 400;
     case 'AI_PROVIDER_ERROR':
     case 'AI_NETWORK_ERROR':
     case 'AI_INVALID_RESPONSE':
@@ -119,4 +129,3 @@ export function getStatusCodeForError(code: ErrorCode): number {
       return 500;
   }
 }
-
