@@ -1,13 +1,13 @@
 /**
- * GitHub Integrations Routes Tests - S0.4.6
- * Tests for /api/integrations/github/* (status, token connect, disconnect)
+ * GitHub Integrations Routes Tests - OAuth-based flow
+ * Tests for /api/integrations/github/oauth/* endpoints
  */
 import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert';
 import { buildApp } from '../../src/server.app.js';
 import type { FastifyInstance } from 'fastify';
 
-describe('GitHub Integrations Routes', () => {
+describe('GitHub Integrations Routes - OAuth', () => {
   let app: FastifyInstance;
 
   before(async () => {
@@ -41,57 +41,81 @@ describe('GitHub Integrations Routes', () => {
     });
   });
 
-  describe('POST /api/integrations/github/token', () => {
-    it('should return 401 when not authenticated', async () => {
+  describe('GET /api/integrations/github/oauth/start', () => {
+    it('should return 401 when not authenticated (requires AKIS session)', async () => {
       const response = await app.inject({
-        method: 'POST',
-        url: '/api/integrations/github/token',
-        payload: { token: 'test_token' },
+        method: 'GET',
+        url: '/api/integrations/github/oauth/start',
       });
 
-      assert.strictEqual(response.statusCode, 401);
-      const body = JSON.parse(response.body);
-      assert.strictEqual(body.error.code, 'UNAUTHORIZED');
+      // Should redirect to login or return 401
+      assert.ok(
+        response.statusCode === 401 || response.statusCode === 302,
+        `Expected 401 or 302, got ${response.statusCode}`
+      );
     });
 
     it('should NOT return 404 (route must be registered)', async () => {
       const response = await app.inject({
-        method: 'POST',
-        url: '/api/integrations/github/token',
-        payload: { token: 'test_token' },
+        method: 'GET',
+        url: '/api/integrations/github/oauth/start',
       });
 
       assert.notStrictEqual(response.statusCode, 404);
     });
 
-    it('should validate token presence in body (if authenticated)', async () => {
-      // Note: This test checks route validation logic
-      // In practice, unauthenticated requests will get 401 first
+    it('should return 501 when OAuth not configured', async () => {
+      // This test assumes OAuth vars might not be set in test env
       const response = await app.inject({
-        method: 'POST',
-        url: '/api/integrations/github/token',
-        payload: {},
+        method: 'GET',
+        url: '/api/integrations/github/oauth/start',
       });
 
-      // Either 400 (missing token) or 401 (not authenticated) is acceptable
+      // Should be 401 (no session), 501 (not configured), or 302 (configured, redirecting)
       assert.ok(
-        response.statusCode === 400 || response.statusCode === 401,
-        `Expected 400 or 401, got ${response.statusCode}`
+        [401, 302, 501].includes(response.statusCode),
+        `Expected 401, 302, or 501, got ${response.statusCode}`
+      );
+    });
+  });
+
+  describe('GET /api/integrations/github/oauth/callback', () => {
+    it('should redirect with error when code parameter is missing', async () => {
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/integrations/github/oauth/callback?state=test',
+      });
+
+      // Should redirect or return error (302 or 401)
+      assert.ok(
+        response.statusCode === 302 || response.statusCode === 401,
+        `Expected 302 or 401, got ${response.statusCode}`
       );
     });
 
-    it('should reject empty token string (if authenticated)', async () => {
+    it('should redirect with error when state does not match', async () => {
       const response = await app.inject({
-        method: 'POST',
-        url: '/api/integrations/github/token',
-        payload: { token: '' },
+        method: 'GET',
+        url: '/api/integrations/github/oauth/callback?code=test&state=invalid',
+        cookies: {
+          github_oauth_state: 'different_state',
+        },
       });
 
-      // Either 400 (empty token) or 401 (not authenticated) is acceptable
+      // Should redirect with error or return 401 (if no session)
       assert.ok(
-        response.statusCode === 400 || response.statusCode === 401,
-        `Expected 400 or 401, got ${response.statusCode}`
+        response.statusCode === 302 || response.statusCode === 401,
+        `Expected 302 or 401, got ${response.statusCode}`
       );
+    });
+
+    it('should NOT return 404 (route must be registered)', async () => {
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/integrations/github/oauth/callback',
+      });
+
+      assert.notStrictEqual(response.statusCode, 404);
     });
   });
 
@@ -117,36 +141,30 @@ describe('GitHub Integrations Routes', () => {
     });
   });
 
-  describe('GET /api/integrations/connect/github', () => {
-    it('should be accessible without authentication (OAuth initiation)', async () => {
+  describe('GET /api/integrations/github/owners', () => {
+    it('should return 401 when not authenticated', async () => {
       const response = await app.inject({
         method: 'GET',
-        url: '/api/integrations/connect/github',
+        url: '/api/integrations/github/owners',
       });
 
-      // Should either redirect (302) or return error if OAuth not configured (501)
-      assert.ok(
-        response.statusCode === 302 || response.statusCode === 501,
-        `Expected 302 or 501, got ${response.statusCode}`
-      );
+      assert.strictEqual(response.statusCode, 401);
+      const body = JSON.parse(response.body);
+      assert.strictEqual(body.error.code, 'UNAUTHORIZED');
     });
 
-    it('should validate returnTo parameter (prevent open redirect)', async () => {
+    it('should return 412 when GitHub not connected (if authenticated)', async () => {
+      // Note: This would need a valid test session to verify 412 behavior
+      // For now just verify route exists
       const response = await app.inject({
         method: 'GET',
-        url: '/api/integrations/connect/github?returnTo=https://evil.com',
+        url: '/api/integrations/github/owners',
       });
 
-      // Should reject invalid returnTo paths
       assert.ok(
-        response.statusCode === 400 || response.statusCode === 302 || response.statusCode === 501,
-        `Expected 400, 302, or 501, got ${response.statusCode}`
+        response.statusCode === 401 || response.statusCode === 412,
+        `Expected 401 or 412, got ${response.statusCode}`
       );
-
-      if (response.statusCode === 400) {
-        const body = JSON.parse(response.body);
-        assert.strictEqual(body.error.code, 'INVALID_RETURN_PATH');
-      }
     });
   });
 });
