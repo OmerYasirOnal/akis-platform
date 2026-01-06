@@ -92,9 +92,29 @@ Submit a new agent job.
 
 | Type | Required Fields | Description |
 |------|-----------------|-------------|
-| `scribe` | `doc` (string) | Documentation content/topic |
+| `scribe` | `owner` (string), `repo` (string), `baseBranch` (string) | GitHub repository details for documentation updates |
 | `trace` | `spec` (string) | Requirements/specification text |
 | `proto` | `feature` (string) | Feature description for prototyping |
+
+**Scribe Payload Details**:
+```json
+{
+  "type": "scribe",
+  "payload": {
+    "owner": "organization-name",
+    "repo": "repository-name",
+    "baseBranch": "main",
+    "targetPath": "docs/",
+    "dryRun": true
+  }
+}
+```
+
+Optional fields for Scribe:
+- `targetPath`: Directory or file path (default: "README.md")
+- `dryRun`: Preview mode without actual commits (default: false)
+- `featureBranch`: Custom branch name for changes
+- `taskDescription`: Specific documentation task description
 
 **Response (200)**:
 ```json
