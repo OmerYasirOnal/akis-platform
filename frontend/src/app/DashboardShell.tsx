@@ -5,16 +5,21 @@ import Button from '../components/common/Button';
 
 const dashboardLinks = [
   { label: 'Overview', to: '/dashboard' },
-  { label: 'Scribe', to: '/dashboard/scribe' },
   { label: 'Jobs', to: '/dashboard/jobs' },
+  { label: 'Agents', to: '/dashboard/agents' },
   { label: 'Integrations', to: '/dashboard/integrations' },
   { label: 'Settings', to: '/dashboard/settings/profile' },
+];
+
+const agentLinks = [
+  { label: 'Scribe', to: '/dashboard/agents/scribe' },
+  { label: 'Trace', to: '/dashboard/agents/trace' },
+  { label: 'Proto', to: '/dashboard/agents/proto' },
 ];
 
 const settingsLinks = [
   { label: 'Profile', to: '/dashboard/settings/profile' },
   { label: 'Workspace', to: '/dashboard/settings/workspace' },
-  { label: 'AI Providers', to: '/dashboard/settings/ai-providers' },
   { label: 'API Keys', to: '/dashboard/settings/api-keys' },
   { label: 'Billing', to: '/dashboard/settings/billing' },
   { label: 'Notifications', to: '/dashboard/settings/notifications' },
@@ -62,6 +67,31 @@ const DashboardShell = () => {
             </p>
             <ul className="space-y-1">
               {dashboardLinks.map((link) => (
+                <li key={link.to}>
+                  <NavLink
+                    to={link.to}
+                    className={({ isActive }) =>
+                      [
+                        'flex items-center justify-between rounded-xl px-3 py-2 transition-colors',
+                        isActive
+                          ? 'bg-ak-surface-2 text-ak-text-primary'
+                          : 'text-ak-text-secondary hover:bg-ak-surface hover:text-ak-text-primary',
+                      ].join(' ')
+                    }
+                  >
+                    {link.label}
+                  </NavLink>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <div>
+            <p className="mb-2 text-xs uppercase tracking-[0.2em] text-ak-text-secondary/70">
+              Agents
+            </p>
+            <ul className="space-y-1">
+              {agentLinks.map((link) => (
                 <li key={link.to}>
                   <NavLink
                     to={link.to}

@@ -12,7 +12,6 @@
 import { getEnv, getAIConfig, type AIConfig } from '../../config/env.js';
 import { AIRateLimitedError, AIProviderError } from '../../core/errors.js';
 import { z } from 'zod';
-import { estimateCostUsd } from './pricing.js';
 
 // =============================================================================
 // JSON Schema Definitions for AI Responses
@@ -165,27 +164,6 @@ export interface AIService {
   getConfigSummary(): { provider: string; models: { default: string; planner: string; validation: string } };
 }
 
-export interface AIUsage {
-  inputTokens?: number;
-  outputTokens?: number;
-  totalTokens?: number;
-}
-
-export interface AICallMetrics {
-  purpose: string;
-  provider: string;
-  model: string;
-  durationMs?: number;
-  usage?: AIUsage;
-  estimatedCostUsd?: number | null;
-  success: boolean;
-  errorCode?: string;
-}
-
-export interface AIServiceObserver {
-  onAiCall: (metrics: AICallMetrics) => void;
-}
-
 // =============================================================================
 // OpenRouter/OpenAI Compatible Implementation
 // =============================================================================
@@ -218,15 +196,13 @@ class RealAIService implements AIService {
   private config: AIConfig;
   public planner: Planner;
   public reflector: Reflector;
-  private observer?: AIServiceObserver;
   
   // Retry configuration - can be overridden via environment
   private readonly maxRetries: number;
   private readonly baseRetryDelay: number;
 
-  constructor(config: AIConfig, observer?: AIServiceObserver) {
+  constructor(config: AIConfig) {
     this.config = config;
-    this.observer = observer;
     
     // Configure retry behavior from environment or use defaults
     this.maxRetries = parseInt(process.env.AI_PLANNER_MAX_RETRIES || '3', 10);
@@ -288,9 +264,8 @@ class RealAIService implements AIService {
   private async chatCompletion(
     messages: ChatMessage[],
     model: string,
-    options: { temperature?: number; maxTokens?: number } = {},
-    purpose: string = 'unknown'
-  ): Promise<{ content: string; usage?: AIUsage; durationMs?: number }> {
+    options: { temperature?: number; maxTokens?: number } = {}
+  ): Promise<string> {
     if (!this.config.apiKey) {
       throw new AIProviderError(
         'AI_AUTH_ERROR',
@@ -312,7 +287,6 @@ class RealAIService implements AIService {
 
     for (let attempt = 0; attempt <= this.maxRetries; attempt++) {
       try {
-        const startTime = Date.now();
         // Build headers - OpenRouter specific headers are optional
         const headers: Record<string, string> = {
           'Content-Type': 'application/json',
@@ -337,7 +311,6 @@ class RealAIService implements AIService {
           headers,
           body: JSON.stringify(body),
         });
-        const durationMs = Date.now() - startTime;
 
         // Handle rate limiting (429)
         if (response.status === 429) {
@@ -351,20 +324,11 @@ class RealAIService implements AIService {
           
           // If this is the last attempt, throw the error
           if (attempt >= this.maxRetries) {
-            const rateError = new AIRateLimitedError(
+            throw new AIRateLimitedError(
               this.config.provider,
               Math.ceil(retryAfterMs / 1000),
               errorText.substring(0, 500)
             );
-            this.observer?.onAiCall({
-              purpose,
-              provider: this.config.provider,
-              model,
-              durationMs,
-              success: false,
-              errorCode: rateError.code,
-            });
-            throw rateError;
           }
           
           // Wait and retry
@@ -378,21 +342,12 @@ class RealAIService implements AIService {
           
           // Auth errors (401, 403)
           if (response.status === 401 || response.status === 403) {
-            const authError = new AIProviderError(
+            throw new AIProviderError(
               'AI_AUTH_ERROR',
               `AI API authentication failed (${response.status}): ${errorText.substring(0, 200)}`,
               this.config.provider,
               response.status
             );
-            this.observer?.onAiCall({
-              purpose,
-              provider: this.config.provider,
-              model,
-              durationMs,
-              success: false,
-              errorCode: authError.code,
-            });
-            throw authError;
           }
           
           // Server errors (5xx) - retry
@@ -405,21 +360,12 @@ class RealAIService implements AIService {
             continue;
           }
           
-          const providerError = new AIProviderError(
+          throw new AIProviderError(
             'AI_PROVIDER_ERROR',
             `AI API error (${response.status}): ${errorText.substring(0, 500)}`,
             this.config.provider,
             response.status
           );
-          this.observer?.onAiCall({
-            purpose,
-            provider: this.config.provider,
-            model,
-            durationMs,
-            success: false,
-            errorCode: providerError.code,
-          });
-          throw providerError;
         }
 
         const data = (await response.json()) as ChatCompletionResponse;
@@ -432,33 +378,7 @@ class RealAIService implements AIService {
           );
         }
 
-        const usage: AIUsage | undefined = data.usage
-          ? {
-              inputTokens: data.usage.prompt_tokens,
-              outputTokens: data.usage.completion_tokens,
-              totalTokens: data.usage.total_tokens,
-            }
-          : undefined;
-
-        const estimatedCostUsd = usage
-          ? estimateCostUsd(model, usage.inputTokens, usage.outputTokens)
-          : null;
-
-        this.observer?.onAiCall({
-          purpose,
-          provider: this.config.provider,
-          model,
-          durationMs,
-          usage,
-          estimatedCostUsd,
-          success: true,
-        });
-
-        return {
-          content: data.choices[0].message.content,
-          usage,
-          durationMs,
-        };
+        return data.choices[0].message.content;
       } catch (error) {
         // If it's already our custom error, rethrow
         if (error instanceof AIProviderError) {
@@ -479,19 +399,11 @@ class RealAIService implements AIService {
     }
 
     // All retries exhausted
-    const networkError = new AIProviderError(
+    throw new AIProviderError(
       'AI_NETWORK_ERROR',
       `AI chat completion failed after ${this.maxRetries + 1} attempts: ${lastError?.message || 'Unknown error'}`,
       this.config.provider
     );
-    this.observer?.onAiCall({
-      purpose,
-      provider: this.config.provider,
-      model,
-      success: false,
-      errorCode: networkError.code,
-    });
-    throw networkError;
   }
 
   /**
@@ -561,11 +473,10 @@ Return ONLY valid JSON:`;
         const repairedResponse = await this.chatCompletion(
           [{ role: 'user', content: repairPrompt }],
           this.config.modelDefault,
-          { temperature: 0, maxTokens: 2048 },
-          `repair:${context}`
+          { temperature: 0, maxTokens: 2048 }
         );
         
-        const repairedJsonStr = this.extractJsonString(repairedResponse.content);
+        const repairedJsonStr = this.extractJsonString(repairedResponse);
         const reparsed = JSON.parse(repairedJsonStr);
         const revalidated = schema.parse(reparsed);
         
@@ -637,11 +548,10 @@ Respond with ONLY the JSON plan object.`;
         { role: 'user', content: userPrompt },
       ],
       this.config.modelPlanner,
-      { temperature: 0.5 },
-      'plan'
+      { temperature: 0.5 }
     );
 
-    return this.parseWithSchema(response.content, PlanSchema, 'planTask');
+    return this.parseWithSchema(response, PlanSchema, 'planTask');
   }
 
   /**
@@ -664,18 +574,14 @@ Generate the requested content.`;
         { role: 'user', content: userPrompt },
       ],
       this.config.modelDefault,
-      { temperature: 0.7, maxTokens: 4096 },
-      'generate'
+      { temperature: 0.7, maxTokens: 4096 }
     );
 
     return {
-      content: response.content,
+      content: response,
       metadata: {
         model: this.config.modelDefault,
         task: input.task,
-        provider: this.config.provider,
-        usage: response.usage,
-        durationMs: response.durationMs,
       },
     };
   }
@@ -741,11 +647,10 @@ Respond with ONLY the JSON critique object.`;
         { role: 'user', content: userPrompt },
       ],
       this.config.modelDefault,
-      { temperature: 0.3 },
-      'reflect'
+      { temperature: 0.3 }
     );
 
-    return this.parseWithSchema(response.content, CritiqueSchema, 'reflectOnArtifact');
+    return this.parseWithSchema(response, CritiqueSchema, 'reflectOnArtifact');
   }
 
   /**
@@ -809,11 +714,10 @@ Respond with ONLY the JSON validation result object.`;
         { role: 'user', content: userPrompt },
       ],
       this.config.modelValidation,
-      { temperature: 0.2 },
-      'validate'
+      { temperature: 0.2 }
     );
 
-    return this.parseWithSchema(response.content, ValidationSchema, 'validateWithStrongModel');
+    return this.parseWithSchema(response, ValidationSchema, 'validateWithStrongModel');
   }
 }
 
@@ -827,10 +731,8 @@ Respond with ONLY the JSON validation result object.`;
 class MockAIService implements AIService {
   public planner: Planner;
   public reflector: Reflector;
-  private observer?: AIServiceObserver;
 
-  constructor(observer?: AIServiceObserver) {
-    this.observer = observer;
+  constructor() {
     this.planner = {
       plan: (input: PlanInput) => this.planTask(input),
     };
@@ -853,12 +755,6 @@ class MockAIService implements AIService {
   }
 
   async planTask(input: PlanInput): Promise<Plan> {
-    this.observer?.onAiCall({
-      purpose: 'plan',
-      provider: 'mock',
-      model: 'mock-model',
-      success: true,
-    });
     // Deterministic mock plan based on agent type
     return {
       steps: [
@@ -872,12 +768,6 @@ class MockAIService implements AIService {
   }
 
   async generateWorkArtifact(input: WorkerInput): Promise<WorkerResult> {
-    this.observer?.onAiCall({
-      purpose: 'generate',
-      provider: 'mock',
-      model: 'mock-model',
-      success: true,
-    });
     return {
       content: `Mock generated content for task: ${input.task}`,
       metadata: {
@@ -889,12 +779,6 @@ class MockAIService implements AIService {
   }
 
   async reflectOnArtifact(_input: ReflectionInput): Promise<Critique> {
-    this.observer?.onAiCall({
-      purpose: 'reflect',
-      provider: 'mock',
-      model: 'mock-model',
-      success: true,
-    });
     return {
       issues: [
         'Mock issue: Ensure all steps are executable',
@@ -909,12 +793,6 @@ class MockAIService implements AIService {
   }
 
   async validateWithStrongModel(_input: ValidationInput): Promise<ValidationResult> {
-    this.observer?.onAiCall({
-      purpose: 'validate',
-      provider: 'mock',
-      model: 'mock-model',
-      success: true,
-    });
     return {
       passed: true,
       confidence: 0.85,
@@ -933,11 +811,11 @@ class MockAIService implements AIService {
  * Create AIService instance based on configuration
  * Uses getAIConfig() to resolve environment variables with legacy fallbacks
  */
-export function createAIService(config?: AIConfig, observer?: AIServiceObserver): AIService {
+export function createAIService(config?: AIConfig): AIService {
   // ALWAYS use mock in test environment to prevent external API calls during tests
   if (process.env.NODE_ENV === 'test') {
     console.log('[AIService] Using mock provider (test environment)');
-    return new MockAIService(observer);
+    return new MockAIService();
   }
 
   // If no config provided, get from environment
@@ -945,20 +823,20 @@ export function createAIService(config?: AIConfig, observer?: AIServiceObserver)
 
   if (resolvedConfig.provider === 'mock') {
     console.log('[AIService] Using mock provider (no real AI calls)');
-    return new MockAIService(observer);
+    return new MockAIService();
   }
 
   if (!resolvedConfig.apiKey) {
     console.warn(
       `[AIService] No API key found for provider "${resolvedConfig.provider}", falling back to mock`
     );
-    return new MockAIService(observer);
+    return new MockAIService();
   }
 
   console.log(`[AIService] Using ${resolvedConfig.provider} provider`);
   console.log(`[AIService] Models: default=${resolvedConfig.modelDefault}, planner=${resolvedConfig.modelPlanner}, validation=${resolvedConfig.modelValidation}`);
   
-  return new RealAIService(resolvedConfig, observer);
+  return new RealAIService(resolvedConfig);
 }
 
 // Note: Planner and Reflector interfaces are already exported above

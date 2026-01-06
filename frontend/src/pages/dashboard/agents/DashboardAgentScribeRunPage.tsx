@@ -1,13 +1,12 @@
 import type { FormEvent } from 'react';
-import { useEffect, useMemo, useState } from 'react';
-import { Link, Navigate } from 'react-router-dom';
+import { useMemo, useState } from 'react';
+import { Navigate } from 'react-router-dom';
 import Card from '../../../components/common/Card';
 import Button from '../../../components/common/Button';
 import { JobStatus } from '../../../components/agents/JobStatus';
 import { useI18n } from '../../../i18n/useI18n';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useAgentRunner } from '../../agents/useAgentRunner';
-import { aiKeysApi, type AiKeyStatus } from '../../../services/api/ai-keys';
 
 /** Helper to check if agents feature is enabled (evaluated at runtime for testability) */
 const isAgentsEnabled = () =>
@@ -18,10 +17,6 @@ const DashboardAgentScribeRunPage = () => {
   const { t } = useI18n();
   const { user } = useAuth();
   const isAuthenticated = Boolean(user);
-
-  const [aiKeyStatus, setAiKeyStatus] = useState<AiKeyStatus | null>(null);
-  const [aiKeyLoading, setAiKeyLoading] = useState(true);
-  const [aiKeyError, setAiKeyError] = useState<string | null>(null);
   
   // Form state
   const [owner, setOwner] = useState('');
@@ -33,43 +28,12 @@ const DashboardAgentScribeRunPage = () => {
   
   const { runAgent, job, error, isSubmitting, isPolling, reset } = useAgentRunner('scribe');
 
-  useEffect(() => {
-    let active = true;
-    const loadStatus = async () => {
-      setAiKeyLoading(true);
-      setAiKeyError(null);
-      try {
-        const status = await aiKeysApi.getStatus();
-        if (active) {
-          setAiKeyStatus(status);
-        }
-      } catch (err) {
-        if (active) {
-          setAiKeyError(err instanceof Error ? err.message : 'Failed to load OpenAI key status.');
-        }
-      } finally {
-        if (active) {
-          setAiKeyLoading(false);
-        }
-      }
-    };
-
-    void loadStatus();
-    return () => {
-      active = false;
-    };
-  }, []);
-
-  const aiKeyBlocked = aiKeyLoading || !aiKeyStatus?.configured;
-
-  const canSubmit = useMemo(
-    () =>
-      Boolean(owner.trim()) &&
-      Boolean(repo.trim()) &&
-      Boolean(baseBranch.trim()) &&
-      isAuthenticated &&
-      !aiKeyBlocked,
-    [owner, repo, baseBranch, isAuthenticated, aiKeyBlocked]
+  const canSubmit = useMemo(() => 
+    Boolean(owner.trim()) && 
+    Boolean(repo.trim()) && 
+    Boolean(baseBranch.trim()) && 
+    isAuthenticated, 
+    [owner, repo, baseBranch, isAuthenticated]
   );
 
   if (!agentsEnabled) {
@@ -78,11 +42,6 @@ const DashboardAgentScribeRunPage = () => {
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-
-    if (aiKeyBlocked) {
-      setValidationError('OpenAI API key is required before running Scribe.');
-      return;
-    }
 
     if (!owner.trim() || !repo.trim() || !baseBranch.trim()) {
       setValidationError('Owner, Repo, and Base Branch are required');
@@ -115,39 +74,6 @@ const DashboardAgentScribeRunPage = () => {
       </header>
 
       <Card className="space-y-6 bg-ak-surface">
-        <div className="rounded-xl border border-ak-border bg-ak-surface-2 px-4 py-3 text-sm text-ak-text-secondary">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div>
-              <p className="text-ak-text-primary font-medium">OpenAI Key Status</p>
-              <p className="text-xs text-ak-text-secondary">
-                {aiKeyLoading
-                  ? 'Checking key status...'
-                  : aiKeyStatus?.configured
-                    ? `Configured (•••• ${aiKeyStatus.last4})`
-                    : 'Missing — add a key to run Scribe'}
-              </p>
-            </div>
-            <Link
-              to="/dashboard/settings/api-keys"
-              className="text-xs font-semibold text-ak-primary"
-            >
-              Manage Keys →
-            </Link>
-          </div>
-        </div>
-
-        {aiKeyError ? (
-          <div className="rounded-xl border border-ak-danger/60 bg-ak-danger/10 px-4 py-3 text-sm text-ak-danger">
-            {aiKeyError}
-          </div>
-        ) : null}
-
-        {aiKeyBlocked ? (
-          <div className="rounded-xl border border-ak-danger/60 bg-ak-danger/10 px-4 py-3 text-sm text-ak-text-primary">
-            OpenAI API key is required to run Scribe. Add your key in Settings → API Keys.
-          </div>
-        ) : null}
-
         <form className="space-y-6" onSubmit={handleSubmit}>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-2">
