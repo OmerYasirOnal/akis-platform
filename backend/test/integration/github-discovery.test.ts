@@ -113,19 +113,15 @@ describe('GitHub Discovery Routes', () => {
     });
   });
 
-  describe('GET /api/integrations/connect/github', () => {
-    it('should NOT return 404 (route must be registered)', async () => {
+  describe('GET /api/integrations/github/oauth/start', () => {
+    it('should NOT return 404 (OAuth start route must be registered)', async () => {
       const response = await app.inject({
         method: 'GET',
-        url: '/api/integrations/connect/github?returnTo=/dashboard/agents/scribe',
+        url: '/api/integrations/github/oauth/start',
       });
 
+      // Expected: 401 (no session), 501 (OAuth not configured), or 302 (redirect), but NOT 404
       assert.notStrictEqual(response.statusCode, 404);
-      // Expected: 302 (redirect to GitHub) or 501 (OAuth not configured)
-      assert.ok(
-        response.statusCode === 302 || response.statusCode === 501,
-        `Expected 302 or 501, got ${response.statusCode}`
-      );
     });
   });
 

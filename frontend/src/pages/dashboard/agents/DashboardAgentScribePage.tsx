@@ -19,6 +19,7 @@ import {
   type GitHubBranch,
 } from '../../../services/api/github-discovery';
 import { agentsApi, type JobDetail } from '../../../services/api/agents';
+import { integrationsApi } from '../../../services/api/integrations';
 
 type ActiveTab = 'logs' | 'preview' | 'diff';
 
@@ -57,6 +58,7 @@ const DashboardAgentScribePage = () => {
   const [loadingRepos, setLoadingRepos] = useState(false);
   const [loadingBranches, setLoadingBranches] = useState(false);
   const [githubError, setGithubError] = useState<string | null>(null);
+  const [githubConnected, setGithubConnected] = useState<boolean | null>(null);
 
   // Job execution state
   const [currentJob, setCurrentJob] = useState<JobDetail | null>(null);
@@ -78,8 +80,39 @@ const DashboardAgentScribePage = () => {
     }
   }, [logs, activeTab]);
 
-  // Load owners on mount
+  // Check GitHub connection status first
   useEffect(() => {
+    let active = true;
+
+    const checkGitHubStatus = async () => {
+      try {
+        const status = await integrationsApi.getGitHubStatus();
+        if (!active) return;
+        setGithubConnected(status.connected);
+      } catch {
+        if (!active) return;
+        setGithubConnected(false);
+      }
+    };
+
+    void checkGitHubStatus();
+    return () => { active = false; };
+  }, []);
+
+  // Load owners on mount (only if GitHub is connected)
+  useEffect(() => {
+    if (githubConnected === null) {
+      // Still checking status
+      return;
+    }
+
+    if (!githubConnected) {
+      // Not connected - show error and don't try to load
+      setLoadingOwners(false);
+      setGithubError('GitHub not connected. Please connect GitHub at /dashboard/integrations to use Scribe.');
+      return;
+    }
+
     let active = true;
 
     const loadOwners = async () => {
@@ -93,11 +126,11 @@ const DashboardAgentScribePage = () => {
           setOwners(result.owners);
           setOwner((prev) => prev || result.owners[0].login);
         } else {
-          setGithubError('No GitHub organizations found. Please connect GitHub at /dashboard/integrations');
+          setGithubError('No GitHub organizations found. Please check your GitHub connection.');
         }
       } catch (error) {
         if (!active) return;
-        setGithubError('GitHub not connected. Please connect GitHub at /dashboard/integrations to use Scribe.');
+        setGithubError('Failed to load GitHub organizations. Please try reconnecting at /dashboard/integrations.');
         console.error('Failed to load GitHub owners:', error);
       } finally {
         if (active) setLoadingOwners(false);
@@ -106,7 +139,7 @@ const DashboardAgentScribePage = () => {
 
     void loadOwners();
     return () => { active = false; };
-  }, []);
+  }, [githubConnected]);
 
   // Load repos when owner changes
   useEffect(() => {
