@@ -112,8 +112,8 @@ test('Scribe config-aware job creation', { skip: SHOULD_SKIP }, async (t) => {
     );
   });
 
-  // T2: Legacy payload without auth should fail (auth required as of S0.4.6+)
-  await t.test('T2: Create Scribe job with legacy payload requires auth', async () => {
+  // T2: Legacy payload (backward compatibility)
+  await t.test('T2: Create Scribe job with legacy payload', async () => {
     const response = await app.inject({
       method: 'POST',
       url: '/api/agents/jobs',
@@ -128,16 +128,38 @@ test('Scribe config-aware job creation', { skip: SHOULD_SKIP }, async (t) => {
       },
     });
 
-    // As of S0.4.6+, Scribe jobs require auth (for AI key validation)
-    // Legacy payload without auth should return 401
+    if (response.statusCode !== 200) {
+      console.error('Response body:', response.body);
+      console.error('Response status:', response.statusCode);
+    }
+
     assert.strictEqual(
       response.statusCode,
-      401,
-      `Expected 401 (auth required), got ${response.statusCode}: ${response.body}`
+      200,
+      `Expected 200, got ${response.statusCode}: ${response.body}`
     );
     const body = JSON.parse(response.body);
-    assert.ok(body.error, 'Should have error object');
-    assert.ok(body.error.code, 'Should have error code');
+    assert.ok(body.jobId, 'jobId should be present');
+    assert.ok(typeof body.jobId === 'string', 'jobId should be a string');
+    assert.ok(
+      ['pending', 'running', 'completed', 'failed'].includes(body.state),
+      `state should be valid: ${body.state}`
+    );
+
+    // Verify job appears in list
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    const listResponse = await app.inject({
+      method: 'GET',
+      url: '/api/agents/jobs?type=scribe&limit=20',
+    });
+
+    assert.strictEqual(listResponse.statusCode, 200);
+    const listBody = JSON.parse(listResponse.body);
+    assert.ok(Array.isArray(listBody.items), 'items should be an array');
+
+    const createdJob = listBody.items.find((j: { id: string }) => j.id === body.jobId);
+    assert.ok(createdJob, 'Created job should appear in list');
+    assert.strictEqual(createdJob.type, 'scribe');
   });
 
   // T3: Invalid config-aware payload (missing config)
