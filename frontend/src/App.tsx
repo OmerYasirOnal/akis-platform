@@ -40,7 +40,6 @@ import SignupVerifyEmail from './pages/auth/SignupVerifyEmail';
 import WelcomeBeta from './pages/auth/WelcomeBeta';
 import PrivacyConsent from './pages/auth/PrivacyConsent';
 import DashboardOverviewPage from './pages/dashboard/DashboardOverviewPage';
-import DashboardAgentsIndexPage from './pages/dashboard/DashboardAgentsIndexPage';
 import DashboardAgentScribePage from './pages/dashboard/agents/DashboardAgentScribePage';
 import DashboardAgentScribeRunPage from './pages/dashboard/agents/DashboardAgentScribeRunPage';
 import DashboardAgentTracePage from './pages/dashboard/agents/DashboardAgentTracePage';
@@ -48,12 +47,12 @@ import DashboardAgentProtoPage from './pages/dashboard/agents/DashboardAgentProt
 import DashboardIntegrationsPage from './pages/dashboard/DashboardIntegrationsPage';
 import DashboardSettingsProfilePage from './pages/dashboard/settings/DashboardSettingsProfilePage';
 import DashboardSettingsWorkspacePage from './pages/dashboard/settings/DashboardSettingsWorkspacePage';
+import DashboardSettingsAiProvidersPage from './pages/dashboard/settings/DashboardSettingsAiProvidersPage';
 import DashboardSettingsApiKeysPage from './pages/dashboard/settings/DashboardSettingsApiKeysPage';
 import DashboardSettingsBillingPage from './pages/dashboard/settings/DashboardSettingsBillingPage';
 import DashboardSettingsNotificationsPage from './pages/dashboard/settings/DashboardSettingsNotificationsPage';
 import JobsListPage from './pages/JobsListPage';
 import JobDetailPage from './pages/JobDetailPage';
-import NewJobPage from './pages/NewJobPage';
 import { ErrorBoundary } from './components/ErrorBoundary';
 
 function App() {
@@ -131,9 +130,10 @@ function App() {
             }
           >
             <Route index element={<DashboardOverviewPage />} />
+            <Route path="scribe" element={<DashboardAgentScribePage />} />
             <Route path="jobs">
               <Route index element={<JobsListPage />} />
-              <Route path="new" element={<NewJobPage />} />
+              <Route path="new" element={<Navigate to="/dashboard/scribe" replace />} />
               <Route
                 path=":id"
                 element={
@@ -144,8 +144,8 @@ function App() {
               />
             </Route>
             <Route path="agents">
-              <Route index element={<DashboardAgentsIndexPage />} />
-              <Route path="scribe" element={<DashboardAgentScribePage />} />
+              <Route index element={<Navigate to="/dashboard/scribe" replace />} />
+              <Route path="scribe" element={<Navigate to="/dashboard/scribe" replace />} />
               <Route path="scribe/run" element={<DashboardAgentScribeRunPage />} />
               <Route path="trace" element={<DashboardAgentTracePage />} />
               <Route path="proto" element={<DashboardAgentProtoPage />} />
@@ -155,6 +155,7 @@ function App() {
               <Route index element={<Navigate to="profile" replace />} />
               <Route path="profile" element={<DashboardSettingsProfilePage />} />
               <Route path="workspace" element={<DashboardSettingsWorkspacePage />} />
+              <Route path="ai-providers" element={<DashboardSettingsAiProvidersPage />} />
               <Route path="api-keys" element={<DashboardSettingsApiKeysPage />} />
               <Route
                 path="billing"
