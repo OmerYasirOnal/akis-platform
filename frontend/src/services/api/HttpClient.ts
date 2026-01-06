@@ -100,6 +100,7 @@ export class HttpClient {
   async get<T>(path: string, options?: RequestOptions): Promise<T> {
     const url = `${this.baseURL}${path}`;
     const response = await this.fetchWithRetry(url, {
+      credentials: 'include',
       ...options,
       method: 'GET',
     });
@@ -118,6 +119,7 @@ export class HttpClient {
   async post<T>(path: string, body?: unknown, options?: RequestOptions): Promise<T> {
     const url = `${this.baseURL}${path}`;
     const response = await this.fetchWithRetry(url, {
+      credentials: 'include',
       ...options,
       method: 'POST',
       body: body ? JSON.stringify(body) : undefined,
@@ -136,6 +138,7 @@ export class HttpClient {
   async put<T>(path: string, body?: unknown, options?: RequestOptions): Promise<T> {
     const url = `${this.baseURL}${path}`;
     const response = await this.fetchWithRetry(url, {
+      credentials: 'include',
       ...options,
       method: 'PUT',
       body: body ? JSON.stringify(body) : undefined,
@@ -154,6 +157,7 @@ export class HttpClient {
   async delete<T>(path: string, options?: RequestOptions): Promise<T> {
     const url = `${this.baseURL}${path}`;
     const response = await this.fetchWithRetry(url, {
+      credentials: 'include',
       ...options,
       method: 'DELETE',
     });

@@ -8,7 +8,7 @@
  * Demo mode: Works without backend, uses deterministic simulation
  */
 import { useEffect, useMemo, useState, useRef } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import Card from '../../../components/common/Card';
 import Button from '../../../components/common/Button';
 import SearchableSelect, { type SelectOption } from '../../../components/common/SearchableSelect';
@@ -18,6 +18,7 @@ import {
   type GitHubRepo,
   type GitHubBranch,
 } from '../../../services/api/github-discovery';
+import { integrationsApi } from '../../../services/api/integrations';
 import { useDemoScribeRunner } from '../../../services/agents/scribe';
 import type { ScribeLogEntry } from '../../../services/agents/scribe';
 
@@ -46,6 +47,8 @@ const FALLBACK_BRANCHES: GitHubBranch[] = [
 type ActiveTab = 'logs' | 'preview' | 'diff';
 
 const DashboardAgentScribePage = () => {
+  const navigate = useNavigate();
+
   // GitHub discovery state
   const [owners, setOwners] = useState<GitHubOwner[]>([]);
   const [repos, setRepos] = useState<GitHubRepo[]>([]);
@@ -60,6 +63,7 @@ const DashboardAgentScribePage = () => {
   const [loadingOwners, setLoadingOwners] = useState(true);
   const [loadingRepos, setLoadingRepos] = useState(false);
   const [loadingBranches, setLoadingBranches] = useState(false);
+  const [githubConnected, setGithubConnected] = useState<boolean | null>(null);
   const [usingMockData, setUsingMockData] = useState(false);
   const [githubNotice, setGithubNotice] = useState<string | null>(null);
 
@@ -80,8 +84,40 @@ const DashboardAgentScribePage = () => {
     }
   }, [runState.logs, activeTab]);
 
-  // Load owners on mount
+  // Check GitHub connection status first
   useEffect(() => {
+    let active = true;
+
+    const checkGitHubStatus = async () => {
+      try {
+        const status = await integrationsApi.getGitHubStatus();
+        if (!active) return;
+        setGithubConnected(status.connected);
+      } catch {
+        if (!active) return;
+        setGithubConnected(false);
+      }
+    };
+
+    void checkGitHubStatus();
+    return () => { active = false; };
+  }, []);
+
+  // Load owners on mount (only if GitHub is connected)
+  useEffect(() => {
+    if (githubConnected === null) {
+      // Still checking status
+      return;
+    }
+
+    if (!githubConnected) {
+      // Not connected - don't try to load owners
+      setLoadingOwners(false);
+      setOwners([]);
+      setGithubNotice(null);
+      return;
+    }
+
     let active = true;
 
     const loadOwners = async () => {
@@ -102,10 +138,19 @@ const DashboardAgentScribePage = () => {
         setGithubNotice('Demo mode: Using mock repositories. Connect GitHub for real data.');
         setOwners(FALLBACK_OWNERS);
         setOwner((prev) => prev || FALLBACK_OWNERS[0].login);
-      } catch {
+      } catch (err: unknown) {
         if (!active) return;
+
+        // Check if it's a 412 GITHUB_NOT_CONNECTED error
+        if (err && typeof err === 'object' && 'code' in err && err.code === 'GITHUB_NOT_CONNECTED') {
+          setGithubConnected(false);
+          setOwners([]);
+          setGithubNotice(null);
+          return;
+        }
+
         setUsingMockData(true);
-        setGithubNotice('Demo mode: GitHub not connected. Using mock data.');
+        setGithubNotice('Demo mode: GitHub error. Using mock data.');
         setOwners(FALLBACK_OWNERS);
         setOwner((prev) => prev || FALLBACK_OWNERS[0].login);
       } finally {
@@ -115,7 +160,7 @@ const DashboardAgentScribePage = () => {
 
     void loadOwners();
     return () => { active = false; };
-  }, []);
+  }, [githubConnected]);
 
   // Load repos when owner changes
   useEffect(() => {
@@ -235,7 +280,7 @@ const DashboardAgentScribePage = () => {
     [branches]
   );
 
-  const canRun = Boolean(owner.trim()) && Boolean(repo.trim()) && Boolean(baseBranch.trim());
+  const canRun = githubConnected && Boolean(owner.trim()) && Boolean(repo.trim()) && Boolean(baseBranch.trim());
 
   const handleRunScribe = () => {
     if (!canRun) return;
@@ -247,6 +292,10 @@ const DashboardAgentScribePage = () => {
       dryRun,
     });
     setActiveTab('logs');
+  };
+
+  const handleGoToIntegrations = () => {
+    navigate('/dashboard/integrations');
   };
 
   const handleCancel = () => {
@@ -327,18 +376,44 @@ const DashboardAgentScribePage = () => {
               </div>
             )}
 
+            {/* GitHub Not Connected Gate */}
+            {githubConnected === false && (
+              <div className="space-y-3 rounded-xl border border-yellow-500/30 bg-yellow-500/10 p-4">
+                <div className="flex items-start gap-3">
+                  <span className="text-2xl">⚠️</span>
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-ak-text-primary">
+                      GitHub Not Connected
+                    </h3>
+                    <p className="mt-1 text-sm text-ak-text-secondary">
+                      Scribe requires GitHub access to read repositories and create documentation PRs.
+                      Please connect your GitHub account to continue.
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  variant="primary"
+                  className="w-full justify-center"
+                  onClick={handleGoToIntegrations}
+                >
+                  Go to Integrations
+                </Button>
+              </div>
+            )}
+
             {/* Repository Selection */}
-            <div className="space-y-4">
-              <SearchableSelect
-                label="Owner"
-                placeholder="Select owner"
-                options={ownerOptions}
-                value={owner}
-                onChange={setOwner}
-                loading={loadingOwners}
-                emptyMessage="No owners available"
-                disabled={isRunning}
-              />
+            {githubConnected && (
+              <div className="space-y-4">
+                <SearchableSelect
+                  label="Owner"
+                  placeholder="Select owner"
+                  options={ownerOptions}
+                  value={owner}
+                  onChange={setOwner}
+                  loading={loadingOwners}
+                  emptyMessage="No owners available"
+                  disabled={isRunning}
+                />
 
               <SearchableSelect
                 label="Repository"
@@ -351,21 +426,23 @@ const DashboardAgentScribePage = () => {
                 disabled={!owner || isRunning}
               />
 
-              <SearchableSelect
-                label="Base Branch"
-                placeholder="Select branch"
-                options={branchOptions}
-                value={baseBranch}
-                onChange={setBaseBranch}
-                loading={loadingBranches}
-                emptyMessage="No branches"
-                disabled={!repo || isRunning}
-                allowManualInput
-              />
-            </div>
+                <SearchableSelect
+                  label="Base Branch"
+                  placeholder="Select branch"
+                  options={branchOptions}
+                  value={baseBranch}
+                  onChange={setBaseBranch}
+                  loading={loadingBranches}
+                  emptyMessage="No branches"
+                  disabled={!repo || isRunning}
+                  allowManualInput
+                />
+              </div>
+            )}
 
             {/* Advanced Section */}
-            <div className="border-t border-ak-border pt-4">
+            {githubConnected && (
+              <div className="border-t border-ak-border pt-4">
               <button
                 type="button"
                 onClick={() => setShowAdvanced(!showAdvanced)}
@@ -401,12 +478,14 @@ const DashboardAgentScribePage = () => {
                     />
                     <span>Dry run (preview only, no commits)</span>
                   </label>
-                </div>
-              )}
-            </div>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Primary CTA */}
-            <div className="space-y-3 border-t border-ak-border pt-4">
+            {githubConnected && (
+              <div className="space-y-3 border-t border-ak-border pt-4">
               {isIdle ? (
                 <Button
                   onClick={handleRunScribe}
@@ -433,12 +512,13 @@ const DashboardAgentScribePage = () => {
                 </Button>
               )}
 
-              {!canRun && isIdle && (
-                <p className="text-center text-xs text-ak-text-secondary">
-                  Select a repository and branch to start
-                </p>
-              )}
-            </div>
+                {!canRun && isIdle && (
+                  <p className="text-center text-xs text-ak-text-secondary">
+                    Select a repository and branch to start
+                  </p>
+                )}
+              </div>
+            )}
           </Card>
 
           {/* Status Summary */}
