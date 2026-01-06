@@ -16,6 +16,7 @@ docs/PROJECT_TRACKING_BASELINE.md  →  docs/ROADMAP.md  →  docs/NEXT.md (this
 
 | Priority | Task | Status | Sprint |
 |----------|------|--------|--------|
+| **P0** | Semester Scribe demo readiness (OpenAI keys + metrics + run summary) | ✅ Complete | S1.0.x |
 | **P0** | S0.4.6 Scribe Config Dashboard | ✅ Complete | S0.4.6 |
 | P1 | Scribe temel akış | 📋 Next | S1.0.1 |
 | P2 | Trace/Proto MVP | 📋 Planned | S1.0.2 |

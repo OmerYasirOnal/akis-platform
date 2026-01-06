@@ -12,3 +12,5 @@ export type {
   JobDetail,
   RunAgentResponse,
 } from './agents';
+export { aiKeysApi } from './ai-keys';
+export type { AiKeyStatus } from './ai-keys';

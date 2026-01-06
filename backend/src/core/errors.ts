@@ -32,7 +32,9 @@ export type AIErrorCode =
   | 'AI_PROVIDER_ERROR'
   | 'AI_INVALID_RESPONSE'
   | 'AI_NETWORK_ERROR'
-  | 'AI_AUTH_ERROR';
+  | 'AI_AUTH_ERROR'
+  | 'AI_KEY_MISSING'
+  | 'MODEL_NOT_ALLOWED';
 
 /**
  * AI Provider Error - base class for AI-related errors
@@ -72,3 +74,29 @@ export class AIRateLimitedError extends AIProviderError {
   }
 }
 
+export class MissingAIKeyError extends AIProviderError {
+  constructor(provider: string) {
+    super(
+      'AI_KEY_MISSING',
+      `AI API key is not configured for provider ${provider}. Please add a key in Settings.`,
+      provider
+    );
+    this.name = 'MissingAIKeyError';
+  }
+}
+
+export class ModelNotAllowedError extends AIProviderError {
+  readonly model: string;
+  readonly allowlist: string[];
+
+  constructor(provider: string, model: string, allowlist: string[]) {
+    super(
+      'MODEL_NOT_ALLOWED',
+      `Model "${model}" is not allowed. Choose an allowlisted model.`,
+      provider
+    );
+    this.name = 'ModelNotAllowedError';
+    this.model = model;
+    this.allowlist = allowlist;
+  }
+}
