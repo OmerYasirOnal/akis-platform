@@ -41,7 +41,7 @@ import WelcomeBeta from './pages/auth/WelcomeBeta';
 import PrivacyConsent from './pages/auth/PrivacyConsent';
 import DashboardOverviewPage from './pages/dashboard/DashboardOverviewPage';
 import DashboardAgentScribePage from './pages/dashboard/agents/DashboardAgentScribePage';
-// DashboardAgentScribeRunPage removed - single-page console at /dashboard/scribe is canonical
+import DashboardAgentScribeRunPage from './pages/dashboard/agents/DashboardAgentScribeRunPage';
 import DashboardAgentTracePage from './pages/dashboard/agents/DashboardAgentTracePage';
 import DashboardAgentProtoPage from './pages/dashboard/agents/DashboardAgentProtoPage';
 import DashboardIntegrationsPage from './pages/dashboard/DashboardIntegrationsPage';
@@ -146,8 +146,7 @@ function App() {
             <Route path="agents">
               <Route index element={<Navigate to="/dashboard/scribe" replace />} />
               <Route path="scribe" element={<Navigate to="/dashboard/scribe" replace />} />
-              {/* Legacy run page redirects to single-page console */}
-              <Route path="scribe/run" element={<Navigate to="/dashboard/scribe" replace />} />
+              <Route path="scribe/run" element={<DashboardAgentScribeRunPage />} />
               <Route path="trace" element={<DashboardAgentTracePage />} />
               <Route path="proto" element={<DashboardAgentProtoPage />} />
             </Route>
