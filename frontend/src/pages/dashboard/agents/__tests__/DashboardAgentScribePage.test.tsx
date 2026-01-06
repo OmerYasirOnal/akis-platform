@@ -27,10 +27,10 @@ describe('DashboardAgentScribePage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
-    // Default: GitHub is connected
+    // Mock GitHub connected by default
     (integrationsApi.getGitHubStatus as ReturnType<typeof vi.fn>).mockResolvedValue({
       connected: true,
-      login: 'testuser',
+      login: 'test-user',
     });
 
     (githubDiscoveryApi.getOwners as ReturnType<typeof vi.fn>).mockResolvedValue({
@@ -74,6 +74,22 @@ describe('DashboardAgentScribePage', () => {
     expect(repoLabels.length).toBeGreaterThan(0);
   });
 
+  it('shows not connected notice when GitHub is not connected', async () => {
+    // Mock GitHub not connected
+    (integrationsApi.getGitHubStatus as ReturnType<typeof vi.fn>).mockResolvedValue({
+      connected: false,
+    });
+
+    renderWithRouter(<DashboardAgentScribePage />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/GitHub not connected/i)).toBeInTheDocument();
+    });
+    
+    // Should guide to integrations
+    expect(screen.getByText(/connect GitHub at \/dashboard\/integrations/i)).toBeInTheDocument();
+  });
+
   it('shows glass box console panel with tabs', async () => {
     renderWithRouter(<DashboardAgentScribePage />);
 
@@ -96,32 +112,16 @@ describe('DashboardAgentScribePage', () => {
     });
   });
 
-  it('shows "GitHub Not Connected" gate when not connected', async () => {
-    (integrationsApi.getGitHubStatus as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
-      connected: false,
-    });
-
-    renderWithRouter(<DashboardAgentScribePage />);
-
-    await waitFor(() => {
-      expect(screen.getByText(/GitHub Not Connected/i)).toBeInTheDocument();
-      expect(screen.getByText(/Go to Integrations/i)).toBeInTheDocument();
-    });
-
-    // Should NOT show repository dropdowns
-    expect(screen.queryByText(/Owner/i)).not.toBeInTheDocument();
-  });
-
-  it('shows demo mode notice when GitHub discovery fails but is connected', async () => {
+  it('shows error notice when GitHub discovery fails', async () => {
     (githubDiscoveryApi.getOwners as ReturnType<typeof vi.fn>).mockRejectedValueOnce(
-      new Error('No GitHub connection')
+      new Error('Failed to load owners')
     );
 
     renderWithRouter(<DashboardAgentScribePage />);
 
     await waitFor(() => {
-      // Should show demo mode indicator in the glass box console
-      expect(screen.getByText(/Demo mode active/i)).toBeInTheDocument();
+      // Should show discovery failure message (GitHub is connected but discovery failed)
+      expect(screen.getByText(/Failed to load GitHub organizations/i)).toBeInTheDocument();
     });
   });
 
