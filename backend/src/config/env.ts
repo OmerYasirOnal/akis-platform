@@ -90,6 +90,9 @@ const envSchema = z
     ATLASSIAN_EMAIL: z.string().optional(),
     // AI Provider configuration
     AI_PROVIDER: z.enum(['openrouter', 'openai', 'mock']).default('mock'),
+    AI_KEY_ENCRYPTION_KEY: z.string().optional(),
+    AI_KEY_ENCRYPTION_KEY_VERSION: z.string().default('v1'),
+    AI_SCRIBE_MODEL_ALLOWLIST: z.string().optional(),
     
     // API Keys - supports both new names and legacy OPENROUTER_*/OPENAI_* names
     AI_API_KEY: z.string().optional(),
@@ -143,6 +146,14 @@ const envSchema = z
         code: z.ZodIssueCode.custom,
         message: 'AUTH_COOKIE_SECURE must be true when NODE_ENV=production',
         path: ['AUTH_COOKIE_SECURE'],
+      });
+    }
+
+    if (!isTestMode && !data.AI_KEY_ENCRYPTION_KEY) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'AI_KEY_ENCRYPTION_KEY is required for encrypting user AI keys',
+        path: ['AI_KEY_ENCRYPTION_KEY'],
       });
     }
 

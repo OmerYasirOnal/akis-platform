@@ -14,6 +14,7 @@ import { authRoutes } from './api/auth.js';
 import { agentConfigRoutes } from './api/agent-configs.js';
 import { integrationsRoutes } from './api/integrations.js';
 import { testHelpersRoutes } from './api/test-helpers.js';
+import { settingsRoutes } from './api/settings/index.js';
 import { AgentOrchestrator } from './core/orchestrator/AgentOrchestrator.js';
 import { createAIService } from './services/ai/AIService.js';
 import type { MCPTools } from './services/mcp/adapters/index.js';
@@ -146,6 +147,7 @@ export async function buildApp() {
   await app.register(agentsRoutes);
   await app.register(agentConfigRoutes);
   await app.register(integrationsRoutes);
+  await app.register(settingsRoutes, { prefix: '/api' });
   if (env.NODE_ENV !== 'production' && process.env.SCRIBE_DEV_GITHUB_BOOTSTRAP === 'true') {
     await app.register(testHelpersRoutes, { prefix: '/test' });
   }
@@ -166,4 +168,3 @@ export async function buildApp() {
 
   return app;
 }
-
