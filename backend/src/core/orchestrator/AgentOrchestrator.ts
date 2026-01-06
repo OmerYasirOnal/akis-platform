@@ -4,9 +4,11 @@ import { db } from '../../db/client.js';
 import { jobs, jobPlans, jobAudits, oauthAccounts, type NewJob, type NewJobPlan, type NewJobAudit } from '../../db/schema.js';
 import { eq, and } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
-import { JobNotFoundError, InvalidStateTransitionError, DatabaseError, AIProviderError } from '../errors.js';
-import type { AIService } from '../../services/ai/AIService.js';
+import { JobNotFoundError, InvalidStateTransitionError, DatabaseError, AIProviderError, MissingAIKeyError } from '../errors.js';
+import { createAIService, type AIService, type AIServiceObserver } from '../../services/ai/AIService.js';
 import type { Plan, Critique } from '../../services/ai/AIService.js';
+import { AICallMetricsCollector } from '../../services/ai/ai-metrics.js';
+import { getDecryptedUserAiKey } from '../../services/ai/user-ai-keys.js';
 import type { MCPTools } from '../../services/mcp/adapters/index.js';
 import { getEnv } from '../../config/env.js';
 import { GitHubMCPService, McpError, McpConnectionError } from '../../services/mcp/adapters/GitHubMCPService.js';
@@ -116,6 +118,8 @@ export class AgentOrchestrator {
     type: string; 
     payload?: unknown; 
     requiresStrictValidation?: boolean;
+    aiProvider?: string;
+    aiModel?: string;
   }): Promise<string> {
     // Validate input type against registered agents
     const registeredTypes = AgentFactory.listTypes();
@@ -133,6 +137,8 @@ export class AgentOrchestrator {
       payload: input.payload || null,
       result: null,
       error: null,
+      aiProvider: input.aiProvider,
+      aiModel: input.aiModel,
       requiresStrictValidation: input.requiresStrictValidation ?? false,
     };
 
@@ -201,6 +207,8 @@ export class AgentOrchestrator {
 
     // S1.1: Create TraceRecorder for explainability (outside try so it's available in catch)
     const traceRecorder: TraceRecorder = createTraceRecorder(jobId);
+    let aiMetrics: AICallMetricsCollector | null = null;
+    let activeAiService: AIService | undefined;
 
     // Execute agent with Planner→Execute→Reflector pipeline
     try {
@@ -215,13 +223,19 @@ export class AgentOrchestrator {
       // Prepare dependencies (DI)
       const env = getEnv();
       const payload = (job.payload || {}) as Record<string, unknown>;
+      const { aiService: jobAiService, metrics } = await this.resolveAiServiceForJob(
+        job.type,
+        payload,
+        traceRecorder
+      );
+      aiMetrics = metrics;
       
       const resolvedTools: AgentDependencies = { 
         ...this.tools,
         traceRecorder, // S1.1: Inject TraceRecorder
         tools: {
           ...(this.tools.tools || {}),
-          aiService: this.aiService, // Inject AIService
+          aiService: jobAiService || this.aiService, // Inject AIService
         }
       };
       
@@ -306,11 +320,13 @@ export class AgentOrchestrator {
       // Phase 5.D: Planning phase (if required)
       // PR-2: Planning failures are now fatal - no more silent success
       let plan: Plan | undefined;
-      if (playbook.requiresPlanning && this.aiService) {
+      activeAiService = jobAiService || this.aiService;
+
+      if (playbook.requiresPlanning && activeAiService) {
         // Call agent's plan method
         if (agent.plan) {
           try {
-            plan = await agent.plan(this.aiService.planner, context);
+            plan = await agent.plan(activeAiService.planner, context);
           } catch (planError) {
             // PR-2: Planning failure is fatal - throw immediately
             const errorMessage = planError instanceof Error ? planError.message : String(planError);
@@ -376,7 +392,7 @@ export class AgentOrchestrator {
       let critique: Critique | undefined;
       let reflectionCheckResults: Awaited<ReturnType<typeof this.checkRunner.runCriticalChecks>> | undefined;
       
-      if (playbook.requiresReflection && this.aiService && agent.reflect) {
+      if (playbook.requiresReflection && activeAiService && agent.reflect) {
         try {
           // Run critical checks before reflection for tool-augmented feedback
           reflectionCheckResults = await this.checkRunner.runCriticalChecks();
@@ -394,7 +410,7 @@ export class AgentOrchestrator {
           };
 
           // Pass check results to reflection for tool-augmented feedback
-          critique = await agent.reflect(this.aiService.reflector, executionResult, checkResultsForReflection);
+          critique = await agent.reflect(activeAiService.reflector, executionResult, checkResultsForReflection);
 
           // Persist critique/audit to DB (including check results summary)
           const reflectAudit: NewJobAudit = {
@@ -427,13 +443,13 @@ export class AgentOrchestrator {
       }
 
       // Phase 10: Validation phase (if requiresStrictValidation is true)
-      if (job.requiresStrictValidation && this.aiService) {
+      if (job.requiresStrictValidation && activeAiService) {
         try {
           // Run static checks (lint, typecheck) as part of validation
           const checkResults = await this.checkRunner.runCriticalChecks();
           
           // Use strong model for final validation
-          const validationResult = await this.aiService.validateWithStrongModel({
+          const validationResult = await activeAiService.validateWithStrongModel({
             artifact: finalResult,
             plan: plan,
             reflection: critique,
@@ -510,6 +526,27 @@ export class AgentOrchestrator {
 
       // S1.1: Flush trace recorder before completing
       await traceRecorder.flush();
+
+      if (aiMetrics) {
+        const aiTotals = aiMetrics.getTotals();
+        const hasAiMetrics =
+          aiTotals.totalDurationMs > 0 ||
+          aiTotals.totalTokens > 0 ||
+          aiTotals.estimatedCostUsd !== null;
+
+        if (hasAiMetrics) {
+          await db
+            .update(jobs)
+            .set({
+              aiTotalDurationMs: aiTotals.totalDurationMs,
+              aiInputTokens: aiTotals.totalInputTokens,
+              aiOutputTokens: aiTotals.totalOutputTokens,
+              aiTotalTokens: aiTotals.totalTokens,
+              aiEstimatedCostUsd: aiTotals.estimatedCostUsd ?? null,
+            })
+            .where(eq(jobs.id, jobId));
+        }
+      }
       
       // Auto-complete on success
       await this.completeJob(jobId, finalResult);
@@ -522,12 +559,38 @@ export class AgentOrchestrator {
           error instanceof McpError ? error.code :
           error instanceof GitHubNotConnectedError ? error.code :
           error instanceof MissingDependencyError ? error.code :
+          error instanceof MissingAIKeyError ? error.code :
           undefined
         );
         await traceRecorder.flush();
       } catch (traceError) {
         // Don't fail because trace flush failed
         console.error(`Failed to flush traces for job ${jobId}:`, traceError);
+      }
+
+      if (aiMetrics) {
+        try {
+          const aiTotals = aiMetrics.getTotals();
+          const hasAiMetrics =
+            aiTotals.totalDurationMs > 0 ||
+            aiTotals.totalTokens > 0 ||
+            aiTotals.estimatedCostUsd !== null;
+
+          if (hasAiMetrics) {
+            await db
+              .update(jobs)
+              .set({
+                aiTotalDurationMs: aiTotals.totalDurationMs,
+                aiInputTokens: aiTotals.totalInputTokens,
+                aiOutputTokens: aiTotals.totalOutputTokens,
+                aiTotalTokens: aiTotals.totalTokens,
+                aiEstimatedCostUsd: aiTotals.estimatedCostUsd ?? null,
+              })
+              .where(eq(jobs.id, jobId));
+          }
+        } catch (metricsError) {
+          console.warn(`Failed to persist AI metrics for job ${jobId}:`, metricsError);
+        }
       }
       
       // Auto-fail on error (failJob handles its own errors)
@@ -555,6 +618,56 @@ export class AgentOrchestrator {
 
   private getDevBootstrapToken(env: ReturnType<typeof getEnv>): string | null {
     return env.SCRIBE_DEV_BOOTSTRAP_GITHUB_TOKEN || env.GITHUB_TOKEN || null;
+  }
+
+  private async resolveAiServiceForJob(
+    jobType: string,
+    payload: Record<string, unknown>,
+    traceRecorder: TraceRecorder
+  ): Promise<{ aiService?: AIService; metrics: AICallMetricsCollector }> {
+    const metrics = new AICallMetricsCollector();
+    const observer: AIServiceObserver = {
+      onAiCall: (call) => {
+        metrics.record(call);
+        traceRecorder.recordAiCall(call.purpose, call.success, call.durationMs, {
+          provider: call.provider,
+          model: call.model,
+          usage: call.usage,
+          estimatedCostUsd: call.estimatedCostUsd,
+          errorCode: call.errorCode,
+        });
+      },
+    };
+
+    if (jobType !== 'scribe') {
+      return { aiService: this.aiService, metrics };
+    }
+
+    const userId = payload.userId as string | undefined;
+    const modelOverride = payload.llmModelOverride as string | undefined;
+    if (!userId || !modelOverride) {
+      return { aiService: this.aiService, metrics };
+    }
+
+    const decrypted = await getDecryptedUserAiKey(userId, 'openai');
+    if (!decrypted) {
+      throw new MissingAIKeyError('openai');
+    }
+
+    const env = getEnv();
+    const aiConfig = {
+      provider: 'openai' as const,
+      apiKey: decrypted.key,
+      baseUrl: env.AI_BASE_URL || env.OPENAI_BASE_URL || 'https://api.openai.com/v1',
+      modelDefault: modelOverride,
+      modelPlanner: modelOverride,
+      modelValidation: modelOverride,
+      siteUrl: env.OPENROUTER_SITE_URL,
+      appName: env.OPENROUTER_APP_NAME,
+    };
+
+    const aiService = createAIService(aiConfig, observer);
+    return { aiService, metrics };
   }
 
   /**
