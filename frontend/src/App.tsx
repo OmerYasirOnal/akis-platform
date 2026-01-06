@@ -6,32 +6,9 @@ import { ProtectedRoute, RequireRole } from './app/RouteGuards';
 import { AuthProvider } from './contexts/AuthContext';
 import { useI18n } from './i18n/useI18n';
 import LandingPage from './pages/LandingPage';
-import PlatformPage from './pages/PlatformPage';
-import AgentsIndexPage from './pages/AgentsIndexPage';
-import AgentScribePage from './pages/agents/AgentScribePage';
-import AgentTracePage from './pages/agents/AgentTracePage';
-import AgentProtoPage from './pages/agents/AgentProtoPage';
-import IntegrationsPage from './pages/IntegrationsPage';
-import SolutionsPage from './pages/SolutionsPage';
-import SolutionsByRolePage from './pages/SolutionsByRolePage';
-import SolutionsByUseCasePage from './pages/SolutionsByUseCasePage';
-import PricingPage from './pages/PricingPage';
-import DocsIndexPage from './pages/docs/DocsIndexPage';
-import DocsGettingStartedPage from './pages/docs/DocsGettingStartedPage';
-import DocsAgentsPage from './pages/docs/DocsAgentsPage';
-import DocsConfigurationPage from './pages/docs/DocsConfigurationPage';
-import DocsIntegrationsPage from './pages/docs/DocsIntegrationsPage';
-import DocsApiReferencePage from './pages/docs/DocsApiReferencePage';
-import DocsArchitecturePage from './pages/docs/DocsArchitecturePage';
-import DocsTroubleshootingPage from './pages/docs/DocsTroubleshootingPage';
-import ChangelogPage from './pages/ChangelogPage';
 import AboutAKIS from './pages/about/AboutAKIS';
-import ContactPage from './pages/ContactPage';
 import LegalTermsPage from './pages/legal/LegalTermsPage';
 import LegalPrivacyPage from './pages/legal/LegalPrivacyPage';
-import StatusPage from './pages/StatusPage';
-import Login from './pages/auth/Login';
-import Signup from './pages/auth/Signup';
 import LoginEmail from './pages/auth/LoginEmail';
 import LoginPassword from './pages/auth/LoginPassword';
 import SignupEmail from './pages/auth/SignupEmail';
@@ -41,9 +18,6 @@ import WelcomeBeta from './pages/auth/WelcomeBeta';
 import PrivacyConsent from './pages/auth/PrivacyConsent';
 import DashboardOverviewPage from './pages/dashboard/DashboardOverviewPage';
 import DashboardAgentScribePage from './pages/dashboard/agents/DashboardAgentScribePage';
-// DashboardAgentScribeRunPage removed - single-page console at /dashboard/scribe is canonical
-import DashboardAgentTracePage from './pages/dashboard/agents/DashboardAgentTracePage';
-import DashboardAgentProtoPage from './pages/dashboard/agents/DashboardAgentProtoPage';
 import DashboardIntegrationsPage from './pages/dashboard/DashboardIntegrationsPage';
 import DashboardSettingsProfilePage from './pages/dashboard/settings/DashboardSettingsProfilePage';
 import DashboardSettingsWorkspacePage from './pages/dashboard/settings/DashboardSettingsWorkspacePage';
@@ -68,40 +42,13 @@ function App() {
         <Routes>
           <Route element={<AppShell />}>
             <Route index element={<LandingPage />} />
-            <Route path="platform" element={<PlatformPage />} />
-            <Route path="agents">
-              <Route index element={<AgentsIndexPage />} />
-              <Route path="scribe" element={<AgentScribePage />} />
-              <Route path="trace" element={<AgentTracePage />} />
-              <Route path="proto" element={<AgentProtoPage />} />
-            </Route>
-            <Route path="integrations" element={<IntegrationsPage />} />
-            <Route path="solutions">
-              <Route index element={<SolutionsPage />} />
-              <Route path="by-role" element={<SolutionsByRolePage />} />
-              <Route path="by-use-case" element={<SolutionsByUseCasePage />} />
-            </Route>
-            <Route path="pricing" element={<PricingPage />} />
-            <Route path="docs">
-              <Route index element={<DocsIndexPage />} />
-              <Route path="getting-started" element={<DocsGettingStartedPage />} />
-              <Route path="agents" element={<DocsAgentsPage />} />
-              <Route path="configuration" element={<DocsConfigurationPage />} />
-              <Route path="integrations" element={<DocsIntegrationsPage />} />
-              <Route path="api-reference" element={<DocsApiReferencePage />} />
-              <Route path="architecture" element={<DocsArchitecturePage />} />
-              <Route path="troubleshooting" element={<DocsTroubleshootingPage />} />
-            </Route>
-            <Route path="changelog" element={<ChangelogPage />} />
             <Route path="about" element={<AboutAKIS />} />
-            <Route path="contact" element={<ContactPage />} />
             <Route path="legal">
               <Route path="terms" element={<LegalTermsPage />} />
               <Route path="privacy" element={<LegalPrivacyPage />} />
             </Route>
-            <Route path="status" element={<StatusPage />} />
 
-            {/* Auth Routes - Multi-Step Flow (New) */}
+            {/* Auth Routes - Multi-Step Flow */}
             <Route path="login">
               <Route index element={<LoginEmail />} />
               <Route path="password" element={<LoginPassword />} />
@@ -115,10 +62,6 @@ function App() {
               <Route path="welcome-beta" element={<WelcomeBeta />} />
               <Route path="privacy-consent" element={<PrivacyConsent />} />
             </Route>
-
-            {/* Legacy Auth Routes (Deprecated, kept for backwards compatibility) */}
-            <Route path="auth/login-legacy" element={<Login />} />
-            <Route path="auth/signup-legacy" element={<Signup />} />
           </Route>
 
           <Route
@@ -146,10 +89,7 @@ function App() {
             <Route path="agents">
               <Route index element={<Navigate to="/dashboard/scribe" replace />} />
               <Route path="scribe" element={<Navigate to="/dashboard/scribe" replace />} />
-              {/* Legacy run page redirects to single-page console */}
               <Route path="scribe/run" element={<Navigate to="/dashboard/scribe" replace />} />
-              <Route path="trace" element={<DashboardAgentTracePage />} />
-              <Route path="proto" element={<DashboardAgentProtoPage />} />
             </Route>
             <Route path="integrations" element={<DashboardIntegrationsPage />} />
             <Route path="settings">

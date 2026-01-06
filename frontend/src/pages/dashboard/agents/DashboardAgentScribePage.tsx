@@ -5,9 +5,9 @@
  * - Left: Configuration panel (repo/branch/model + Advanced collapsed)
  * - Right: Glass Box live monitoring (console logs + tabs for preview/diff)
  * 
- * Demo mode: Works without backend, uses deterministic simulation
+ * Real mode: Connects to backend and submits actual jobs
  */
-import { useEffect, useMemo, useState, useRef } from 'react';
+import { useEffect, useMemo, useState, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import Card from '../../../components/common/Card';
 import Button from '../../../components/common/Button';
@@ -18,32 +18,28 @@ import {
   type GitHubRepo,
   type GitHubBranch,
 } from '../../../services/api/github-discovery';
-import { useDemoScribeRunner } from '../../../services/agents/scribe';
-import type { ScribeLogEntry } from '../../../services/agents/scribe';
-
-// Fallback data for demo when GitHub is not connected
-const FALLBACK_OWNERS: GitHubOwner[] = [
-  { login: 'akis-platform', type: 'Organization', avatarUrl: '' },
-  { login: 'demo-team', type: 'Organization', avatarUrl: '' },
-];
-
-const FALLBACK_REPOS: Record<string, GitHubRepo[]> = {
-  'akis-platform': [
-    { name: 'docs-hub', fullName: 'akis-platform/docs-hub', defaultBranch: 'main', private: true, description: 'Documentation workspace' },
-    { name: 'scribe-playground', fullName: 'akis-platform/scribe-playground', defaultBranch: 'main', private: false, description: 'Demo repository' },
-  ],
-  'demo-team': [
-    { name: 'product-notes', fullName: 'demo-team/product-notes', defaultBranch: 'main', private: true, description: 'Product documentation' },
-  ],
-};
-
-const FALLBACK_BRANCHES: GitHubBranch[] = [
-  { name: 'main', isDefault: true },
-  { name: 'develop', isDefault: false },
-  { name: 'docs', isDefault: false },
-];
+import { agentsApi, type JobDetail } from '../../../services/api/agents';
 
 type ActiveTab = 'logs' | 'preview' | 'diff';
+
+interface LogEntry {
+  id: string;
+  timestamp: Date;
+  level: 'info' | 'success' | 'error' | 'warning' | 'debug';
+  message: string;
+}
+
+interface TraceEvent {
+  id?: string;
+  timestamp: string;
+  title?: string;
+  detail?: string;
+  status?: 'running' | 'completed' | 'failed';
+}
+
+interface Artifact {
+  preview?: string;
+}
 
 const DashboardAgentScribePage = () => {
   // GitHub discovery state
@@ -60,8 +56,13 @@ const DashboardAgentScribePage = () => {
   const [loadingOwners, setLoadingOwners] = useState(true);
   const [loadingRepos, setLoadingRepos] = useState(false);
   const [loadingBranches, setLoadingBranches] = useState(false);
-  const [usingMockData, setUsingMockData] = useState(false);
-  const [githubNotice, setGithubNotice] = useState<string | null>(null);
+  const [githubError, setGithubError] = useState<string | null>(null);
+
+  // Job execution state
+  const [currentJob, setCurrentJob] = useState<JobDetail | null>(null);
+  const [logs, setLogs] = useState<LogEntry[]>([]);
+  const [isPolling, setIsPolling] = useState(false);
+  const pollingIntervalRef = useRef<number | null>(null);
 
   // Advanced section
   const [showAdvanced, setShowAdvanced] = useState(false);
@@ -70,15 +71,12 @@ const DashboardAgentScribePage = () => {
   const [activeTab, setActiveTab] = useState<ActiveTab>('logs');
   const logsEndRef = useRef<HTMLDivElement>(null);
 
-  // Demo runner
-  const { state: runState, start, cancel, reset, isRunning, isComplete, isIdle } = useDemoScribeRunner();
-
   // Auto-scroll logs
   useEffect(() => {
     if (activeTab === 'logs' && logsEndRef.current) {
       logsEndRef.current.scrollIntoView({ behavior: 'smooth' });
     }
-  }, [runState.logs, activeTab]);
+  }, [logs, activeTab]);
 
   // Load owners on mount
   useEffect(() => {
@@ -86,6 +84,7 @@ const DashboardAgentScribePage = () => {
 
     const loadOwners = async () => {
       setLoadingOwners(true);
+      setGithubError(null);
       try {
         const result = await githubDiscoveryApi.getOwners();
         if (!active) return;
@@ -93,21 +92,13 @@ const DashboardAgentScribePage = () => {
         if (result.owners.length > 0) {
           setOwners(result.owners);
           setOwner((prev) => prev || result.owners[0].login);
-          setUsingMockData(false);
-          setGithubNotice(null);
-          return;
+        } else {
+          setGithubError('No GitHub organizations found. Please connect GitHub at /dashboard/integrations');
         }
-
-        setUsingMockData(true);
-        setGithubNotice('Demo mode: Using mock repositories. Connect GitHub for real data.');
-        setOwners(FALLBACK_OWNERS);
-        setOwner((prev) => prev || FALLBACK_OWNERS[0].login);
-      } catch {
+      } catch (error) {
         if (!active) return;
-        setUsingMockData(true);
-        setGithubNotice('Demo mode: GitHub not connected. Using mock data.');
-        setOwners(FALLBACK_OWNERS);
-        setOwner((prev) => prev || FALLBACK_OWNERS[0].login);
+        setGithubError('GitHub not connected. Please connect GitHub at /dashboard/integrations to use Scribe.');
+        console.error('Failed to load GitHub owners:', error);
       } finally {
         if (active) setLoadingOwners(false);
       }
@@ -134,26 +125,15 @@ const DashboardAgentScribePage = () => {
       setBranches([]);
       setBaseBranch('');
 
-      if (usingMockData) {
-        const fallbackRepos = FALLBACK_REPOS[owner] ?? [];
-        setRepos(fallbackRepos);
-        setRepo(fallbackRepos[0]?.name ?? '');
-        setLoadingRepos(false);
-        return;
-      }
-
       try {
         const result = await githubDiscoveryApi.getRepos(owner);
         if (!active) return;
         setRepos(result.repos);
         setRepo((prev) => prev || result.repos[0]?.name || '');
-      } catch {
+      } catch (error) {
         if (!active) return;
-        setUsingMockData(true);
-        setGithubNotice('Demo mode: Repository list mocked.');
-        const fallbackRepos = FALLBACK_REPOS[owner] ?? [];
-        setRepos(fallbackRepos);
-        setRepo((prev) => prev || fallbackRepos[0]?.name || '');
+        console.error('Failed to load repos:', error);
+        setRepos([]);
       } finally {
         if (active) setLoadingRepos(false);
       }
@@ -161,7 +141,7 @@ const DashboardAgentScribePage = () => {
 
     void loadRepos();
     return () => { active = false; };
-  }, [owner, usingMockData]);
+  }, [owner]);
 
   // Load branches when repo changes
   useEffect(() => {
@@ -177,24 +157,15 @@ const DashboardAgentScribePage = () => {
       setLoadingBranches(true);
       setBranches([]);
 
-      if (usingMockData) {
-        setBranches(FALLBACK_BRANCHES);
-        setBaseBranch((prev) => prev || 'main');
-        setLoadingBranches(false);
-        return;
-      }
-
       try {
         const result = await githubDiscoveryApi.getBranches(owner, repo);
         if (!active) return;
         setBranches(result.branches);
         setBaseBranch((prev) => prev || result.defaultBranch || 'main');
-      } catch {
+      } catch (error) {
         if (!active) return;
-        setUsingMockData(true);
-        setGithubNotice('Demo mode: Branch list mocked.');
-        setBranches(FALLBACK_BRANCHES);
-        setBaseBranch((prev) => prev || 'main');
+        console.error('Failed to load branches:', error);
+        setBranches([]);
       } finally {
         if (active) setLoadingBranches(false);
       }
@@ -202,7 +173,69 @@ const DashboardAgentScribePage = () => {
 
     void loadBranches();
     return () => { active = false; };
-  }, [owner, repo, usingMockData]);
+  }, [owner, repo]);
+
+  // Poll job status
+  const pollJobStatus = useCallback(async (jobId: string) => {
+    try {
+      const job = await agentsApi.getJob(jobId, { include: ['trace', 'artifacts'] });
+      setCurrentJob(job);
+
+      // Extract logs from trace events
+      if (job.trace && Array.isArray(job.trace)) {
+        const newLogs: LogEntry[] = (job.trace as TraceEvent[]).map((event) => ({
+          id: event.id || String(Math.random()),
+          timestamp: new Date(event.timestamp),
+          level: event.status === 'failed' ? 'error' : event.status === 'completed' ? 'success' : 'info',
+          message: event.title || event.detail || 'Processing...',
+        }));
+        setLogs(newLogs);
+      }
+
+      // Stop polling if job is in terminal state
+      if (job.state === 'completed' || job.state === 'failed') {
+        setIsPolling(false);
+        if (pollingIntervalRef.current) {
+          clearInterval(pollingIntervalRef.current);
+          pollingIntervalRef.current = null;
+        }
+
+        // Add completion log
+        const completionLog: LogEntry = {
+          id: `completion-${Date.now()}`,
+          timestamp: new Date(),
+          level: job.state === 'completed' ? 'success' : 'error',
+          message: job.state === 'completed' 
+            ? '✓ Scribe workflow completed successfully' 
+            : `✗ Scribe workflow failed: ${job.errorMessage || job.error || 'Unknown error'}`,
+        };
+        setLogs(prev => [...prev, completionLog]);
+      }
+    } catch (error) {
+      console.error('Failed to poll job:', error);
+      // Don't stop polling on temporary errors
+    }
+  }, []);
+
+  // Start polling when job is created
+  useEffect(() => {
+    if (currentJob && isPolling && (currentJob.state === 'pending' || currentJob.state === 'running')) {
+      // Initial immediate poll
+      void pollJobStatus(currentJob.id);
+
+      // Set up polling interval
+      pollingIntervalRef.current = window.setInterval(() => {
+        void pollJobStatus(currentJob.id);
+      }, 2000); // Poll every 2 seconds
+
+      return () => {
+        if (pollingIntervalRef.current) {
+          clearInterval(pollingIntervalRef.current);
+          pollingIntervalRef.current = null;
+        }
+      };
+    }
+  }, [currentJob, isPolling, pollJobStatus]);
 
   // Memoized options
   const ownerOptions = useMemo<SelectOption[]>(
@@ -235,54 +268,95 @@ const DashboardAgentScribePage = () => {
     [branches]
   );
 
-  const canRun = Boolean(owner.trim()) && Boolean(repo.trim()) && Boolean(baseBranch.trim());
+  const canRun = Boolean(owner.trim()) && Boolean(repo.trim()) && Boolean(baseBranch.trim()) && !isPolling;
 
-  const handleRunScribe = () => {
+  const handleRunScribe = async () => {
     if (!canRun) return;
-    start({
-      owner,
-      repo,
-      baseBranch,
-      targetPath,
-      dryRun,
-    });
-    setActiveTab('logs');
-  };
 
-  const handleCancel = () => {
-    cancel();
+    // Clear previous state
+    setLogs([]);
+    setCurrentJob(null);
+
+    // Add initial log
+    const initialLog: LogEntry = {
+      id: `start-${Date.now()}`,
+      timestamp: new Date(),
+      level: 'info',
+      message: `Starting Scribe workflow for ${owner}/${repo} (${baseBranch})...`,
+    };
+    setLogs([initialLog]);
+    setActiveTab('logs');
+
+    try {
+      // Submit job to backend
+      const response = await agentsApi.runAgent({
+        type: 'scribe',
+        payload: {
+          owner,
+          repo,
+          baseBranch,
+          targetPath,
+          dryRun,
+        },
+      });
+
+      // Start polling - fetch full job details
+      const job = await agentsApi.getJob(response.jobId);
+      setCurrentJob(job);
+      setIsPolling(true);
+
+      const submittedLog: LogEntry = {
+        id: `submitted-${Date.now()}`,
+        timestamp: new Date(),
+        level: 'success',
+        message: `Job submitted: ${response.jobId}`,
+      };
+      setLogs(prev => [...prev, submittedLog]);
+    } catch (error) {
+      const errorLog: LogEntry = {
+        id: `error-${Date.now()}`,
+        timestamp: new Date(),
+        level: 'error',
+        message: `Failed to start Scribe: ${error instanceof Error ? error.message : String(error)}`,
+      };
+      setLogs(prev => [...prev, errorLog]);
+      console.error('Failed to run Scribe:', error);
+    }
   };
 
   const handleReset = () => {
-    reset();
+    setCurrentJob(null);
+    setLogs([]);
+    setIsPolling(false);
+    if (pollingIntervalRef.current) {
+      clearInterval(pollingIntervalRef.current);
+      pollingIntervalRef.current = null;
+    }
   };
 
   const getStatusColor = () => {
-    switch (runState.status) {
-      case 'complete': return 'text-green-400';
-      case 'error':
-      case 'cancelled': return 'text-red-400';
-      case 'idle': return 'text-ak-text-secondary';
-      default: return 'text-ak-primary';
+    if (!currentJob) return 'text-ak-text-secondary';
+    switch (currentJob.state) {
+      case 'completed': return 'text-green-400';
+      case 'failed': return 'text-red-400';
+      case 'pending': return 'text-yellow-400';
+      case 'running': return 'text-ak-primary';
+      default: return 'text-ak-text-secondary';
     }
   };
 
   const getStatusText = () => {
-    switch (runState.status) {
-      case 'idle': return 'Ready';
-      case 'scanning': return 'Scanning...';
-      case 'analyzing': return 'Analyzing...';
-      case 'drafting': return 'Drafting...';
-      case 'reviewing': return 'Reviewing...';
-      case 'finalizing': return 'Finalizing...';
-      case 'complete': return 'Complete';
-      case 'cancelled': return 'Cancelled';
-      case 'error': return 'Error';
+    if (!currentJob) return 'Ready';
+    switch (currentJob.state) {
+      case 'pending': return 'Queued';
+      case 'running': return 'Running';
+      case 'completed': return 'Complete';
+      case 'failed': return 'Failed';
       default: return 'Unknown';
     }
   };
 
-  const getLogLevelColor = (level: ScribeLogEntry['level']) => {
+  const getLogLevelColor = (level: LogEntry['level']) => {
     switch (level) {
       case 'success': return 'text-green-400';
       case 'error': return 'text-red-400';
@@ -292,17 +366,25 @@ const DashboardAgentScribePage = () => {
     }
   };
 
+  const isRunning = isPolling && currentJob && (currentJob.state === 'pending' || currentJob.state === 'running');
+  const isComplete = currentJob && (currentJob.state === 'completed' || currentJob.state === 'failed');
+  const isIdle = !currentJob || !isPolling;
+
+  // Extract preview and diff from job result
+  const preview = currentJob?.result && typeof currentJob.result === 'object' && 'preview' in currentJob.result
+    ? String((currentJob.result as { preview: string }).preview)
+    : null;
+
+  const diff = currentJob?.artifacts && Array.isArray(currentJob.artifacts) && currentJob.artifacts.length > 0
+    ? (currentJob.artifacts[0] as Artifact).preview || null
+    : null;
+
   return (
     <div className="space-y-6">
       {/* Header */}
       <header className="space-y-2">
         <div className="flex items-center gap-3">
           <h1 className="text-2xl font-semibold text-ak-text-primary">Scribe Console</h1>
-          {usingMockData && (
-            <span className="rounded-full border border-ak-border bg-ak-surface-2 px-2 py-0.5 text-[10px] uppercase tracking-[0.15em] text-ak-text-secondary">
-              Demo Mode
-            </span>
-          )}
         </div>
         <p className="text-sm text-ak-text-secondary">
           Configure and run Scribe documentation agent from a single workspace.
@@ -321,9 +403,9 @@ const DashboardAgentScribePage = () => {
               </Link>
             </div>
 
-            {githubNotice && (
-              <div className="rounded-xl border border-ak-border bg-ak-surface-2 px-3 py-2 text-xs text-ak-text-secondary">
-                {githubNotice}
+            {githubError && (
+              <div className="rounded-xl border border-red-500/50 bg-red-500/10 px-3 py-2 text-xs text-red-400">
+                {githubError}
               </div>
             )}
 
@@ -337,7 +419,7 @@ const DashboardAgentScribePage = () => {
                 onChange={setOwner}
                 loading={loadingOwners}
                 emptyMessage="No owners available"
-                disabled={isRunning}
+                disabled={isRunning || undefined}
               />
 
               <SearchableSelect
@@ -348,7 +430,7 @@ const DashboardAgentScribePage = () => {
                 onChange={setRepo}
                 loading={loadingRepos}
                 emptyMessage="No repositories"
-                disabled={!owner || isRunning}
+                disabled={(!owner || isRunning) || undefined}
               />
 
               <SearchableSelect
@@ -359,7 +441,7 @@ const DashboardAgentScribePage = () => {
                 onChange={setBaseBranch}
                 loading={loadingBranches}
                 emptyMessage="No branches"
-                disabled={!repo || isRunning}
+                disabled={(!repo || isRunning) || undefined}
                 allowManualInput
               />
             </div>
@@ -385,7 +467,7 @@ const DashboardAgentScribePage = () => {
                       type="text"
                       value={targetPath}
                       onChange={(e) => setTargetPath(e.target.value)}
-                      disabled={isRunning}
+                      disabled={isRunning || false}
                       className="w-full rounded-lg border border-ak-border bg-ak-surface-2 px-3 py-2 text-sm text-ak-text-primary placeholder-ak-text-secondary/50 focus:border-ak-primary focus:outline-none focus:ring-1 focus:ring-ak-primary disabled:opacity-50"
                       placeholder="docs/"
                     />
@@ -396,7 +478,7 @@ const DashboardAgentScribePage = () => {
                       type="checkbox"
                       checked={dryRun}
                       onChange={(e) => setDryRun(e.target.checked)}
-                      disabled={isRunning}
+                      disabled={isRunning || false}
                       className="h-4 w-4 rounded border-ak-border bg-ak-surface-2 text-ak-primary focus:ring-ak-primary"
                     />
                     <span>Dry run (preview only, no commits)</span>
@@ -417,11 +499,11 @@ const DashboardAgentScribePage = () => {
                 </Button>
               ) : isRunning ? (
                 <Button
-                  onClick={handleCancel}
                   variant="outline"
-                  className="w-full justify-center border-red-500/50 text-red-400 hover:bg-red-500/10"
+                  disabled
+                  className="w-full justify-center border-ak-primary/50 text-ak-primary"
                 >
-                  ⏹ Cancel Run
+                  ⏳ Running...
                 </Button>
               ) : (
                 <Button
@@ -435,14 +517,14 @@ const DashboardAgentScribePage = () => {
 
               {!canRun && isIdle && (
                 <p className="text-center text-xs text-ak-text-secondary">
-                  Select a repository and branch to start
+                  {githubError ? 'Connect GitHub to continue' : 'Select a repository and branch to start'}
                 </p>
               )}
             </div>
           </Card>
 
           {/* Status Summary */}
-          {!isIdle && (
+          {!isIdle && currentJob && (
             <Card className="bg-ak-surface-2 p-4">
               <div className="flex items-center justify-between">
                 <div>
@@ -455,26 +537,12 @@ const DashboardAgentScribePage = () => {
                 </div>
                 <div className="text-right">
                   <p className="text-xs font-medium uppercase tracking-wider text-ak-text-secondary">
-                    Progress
+                    Job ID
                   </p>
-                  <p className="text-lg font-semibold text-ak-text-primary">
-                    {runState.progress}%
+                  <p className="text-xs font-mono text-ak-text-primary">
+                    {currentJob.id.substring(0, 8)}...
                   </p>
                 </div>
-              </div>
-
-              {/* Progress bar */}
-              <div className="mt-3 h-2 overflow-hidden rounded-full bg-ak-bg">
-                <div
-                  className={`h-full transition-all duration-500 ${
-                    runState.status === 'complete'
-                      ? 'bg-green-500'
-                      : runState.status === 'error' || runState.status === 'cancelled'
-                        ? 'bg-red-500'
-                        : 'bg-ak-primary'
-                  }`}
-                  style={{ width: `${runState.progress}%` }}
-                />
               </div>
             </Card>
           )}
@@ -515,22 +583,22 @@ const DashboardAgentScribePage = () => {
             <div className="flex-1 overflow-hidden">
               {activeTab === 'logs' && (
                 <div className="h-full overflow-y-auto bg-ak-bg p-4 font-mono text-sm">
-                  {runState.logs.length === 0 ? (
+                  {logs.length === 0 ? (
                     <div className="flex h-full flex-col items-center justify-center text-ak-text-secondary/50">
                       <span className="text-4xl">🤖</span>
                       <p className="mt-2 text-center">
                         Press "Run Scribe" to start documentation analysis
                       </p>
                       <p className="mt-1 text-xs">
-                        {usingMockData ? 'Demo mode active' : 'Connected to GitHub'}
+                        {githubError ? 'Connect GitHub first' : 'Real backend integration'}
                       </p>
                     </div>
                   ) : (
                     <div className="space-y-1">
-                      {runState.logs.map((log) => (
+                      {logs.map((log) => (
                         <div key={log.id} className="flex gap-2">
                           <span className="flex-shrink-0 text-ak-text-secondary/50">
-                            {new Date(log.timestamp).toLocaleTimeString()}
+                            {log.timestamp.toLocaleTimeString()}
                           </span>
                           <span className={getLogLevelColor(log.level)}>
                             {log.message}
@@ -545,10 +613,10 @@ const DashboardAgentScribePage = () => {
 
               {activeTab === 'preview' && (
                 <div className="h-full overflow-y-auto bg-ak-bg p-4">
-                  {runState.preview ? (
+                  {preview ? (
                     <div className="prose prose-invert prose-sm max-w-none">
                       <pre className="whitespace-pre-wrap rounded-lg bg-ak-surface-2 p-4 text-sm text-ak-text-primary">
-                        {runState.preview}
+                        {preview}
                       </pre>
                     </div>
                   ) : (
@@ -562,9 +630,9 @@ const DashboardAgentScribePage = () => {
 
               {activeTab === 'diff' && (
                 <div className="h-full overflow-y-auto bg-ak-bg p-4">
-                  {runState.diff ? (
+                  {diff ? (
                     <pre className="whitespace-pre-wrap rounded-lg bg-ak-surface-2 p-4 font-mono text-xs">
-                      {runState.diff.split('\n').map((line, idx) => (
+                      {diff.split('\n').map((line: string, idx: number) => (
                         <div
                           key={idx}
                           className={
