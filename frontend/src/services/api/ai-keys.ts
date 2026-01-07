@@ -12,6 +12,8 @@ const withCredentials = {
 };
 
 export type AiProvider = 'openai' | 'openrouter';
+// Alias for consistency with backend naming
+export type AIKeyProvider = AiProvider;
 
 export type ProviderKeyStatus = {
   configured: boolean;
@@ -34,6 +36,22 @@ export type AiKeyStatus = {
   last4: string | null;
   updatedAt: string | null;
 };
+
+// Standalone export for direct import (matches backend API naming)
+export async function getMultiProviderStatus(): Promise<MultiProviderStatus> {
+  return httpClient.get<MultiProviderStatus>(
+    '/api/settings/ai-keys/status',
+    withCredentials
+  );
+}
+
+export async function setActiveProvider(provider: AiProvider): Promise<MultiProviderStatus> {
+  return httpClient.put<MultiProviderStatus>(
+    '/api/settings/ai-provider/active',
+    { provider },
+    withCredentials
+  );
+}
 
 export const aiKeysApi = {
   /**

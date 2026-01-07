@@ -312,7 +312,7 @@ export const RunSummaryPanel = ({ job, traces }: RunSummaryPanelProps) => {
                       {call.label}
                     </p>
                     <p className="text-xs text-ak-text-secondary">
-                      Model: {call.model || model}
+                      Model: {call.model || displayModel}
                     </p>
                   </div>
                   <span
