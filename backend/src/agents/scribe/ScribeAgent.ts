@@ -438,12 +438,10 @@ export class ScribeAgent extends BaseAgent {
       const results = await Promise.allSettled(
         batch.map(async (filePath) => {
           if (this.shouldExcludeFile(filePath)) return null;
-          try {
-            const fileData = await this.githubMCP!.getFileContent(owner, repo, branch, filePath);
-            return { path: filePath, content: fileData.content };
-          } catch {
-            return null;
-          }
+          // Use safe file read to avoid ERROR spam for expected missing files
+          const fileData = await this.githubMCP!.getFileContentSafe(owner, repo, branch, filePath);
+          if (!fileData) return null;
+          return { path: filePath, content: fileData.content };
         })
       );
       

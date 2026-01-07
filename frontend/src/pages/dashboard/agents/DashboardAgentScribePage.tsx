@@ -20,6 +20,7 @@ import {
 } from '../../../services/api/github-discovery';
 import { agentsApi, type JobDetail } from '../../../services/api/agents';
 import { integrationsApi } from '../../../services/api/integrations';
+import { getMultiProviderStatus, type AIKeyProvider } from '../../../services/api/ai-keys';
 
 type ActiveTab = 'logs' | 'preview' | 'diff';
 
@@ -309,7 +310,17 @@ const DashboardAgentScribePage = () => {
     setActiveTab('logs');
 
     try {
-      // Submit job to backend
+      // Fetch user's active AI provider to ensure job uses correct provider
+      let aiProvider: AIKeyProvider | undefined;
+      try {
+        const aiStatus = await getMultiProviderStatus();
+        aiProvider = aiStatus.activeProvider || undefined;
+        console.log(`[Scribe] User's active AI provider: ${aiProvider || 'none (using env default)'}`);
+      } catch (aiError) {
+        console.warn('[Scribe] Could not fetch AI provider status, will use backend default:', aiError);
+      }
+
+      // Submit job to backend with explicit provider
       const response = await agentsApi.runAgent({
         type: 'scribe',
         payload: {
@@ -318,6 +329,8 @@ const DashboardAgentScribePage = () => {
           baseBranch,
           targetPath,
           dryRun,
+          // Include user's active AI provider for deterministic resolution
+          aiProvider,
           // featureBranch not sent - backend will auto-generate
         },
       });

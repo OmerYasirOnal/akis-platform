@@ -75,10 +75,10 @@ export class AIRateLimitedError extends AIProviderError {
 }
 
 export class MissingAIKeyError extends AIProviderError {
-  constructor(provider: string) {
+  constructor(provider: string, customMessage?: string) {
     super(
       'AI_KEY_MISSING',
-      `AI API key is not configured for provider ${provider}. Please add a key in Settings.`,
+      customMessage || `AI API key is not configured for provider ${provider}. Please add a key in Settings > API Keys.`,
       provider
     );
     this.name = 'MissingAIKeyError';

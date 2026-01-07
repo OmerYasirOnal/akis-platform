@@ -13,7 +13,8 @@ export type AIKeyStatus = {
 };
 
 export type MultiProviderStatus = {
-  activeProvider: AIKeyProvider;
+  /** User's explicitly set active provider, or null if never set */
+  activeProvider: AIKeyProvider | null;
   providers: {
     openai: Omit<AIKeyStatus, 'provider'>;
     openrouter: Omit<AIKeyStatus, 'provider'>;
@@ -123,15 +124,17 @@ export async function getDecryptedUserAiKey(
 
 /**
  * Get multi-provider status including active provider for a user
+ * Note: activeProvider is null if user has never explicitly set one
  */
 export async function getMultiProviderStatus(userId: string): Promise<MultiProviderStatus> {
-  // Get user's active provider
+  // Get user's active provider (may be null if never set)
   const user = await db.query.users.findFirst({
     where: eq(users.id, userId),
     columns: { activeAiProvider: true },
   });
 
-  const activeProvider: AIKeyProvider = (user?.activeAiProvider as AIKeyProvider) || 'openrouter';
+  // Do NOT apply hard default here - let orchestrator handle fallback logic
+  const activeProvider: AIKeyProvider | null = (user?.activeAiProvider as AIKeyProvider) || null;
 
   // Get status for both providers
   const [openaiStatus, openrouterStatus] = await Promise.all([
@@ -173,12 +176,15 @@ export async function setUserActiveProvider(
 
 /**
  * Get user's active AI provider
+ * Returns null if user has never explicitly set an active provider
+ * (Orchestrator applies deterministic fallback: payload > userActive > env)
  */
-export async function getUserActiveProvider(userId: string): Promise<AIKeyProvider> {
+export async function getUserActiveProvider(userId: string): Promise<AIKeyProvider | null> {
   const user = await db.query.users.findFirst({
     where: eq(users.id, userId),
     columns: { activeAiProvider: true },
   });
 
-  return (user?.activeAiProvider as AIKeyProvider) || 'openrouter';
+  // Do NOT return hard default - let orchestrator handle fallback
+  return (user?.activeAiProvider as AIKeyProvider) || null;
 }

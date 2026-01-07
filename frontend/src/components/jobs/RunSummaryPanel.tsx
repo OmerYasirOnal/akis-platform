@@ -56,6 +56,24 @@ const KeySourceBadge = ({ keySource, fallbackReason }: { keySource: string | nul
   );
 };
 
+/** Explain why this provider was selected */
+const formatFallbackReason = (reason: string | null): string => {
+  if (!reason) return '';
+  
+  const reasonMap: Record<string, string> = {
+    'PAYLOAD_PROVIDER': 'Explicitly set in job request',
+    'USER_ACTIVE_PROVIDER': 'Your active provider setting',
+    'ENV_DEFAULT_NO_USER_ACTIVE': 'System default (no active provider set)',
+    'ENV_DEFAULT_NO_USER_ID': 'System default (no user context)',
+    'USER_KEY_MISSING': 'Your key not found, using system key',
+    'USE_ENV_AI_FLAG': 'Forced by useEnvAI flag',
+    'NON_SCRIBE_JOB': 'Non-Scribe jobs use system config',
+    'NO_USER_ID': 'No user context available',
+  };
+  
+  return reasonMap[reason] || reason;
+};
+
 const coerceNumber = (value: unknown): number | null => {
   if (value === null || value === undefined) return null;
   if (typeof value === 'number' && Number.isFinite(value)) return value;
@@ -231,10 +249,16 @@ export const RunSummaryPanel = ({ job, traces }: RunSummaryPanelProps) => {
         </div>
       </div>
 
-      {showRequestedVsResolved && (
-        <div className="mt-2 p-2 rounded bg-yellow-500/10 border border-yellow-500/20 text-xs text-yellow-300">
-          <span className="font-medium">Note:</span> Requested <code className="bg-ak-surface px-1 rounded">{requestedProvider}</code> but resolved to <code className="bg-ak-surface px-1 rounded">{resolvedProvider}</code>
-          {fallbackReason && <span className="ml-1">({fallbackReason})</span>}
+      {/* Provider resolution explanation */}
+      {fallbackReason && (
+        <div className="mt-2 p-2 rounded bg-ak-surface border border-ak-border text-xs text-ak-text-secondary">
+          <span className="font-medium text-ak-text-primary">Why this provider?</span>{' '}
+          {formatFallbackReason(fallbackReason)}
+          {showRequestedVsResolved && (
+            <span className="ml-2 text-yellow-400">
+              (Requested: {requestedProvider} → Used: {resolvedProvider})
+            </span>
+          )}
         </div>
       )}
 
