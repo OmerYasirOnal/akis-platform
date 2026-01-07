@@ -210,8 +210,209 @@ export class ScribeAgent extends BaseAgent {
   }
 
   /**
-   * Gather repository context for grounded documentation
-   * Reads key files to provide evidence for AI generation
+   * Configuration for full-repo context scanning
+   */
+  private static readonly REPO_SCAN_CONFIG = {
+    // Maximum number of files to read
+    maxFiles: 50,
+    // Maximum bytes per file (truncate larger files)
+    maxBytesPerFile: 20000,
+    // Preview length for AI prompt injection
+    previewLength: 3000,
+  };
+
+  /**
+   * Priority score for file paths (lower = higher priority)
+   */
+  private getFilePriority(path: string): number {
+    // Root config/readme files - highest priority
+    if (/^README(\..+)?$/i.test(path)) return 1;
+    if (/^package\.json$/i.test(path)) return 2;
+    if (/^LICENSE/i.test(path)) return 3;
+    if (/^\.env\.example$/i.test(path)) return 4;
+    if (/^tsconfig(\..+)?\.json$/i.test(path)) return 5;
+    if (/^Dockerfile/i.test(path)) return 6;
+    if (/^docker-compose.*\.ya?ml$/i.test(path)) return 7;
+    if (/^Makefile$/i.test(path)) return 8;
+    
+    // Docs folder - high priority
+    if (/^docs?\//i.test(path)) return 10;
+    if (/^\.github\//i.test(path)) return 11;
+    
+    // Backend source - medium priority
+    if (/^backend\/.*\.(ts|js|json|md)$/i.test(path)) return 20;
+    if (/^backend\/package\.json$/i.test(path)) return 15;
+    
+    // Frontend source - medium priority
+    if (/^frontend\/.*\.(ts|tsx|js|jsx|json|md)$/i.test(path)) return 25;
+    if (/^frontend\/package\.json$/i.test(path)) return 16;
+    
+    // Src folder - medium priority
+    if (/^src\/.*\.(ts|tsx|js|jsx|json|md)$/i.test(path)) return 30;
+    
+    // Config files anywhere
+    if (/\.(json|ya?ml|toml)$/i.test(path)) return 40;
+    
+    // Source files anywhere
+    if (/\.(ts|tsx|js|jsx)$/i.test(path)) return 50;
+    
+    // Documentation files anywhere
+    if (/\.(md|mdx|txt)$/i.test(path)) return 60;
+    
+    // Default low priority
+    return 100;
+  }
+
+  /**
+   * Check if a file should be excluded from repo scanning
+   */
+  private shouldExcludeFile(path: string): boolean {
+    const excludePatterns = [
+      // Directories (with leading ^ for start of path)
+      /^node_modules\//i,
+      /^\.git\//i,
+      /^dist\//i,
+      /^build\//i,
+      /^\.next\//i,
+      /^coverage\//i,
+      /^\.cache\//i,
+      /^\.turbo\//i,
+      /^__pycache__\//i,
+      /^\.venv\//i,
+      /^venv\//i,
+      /^vendor\//i,
+      /^\.idea\//i,
+      /^\.vscode\//i,
+      
+      // Lock files
+      /package-lock\.json$/i,
+      /pnpm-lock\.yaml$/i,
+      /yarn\.lock$/i,
+      /Gemfile\.lock$/i,
+      /poetry\.lock$/i,
+      /composer\.lock$/i,
+      
+      // Binary/media files
+      /\.(png|jpg|jpeg|gif|svg|ico|webp|bmp|tiff)$/i,
+      /\.(woff|woff2|ttf|eot|otf)$/i,
+      /\.(pdf|doc|docx|xls|xlsx|ppt|pptx)$/i,
+      /\.(zip|tar|gz|rar|7z|bz2)$/i,
+      /\.(mp3|mp4|avi|mov|wav|flac|ogg|webm)$/i,
+      /\.(exe|dll|so|dylib|bin)$/i,
+      
+      // Database files
+      /\.(sqlite|sqlite3|db)$/i,
+      /\.mdb$/i,
+      
+      // Generated/minified
+      /\.min\.(js|css)$/i,
+      /\.map$/i,
+      /\.d\.ts$/i,
+      /\.bundle\.(js|css)$/i,
+      
+      // OS/system files
+      /\.DS_Store$/i,
+      /Thumbs\.db$/i,
+      /desktop\.ini$/i,
+      
+      // Log files
+      /\.log$/i,
+      /npm-debug\.log/i,
+    ];
+    
+    return excludePatterns.some(p => p.test(path));
+  }
+
+  /**
+   * Safely list directory contents using GitHub MCP
+   * Returns null if listing fails (e.g., path not found or not a directory)
+   */
+  private async listDirectorySafe(
+    owner: string,
+    repo: string,
+    branch: string,
+    path: string
+  ): Promise<Array<{ name: string; type: 'file' | 'dir'; path: string }> | null> {
+    if (!this.githubMCP) return null;
+    
+    try {
+      // GitHub's get_file_contents returns array for directories
+      const result = await this.githubMCP.callToolRaw('get_file_contents', {
+        owner,
+        repo,
+        path: path || '.',
+        branch,
+      });
+      
+      // Check if result is an array (directory listing)
+      if (Array.isArray(result)) {
+        return result.map((item: { name?: string; type?: string; path?: string }) => ({
+          name: String(item.name || ''),
+          type: item.type === 'dir' ? 'dir' : 'file',
+          path: String(item.path || item.name || ''),
+        }));
+      }
+      
+      // Not a directory - return null
+      return null;
+    } catch {
+      // Directory not found or other error - return null silently
+      console.debug(`[Scribe] Could not list directory: ${path}`);
+      return null;
+    }
+  }
+
+  /**
+   * Detect project type based on existing files and directories
+   */
+  private detectProjectType(
+    files: Set<string>,
+    dirs: Set<string>
+  ): 'node-express' | 'react' | 'next' | 'node-generic' | 'python' | 'go' | 'rust' | 'unknown' {
+    // Check for Node.js project
+    if (files.has('package.json')) {
+      // Next.js
+      if (files.has('next.config.js') || files.has('next.config.mjs') || files.has('next.config.ts')) {
+        return 'next';
+      }
+      // React (Vite, CRA, etc.)
+      if (dirs.has('src') && (files.has('vite.config.ts') || files.has('vite.config.js'))) {
+        return 'react';
+      }
+      // Express/Node backend
+      if (files.has('server.js') || files.has('app.js') || files.has('index.js')) {
+        return 'node-express';
+      }
+      return 'node-generic';
+    }
+    
+    // Python project
+    if (files.has('requirements.txt') || files.has('setup.py') || files.has('pyproject.toml')) {
+      return 'python';
+    }
+    
+    // Go project
+    if (files.has('go.mod')) {
+      return 'go';
+    }
+    
+    // Rust project
+    if (files.has('Cargo.toml')) {
+      return 'rust';
+    }
+    
+    return 'unknown';
+  }
+
+  /**
+   * Gather comprehensive repository context for grounded documentation
+   * Reads docs + source code + configs to provide full evidence for AI generation
+   * 
+   * Strategy:
+   * 1. Try to read commonly expected files at known paths
+   * 2. Prioritize by importance (README > package.json > docs > source)
+   * 3. Cap at maxFiles to avoid token overflow
+   * 4. Truncate large files to previewLength
    */
   private async gatherRepoContext(owner: string, repo: string, branch: string): Promise<RepoContext> {
     const context: RepoContext = {
@@ -223,77 +424,200 @@ export class ScribeAgent extends BaseAgent {
       return context;
     }
 
-    // Key files to read for documentation context
-    const keyFilePaths = [
-      'package.json',
-      'README.md',
-      'LICENSE',
-      'tsconfig.json',
-      'vite.config.ts',
-      'src/index.ts',
-      'src/main.ts',
-      'src/App.tsx',
-      '.env.example',
-    ];
+    const { maxFiles, previewLength } = ScribeAgent.REPO_SCAN_CONFIG;
+    const readFiles: { path: string; content: string; priority: number }[] = [];
 
-    for (const filePath of keyFilePaths) {
-      try {
-        const fileData = await this.githubMCP.getFileContent(owner, repo, branch, filePath);
-        
-        // Truncate content to avoid huge prompts
-        const preview = fileData.content.substring(0, 1500);
-        
-        context.keyFiles!.push({
-          path: filePath,
-          preview: preview + (fileData.content.length > 1500 ? '\n... (truncated)' : ''),
-        });
-
-        // Detect tech stack from package.json
-        if (filePath === 'package.json') {
-          try {
-            const pkg = JSON.parse(fileData.content);
-            const deps = { ...pkg.dependencies, ...pkg.devDependencies };
-            
-            if (deps.react) context.techStack!.push('React');
-            if (deps.vue) context.techStack!.push('Vue');
-            if (deps.next) context.techStack!.push('Next.js');
-            if (deps.fastify) context.techStack!.push('Fastify');
-            if (deps.express) context.techStack!.push('Express');
-            if (deps.typescript) context.techStack!.push('TypeScript');
-            if (deps.vite) context.techStack!.push('Vite');
-            if (deps.tailwindcss) context.techStack!.push('Tailwind CSS');
-            if (deps['drizzle-orm']) context.techStack!.push('Drizzle ORM');
-            if (deps.zod) context.techStack!.push('Zod');
-            
-            // Detect package manager
-            if (pkg.packageManager?.includes('pnpm')) {
-              context.packageManager = 'pnpm';
-            } else if (pkg.packageManager?.includes('yarn')) {
-              context.packageManager = 'yarn';
-            } else {
-              context.packageManager = 'npm';
+    // STEP 1: Discover repo structure first (avoids blind probing)
+    const rootListing = await this.listDirectorySafe(owner, repo, branch, '');
+    
+    if (rootListing) {
+      const rootFiles = new Set(rootListing.filter(f => f.type === 'file').map(f => f.name));
+      const rootDirs = new Set(rootListing.filter(f => f.type === 'dir').map(f => f.name));
+      
+      // Detect project type for smarter file selection
+      const projectType = this.detectProjectType(rootFiles, rootDirs);
+      this.traceRecorder?.recordInfo(`Detected project type: ${projectType}, root files: ${Array.from(rootFiles).slice(0, 10).join(', ')}`);
+      
+      // STEP 2: Build targeted file list based on what EXISTS
+      const filesToRead: string[] = [];
+      
+      // Always read if present in root
+      if (rootFiles.has('README.md')) filesToRead.push('README.md');
+      if (rootFiles.has('README')) filesToRead.push('README');
+      if (rootFiles.has('readme.md')) filesToRead.push('readme.md');
+      if (rootFiles.has('package.json')) filesToRead.push('package.json');
+      if (rootFiles.has('server.js')) filesToRead.push('server.js');
+      if (rootFiles.has('index.js')) filesToRead.push('index.js');
+      if (rootFiles.has('app.js')) filesToRead.push('app.js');
+      if (rootFiles.has('tsconfig.json')) filesToRead.push('tsconfig.json');
+      if (rootFiles.has('.env.example')) filesToRead.push('.env.example');
+      if (rootFiles.has('Dockerfile')) filesToRead.push('Dockerfile');
+      if (rootFiles.has('docker-compose.yml')) filesToRead.push('docker-compose.yml');
+      
+      // Read files based on project type
+      if (projectType === 'node-express' || projectType === 'node-generic') {
+        // Check for routes/public directories
+        if (rootDirs.has('routes')) {
+          const routesListing = await this.listDirectorySafe(owner, repo, branch, 'routes');
+          if (routesListing) {
+            for (const file of routesListing.filter(f => f.type === 'file').slice(0, 3)) {
+              filesToRead.push(`routes/${file.name}`);
             }
-          } catch {
-            // JSON parse failed, skip
           }
         }
-
-        // Detect license
-        if (filePath === 'LICENSE') {
-          const content = fileData.content.toLowerCase();
-          if (content.includes('mit license')) context.license = 'MIT';
-          else if (content.includes('apache')) context.license = 'Apache-2.0';
-          else if (content.includes('gpl')) context.license = 'GPL';
-          else context.license = 'See LICENSE file';
+        if (rootDirs.has('public')) {
+          // Only list, don't read binary files
+          this.traceRecorder?.recordInfo('Found public/ directory');
         }
-
-        this.traceRecorder?.recordDocRead(filePath, fileData.content.length, preview.substring(0, 100));
-      } catch {
-        // File doesn't exist, skip
+      }
+      
+      if (projectType === 'react' || projectType === 'next') {
+        if (rootDirs.has('src')) {
+          const srcListing = await this.listDirectorySafe(owner, repo, branch, 'src');
+          if (srcListing) {
+            const srcFiles = srcListing.filter(f => f.type === 'file').map(f => f.name);
+            if (srcFiles.includes('App.tsx')) filesToRead.push('src/App.tsx');
+            if (srcFiles.includes('App.jsx')) filesToRead.push('src/App.jsx');
+            if (srcFiles.includes('main.tsx')) filesToRead.push('src/main.tsx');
+            if (srcFiles.includes('index.tsx')) filesToRead.push('src/index.tsx');
+          }
+        }
+      }
+      
+      // STEP 3: Read discovered files
+      for (const filePath of filesToRead.slice(0, maxFiles)) {
+        if (this.shouldExcludeFile(filePath)) continue;
+        
+        const fileData = await this.githubMCP.getFileContentSafe(owner, repo, branch, filePath);
+        if (fileData) {
+          readFiles.push({
+            path: filePath,
+            content: fileData.content,
+            priority: this.getFilePriority(filePath),
+          });
+        }
+      }
+    } else {
+      // Fallback: If directory listing fails, use minimal targeted probes
+      this.traceRecorder?.recordInfo('Could not list root directory, using minimal probe fallback');
+      
+      const minimalPaths = [
+        'README.md', 'package.json', 'server.js', 'index.js', 'app.js',
+        'src/index.ts', 'src/App.tsx', 'src/main.tsx',
+      ];
+      
+      for (const filePath of minimalPaths) {
+        if (readFiles.length >= maxFiles) break;
+        
+        const fileData = await this.githubMCP.getFileContentSafe(owner, repo, branch, filePath);
+        if (fileData) {
+          readFiles.push({
+            path: filePath,
+            content: fileData.content,
+            priority: this.getFilePriority(filePath),
+          });
+        }
       }
     }
 
+    // Log summary
+    this.traceRecorder?.recordInfo(`Discovered ${readFiles.length} files for context`);
+
+    // Sort by priority and take top maxFiles
+    readFiles.sort((a, b) => a.priority - b.priority);
+    const topFiles = readFiles.slice(0, maxFiles);
+
+    // Build context
+    for (const file of topFiles) {
+      const preview = file.content.length > previewLength
+        ? file.content.substring(0, previewLength) + '\n... [truncated]'
+        : file.content;
+
+      context.keyFiles!.push({
+        path: file.path,
+        preview,
+      });
+
+      // Detect tech stack from package.json files
+      if (/package\.json$/i.test(file.path)) {
+        this.detectTechStack(file.content, context);
+      }
+
+      // Detect license
+      if (/^LICENSE/i.test(file.path)) {
+        this.detectLicense(file.content, context);
+      }
+
+      // Record trace
+      this.traceRecorder?.recordDocRead(file.path, file.content.length, preview.substring(0, 100));
+    }
+
+    // Log summary
+    console.log(`[gatherRepoContext] Read ${topFiles.length} files for ${owner}/${repo}:${branch}`);
+    if (topFiles.length > 0) {
+      console.log(`[gatherRepoContext] Files: ${topFiles.map(f => f.path).join(', ')}`);
+    }
+
     return context;
+  }
+
+  /**
+   * Detect tech stack from package.json content
+   */
+  private detectTechStack(content: string, context: RepoContext): void {
+    try {
+      const pkg = JSON.parse(content);
+      const deps = { ...pkg.dependencies, ...pkg.devDependencies };
+      
+      if (deps.react) context.techStack!.push('React');
+      if (deps.vue) context.techStack!.push('Vue');
+      if (deps.next) context.techStack!.push('Next.js');
+      if (deps.nuxt) context.techStack!.push('Nuxt');
+      if (deps.svelte) context.techStack!.push('Svelte');
+      if (deps.fastify) context.techStack!.push('Fastify');
+      if (deps.express) context.techStack!.push('Express');
+      if (deps.koa) context.techStack!.push('Koa');
+      if (deps.nestjs || deps['@nestjs/core']) context.techStack!.push('NestJS');
+      if (deps.typescript) context.techStack!.push('TypeScript');
+      if (deps.vite) context.techStack!.push('Vite');
+      if (deps.tailwindcss) context.techStack!.push('Tailwind CSS');
+      if (deps['drizzle-orm']) context.techStack!.push('Drizzle ORM');
+      if (deps.prisma || deps['@prisma/client']) context.techStack!.push('Prisma');
+      if (deps.zod) context.techStack!.push('Zod');
+      if (deps.trpc || deps['@trpc/server']) context.techStack!.push('tRPC');
+      if (deps.graphql || deps['apollo-server']) context.techStack!.push('GraphQL');
+      if (deps.postgresql || deps.pg) context.techStack!.push('PostgreSQL');
+      if (deps.mongodb || deps.mongoose) context.techStack!.push('MongoDB');
+      if (deps.redis || deps.ioredis) context.techStack!.push('Redis');
+      
+      // Detect package manager
+      if (pkg.packageManager?.includes('pnpm')) {
+        context.packageManager = 'pnpm';
+      } else if (pkg.packageManager?.includes('yarn')) {
+        context.packageManager = 'yarn';
+      } else {
+        context.packageManager = 'npm';
+      }
+
+      // Remove duplicates
+      context.techStack = [...new Set(context.techStack)];
+    } catch {
+      // JSON parse failed, skip
+    }
+  }
+
+  /**
+   * Detect license type from LICENSE file content
+   */
+  private detectLicense(content: string, context: RepoContext): void {
+    const lowerContent = content.toLowerCase();
+    if (lowerContent.includes('mit license')) context.license = 'MIT';
+    else if (lowerContent.includes('apache license')) context.license = 'Apache-2.0';
+    else if (lowerContent.includes('gnu general public license') || lowerContent.includes('gpl')) context.license = 'GPL';
+    else if (lowerContent.includes('isc license')) context.license = 'ISC';
+    else if (lowerContent.includes('bsd')) context.license = 'BSD';
+    else if (lowerContent.includes('mozilla public license')) context.license = 'MPL-2.0';
+    else context.license = 'See LICENSE file';
   }
 
   /**
@@ -466,8 +790,9 @@ export class ScribeAgent extends BaseAgent {
       ];
 
       for (const candidatePath of candidatePaths) {
-        try {
-          const fileData = await this.githubMCP.getFileContent(task.owner, task.repo, workingBranch, candidatePath);
+        // Use safe read to avoid ERROR spam for expected missing files
+        const fileData = await this.githubMCP.getFileContentSafe(task.owner, task.repo, workingBranch, candidatePath);
+        if (fileData) {
           const contract = getContractForPath(candidatePath);
           fileTargets.push({
             path: candidatePath,
@@ -476,9 +801,8 @@ export class ScribeAgent extends BaseAgent {
             priority: candidatePath.includes('README') ? 1 : 2,
           });
           this.traceRecorder?.recordDocRead(candidatePath, fileData.content.length, fileData.content.substring(0, 200));
-        } catch {
-          // File doesn't exist, skip
         }
+        // If file doesn't exist, silently skip (no error log)
       }
 
       // If no files found, select a default target
@@ -503,7 +827,10 @@ export class ScribeAgent extends BaseAgent {
       let fileMissing = false;
       const readStartTime = Date.now();
       
-      try {
+      // Use safe read to avoid ERROR spam for expected missing files
+      const fileData = await this.githubMCP.getFileContentSafe(task.owner, task.repo, workingBranch, targetPath);
+      
+      if (fileData) {
         this.traceRecorder?.recordToolCall({
           toolName: 'github.getFileContent',
           asked: `Read the contents of "${targetPath}" from branch "${workingBranch}"`,
@@ -513,11 +840,9 @@ export class ScribeAgent extends BaseAgent {
           success: true,
           durationMs: Date.now() - readStartTime,
         });
-        
-        const fileData = await this.githubMCP.getFileContent(task.owner, task.repo, workingBranch, targetPath);
         currentContent = fileData.content;
         this.traceRecorder?.recordDocRead(targetPath, currentContent.length, currentContent.substring(0, 200));
-    } catch (_e) {
+      } else {
         fileMissing = true;
         this.traceRecorder?.recordDecision({
           title: 'File not found',

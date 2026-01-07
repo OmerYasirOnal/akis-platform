@@ -2,7 +2,7 @@ import { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { AgentOrchestrator } from '../core/orchestrator/AgentOrchestrator.js';
 import { db } from '../db/client.js';
-import { jobs, jobPlans, jobAudits, jobTraces, jobArtifacts, agentConfigs, jobComments } from '../db/schema.js';
+import { jobs, jobPlans, jobAudits, jobTraces, jobArtifacts, agentConfigs, jobComments, jobAiCalls } from '../db/schema.js';
 import { eq, desc, and, sql, asc } from 'drizzle-orm';
 import { JobNotFoundError, MissingAIKeyError, ModelNotAllowedError } from '../core/errors.js';
 import { metrics } from './metrics.js';
@@ -10,6 +10,8 @@ import { formatErrorResponse, getStatusCodeForError } from '../utils/errorHandle
 import { requireAuth } from '../utils/auth.js';
 import { getUserAiKeyStatus } from '../services/ai/user-ai-keys.js';
 import { getScribeModelAllowlist, isModelAllowed } from '../services/ai/modelAllowlist.js';
+import { getEnv, getAIConfig } from '../config/env.js';
+import { generateScribeBranchName } from '../utils/branchNaming.js';
 
 // Request validation schemas
 // Legacy payload schema (backward compatible)
@@ -185,14 +187,64 @@ export async function agentsRoutes(fastify: FastifyInstance) {
             return;
           }
 
-          const keyStatus = await getUserAiKeyStatus(userId, 'openai');
-          if (!keyStatus.configured) {
-            throw new MissingAIKeyError('openai');
+          // ========================================================================
+          // PROVIDER RESOLUTION (Contract-First)
+          // Priority: 1) Frontend payload.aiProvider  2) User activeProvider  3) ENV
+          // CRITICAL: Frontend selection MUST be respected - no cross-provider fallback
+          // ========================================================================
+          const payloadObj = body.payload as Record<string, unknown> | undefined;
+          const frontendProvider = payloadObj?.aiProvider as 'openai' | 'openrouter' | undefined;
+          
+          console.log(`[agents.ts] Frontend sent aiProvider: ${frontendProvider || 'none'}`);
+          
+          // Load env config for fallback only
+          const aiConfig = getAIConfig(getEnv());
+          const allowlist = getScribeModelAllowlist();
+          
+          // Determine if we should use ENV AI (only when NO frontend provider AND ENV is configured)
+          // IMPORTANT: If frontend explicitly sends a provider, we MUST NOT override it with ENV
+          const useEnvAI = !frontendProvider && 
+                          (aiConfig.provider === 'openrouter' || aiConfig.provider === 'openai') && 
+                          aiConfig.apiKey;
+          
+          console.log(`[agents.ts] useEnvAI=${useEnvAI}, envProvider=${aiConfig.provider}, hasEnvKey=${!!aiConfig.apiKey}`);
+          
+          if (!useEnvAI && !frontendProvider) {
+            // No env AI and no frontend provider - check if user has any key configured
+            const openaiStatus = await getUserAiKeyStatus(userId, 'openai');
+            const openrouterStatus = await getUserAiKeyStatus(userId, 'openrouter');
+            if (!openaiStatus.configured && !openrouterStatus.configured) {
+              throw new MissingAIKeyError('openai', 'No AI provider configured. Please add an API key in Settings > API Keys.');
+            }
           }
 
-          const allowlist = getScribeModelAllowlist();
-          if (allowlist.length === 0) {
+          if (allowlist.length === 0 && !useEnvAI && !frontendProvider) {
             throw new ModelNotAllowedError('openai', 'unknown', allowlist);
+          }
+          
+          // ========================================================================
+          // PROVIDER/MODEL CONSISTENCY VALIDATION
+          // Prevent sending OpenRouter models to OpenAI provider (and vice versa)
+          // ========================================================================
+          const frontendModel = payloadObj?.model as string | undefined || 
+                               payloadObj?.llmModelOverride as string | undefined;
+          
+          if (frontendProvider && frontendModel) {
+            const isOpenRouterModel = frontendModel.includes('/') || 
+                                      frontendModel.startsWith('meta-') ||
+                                      frontendModel.includes(':free');
+            const isOpenAIModel = frontendModel.startsWith('gpt-') || 
+                                  frontendModel.startsWith('o1') ||
+                                  frontendModel.startsWith('text-') ||
+                                  frontendModel.startsWith('davinci');
+            
+            if (frontendProvider === 'openai' && isOpenRouterModel && !isOpenAIModel) {
+              throw new Error(`Model "${frontendModel}" is not compatible with OpenAI provider. Please select an OpenAI model (e.g., gpt-4o-mini).`);
+            }
+            if (frontendProvider === 'openrouter' && isOpenAIModel && !isOpenRouterModel) {
+              // OpenRouter can actually use OpenAI models, so just log a warning
+              console.log(`[agents.ts] Warning: Using OpenAI model "${frontendModel}" with OpenRouter provider`);
+            }
           }
 
           if (body.payload && typeof body.payload === 'object') {
@@ -271,8 +323,14 @@ export async function agentsRoutes(fastify: FastifyInstance) {
                 (enrichedPayload as Record<string, unknown>).excludeGlobs = config.excludeGlobs;
               }
             } else {
-              // Legacy payload: require auth for user-scoped AI key
+              // Legacy payload: enrich with userId and auto-generate branch if not provided
               enrichedPayload = { ...payload, userId };
+              
+              // Auto-generate feature branch if not provided
+              if (!payload.featureBranch) {
+                (enrichedPayload as Record<string, unknown>).featureBranch = generateScribeBranchName();
+              }
+              
               if (typeof payload.llmModelOverride === 'string') {
                 modelOverride = payload.llmModelOverride;
               }
@@ -281,21 +339,56 @@ export async function agentsRoutes(fastify: FastifyInstance) {
               }
             }
 
-            if (modelOverride && !isModelAllowed(modelOverride, allowlist)) {
-              throw new ModelNotAllowedError('openai', modelOverride, allowlist);
+            // ========================================================================
+            // AI MODEL + PROVIDER RESOLUTION
+            // CRITICAL: Frontend provider selection takes absolute priority
+            // ========================================================================
+            
+            // Determine the effective provider (frontend > env > undefined for orchestrator)
+            if (frontendProvider) {
+              // Frontend explicitly selected a provider - respect it completely
+              aiProvider = frontendProvider;
+              
+              // Select provider-appropriate model default
+              if (frontendProvider === 'openai') {
+                aiModel = modelOverride || 'gpt-4o-mini';
+              } else {
+                aiModel = modelOverride || 'meta-llama/llama-3.3-70b-instruct:free';
+              }
+              
+              console.log(`[agents.ts] Using frontend provider: ${aiProvider}, model: ${aiModel}`);
+            } else if (useEnvAI) {
+              // No frontend provider, use env-based AI configuration
+              aiProvider = aiConfig.provider;
+              aiModel = modelOverride || aiConfig.modelDefault;
+              console.log(`[agents.ts] Using ENV provider: ${aiProvider}, model: ${aiModel}`);
+            } else {
+              // No frontend provider, no env - let orchestrator resolve from user settings
+              // Orchestrator will use getUserActiveProvider() -> user key -> fail
+              aiProvider = undefined;
+              
+              // For model, use allowlist or default
+              if (modelOverride && !isModelAllowed(modelOverride, allowlist)) {
+                throw new ModelNotAllowedError('openai', modelOverride, allowlist);
+              }
+              const modelToUse = modelOverride || allowlist[0] || 'gpt-4o-mini';
+              if (modelOverride && !isModelAllowed(modelToUse, allowlist)) {
+                throw new ModelNotAllowedError('openai', modelToUse, allowlist);
+              }
+              aiModel = modelToUse;
+              console.log(`[agents.ts] Deferring to orchestrator, model: ${aiModel}`);
             }
-
-            const modelToUse = modelOverride || allowlist[0];
-            if (!isModelAllowed(modelToUse, allowlist)) {
-              throw new ModelNotAllowedError('openai', modelToUse, allowlist);
-            }
-
-            aiModel = modelToUse;
-            aiProvider = 'openai';
+            
+            // Add aiProvider to payload - orchestrator will see this as payloadProvider
             enrichedPayload = {
               ...(enrichedPayload as Record<string, unknown>),
-              llmModelOverride: modelToUse,
+              llmModelOverride: aiModel,
+              useEnvAI: useEnvAI || false,
+              aiProvider: aiProvider, // This is now frontend's choice, not overwritten
             };
+            
+            console.log(`[agents.ts] Final enrichedPayload.aiProvider: ${(enrichedPayload as Record<string, unknown>).aiProvider}`);
+            console.log(`[agents.ts] Final enrichedPayload.llmModelOverride: ${(enrichedPayload as Record<string, unknown>).llmModelOverride}`);
           }
         }
 
@@ -503,9 +596,79 @@ export async function agentsRoutes(fastify: FastifyInstance) {
           }
         }
 
+        // Fetch per-call AI metrics if traces are requested
+        let aiCalls: Array<{
+          id: string;
+          callIndex: number;
+          provider: string;
+          model: string;
+          purpose: string | null;
+          inputTokens: number | null;
+          outputTokens: number | null;
+          totalTokens: number | null;
+          durationMs: number | null;
+          estimatedCostUsd: string | null;
+          success: boolean;
+          errorCode: string | null;
+          timestamp: Date;
+        }> = [];
+
+        if (includeTrace) {
+          try {
+            const aiCallRows = await db
+              .select()
+              .from(jobAiCalls)
+              .where(eq(jobAiCalls.jobId, params.id))
+              .orderBy(asc(jobAiCalls.callIndex));
+            aiCalls = aiCallRows.map((row) => ({
+              id: row.id,
+              callIndex: row.callIndex,
+              provider: row.provider,
+              model: row.model,
+              purpose: row.purpose,
+              inputTokens: row.inputTokens,
+              outputTokens: row.outputTokens,
+              totalTokens: row.totalTokens,
+              durationMs: row.durationMs,
+              estimatedCostUsd: row.estimatedCostUsd,
+              success: row.success,
+              errorCode: row.errorCode,
+              timestamp: row.timestamp,
+            }));
+          } catch (error) {
+            console.error(`Failed to fetch AI calls for job ${params.id}:`, error);
+          }
+        }
+
         // Return job data with optional plan/audit/trace/artifacts
         const correlationId =
           extractCorrelationIdFromText(job.errorMessage) || extractCorrelationIdFromText(job.error);
+
+        // Build structured AI response object
+        const aiResponse = {
+          // Requested (what was originally submitted)
+          requested: {
+            provider: job.aiProvider,
+            model: job.aiModel,
+          },
+          // Resolved (what was actually used at runtime)
+          resolved: {
+            provider: job.aiProviderResolved,
+            model: job.aiModelResolved,
+            keySource: job.aiKeySource,
+            fallbackReason: job.aiFallbackReason,
+          },
+          // Summary (aggregate metrics)
+          summary: {
+            totalDurationMs: job.aiTotalDurationMs,
+            inputTokens: job.aiInputTokens,
+            outputTokens: job.aiOutputTokens,
+            totalTokens: job.aiTotalTokens,
+            estimatedCostUsd: job.aiEstimatedCostUsd,
+          },
+          // Per-call breakdown (if includeTrace)
+          calls: aiCalls,
+        };
 
         const response: Record<string, unknown> = {
           id: job.id,
@@ -518,6 +681,7 @@ export async function agentsRoutes(fastify: FastifyInstance) {
           errorMessage: job.errorMessage,
           rawErrorPayload: job.rawErrorPayload,
           mcpGatewayUrl: job.mcpGatewayUrl,
+          // Legacy fields (keep for backward compatibility)
           aiProvider: job.aiProvider,
           aiModel: job.aiModel,
           aiTotalDurationMs: job.aiTotalDurationMs,
@@ -525,6 +689,8 @@ export async function agentsRoutes(fastify: FastifyInstance) {
           aiOutputTokens: job.aiOutputTokens,
           aiTotalTokens: job.aiTotalTokens,
           aiEstimatedCostUsd: job.aiEstimatedCostUsd,
+          // New structured AI object
+          ai: aiResponse,
           correlationId,
           createdAt: job.createdAt,
           updatedAt: job.updatedAt,

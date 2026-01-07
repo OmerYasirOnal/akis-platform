@@ -8,7 +8,8 @@ import { JobNotFoundError, InvalidStateTransitionError, DatabaseError, AIProvide
 import { createAIService, type AIService, type AIServiceObserver } from '../../services/ai/AIService.js';
 import type { Plan, Critique } from '../../services/ai/AIService.js';
 import { AICallMetricsCollector } from '../../services/ai/ai-metrics.js';
-import { getDecryptedUserAiKey } from '../../services/ai/user-ai-keys.js';
+import { getDecryptedUserAiKey, getUserActiveProvider, type AIKeyProvider } from '../../services/ai/user-ai-keys.js';
+import { getAIConfig } from '../../config/env.js';
 import type { MCPTools } from '../../services/mcp/adapters/index.js';
 import { getEnv } from '../../config/env.js';
 import { GitHubMCPService, McpError, McpConnectionError } from '../../services/mcp/adapters/GitHubMCPService.js';
@@ -43,6 +44,16 @@ export class MissingDependencyError extends Error {
     this.dependency = dependency;
     this.suggestion = suggestion;
   }
+}
+
+/**
+ * AI Resolution result - tracks what provider/model was actually used at runtime
+ */
+export interface AIResolution {
+  provider: string;
+  model: string;
+  keySource: 'user' | 'env';
+  fallbackReason?: string;
 }
 
 /**
@@ -223,12 +234,26 @@ export class AgentOrchestrator {
       // Prepare dependencies (DI)
       const env = getEnv();
       const payload = (job.payload || {}) as Record<string, unknown>;
-      const { aiService: jobAiService, metrics } = await this.resolveAiServiceForJob(
+      const { aiService: jobAiService, metrics, resolution } = await this.resolveAiServiceForJob(
         job.type,
         payload,
         traceRecorder
       );
       aiMetrics = metrics;
+      
+      // Persist resolved AI configuration immediately after resolution
+      try {
+        await db.update(jobs).set({
+          aiProviderResolved: resolution.provider,
+          aiModelResolved: resolution.model,
+          aiKeySource: resolution.keySource,
+          aiFallbackReason: resolution.fallbackReason || null,
+        }).where(eq(jobs.id, jobId));
+        console.log(`[startJob] Persisted AI resolution: provider=${resolution.provider}, model=${resolution.model}, keySource=${resolution.keySource}, fallbackReason=${resolution.fallbackReason || 'none'}`);
+      } catch (error) {
+        console.error(`[startJob] Failed to persist AI resolution: ${error instanceof Error ? error.message : String(error)}`);
+        // Non-fatal: continue execution even if resolution persistence fails
+      }
       
       const resolvedTools: AgentDependencies = { 
         ...this.tools,
@@ -620,54 +645,206 @@ export class AgentOrchestrator {
     return env.SCRIBE_DEV_BOOTSTRAP_GITHUB_TOKEN || env.GITHUB_TOKEN || null;
   }
 
+  /**
+   * Resolve AIService for a job with deterministic provider selection.
+   * 
+   * Resolution precedence (single-source-of-truth):
+   * 1. payload.aiProvider (explicit job request)
+   * 2. user.activeAiProvider (user's DB setting, may be null)
+   * 3. env provider (system default from AI_PROVIDER)
+   * 
+   * Key resolution (for chosen provider):
+   * 1. User's key for that provider (if available)
+   * 2. Env key for that provider (if available)
+   * 3. Fail with actionable error if no key available
+   * 
+   * Returns resolution metadata for persistence to job record.
+   */
   private async resolveAiServiceForJob(
     jobType: string,
     payload: Record<string, unknown>,
     traceRecorder: TraceRecorder
-  ): Promise<{ aiService?: AIService; metrics: AICallMetricsCollector }> {
+  ): Promise<{ aiService?: AIService; metrics: AICallMetricsCollector; resolution: AIResolution }> {
     const metrics = new AICallMetricsCollector();
     const observer: AIServiceObserver = {
       onAiCall: (call) => {
         metrics.record(call);
-        traceRecorder.recordAiCall(call.purpose, call.success, call.durationMs, {
+        traceRecorder.recordAiCall(call.purpose, call.success, call.durationMs ?? undefined, {
           provider: call.provider,
           model: call.model,
           usage: call.usage,
-          estimatedCostUsd: call.estimatedCostUsd,
+          estimatedCostUsd: call.estimatedCostUsd ?? undefined,
           errorCode: call.errorCode,
         });
       },
     };
 
+    const env = getEnv();
+    const envConfig = getAIConfig(env);
+    const modelOverride = payload.llmModelOverride as string | undefined;
+
+    // Non-scribe jobs use global AIService (env-configured)
     if (jobType !== 'scribe') {
-      return { aiService: this.aiService, metrics };
+      console.log(`[resolveAiServiceForJob] jobType=${jobType}, using global AIService`);
+      const resolution: AIResolution = {
+        provider: envConfig.provider,
+        model: modelOverride || envConfig.modelDefault,
+        keySource: 'env',
+        fallbackReason: 'NON_SCRIBE_JOB',
+      };
+      return { aiService: this.aiService, metrics, resolution };
     }
 
     const userId = payload.userId as string | undefined;
-    const modelOverride = payload.llmModelOverride as string | undefined;
-    if (!userId || !modelOverride) {
-      return { aiService: this.aiService, metrics };
+    const useEnvAI = payload.useEnvAI as boolean | undefined;
+    const payloadProvider = payload.aiProvider as AIKeyProvider | undefined;
+
+    // If useEnvAI is explicitly set, use global AIService
+    if (useEnvAI === true) {
+      console.log('[resolveAiServiceForJob] Using global AIService (useEnvAI=true)');
+      const resolution: AIResolution = {
+        provider: envConfig.provider,
+        model: modelOverride || envConfig.modelDefault,
+        keySource: 'env',
+        fallbackReason: 'USE_ENV_AI_FLAG',
+      };
+      return { aiService: this.aiService, metrics, resolution };
     }
 
-    const decrypted = await getDecryptedUserAiKey(userId, 'openai');
-    if (!decrypted) {
-      throw new MissingAIKeyError('openai');
+    // ========================================================================
+    // DETERMINISTIC PROVIDER RESOLUTION (single-source-of-truth)
+    // Precedence: payload > userActive > env
+    // ========================================================================
+    let providerCandidate: AIKeyProvider;
+    let providerResolutionReason: string;
+
+    if (payloadProvider) {
+      // 1st priority: explicit payload provider
+      providerCandidate = payloadProvider;
+      providerResolutionReason = 'PAYLOAD_PROVIDER';
+    } else if (userId) {
+      // 2nd priority: user's active provider from DB (may be null)
+      const userActiveProvider = await getUserActiveProvider(userId);
+      if (userActiveProvider) {
+        providerCandidate = userActiveProvider;
+        providerResolutionReason = 'USER_ACTIVE_PROVIDER';
+      } else {
+        // 3rd priority: env default
+        providerCandidate = envConfig.provider as AIKeyProvider;
+        providerResolutionReason = 'ENV_DEFAULT_NO_USER_ACTIVE';
+      }
+    } else {
+      // No userId - use env default
+      providerCandidate = envConfig.provider as AIKeyProvider;
+      providerResolutionReason = 'ENV_DEFAULT_NO_USER_ID';
     }
 
-    const env = getEnv();
+    console.log(`[resolveAiServiceForJob] Provider resolution: candidate=${providerCandidate}, reason=${providerResolutionReason}, userId=${userId ? 'present' : 'missing'}, payloadProvider=${payloadProvider || 'none'}`);
+
+    // ========================================================================
+    // KEY RESOLUTION (for chosen provider)
+    // Precedence: user key > env key > fail
+    // ========================================================================
+    let apiKey: string | null = null;
+    let keySource: 'user' | 'env' = 'env';
+    let fallbackReason: string | undefined;
+
+    // Try user's key first (if userId is available)
+    if (userId) {
+      const userKey = await getDecryptedUserAiKey(userId, providerCandidate);
+      if (userKey) {
+        apiKey = userKey.key;
+        keySource = 'user';
+        console.log(`[resolveAiServiceForJob] Using user key for ${providerCandidate}, keyPrefix=${apiKey.substring(0, 10)}...`);
+      }
+    }
+
+    // ========================================================================
+    // ENV KEY FALLBACK (STRICT: No Cross-Provider Fallback!)
+    // ========================================================================
+    // RULE: If user explicitly requested provider X, we can ONLY use:
+    //   1. User's key for provider X
+    //   2. ENV key for provider X (if env.AI_PROVIDER === X)
+    //   3. FAIL - no cross-provider fallback allowed
+    // ========================================================================
+    if (!apiKey) {
+      const isExplicitPayloadRequest = !!payloadProvider;
+      
+      // Get ENV key ONLY for the requested provider (no cross-provider!)
+      const envKeyForProvider = providerCandidate === 'openai' 
+        ? env.OPENAI_API_KEY 
+        : (env.OPENROUTER_API_KEY || env.AI_API_KEY);
+      
+      // ENV provider must match requested provider for fallback
+      const envProviderMatches = envConfig.provider === providerCandidate;
+      
+      console.log(`[resolveAiServiceForJob] ENV fallback check: explicitRequest=${isExplicitPayloadRequest}, envProvider=${envConfig.provider}, requestedProvider=${providerCandidate}, envProviderMatches=${envProviderMatches}, hasEnvKey=${!!envKeyForProvider}`);
+      
+      if (isExplicitPayloadRequest) {
+        // EXPLICIT REQUEST: Only allow env fallback if env provider MATCHES requested
+        if (envKeyForProvider && envProviderMatches) {
+          apiKey = envKeyForProvider;
+          keySource = 'env';
+          fallbackReason = 'USER_KEY_MISSING';
+          console.log(`[resolveAiServiceForJob] Using env key for ${providerCandidate} (explicit request, env matches)`);
+        } else {
+          // NO CROSS-PROVIDER FALLBACK! User asked for X, we don't have key for X.
+          console.log(`[resolveAiServiceForJob] BLOCKED: Explicit request for ${providerCandidate} but no key available. ENV provider is ${envConfig.provider} - NO cross-provider fallback.`);
+        }
+      } else {
+        // No explicit request - allow env fallback for the resolved provider
+        if (envKeyForProvider && envProviderMatches) {
+          apiKey = envKeyForProvider;
+          keySource = 'env';
+          fallbackReason = userId ? 'USER_KEY_MISSING' : 'NO_USER_ID';
+          console.log(`[resolveAiServiceForJob] Using env key for ${providerCandidate} (no explicit request)`);
+        }
+      }
+    }
+
+    // FAIL if no key available for chosen provider
+    if (!apiKey) {
+      const errorMessage = `No API key configured for ${providerCandidate}. Please add your ${providerCandidate === 'openai' ? 'OpenAI' : 'OpenRouter'} API key in Settings > API Keys.`;
+      console.error(`[resolveAiServiceForJob] ${errorMessage}`);
+      throw new MissingAIKeyError(providerCandidate, errorMessage);
+    }
+
+    // Log final key resolution decision
+    console.log(`[resolveAiServiceForJob] KEY DECISION: provider=${providerCandidate}, keySource=${keySource}, hasKey=true, fallbackReason=${fallbackReason || 'none'}`);
+
+    // ========================================================================
+    // CREATE AI SERVICE
+    // ========================================================================
+    const baseUrl = providerCandidate === 'openrouter' 
+      ? 'https://openrouter.ai/api/v1'
+      : (env.OPENAI_BASE_URL || 'https://api.openai.com/v1');
+    
+    const resolvedModel = modelOverride || (providerCandidate === 'openrouter' 
+      ? 'meta-llama/llama-3.3-70b-instruct:free' 
+      : 'gpt-4o-mini');
+    
     const aiConfig = {
-      provider: 'openai' as const,
-      apiKey: decrypted.key,
-      baseUrl: env.AI_BASE_URL || env.OPENAI_BASE_URL || 'https://api.openai.com/v1',
-      modelDefault: modelOverride,
-      modelPlanner: modelOverride,
-      modelValidation: modelOverride,
+      provider: providerCandidate,
+      apiKey,
+      baseUrl,
+      modelDefault: resolvedModel,
+      modelPlanner: resolvedModel,
+      modelValidation: resolvedModel,
       siteUrl: env.OPENROUTER_SITE_URL,
       appName: env.OPENROUTER_APP_NAME,
     };
 
+    console.log(`[resolveAiServiceForJob] Creating AIService: provider=${providerCandidate}, model=${resolvedModel}, keySource=${keySource}, providerReason=${providerResolutionReason}, baseUrl=${baseUrl}`);
+    
     const aiService = createAIService(aiConfig, observer);
-    return { aiService, metrics };
+    const resolution: AIResolution = {
+      provider: providerCandidate,
+      model: resolvedModel,
+      keySource,
+      fallbackReason: fallbackReason || (keySource === 'env' ? providerResolutionReason : undefined),
+    };
+    
+    return { aiService, metrics, resolution };
   }
 
   /**

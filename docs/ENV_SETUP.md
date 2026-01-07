@@ -225,6 +225,84 @@ OPENROUTER_APP_NAME=Your App Name
 
 ---
 
+## 🎮 Demo Mode: Env OpenRouter + MCP Gateway
+
+Demo amaçlı, AKIS Scribe agent'ı kullanıcı yapılandırması gerektirmeden server tarafı AI konfigürasyonuyla çalıştırılabilir.
+
+### Gerekli Environment Variables
+
+**Backend** (`backend/.env.local`):
+
+```bash
+# AI Provider (Demo: OpenRouter)
+AI_PROVIDER=openrouter
+AI_API_KEY=sk-or-v1-YOUR_OPENROUTER_KEY_HERE
+AI_MODEL_DEFAULT=meta-llama/llama-3.3-70b-instruct:free
+
+# MCP Gateway
+GITHUB_MCP_BASE_URL=http://localhost:4010/mcp
+GITHUB_TOKEN=ghp_YOUR_GITHUB_PAT_HERE
+
+# Database
+DATABASE_URL=postgresql://postgres:postgres@localhost:5433/akis_v2
+```
+
+### MCP Gateway Kurulumu
+
+```bash
+# Repo root'undan
+export GITHUB_TOKEN=ghp_your_token_here
+docker compose -f docker-compose.mcp.yml up -d
+
+# Doğrula
+curl http://localhost:4010/health
+# Beklenen: {"status":"ok","service":"akis-github-mcp-gateway"}
+```
+
+### Backend Başlatma
+
+```bash
+cd backend
+pnpm install
+pnpm dev
+```
+
+### Demo Davranışı
+
+| Özellik | Demo Mode Davranışı |
+|---------|---------------------|
+| **Scribe AI** | Server'ın OpenRouter key'ini kullanır (kullanıcı key yapılandırması gereksiz) |
+| **AI Providers sayfası** | UI'dan kaldırıldı (demo için gerekmez) |
+| **API Keys sayfası** | Korundu (gelecek kullanıcı key'leri için) |
+| **MCP Gateway** | Scribe GitHub operasyonları için gerekli |
+| **Branch isimlendirme** | Otomatik: `scribe/docs-{YYYYMMDD-HHMMSS}` |
+
+### Demo Akışı
+
+1. **Dashboard**: Görsel tutarlılık kontrolü
+2. **Integrations** (`/dashboard/integrations`): GitHub OAuth ile bağlan
+3. **Scribe Console** (`/dashboard/scribe`):
+   - Owner: GitHub kullanıcı adı (read-only)
+   - Repository ve Base Branch seç
+   - Branch preview: `scribe/docs-{timestamp}`
+   - **Run Scribe** butonuna tıkla
+4. **Gözlemle**:
+   - Adım adım log mesajları
+   - Preview tab: Üretilen dokümantasyon
+   - Diff tab: Dosya seviyesi değişiklikler
+
+### MCP Sorun Giderme
+
+| Belirti | Çözüm |
+|---------|-------|
+| "MCP Gateway is not available" | `docker compose -f docker-compose.mcp.yml up -d` |
+| 401 hatası | `GITHUB_TOKEN` geçerliliğini kontrol et |
+| Timeout | MCP Gateway loglarını kontrol et: `docker compose -f docker-compose.mcp.yml logs` |
+
+> ⚠️ **Önemli**: MCP Gateway çalışmıyorsa Scribe GitHub operasyonlarını gerçekleştiremez. Demo öncesi `curl http://localhost:4010/health` ile doğrulayın.
+
+---
+
 ## 📊 Environment Variable Referansı
 
 ### Backend

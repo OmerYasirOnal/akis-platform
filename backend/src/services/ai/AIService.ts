@@ -162,7 +162,13 @@ export interface AIService {
   validateWithStrongModel(input: ValidationInput): Promise<ValidationResult>;
 
   /** Get current configuration (for debugging/logging, never expose secrets) */
-  getConfigSummary(): { provider: string; models: { default: string; planner: string; validation: string } };
+  getConfigSummary(): { 
+    provider: string; 
+    models: { default: string; planner: string; validation: string };
+    baseUrl: string;
+    hasApiKey: boolean;
+    apiKeyPrefix?: string;
+  };
 }
 
 export interface AIUsage {
@@ -251,6 +257,9 @@ class RealAIService implements AIService {
         planner: this.config.modelPlanner,
         validation: this.config.modelValidation,
       },
+      baseUrl: this.config.baseUrl,
+      hasApiKey: Boolean(this.config.apiKey),
+      apiKeyPrefix: this.config.apiKey ? this.config.apiKey.substring(0, 10) : undefined,
     };
   }
 
@@ -849,6 +858,9 @@ class MockAIService implements AIService {
         planner: 'mock-model',
         validation: 'mock-model',
       },
+      baseUrl: 'mock://localhost',
+      hasApiKey: true,
+      apiKeyPrefix: 'mock-key-',
     };
   }
 

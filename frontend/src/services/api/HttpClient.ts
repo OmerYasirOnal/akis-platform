@@ -154,12 +154,13 @@ export class HttpClient {
     return data as T;
   }
 
-  async delete<T>(path: string, options?: RequestOptions): Promise<T> {
+  async delete<T>(path: string, options?: RequestOptions, body?: unknown): Promise<T> {
     const url = `${this.baseURL}${path}`;
     const response = await this.fetchWithRetry(url, {
       credentials: 'include',
       ...options,
       method: 'DELETE',
+      body: body ? JSON.stringify(body) : undefined,
     });
 
     const requestId = response.headers.get('request-id');

@@ -503,6 +503,14 @@ export class GitHubMCPService {
   }
 
   /**
+   * Public wrapper for callTool - allows raw tool calls from agents
+   * Use with caution; prefer typed wrapper methods when available
+   */
+  async callToolRaw<T>(toolName: string, args: Record<string, unknown>): Promise<T> {
+    return this.callTool<T>(toolName, args);
+  }
+
+  /**
    * Create a branch in GitHub repository
    */
   async createBranch(
@@ -571,6 +579,36 @@ export class GitHubMCPService {
     }
 
     return { content, encoding: 'utf8', sha };
+  }
+
+  /**
+   * Safe version of getFileContent that returns null instead of throwing
+   * for expected "file not found" errors. Use this for exploratory file reads
+   * (e.g., gatherRepoContext) to avoid ERROR spam in logs.
+   */
+  async getFileContentSafe(
+    owner: string,
+    repo: string,
+    branch: string,
+    filePath: string
+  ): Promise<{ content: string; encoding: 'utf8'; sha: string } | null> {
+    try {
+      return await this.getFileContent(owner, repo, branch, filePath);
+    } catch (error) {
+      // Expected "file not found" errors - log at debug level only
+      if (error instanceof McpError && (error.mcpCode === -32603 || error.mcpCode === -32601)) {
+        // Resource not found or tool not found - expected for optional files
+        console.debug(`[GitHubMCP] File not found (expected): ${filePath}`);
+        return null;
+      }
+      // Network or auth errors should still be thrown
+      if (error instanceof McpConnectionError) {
+        throw error;
+      }
+      // For unexpected errors, log at debug and return null (don't spam ERROR)
+      console.debug(`[GitHubMCP] Failed to read ${filePath}: ${error instanceof Error ? error.message : String(error)}`);
+      return null;
+    }
   }
 
   /**

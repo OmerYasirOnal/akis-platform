@@ -1,15 +1,24 @@
 import { and, eq } from 'drizzle-orm';
 import { db } from '../../db/client.js';
-import { userAiKeys, type UserAiKey } from '../../db/schema.js';
+import { userAiKeys, users, type UserAiKey } from '../../db/schema.js';
 import { decryptSecret, encryptSecret } from '../../utils/crypto.js';
 
-export type AIKeyProvider = 'openai';
+export type AIKeyProvider = 'openai' | 'openrouter';
 
 export type AIKeyStatus = {
   provider: AIKeyProvider;
   configured: boolean;
   last4: string | null;
   updatedAt: string | null;
+};
+
+export type MultiProviderStatus = {
+  /** User's explicitly set active provider, or null if never set */
+  activeProvider: AIKeyProvider | null;
+  providers: {
+    openai: Omit<AIKeyStatus, 'provider'>;
+    openrouter: Omit<AIKeyStatus, 'provider'>;
+  };
 };
 
 export function normalizeApiKey(key: string): string {
@@ -111,4 +120,71 @@ export async function getDecryptedUserAiKey(
   );
 
   return { key: decrypted, record };
+}
+
+/**
+ * Get multi-provider status including active provider for a user
+ * Note: activeProvider is null if user has never explicitly set one
+ */
+export async function getMultiProviderStatus(userId: string): Promise<MultiProviderStatus> {
+  // Get user's active provider (may be null if never set)
+  const user = await db.query.users.findFirst({
+    where: eq(users.id, userId),
+    columns: { activeAiProvider: true },
+  });
+
+  // Do NOT apply hard default here - let orchestrator handle fallback logic
+  const activeProvider: AIKeyProvider | null = (user?.activeAiProvider as AIKeyProvider) || null;
+
+  // Get status for both providers
+  const [openaiStatus, openrouterStatus] = await Promise.all([
+    getUserAiKeyStatus(userId, 'openai'),
+    getUserAiKeyStatus(userId, 'openrouter'),
+  ]);
+
+  return {
+    activeProvider,
+    providers: {
+      openai: {
+        configured: openaiStatus.configured,
+        last4: openaiStatus.last4,
+        updatedAt: openaiStatus.updatedAt,
+      },
+      openrouter: {
+        configured: openrouterStatus.configured,
+        last4: openrouterStatus.last4,
+        updatedAt: openrouterStatus.updatedAt,
+      },
+    },
+  };
+}
+
+/**
+ * Set user's active AI provider
+ */
+export async function setUserActiveProvider(
+  userId: string,
+  provider: AIKeyProvider
+): Promise<AIKeyProvider> {
+  await db
+    .update(users)
+    .set({ activeAiProvider: provider, updatedAt: new Date() })
+    .where(eq(users.id, userId));
+
+  return provider;
+}
+
+/**
+ * Get user's active AI provider
+ * Returns null if user has never explicitly set an active provider
+ * (Orchestrator applies deterministic fallback: payload > userActive > env)
+ */
+export async function getUserActiveProvider(userId: string): Promise<AIKeyProvider | null> {
+  const user = await db.query.users.findFirst({
+    where: eq(users.id, userId),
+    columns: { activeAiProvider: true },
+  });
+
+  // Do NOT return hard default - let orchestrator handle fallback
+  return (user?.activeAiProvider as AIKeyProvider) || null;
 }
