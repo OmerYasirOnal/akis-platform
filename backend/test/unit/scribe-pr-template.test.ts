@@ -21,6 +21,12 @@ describe('ScribeAgent (PR template placeholders)', () => {
       async getFileContent(_owner: string, _repo: string, _branch: string, path: string) {
         return { content: `existing content for ${path}`, encoding: 'utf8' as const, sha: 'sha-1' };
       },
+      async getFileContentSafe(_owner: string, _repo: string, _branch: string, path: string) {
+        return { content: `existing content for ${path}`, encoding: 'utf8' as const, sha: 'sha-1' };
+      },
+      async callToolRaw() {
+        return null; // Directory listing returns null for simple tests
+      },
       async commitFile() {
         return { ok: true, sha: 'commit-sha' };
       },

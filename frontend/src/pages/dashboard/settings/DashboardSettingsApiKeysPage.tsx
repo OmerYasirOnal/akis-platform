@@ -118,16 +118,26 @@ const DashboardSettingsApiKeysPage = () => {
             <div>
               <p className="text-sm text-ak-text-secondary">Active Provider</p>
               <p className="text-lg font-semibold text-ak-text-primary capitalize">
-                {status.activeProvider === 'openrouter' ? 'OpenRouter' : 'OpenAI'}
+                {status.activeProvider === null 
+                  ? 'Not Set' 
+                  : status.activeProvider === 'openrouter' 
+                    ? 'OpenRouter' 
+                    : 'OpenAI'}
               </p>
             </div>
-            <div className={`rounded-full px-3 py-1 text-xs font-semibold ${
-              status.providers[status.activeProvider].configured 
-                ? 'bg-green-500/15 text-green-400' 
-                : 'bg-ak-danger/15 text-ak-danger'
-            }`}>
-              {status.providers[status.activeProvider].configured ? 'Key Configured' : 'Key Missing'}
-            </div>
+            {status.activeProvider === null ? (
+              <div className="rounded-full px-3 py-1 text-xs font-semibold bg-yellow-500/15 text-yellow-400">
+                Select a Provider
+              </div>
+            ) : (
+              <div className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                status.providers[status.activeProvider].configured 
+                  ? 'bg-green-500/15 text-green-400' 
+                  : 'bg-ak-danger/15 text-ak-danger'
+              }`}>
+                {status.providers[status.activeProvider].configured ? 'Key Configured' : 'Key Missing'}
+              </div>
+            )}
           </div>
         </Card>
       )}

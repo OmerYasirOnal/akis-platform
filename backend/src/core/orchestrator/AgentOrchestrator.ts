@@ -780,6 +780,9 @@ export class AgentOrchestrator {
       throw new MissingAIKeyError(providerCandidate, errorMessage);
     }
 
+    // Log final key resolution decision
+    console.log(`[resolveAiServiceForJob] KEY DECISION: provider=${providerCandidate}, keySource=${keySource}, hasKey=true, fallbackReason=${fallbackReason || 'none'}`);
+
     // ========================================================================
     // CREATE AI SERVICE
     // ========================================================================

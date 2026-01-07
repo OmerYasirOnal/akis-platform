@@ -503,6 +503,14 @@ export class GitHubMCPService {
   }
 
   /**
+   * Public wrapper for callTool - allows raw tool calls from agents
+   * Use with caution; prefer typed wrapper methods when available
+   */
+  async callToolRaw<T>(toolName: string, args: Record<string, unknown>): Promise<T> {
+    return this.callTool<T>(toolName, args);
+  }
+
+  /**
    * Create a branch in GitHub repository
    */
   async createBranch(

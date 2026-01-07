@@ -268,28 +268,140 @@ export class ScribeAgent extends BaseAgent {
    */
   private shouldExcludeFile(path: string): boolean {
     const excludePatterns = [
-      /node_modules\//i,
-      /dist\//i,
-      /build\//i,
-      /\.git\//i,
-      /\.next\//i,
-      /coverage\//i,
-      /\.cache\//i,
-      /-lock\.(json|yaml)$/i,       // lockfiles
+      // Directories (with leading ^ for start of path)
+      /^node_modules\//i,
+      /^\.git\//i,
+      /^dist\//i,
+      /^build\//i,
+      /^\.next\//i,
+      /^coverage\//i,
+      /^\.cache\//i,
+      /^\.turbo\//i,
+      /^__pycache__\//i,
+      /^\.venv\//i,
+      /^venv\//i,
+      /^vendor\//i,
+      /^\.idea\//i,
+      /^\.vscode\//i,
+      
+      // Lock files
       /package-lock\.json$/i,
       /pnpm-lock\.yaml$/i,
       /yarn\.lock$/i,
-      /\.(png|jpg|jpeg|gif|svg|ico|webp)$/i,  // images
-      /\.(woff|woff2|ttf|eot|otf)$/i,         // fonts
-      /\.(pdf|doc|docx|xls|xlsx)$/i,          // documents
-      /\.(zip|tar|gz|rar|7z)$/i,              // archives
-      /\.(mp3|mp4|avi|mov|wav)$/i,            // media
-      /\.min\.(js|css)$/i,                    // minified files
-      /\.map$/i,                              // source maps
-      /\.d\.ts$/i,                            // type definitions (often auto-generated)
+      /Gemfile\.lock$/i,
+      /poetry\.lock$/i,
+      /composer\.lock$/i,
+      
+      // Binary/media files
+      /\.(png|jpg|jpeg|gif|svg|ico|webp|bmp|tiff)$/i,
+      /\.(woff|woff2|ttf|eot|otf)$/i,
+      /\.(pdf|doc|docx|xls|xlsx|ppt|pptx)$/i,
+      /\.(zip|tar|gz|rar|7z|bz2)$/i,
+      /\.(mp3|mp4|avi|mov|wav|flac|ogg|webm)$/i,
+      /\.(exe|dll|so|dylib|bin)$/i,
+      
+      // Database files
+      /\.(sqlite|sqlite3|db)$/i,
+      /\.mdb$/i,
+      
+      // Generated/minified
+      /\.min\.(js|css)$/i,
+      /\.map$/i,
+      /\.d\.ts$/i,
+      /\.bundle\.(js|css)$/i,
+      
+      // OS/system files
+      /\.DS_Store$/i,
+      /Thumbs\.db$/i,
+      /desktop\.ini$/i,
+      
+      // Log files
+      /\.log$/i,
+      /npm-debug\.log/i,
     ];
     
     return excludePatterns.some(p => p.test(path));
+  }
+
+  /**
+   * Safely list directory contents using GitHub MCP
+   * Returns null if listing fails (e.g., path not found or not a directory)
+   */
+  private async listDirectorySafe(
+    owner: string,
+    repo: string,
+    branch: string,
+    path: string
+  ): Promise<Array<{ name: string; type: 'file' | 'dir'; path: string }> | null> {
+    if (!this.githubMCP) return null;
+    
+    try {
+      // GitHub's get_file_contents returns array for directories
+      const result = await this.githubMCP.callToolRaw('get_file_contents', {
+        owner,
+        repo,
+        path: path || '.',
+        branch,
+      });
+      
+      // Check if result is an array (directory listing)
+      if (Array.isArray(result)) {
+        return result.map((item: { name?: string; type?: string; path?: string }) => ({
+          name: String(item.name || ''),
+          type: item.type === 'dir' ? 'dir' : 'file',
+          path: String(item.path || item.name || ''),
+        }));
+      }
+      
+      // Not a directory - return null
+      return null;
+    } catch {
+      // Directory not found or other error - return null silently
+      console.debug(`[Scribe] Could not list directory: ${path}`);
+      return null;
+    }
+  }
+
+  /**
+   * Detect project type based on existing files and directories
+   */
+  private detectProjectType(
+    files: Set<string>,
+    dirs: Set<string>
+  ): 'node-express' | 'react' | 'next' | 'node-generic' | 'python' | 'go' | 'rust' | 'unknown' {
+    // Check for Node.js project
+    if (files.has('package.json')) {
+      // Next.js
+      if (files.has('next.config.js') || files.has('next.config.mjs') || files.has('next.config.ts')) {
+        return 'next';
+      }
+      // React (Vite, CRA, etc.)
+      if (dirs.has('src') && (files.has('vite.config.ts') || files.has('vite.config.js'))) {
+        return 'react';
+      }
+      // Express/Node backend
+      if (files.has('server.js') || files.has('app.js') || files.has('index.js')) {
+        return 'node-express';
+      }
+      return 'node-generic';
+    }
+    
+    // Python project
+    if (files.has('requirements.txt') || files.has('setup.py') || files.has('pyproject.toml')) {
+      return 'python';
+    }
+    
+    // Go project
+    if (files.has('go.mod')) {
+      return 'go';
+    }
+    
+    // Rust project
+    if (files.has('Cargo.toml')) {
+      return 'rust';
+    }
+    
+    return 'unknown';
   }
 
   /**
@@ -312,150 +424,104 @@ export class ScribeAgent extends BaseAgent {
       return context;
     }
 
-    // Comprehensive list of paths to try (order matters for priority)
-    // This replaces the old hardcoded 8-file list with a much broader set
-    const pathsToTry = [
-      // Root configuration/readme (highest priority)
-      'README.md',
-      'README',
-      'readme.md',
-      'package.json',
-      'LICENSE',
-      'LICENSE.md',
-      '.env.example',
-      'tsconfig.json',
-      'tsconfig.base.json',
-      'Dockerfile',
-      'docker-compose.yml',
-      'docker-compose.yaml',
-      'Makefile',
-      
-      // Monorepo workspace roots
-      'pnpm-workspace.yaml',
-      'lerna.json',
-      'turbo.json',
-      'nx.json',
-      
-      // CI/CD
-      '.github/workflows/ci.yml',
-      '.github/workflows/ci.yaml',
-      '.github/workflows/main.yml',
-      '.github/CONTRIBUTING.md',
-      '.github/PULL_REQUEST_TEMPLATE.md',
-      '.github/CODE_OF_CONDUCT.md',
-      
-      // Docs folder
-      'docs/README.md',
-      'docs/getting-started.md',
-      'docs/GETTING_STARTED.md',
-      'docs/installation.md',
-      'docs/setup.md',
-      'docs/architecture.md',
-      'docs/ARCHITECTURE.md',
-      'docs/api.md',
-      'docs/API.md',
-      'docs/contributing.md',
-      'docs/CONTRIBUTING.md',
-      'CONTRIBUTING.md',
-      'CHANGELOG.md',
-      'SECURITY.md',
-      
-      // Backend (common patterns)
-      'backend/package.json',
-      'backend/README.md',
-      'backend/tsconfig.json',
-      'backend/src/server.ts',
-      'backend/src/server.app.ts',
-      'backend/src/index.ts',
-      'backend/src/main.ts',
-      'backend/src/app.ts',
-      'backend/src/config/env.ts',
-      'backend/src/db/schema.ts',
-      'backend/src/routes/index.ts',
-      'backend/docs/Auth.md',
-      'backend/docs/API_SPEC.md',
-      
-      // Frontend (common patterns)
-      'frontend/package.json',
-      'frontend/README.md',
-      'frontend/tsconfig.json',
-      'frontend/vite.config.ts',
-      'frontend/vite.config.js',
-      'frontend/next.config.js',
-      'frontend/next.config.ts',
-      'frontend/src/App.tsx',
-      'frontend/src/App.jsx',
-      'frontend/src/main.tsx',
-      'frontend/src/main.ts',
-      'frontend/src/index.tsx',
-      'frontend/src/index.ts',
-      'frontend/src/pages/index.tsx',
-      'frontend/src/routes.tsx',
-      
-      // Simple src folder projects
-      'src/index.ts',
-      'src/index.js',
-      'src/main.ts',
-      'src/main.tsx',
-      'src/app.ts',
-      'src/App.tsx',
-      'src/App.jsx',
-      'src/server.ts',
-      'src/config.ts',
-      'src/types.ts',
-      'src/routes/index.ts',
-      
-      // Configuration files
-      'vite.config.ts',
-      'vite.config.js',
-      'next.config.js',
-      'next.config.mjs',
-      'webpack.config.js',
-      'rollup.config.js',
-      'esbuild.config.js',
-      'tailwind.config.js',
-      'tailwind.config.ts',
-      'postcss.config.js',
-      '.eslintrc.json',
-      '.eslintrc.js',
-      'eslint.config.js',
-      'jest.config.js',
-      'jest.config.ts',
-      'vitest.config.ts',
-      'playwright.config.ts',
-      '.prettierrc',
-      '.prettierrc.json',
-      'biome.json',
-    ];
-
     const { maxFiles, previewLength } = ScribeAgent.REPO_SCAN_CONFIG;
     const readFiles: { path: string; content: string; priority: number }[] = [];
 
-    // Read files in parallel with concurrency limit
-    const BATCH_SIZE = 10;
-    for (let i = 0; i < pathsToTry.length && readFiles.length < maxFiles; i += BATCH_SIZE) {
-      const batch = pathsToTry.slice(i, i + BATCH_SIZE);
-      const results = await Promise.allSettled(
-        batch.map(async (filePath) => {
-          if (this.shouldExcludeFile(filePath)) return null;
-          // Use safe file read to avoid ERROR spam for expected missing files
-          const fileData = await this.githubMCP!.getFileContentSafe(owner, repo, branch, filePath);
-          if (!fileData) return null;
-          return { path: filePath, content: fileData.content };
-        })
-      );
+    // STEP 1: Discover repo structure first (avoids blind probing)
+    const rootListing = await this.listDirectorySafe(owner, repo, branch, '');
+    
+    if (rootListing) {
+      const rootFiles = new Set(rootListing.filter(f => f.type === 'file').map(f => f.name));
+      const rootDirs = new Set(rootListing.filter(f => f.type === 'dir').map(f => f.name));
       
-      for (const result of results) {
-        if (result.status === 'fulfilled' && result.value) {
-          const { path, content } = result.value;
+      // Detect project type for smarter file selection
+      const projectType = this.detectProjectType(rootFiles, rootDirs);
+      this.traceRecorder?.recordInfo(`Detected project type: ${projectType}, root files: ${Array.from(rootFiles).slice(0, 10).join(', ')}`);
+      
+      // STEP 2: Build targeted file list based on what EXISTS
+      const filesToRead: string[] = [];
+      
+      // Always read if present in root
+      if (rootFiles.has('README.md')) filesToRead.push('README.md');
+      if (rootFiles.has('README')) filesToRead.push('README');
+      if (rootFiles.has('readme.md')) filesToRead.push('readme.md');
+      if (rootFiles.has('package.json')) filesToRead.push('package.json');
+      if (rootFiles.has('server.js')) filesToRead.push('server.js');
+      if (rootFiles.has('index.js')) filesToRead.push('index.js');
+      if (rootFiles.has('app.js')) filesToRead.push('app.js');
+      if (rootFiles.has('tsconfig.json')) filesToRead.push('tsconfig.json');
+      if (rootFiles.has('.env.example')) filesToRead.push('.env.example');
+      if (rootFiles.has('Dockerfile')) filesToRead.push('Dockerfile');
+      if (rootFiles.has('docker-compose.yml')) filesToRead.push('docker-compose.yml');
+      
+      // Read files based on project type
+      if (projectType === 'node-express' || projectType === 'node-generic') {
+        // Check for routes/public directories
+        if (rootDirs.has('routes')) {
+          const routesListing = await this.listDirectorySafe(owner, repo, branch, 'routes');
+          if (routesListing) {
+            for (const file of routesListing.filter(f => f.type === 'file').slice(0, 3)) {
+              filesToRead.push(`routes/${file.name}`);
+            }
+          }
+        }
+        if (rootDirs.has('public')) {
+          // Only list, don't read binary files
+          this.traceRecorder?.recordInfo('Found public/ directory');
+        }
+      }
+      
+      if (projectType === 'react' || projectType === 'next') {
+        if (rootDirs.has('src')) {
+          const srcListing = await this.listDirectorySafe(owner, repo, branch, 'src');
+          if (srcListing) {
+            const srcFiles = srcListing.filter(f => f.type === 'file').map(f => f.name);
+            if (srcFiles.includes('App.tsx')) filesToRead.push('src/App.tsx');
+            if (srcFiles.includes('App.jsx')) filesToRead.push('src/App.jsx');
+            if (srcFiles.includes('main.tsx')) filesToRead.push('src/main.tsx');
+            if (srcFiles.includes('index.tsx')) filesToRead.push('src/index.tsx');
+          }
+        }
+      }
+      
+      // STEP 3: Read discovered files
+      for (const filePath of filesToRead.slice(0, maxFiles)) {
+        if (this.shouldExcludeFile(filePath)) continue;
+        
+        const fileData = await this.githubMCP.getFileContentSafe(owner, repo, branch, filePath);
+        if (fileData) {
           readFiles.push({
-            path,
-            content,
-            priority: this.getFilePriority(path),
+            path: filePath,
+            content: fileData.content,
+            priority: this.getFilePriority(filePath),
+          });
+        }
+      }
+    } else {
+      // Fallback: If directory listing fails, use minimal targeted probes
+      this.traceRecorder?.recordInfo('Could not list root directory, using minimal probe fallback');
+      
+      const minimalPaths = [
+        'README.md', 'package.json', 'server.js', 'index.js', 'app.js',
+        'src/index.ts', 'src/App.tsx', 'src/main.tsx',
+      ];
+      
+      for (const filePath of minimalPaths) {
+        if (readFiles.length >= maxFiles) break;
+        
+        const fileData = await this.githubMCP.getFileContentSafe(owner, repo, branch, filePath);
+        if (fileData) {
+          readFiles.push({
+            path: filePath,
+            content: fileData.content,
+            priority: this.getFilePriority(filePath),
           });
         }
       }
     }
+
+    // Log summary
+    this.traceRecorder?.recordInfo(`Discovered ${readFiles.length} files for context`);
 
     // Sort by priority and take top maxFiles
     readFiles.sort((a, b) => a.priority - b.priority);
@@ -724,8 +790,9 @@ export class ScribeAgent extends BaseAgent {
       ];
 
       for (const candidatePath of candidatePaths) {
-        try {
-          const fileData = await this.githubMCP.getFileContent(task.owner, task.repo, workingBranch, candidatePath);
+        // Use safe read to avoid ERROR spam for expected missing files
+        const fileData = await this.githubMCP.getFileContentSafe(task.owner, task.repo, workingBranch, candidatePath);
+        if (fileData) {
           const contract = getContractForPath(candidatePath);
           fileTargets.push({
             path: candidatePath,
@@ -734,9 +801,8 @@ export class ScribeAgent extends BaseAgent {
             priority: candidatePath.includes('README') ? 1 : 2,
           });
           this.traceRecorder?.recordDocRead(candidatePath, fileData.content.length, fileData.content.substring(0, 200));
-        } catch {
-          // File doesn't exist, skip
         }
+        // If file doesn't exist, silently skip (no error log)
       }
 
       // If no files found, select a default target
@@ -761,7 +827,10 @@ export class ScribeAgent extends BaseAgent {
       let fileMissing = false;
       const readStartTime = Date.now();
       
-      try {
+      // Use safe read to avoid ERROR spam for expected missing files
+      const fileData = await this.githubMCP.getFileContentSafe(task.owner, task.repo, workingBranch, targetPath);
+      
+      if (fileData) {
         this.traceRecorder?.recordToolCall({
           toolName: 'github.getFileContent',
           asked: `Read the contents of "${targetPath}" from branch "${workingBranch}"`,
@@ -771,11 +840,9 @@ export class ScribeAgent extends BaseAgent {
           success: true,
           durationMs: Date.now() - readStartTime,
         });
-        
-        const fileData = await this.githubMCP.getFileContent(task.owner, task.repo, workingBranch, targetPath);
         currentContent = fileData.content;
         this.traceRecorder?.recordDocRead(targetPath, currentContent.length, currentContent.substring(0, 200));
-    } catch (_e) {
+      } else {
         fileMissing = true;
         this.traceRecorder?.recordDecision({
           title: 'File not found',

@@ -22,7 +22,8 @@ export type ProviderKeyStatus = {
 };
 
 export type MultiProviderStatus = {
-  activeProvider: AiProvider;
+  /** User's explicitly set active provider, or null if never set */
+  activeProvider: AiProvider | null;
   providers: {
     openai: ProviderKeyStatus;
     openrouter: ProviderKeyStatus;

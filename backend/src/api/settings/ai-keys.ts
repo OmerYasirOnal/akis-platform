@@ -44,7 +44,7 @@ export async function aiKeysRoutes(fastify: FastifyInstance) {
           200: {
             type: 'object',
             properties: {
-              activeProvider: { type: 'string', enum: ['openai', 'openrouter'] },
+              activeProvider: { type: ['string', 'null'], enum: ['openai', 'openrouter', null] },
               providers: {
                 type: 'object',
                 properties: {
@@ -182,7 +182,7 @@ export async function aiKeysRoutes(fastify: FastifyInstance) {
           200: {
             type: 'object',
             properties: {
-              activeProvider: { type: 'string', enum: ['openai', 'openrouter'] },
+              activeProvider: { type: ['string', 'null'], enum: ['openai', 'openrouter', null] },
               providers: {
                 type: 'object',
                 properties: {

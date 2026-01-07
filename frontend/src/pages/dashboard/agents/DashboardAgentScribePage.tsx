@@ -314,10 +314,35 @@ const DashboardAgentScribePage = () => {
       let aiProvider: AIKeyProvider | undefined;
       try {
         const aiStatus = await getMultiProviderStatus();
-        aiProvider = aiStatus.activeProvider || undefined;
-        console.log(`[Scribe] User's active AI provider: ${aiProvider || 'none (using env default)'}`);
+        
+        if (aiStatus.activeProvider === null) {
+          // No provider explicitly set - auto-select based on configured keys
+          const configuredProvider = aiStatus.providers.openai.configured 
+            ? 'openai' 
+            : aiStatus.providers.openrouter.configured 
+              ? 'openrouter' 
+              : null;
+          
+          if (!configuredProvider) {
+            throw new Error('No AI provider configured. Please add an API key in Settings > API Keys.');
+          }
+          
+          aiProvider = configuredProvider;
+          console.log(`[Scribe] No active provider set, using first configured: ${aiProvider}`);
+        } else {
+          aiProvider = aiStatus.activeProvider;
+          console.log(`[Scribe] Using active provider: ${aiProvider}`);
+        }
       } catch (aiError) {
-        console.warn('[Scribe] Could not fetch AI provider status, will use backend default:', aiError);
+        // Show user-friendly error instead of silent fallback
+        const errorLog: LogEntry = {
+          id: `ai-error-${Date.now()}`,
+          timestamp: new Date(),
+          level: 'error',
+          message: aiError instanceof Error ? aiError.message : 'Failed to determine AI provider. Configure one in Settings > API Keys.',
+        };
+        setLogs(prev => [...prev, errorLog]);
+        return; // Don't submit job without valid provider
       }
 
       // Submit job to backend with explicit provider
