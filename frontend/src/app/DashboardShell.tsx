@@ -14,7 +14,6 @@ const dashboardLinks = [
 const settingsLinks = [
   { label: 'Profile', to: '/dashboard/settings/profile' },
   { label: 'Workspace', to: '/dashboard/settings/workspace' },
-  { label: 'AI Providers', to: '/dashboard/settings/ai-providers' },
   { label: 'API Keys', to: '/dashboard/settings/api-keys' },
   { label: 'Billing', to: '/dashboard/settings/billing' },
   { label: 'Notifications', to: '/dashboard/settings/notifications' },

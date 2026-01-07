@@ -33,7 +33,7 @@ const DashboardOverviewPage = () => {
           </div>
         </Card>
 
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           <Button
             as={Link}
             to="/dashboard/scribe"
@@ -63,16 +63,6 @@ const DashboardOverviewPage = () => {
           >
             <span className="text-lg">🔌</span>
             <span className="text-xs font-medium">Integrations</span>
-          </Button>
-          <Button
-            as={Link}
-            to="/dashboard/settings/ai-providers"
-            variant="outline"
-            size="md"
-            className="h-auto flex flex-col items-center justify-center gap-1 py-3 text-center"
-          >
-            <span className="text-lg">⚙️</span>
-            <span className="text-xs font-medium">AI Providers</span>
           </Button>
         </div>
 

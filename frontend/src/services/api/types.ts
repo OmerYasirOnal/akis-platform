@@ -4,6 +4,49 @@
 export type JobType = 'scribe' | 'trace' | 'proto';
 export type JobState = 'pending' | 'running' | 'completed' | 'failed' | 'awaiting_approval';
 
+/** Per-call AI metrics */
+export interface JobAiCall {
+  id: string;
+  callIndex: number;
+  provider: string;
+  model: string;
+  purpose: string | null;
+  inputTokens: number | null;
+  outputTokens: number | null;
+  totalTokens: number | null;
+  durationMs: number | null;
+  estimatedCostUsd: string | null;
+  success: boolean;
+  errorCode: string | null;
+  timestamp: string;
+}
+
+/** Structured AI response object */
+export interface JobAiInfo {
+  /** Requested AI config (what was submitted) */
+  requested: {
+    provider: string | null;
+    model: string | null;
+  };
+  /** Resolved AI config (what was actually used at runtime) */
+  resolved: {
+    provider: string | null;
+    model: string | null;
+    keySource: 'user' | 'env' | null;
+    fallbackReason: string | null;
+  };
+  /** Aggregate AI metrics */
+  summary: {
+    totalDurationMs: number | null;
+    inputTokens: number | null;
+    outputTokens: number | null;
+    totalTokens: number | null;
+    estimatedCostUsd: string | null;
+  };
+  /** Per-call breakdown */
+  calls: JobAiCall[];
+}
+
 export interface Job {
   id: string;
   type: JobType;
@@ -21,20 +64,22 @@ export interface Job {
   mcpGatewayUrl?: string | null;
   /** MCP Gateway correlation id (safe to share, helps debug gateway logs) */
   correlationId?: string | null;
-  /** AI provider used for this job (e.g., openai) */
+  /** AI provider used for this job (e.g., openai) - LEGACY, use ai.requested.provider */
   aiProvider?: string | null;
-  /** AI model used for this job */
+  /** AI model used for this job - LEGACY, use ai.requested.model */
   aiModel?: string | null;
-  /** Aggregate AI duration in ms */
+  /** Aggregate AI duration in ms - LEGACY, use ai.summary.totalDurationMs */
   aiTotalDurationMs?: number | null;
-  /** Aggregate input tokens */
+  /** Aggregate input tokens - LEGACY, use ai.summary.inputTokens */
   aiInputTokens?: number | null;
-  /** Aggregate output tokens */
+  /** Aggregate output tokens - LEGACY, use ai.summary.outputTokens */
   aiOutputTokens?: number | null;
-  /** Aggregate total tokens */
+  /** Aggregate total tokens - LEGACY, use ai.summary.totalTokens */
   aiTotalTokens?: number | null;
-  /** Estimated AI cost in USD (string when returned from numeric column) */
+  /** Estimated AI cost in USD - LEGACY, use ai.summary.estimatedCostUsd */
   aiEstimatedCostUsd?: number | string | null;
+  /** Structured AI info with requested/resolved/summary/calls */
+  ai?: JobAiInfo;
   /** Request ID from the API response */
   requestId?: string;
   createdAt: string;

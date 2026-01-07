@@ -21,7 +21,6 @@ import DashboardAgentScribePage from './pages/dashboard/agents/DashboardAgentScr
 import DashboardIntegrationsPage from './pages/dashboard/DashboardIntegrationsPage';
 import DashboardSettingsProfilePage from './pages/dashboard/settings/DashboardSettingsProfilePage';
 import DashboardSettingsWorkspacePage from './pages/dashboard/settings/DashboardSettingsWorkspacePage';
-import DashboardSettingsAiProvidersPage from './pages/dashboard/settings/DashboardSettingsAiProvidersPage';
 import DashboardSettingsApiKeysPage from './pages/dashboard/settings/DashboardSettingsApiKeysPage';
 import DashboardSettingsBillingPage from './pages/dashboard/settings/DashboardSettingsBillingPage';
 import DashboardSettingsNotificationsPage from './pages/dashboard/settings/DashboardSettingsNotificationsPage';
@@ -96,7 +95,6 @@ function App() {
               <Route index element={<Navigate to="profile" replace />} />
               <Route path="profile" element={<DashboardSettingsProfilePage />} />
               <Route path="workspace" element={<DashboardSettingsWorkspacePage />} />
-              <Route path="ai-providers" element={<DashboardSettingsAiProvidersPage />} />
               <Route path="api-keys" element={<DashboardSettingsApiKeysPage />} />
               <Route
                 path="billing"

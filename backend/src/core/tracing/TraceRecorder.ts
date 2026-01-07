@@ -4,7 +4,7 @@
  */
 
 import { db } from '../../db/client.js';
-import { jobTraces, jobArtifacts, type NewJobTrace, type NewJobArtifact } from '../../db/schema.js';
+import { jobTraces, jobArtifacts, jobAiCalls, type NewJobTrace, type NewJobArtifact, type NewJobAiCall } from '../../db/schema.js';
 
 export type TraceEventType = 
   | 'step_start'
@@ -213,7 +213,9 @@ export class TraceRecorder {
   private jobId: string;
   private pendingTraces: NewJobTrace[] = [];
   private pendingArtifacts: NewJobArtifact[] = [];
+  private pendingAiCalls: NewJobAiCall[] = [];
   private stepTimers: Map<string, number> = new Map();
+  private aiCallIndex: number = 0;
 
   constructor(jobId: string) {
     this.jobId = jobId;
@@ -388,16 +390,48 @@ export class TraceRecorder {
   }
 
   /**
-   * Record an AI call
+   * Record an AI call with detailed metrics for breakdown
+   * Persists to both jobTraces (for timeline) and jobAiCalls (for metrics breakdown)
    */
-  recordAiCall(purpose: string, success: boolean, durationMs?: number, detail?: Record<string, unknown>): void {
+  recordAiCall(
+    purpose: string,
+    success: boolean,
+    durationMs?: number,
+    detail?: {
+      provider?: string;
+      model?: string;
+      usage?: { inputTokens?: number; outputTokens?: number; totalTokens?: number };
+      estimatedCostUsd?: number;
+      errorCode?: string;
+    }
+  ): void {
+    // Record to job_traces for timeline view
     void this.trace({
       eventType: 'ai_call',
       title: `AI: ${purpose}`,
-      detail,
+      detail: detail as Record<string, unknown>,
       durationMs,
       status: success ? 'success' : 'failed',
     });
+
+    // Record to job_ai_calls for metrics breakdown (if we have provider/model)
+    if (detail?.provider && detail?.model) {
+      const aiCallRecord: NewJobAiCall = {
+        jobId: this.jobId,
+        callIndex: this.aiCallIndex++,
+        provider: detail.provider,
+        model: detail.model,
+        purpose: purpose.substring(0, 255),
+        inputTokens: detail.usage?.inputTokens ?? null,
+        outputTokens: detail.usage?.outputTokens ?? null,
+        totalTokens: detail.usage?.totalTokens ?? null,
+        durationMs: durationMs ?? null,
+        estimatedCostUsd: detail.estimatedCostUsd !== undefined ? String(detail.estimatedCostUsd) : null,
+        success,
+        errorCode: detail.errorCode ?? null,
+      };
+      this.pendingAiCalls.push(aiCallRecord);
+    }
   }
 
   /**
@@ -623,8 +657,15 @@ export class TraceRecorder {
         await db.insert(jobArtifacts).values(this.pendingArtifacts);
         this.pendingArtifacts = [];
       }
+
+      // Insert AI call metrics (per-call breakdown)
+      if (this.pendingAiCalls.length > 0) {
+        await db.insert(jobAiCalls).values(this.pendingAiCalls);
+        console.log(`[TraceRecorder] Flushed ${this.pendingAiCalls.length} AI call records for job ${this.jobId}`);
+        this.pendingAiCalls = [];
+      }
     } catch (error) {
-      console.error('Failed to flush traces/artifacts:', error);
+      console.error('Failed to flush traces/artifacts/ai-calls:', error);
       // Don't throw - tracing should not break job execution
     }
   }
@@ -632,7 +673,7 @@ export class TraceRecorder {
   /**
    * Get summary of recorded events (for job result)
    */
-  getSummary(): { traceCount: number; artifactCount: number; documentsRead: number; filesProduced: number; filesPreview: number } {
+  getSummary(): { traceCount: number; artifactCount: number; documentsRead: number; filesProduced: number; filesPreview: number; aiCallCount: number } {
     const documentsRead = this.pendingArtifacts.filter(a => a.artifactType === 'doc_read').length;
     const filesProduced = this.pendingArtifacts.filter(a => 
       a.artifactType === 'file_created' || a.artifactType === 'file_modified'
@@ -645,6 +686,7 @@ export class TraceRecorder {
       documentsRead,
       filesProduced,
       filesPreview,
+      aiCallCount: this.pendingAiCalls.length,
     };
   }
 }

@@ -11,36 +11,93 @@ const withCredentials = {
   credentials: 'include' as const,
 };
 
-export type AiKeyStatus = {
-  provider: 'openai';
+export type AiProvider = 'openai' | 'openrouter';
+// Alias for consistency with backend naming
+export type AIKeyProvider = AiProvider;
+
+export type ProviderKeyStatus = {
   configured: boolean;
   last4: string | null;
   updatedAt: string | null;
 };
 
+export type MultiProviderStatus = {
+  /** User's explicitly set active provider, or null if never set */
+  activeProvider: AiProvider | null;
+  providers: {
+    openai: ProviderKeyStatus;
+    openrouter: ProviderKeyStatus;
+  };
+};
+
+// Legacy type for backwards compatibility
+export type AiKeyStatus = {
+  provider: AiProvider;
+  configured: boolean;
+  last4: string | null;
+  updatedAt: string | null;
+};
+
+// Standalone export for direct import (matches backend API naming)
+export async function getMultiProviderStatus(): Promise<MultiProviderStatus> {
+  return httpClient.get<MultiProviderStatus>(
+    '/api/settings/ai-keys/status',
+    withCredentials
+  );
+}
+
+export async function setActiveProvider(provider: AiProvider): Promise<MultiProviderStatus> {
+  return httpClient.put<MultiProviderStatus>(
+    '/api/settings/ai-provider/active',
+    { provider },
+    withCredentials
+  );
+}
+
 export const aiKeysApi = {
-  getStatus: async (): Promise<AiKeyStatus> => {
-    return httpClient.get<AiKeyStatus>(
+  /**
+   * Get multi-provider status including active provider
+   */
+  getStatus: async (): Promise<MultiProviderStatus> => {
+    return httpClient.get<MultiProviderStatus>(
       '/api/settings/ai-keys/status',
       withCredentials
     );
   },
 
-  saveKey: async (apiKey: string): Promise<AiKeyStatus> => {
+  /**
+   * Save API key for a specific provider
+   */
+  saveKey: async (provider: AiProvider, apiKey: string): Promise<AiKeyStatus> => {
     return httpClient.put<AiKeyStatus>(
       '/api/settings/ai-keys',
       {
-        provider: 'openai',
+        provider,
         apiKey,
       },
       withCredentials
     );
   },
 
-  deleteKey: async (): Promise<{ ok: boolean }> => {
+  /**
+   * Set the active AI provider
+   */
+  setActiveProvider: async (provider: AiProvider): Promise<MultiProviderStatus> => {
+    return httpClient.put<MultiProviderStatus>(
+      '/api/settings/ai-provider/active',
+      { provider },
+      withCredentials
+    );
+  },
+
+  /**
+   * Delete API key for a specific provider
+   */
+  deleteKey: async (provider: AiProvider): Promise<{ ok: boolean }> => {
     return httpClient.delete<{ ok: boolean }>(
       '/api/settings/ai-keys',
-      withCredentials
+      withCredentials,
+      { provider }
     );
   },
 };

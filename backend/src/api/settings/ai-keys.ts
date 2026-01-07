@@ -3,29 +3,38 @@ import { z } from 'zod';
 import { requireAuth } from '../../utils/auth.js';
 import {
   deleteUserAiKey,
-  getUserAiKeyStatus,
+  getMultiProviderStatus,
   normalizeApiKey,
+  setUserActiveProvider,
   upsertUserAiKey,
   type AIKeyProvider,
 } from '../../services/ai/user-ai-keys.js';
 
-const providerSchema = z.enum(['openai']);
+const providerSchema = z.enum(['openai', 'openrouter']);
+
+// API key validation that supports both OpenAI (sk-...) and OpenRouter (sk-or-...) formats
+const apiKeySchema = z
+  .string()
+  .min(20, 'API key must be at least 20 characters')
+  .regex(/^\S+$/, 'API key must not include whitespace')
+  .regex(/^sk-[A-Za-z0-9_-]+$/, 'API key must start with sk-');
 
 const upsertSchema = z.object({
-  provider: providerSchema.default('openai'),
-  apiKey: z
-    .string()
-    .min(20, 'API key must be at least 20 characters')
-    .regex(/^\S+$/, 'API key must not include whitespace')
-    .regex(/^sk-[A-Za-z0-9_-]+$/, 'API key must start with sk-'),
+  provider: providerSchema,
+  apiKey: apiKeySchema,
 });
 
 const deleteSchema = z.object({
-  provider: providerSchema.default('openai'),
+  provider: providerSchema,
+});
+
+const setActiveProviderSchema = z.object({
+  provider: providerSchema,
 });
 
 export async function aiKeysRoutes(fastify: FastifyInstance) {
   // GET /api/settings/ai-keys/status
+  // Returns multi-provider status with active provider
   fastify.get(
     '/ai-keys/status',
     {
@@ -35,10 +44,28 @@ export async function aiKeysRoutes(fastify: FastifyInstance) {
           200: {
             type: 'object',
             properties: {
-              provider: { type: 'string' },
-              configured: { type: 'boolean' },
-              last4: { type: ['string', 'null'] },
-              updatedAt: { type: ['string', 'null'] },
+              activeProvider: { type: ['string', 'null'], enum: ['openai', 'openrouter', null] },
+              providers: {
+                type: 'object',
+                properties: {
+                  openai: {
+                    type: 'object',
+                    properties: {
+                      configured: { type: 'boolean' },
+                      last4: { type: ['string', 'null'] },
+                      updatedAt: { type: ['string', 'null'] },
+                    },
+                  },
+                  openrouter: {
+                    type: 'object',
+                    properties: {
+                      configured: { type: 'boolean' },
+                      last4: { type: ['string', 'null'] },
+                      updatedAt: { type: ['string', 'null'] },
+                    },
+                  },
+                },
+              },
             },
           },
         },
@@ -47,7 +74,7 @@ export async function aiKeysRoutes(fastify: FastifyInstance) {
     async (request: FastifyRequest, reply: FastifyReply) => {
       try {
         const user = await requireAuth(request);
-        const status = await getUserAiKeyStatus(user.id, 'openai');
+        const status = await getMultiProviderStatus(user.id);
         return reply.code(200).send(status);
       } catch (err: unknown) {
         if (err instanceof Error && err.message === 'UNAUTHORIZED') {
@@ -64,6 +91,7 @@ export async function aiKeysRoutes(fastify: FastifyInstance) {
   );
 
   // PUT /api/settings/ai-keys
+  // Save API key for a specific provider
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   (fastify as any).put(
     '/ai-keys',
@@ -78,9 +106,9 @@ export async function aiKeysRoutes(fastify: FastifyInstance) {
         tags: ['settings'],
         body: {
           type: 'object',
-          required: ['apiKey'],
+          required: ['provider', 'apiKey'],
           properties: {
-            provider: { type: 'string', enum: ['openai'], default: 'openai' },
+            provider: { type: 'string', enum: ['openai', 'openrouter'] },
             apiKey: { type: 'string', minLength: 20 },
           },
         },
@@ -129,7 +157,92 @@ export async function aiKeysRoutes(fastify: FastifyInstance) {
     }
   );
 
+  // PUT /api/settings/ai-provider/active
+  // Set the active AI provider for the user
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  (fastify as any).put(
+    '/ai-provider/active',
+    {
+      config: {
+        rateLimit: {
+          max: 10,
+          timeWindow: '1 minute',
+        },
+      },
+      schema: {
+        tags: ['settings'],
+        body: {
+          type: 'object',
+          required: ['provider'],
+          properties: {
+            provider: { type: 'string', enum: ['openai', 'openrouter'] },
+          },
+        },
+        response: {
+          200: {
+            type: 'object',
+            properties: {
+              activeProvider: { type: ['string', 'null'], enum: ['openai', 'openrouter', null] },
+              providers: {
+                type: 'object',
+                properties: {
+                  openai: {
+                    type: 'object',
+                    properties: {
+                      configured: { type: 'boolean' },
+                      last4: { type: ['string', 'null'] },
+                      updatedAt: { type: ['string', 'null'] },
+                    },
+                  },
+                  openrouter: {
+                    type: 'object',
+                    properties: {
+                      configured: { type: 'boolean' },
+                      last4: { type: ['string', 'null'] },
+                      updatedAt: { type: ['string', 'null'] },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      try {
+        const user = await requireAuth(request);
+        const body = setActiveProviderSchema.parse(request.body);
+        
+        await setUserActiveProvider(user.id, body.provider);
+        const status = await getMultiProviderStatus(user.id);
+        
+        return reply.code(200).send(status);
+      } catch (err: unknown) {
+        if (err instanceof Error && err.message === 'UNAUTHORIZED') {
+          return reply.code(401).send({
+            error: {
+              code: 'UNAUTHORIZED',
+              message: 'Authentication required',
+            },
+          });
+        }
+        if (err instanceof z.ZodError) {
+          return reply.code(400).send({
+            error: {
+              code: 'VALIDATION_ERROR',
+              message: 'Invalid provider',
+              details: err.errors,
+            },
+          });
+        }
+        throw err;
+      }
+    }
+  );
+
   // DELETE /api/settings/ai-keys
+  // Delete API key for a specific provider
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   (fastify as any).delete(
     '/ai-keys',
@@ -144,8 +257,9 @@ export async function aiKeysRoutes(fastify: FastifyInstance) {
         tags: ['settings'],
         body: {
           type: 'object',
+          required: ['provider'],
           properties: {
-            provider: { type: 'string', enum: ['openai'], default: 'openai' },
+            provider: { type: 'string', enum: ['openai', 'openrouter'] },
           },
         },
         response: {
@@ -161,7 +275,7 @@ export async function aiKeysRoutes(fastify: FastifyInstance) {
     async (request: FastifyRequest, reply: FastifyReply) => {
       try {
         const user = await requireAuth(request);
-        const body = deleteSchema.parse(request.body ?? {});
+        const body = deleteSchema.parse(request.body);
         const provider = body.provider as AIKeyProvider;
 
         await deleteUserAiKey(user.id, provider);

@@ -23,6 +23,12 @@ describe('ScribeAgent (dryRun)', () => {
       async getFileContent() {
         return { content: 'existing', encoding: 'utf8' as const, sha: 'sha-1' };
       },
+      async getFileContentSafe() {
+        return { content: 'existing', encoding: 'utf8' as const, sha: 'sha-1' };
+      },
+      async callToolRaw() {
+        return null; // Directory listing returns null for simple tests
+      },
       async commitFile() {
         commitCalled = true;
         throw new Error('commitFile should not be called in dryRun');
