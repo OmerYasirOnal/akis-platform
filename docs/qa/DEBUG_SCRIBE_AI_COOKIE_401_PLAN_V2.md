@@ -2,7 +2,8 @@
 
 **Status:** FIXED  
 **Branch:** fix/scribe-demo-ux-mcp  
-**Date:** 2026-01-07
+**Date:** 2026-01-07  
+**Updated:** 2026-01-07 - Multi-provider support implemented
 
 ---
 
@@ -230,3 +231,61 @@ grep "AI_AUTH_ERROR\|401\|authentication failed" backend.log
 - [x] External integrations remain MCP-only
 - [x] No secrets logged or committed
 
+---
+
+## Update: Multi-Provider AI Support (2026-01-07)
+
+### Real Root Cause Identified
+
+The original diagnosis was partially correct about env loading, but the **actual root cause** was in `resolveAiServiceForJob()`:
+
+1. `agents.ts` correctly detected `useEnvAI=true` when env had OpenRouter configured
+2. BUT `agents.ts` still added `llmModelOverride` to payload
+3. `orchestrator.resolveAiServiceForJob()` checked `userId && modelOverride` condition
+4. When true, it HARDCODED `provider: 'openai'` regardless of env config
+5. This created AIService with `openai` provider using user's (missing) OpenAI key
+6. OpenRouter API received request with wrong/missing key -> 401 "No cookie auth credentials found"
+
+### Multi-Provider Solution Implemented
+
+**Backend Changes:**
+1. Extended `AIKeyProvider` type to `'openai' | 'openrouter'`
+2. Added `activeAiProvider` column to users table via migration
+3. New API endpoints:
+   - `GET /api/settings/ai-keys/status` - Returns both providers' status + active provider
+   - `PUT /api/settings/ai-provider/active` - Set active provider
+4. Updated `resolveAiServiceForJob()`:
+   - Checks `useEnvAI` flag first
+   - Uses user's active provider from DB
+   - Falls back to env only when appropriate
+   - Never hardcodes provider
+
+**Frontend Changes:**
+1. Updated Settings > API Keys page with provider selector
+2. Can save keys for both OpenAI and OpenRouter
+3. Can set active provider
+4. Shows both providers' configuration status
+
+### Verification
+
+```bash
+# Backend startup should show:
+[buildApp] AI Provider: openrouter
+[buildApp] AI API Key: configured
+
+# Job execution should show:
+[resolveAiServiceForJob] Using global AIService (useEnvAI=true)
+# OR
+[resolveAiServiceForJob] Creating user AIService: provider=openrouter, hasApiKey=true
+```
+
+### Files Changed
+
+- `backend/src/services/ai/user-ai-keys.ts` - Multi-provider types + functions
+- `backend/src/api/settings/ai-keys.ts` - Multi-provider API endpoints
+- `backend/src/core/orchestrator/AgentOrchestrator.ts` - Fixed `resolveAiServiceForJob`
+- `backend/src/api/agents.ts` - Added `useEnvAI` to payload
+- `backend/src/db/schema.ts` - Added `activeAiProvider` column
+- `backend/migrations/0017_add_active_ai_provider.sql` - Migration
+- `frontend/src/services/api/ai-keys.ts` - Multi-provider API client
+- `frontend/src/pages/dashboard/settings/DashboardSettingsApiKeysPage.tsx` - Provider UI

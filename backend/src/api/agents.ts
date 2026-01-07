@@ -318,12 +318,16 @@ export async function agentsRoutes(fastify: FastifyInstance) {
               }
 
               aiModel = modelToUse;
-              aiProvider = 'openai';
+              // Don't hardcode provider - let orchestrator resolve from user settings
+              aiProvider = undefined;
             }
             
+            // Add useEnvAI flag and aiProvider to payload for orchestrator
             enrichedPayload = {
               ...(enrichedPayload as Record<string, unknown>),
               llmModelOverride: aiModel,
+              useEnvAI: useEnvAI || false,
+              aiProvider: aiProvider,
             };
           }
         }

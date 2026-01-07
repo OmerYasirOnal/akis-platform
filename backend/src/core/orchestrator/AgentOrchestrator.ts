@@ -8,7 +8,8 @@ import { JobNotFoundError, InvalidStateTransitionError, DatabaseError, AIProvide
 import { createAIService, type AIService, type AIServiceObserver } from '../../services/ai/AIService.js';
 import type { Plan, Critique } from '../../services/ai/AIService.js';
 import { AICallMetricsCollector } from '../../services/ai/ai-metrics.js';
-import { getDecryptedUserAiKey } from '../../services/ai/user-ai-keys.js';
+import { getDecryptedUserAiKey, getUserActiveProvider, type AIKeyProvider } from '../../services/ai/user-ai-keys.js';
+import { getAIConfig } from '../../config/env.js';
 import type { MCPTools } from '../../services/mcp/adapters/index.js';
 import { getEnv } from '../../config/env.js';
 import { GitHubMCPService, McpError, McpConnectionError } from '../../services/mcp/adapters/GitHubMCPService.js';
@@ -620,6 +621,15 @@ export class AgentOrchestrator {
     return env.SCRIBE_DEV_BOOTSTRAP_GITHUB_TOKEN || env.GITHUB_TOKEN || null;
   }
 
+  /**
+   * Resolve AIService for a job with proper provider selection.
+   * 
+   * Resolution priority:
+   * 1. If payload.useEnvAI=true -> use global AIService (env-configured)
+   * 2. If user has active provider with configured key -> use user's provider
+   * 3. Fallback to env provider if available and user key missing
+   * 4. Throw MissingAIKeyError if no valid provider found
+   */
   private async resolveAiServiceForJob(
     jobType: string,
     payload: Record<string, unknown>,
@@ -639,35 +649,82 @@ export class AgentOrchestrator {
       },
     };
 
+    // Non-scribe jobs use global AIService
     if (jobType !== 'scribe') {
+      console.log(`[resolveAiServiceForJob] jobType=${jobType}, using global AIService`);
       return { aiService: this.aiService, metrics };
     }
 
     const userId = payload.userId as string | undefined;
+    const useEnvAI = payload.useEnvAI as boolean | undefined;
     const modelOverride = payload.llmModelOverride as string | undefined;
-    if (!userId || !modelOverride) {
+    const payloadProvider = payload.aiProvider as AIKeyProvider | undefined;
+
+    // Log diagnostic info
+    console.log(`[resolveAiServiceForJob] scribe job: userId=${userId ? 'present' : 'missing'}, useEnvAI=${useEnvAI}, modelOverride=${modelOverride ? 'present' : 'missing'}, payloadProvider=${payloadProvider || 'none'}`);
+
+    // If useEnvAI is explicitly set, use global AIService
+    if (useEnvAI === true) {
+      console.log('[resolveAiServiceForJob] Using global AIService (useEnvAI=true)');
       return { aiService: this.aiService, metrics };
     }
 
-    const decrypted = await getDecryptedUserAiKey(userId, 'openai');
-    if (!decrypted) {
-      throw new MissingAIKeyError('openai');
+    // No userId means we can't look up user-specific config
+    if (!userId) {
+      console.log('[resolveAiServiceForJob] No userId, using global AIService');
+      return { aiService: this.aiService, metrics };
     }
 
-    const env = getEnv();
-    const aiConfig = {
-      provider: 'openai' as const,
-      apiKey: decrypted.key,
-      baseUrl: env.AI_BASE_URL || env.OPENAI_BASE_URL || 'https://api.openai.com/v1',
-      modelDefault: modelOverride,
-      modelPlanner: modelOverride,
-      modelValidation: modelOverride,
-      siteUrl: env.OPENROUTER_SITE_URL,
-      appName: env.OPENROUTER_APP_NAME,
-    };
+    // Determine provider: explicit payload > user's active provider
+    let selectedProvider: AIKeyProvider;
+    if (payloadProvider) {
+      selectedProvider = payloadProvider;
+    } else {
+      selectedProvider = await getUserActiveProvider(userId);
+    }
+    
+    console.log(`[resolveAiServiceForJob] Selected provider: ${selectedProvider}`);
 
-    const aiService = createAIService(aiConfig, observer);
-    return { aiService, metrics };
+    // Try to get user's key for the selected provider
+    const userKey = await getDecryptedUserAiKey(userId, selectedProvider);
+    
+    if (userKey) {
+      // User has a key for this provider - use it
+      const env = getEnv();
+      const baseUrl = selectedProvider === 'openrouter' 
+        ? 'https://openrouter.ai/api/v1'
+        : (env.OPENAI_BASE_URL || 'https://api.openai.com/v1');
+      
+      const aiConfig = {
+        provider: selectedProvider,
+        apiKey: userKey.key,
+        baseUrl,
+        modelDefault: modelOverride || (selectedProvider === 'openrouter' ? 'meta-llama/llama-3.3-70b-instruct:free' : 'gpt-4o-mini'),
+        modelPlanner: modelOverride || (selectedProvider === 'openrouter' ? 'meta-llama/llama-3.3-70b-instruct:free' : 'gpt-4o-mini'),
+        modelValidation: modelOverride || (selectedProvider === 'openrouter' ? 'meta-llama/llama-3.3-70b-instruct:free' : 'gpt-4o-mini'),
+        siteUrl: env.OPENROUTER_SITE_URL,
+        appName: env.OPENROUTER_APP_NAME,
+      };
+
+      console.log(`[resolveAiServiceForJob] Creating user AIService: provider=${selectedProvider}, baseUrl=${baseUrl}, hasApiKey=true, keyPrefix=${userKey.key.substring(0, 10)}...`);
+      
+      const aiService = createAIService(aiConfig, observer);
+      return { aiService, metrics };
+    }
+
+    // User doesn't have a key for selected provider
+    // Check if env fallback is available
+    const env = getEnv();
+    const envConfig = getAIConfig(env);
+    
+    if (envConfig.apiKey && (envConfig.provider === 'openrouter' || envConfig.provider === 'openai')) {
+      console.log(`[resolveAiServiceForJob] User key missing for ${selectedProvider}, falling back to env AIService (provider=${envConfig.provider})`);
+      return { aiService: this.aiService, metrics };
+    }
+
+    // No user key and no env fallback - throw error
+    console.error(`[resolveAiServiceForJob] No API key available for provider ${selectedProvider} and no env fallback`);
+    throw new MissingAIKeyError(selectedProvider);
   }
 
   /**

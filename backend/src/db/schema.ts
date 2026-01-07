@@ -259,6 +259,11 @@ export const userStatusEnum = pgEnum('user_status', [
 ]);
 
 /**
+ * AI Provider enum for user settings
+ */
+export const aiProviderEnum = pgEnum('ai_provider', ['openai', 'openrouter']);
+
+/**
  * Users table - stores user accounts for authentication
  */
 export const users = pgTable('users', {
@@ -270,6 +275,8 @@ export const users = pgTable('users', {
   emailVerified: boolean('email_verified').default(false).notNull(),
   dataSharingConsent: boolean('data_sharing_consent'),
   hasSeenBetaWelcome: boolean('has_seen_beta_welcome').default(false).notNull(),
+  /** User's active AI provider for Scribe and other AI features */
+  activeAiProvider: aiProviderEnum('active_ai_provider').default('openrouter'),
   createdAt: timestamp('created_at', { withTimezone: false }).defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: false }).defaultNow(),
 }, (table) => ({
