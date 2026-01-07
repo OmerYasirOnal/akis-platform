@@ -760,16 +760,27 @@ export class AgentOrchestrator {
     }
 
     // Fallback to env key if user key not available
+    // IMPORTANT: Only allow env fallback if provider was NOT explicitly requested in payload
+    // This prevents "I selected OpenAI but job runs on OpenRouter ENV" scenarios
     if (!apiKey) {
       const envKeyForProvider = providerCandidate === 'openai' 
         ? env.OPENAI_API_KEY 
         : (env.OPENROUTER_API_KEY || env.AI_API_KEY);
       
-      if (envKeyForProvider && envConfig.provider === providerCandidate) {
+      // Only allow env fallback when:
+      // 1. We have an env key for this provider AND
+      // 2. Either no payload provider was specified (user didn't explicitly request) OR env matches requested
+      const isExplicitPayloadRequest = !!payloadProvider;
+      const envProviderMatches = envConfig.provider === providerCandidate;
+      
+      if (envKeyForProvider && (!isExplicitPayloadRequest || envProviderMatches)) {
         apiKey = envKeyForProvider;
         keySource = 'env';
         fallbackReason = userId ? 'USER_KEY_MISSING' : 'NO_USER_ID';
-        console.log(`[resolveAiServiceForJob] Falling back to env key for ${providerCandidate}, reason=${fallbackReason}`);
+        console.log(`[resolveAiServiceForJob] Falling back to env key for ${providerCandidate}, reason=${fallbackReason}, explicitRequest=${isExplicitPayloadRequest}`);
+      } else if (isExplicitPayloadRequest && !envProviderMatches) {
+        // User explicitly requested a provider but we don't have a key for it
+        console.log(`[resolveAiServiceForJob] Explicit provider request (${providerCandidate}) but no user key and env provider is ${envConfig.provider} - will fail`);
       }
     }
 

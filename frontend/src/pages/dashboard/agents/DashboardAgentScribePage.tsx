@@ -312,27 +312,43 @@ const DashboardAgentScribePage = () => {
     try {
       // Fetch user's active AI provider to ensure job uses correct provider
       let aiProvider: AIKeyProvider | undefined;
+      let providerSource: 'explicit' | 'account-default' | 'auto-select' = 'account-default';
+      
       try {
         const aiStatus = await getMultiProviderStatus();
         
+        // DEBUG: Log full status for troubleshooting
+        console.log('[Scribe] AI Status Response:', JSON.stringify(aiStatus, null, 2));
+        
         if (aiStatus.activeProvider === null) {
-          // No provider explicitly set - auto-select based on configured keys
-          const configuredProvider = aiStatus.providers.openai.configured 
-            ? 'openai' 
-            : aiStatus.providers.openrouter.configured 
-              ? 'openrouter' 
-              : null;
+          // No provider explicitly set - auto-select based on configured USER keys (not ENV)
+          // Prefer openai over openrouter when both have user keys
+          providerSource = 'auto-select';
           
-          if (!configuredProvider) {
+          const openaiHasUserKey = aiStatus.providers.openai.configured;
+          const openrouterHasUserKey = aiStatus.providers.openrouter.configured;
+          
+          console.log(`[Scribe] Auto-select: openai.userKey=${openaiHasUserKey}, openrouter.userKey=${openrouterHasUserKey}`);
+          
+          if (openaiHasUserKey) {
+            aiProvider = 'openai';
+          } else if (openrouterHasUserKey) {
+            aiProvider = 'openrouter';
+          } else {
             throw new Error('No AI provider configured. Please add an API key in Settings > API Keys.');
           }
           
-          aiProvider = configuredProvider;
-          console.log(`[Scribe] No active provider set, using first configured: ${aiProvider}`);
+          console.log(`[Scribe] No active provider set, auto-selected: ${aiProvider}`);
         } else {
+          // Use explicitly set active provider
           aiProvider = aiStatus.activeProvider;
-          console.log(`[Scribe] Using active provider: ${aiProvider}`);
+          providerSource = 'account-default';
+          console.log(`[Scribe] Using account active provider: ${aiProvider}`);
         }
+        
+        // DEBUG: Final resolved provider
+        console.log(`[Scribe] Final provider resolution: provider=${aiProvider}, source=${providerSource}`);
+        
       } catch (aiError) {
         // Show user-friendly error instead of silent fallback
         const errorLog: LogEntry = {
@@ -345,19 +361,27 @@ const DashboardAgentScribePage = () => {
         return; // Don't submit job without valid provider
       }
 
-      // Submit job to backend with explicit provider
+      // Build payload - only include aiProvider when we have a definitive selection
+      const jobPayload: Record<string, unknown> = {
+        owner: connectedGitHubUser,
+        repo,
+        baseBranch,
+        targetPath,
+        dryRun,
+      };
+      
+      // Always include aiProvider for deterministic backend resolution
+      if (aiProvider) {
+        jobPayload.aiProvider = aiProvider;
+        jobPayload.aiProviderSource = providerSource; // For debugging
+      }
+      
+      console.log('[Scribe] Job payload:', JSON.stringify(jobPayload, null, 2));
+
+      // Submit job to backend
       const response = await agentsApi.runAgent({
         type: 'scribe',
-        payload: {
-          owner: connectedGitHubUser,
-          repo,
-          baseBranch,
-          targetPath,
-          dryRun,
-          // Include user's active AI provider for deterministic resolution
-          aiProvider,
-          // featureBranch not sent - backend will auto-generate
-        },
+        payload: jobPayload,
       });
 
       // Start polling - fetch full job details
