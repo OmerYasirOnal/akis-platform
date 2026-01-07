@@ -15,6 +15,71 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert';
 
 describe('Provider Resolution Precedence', () => {
+  describe('Cross-Provider Fallback Prevention', () => {
+    it('blocks OpenRouter env key when OpenAI was explicitly requested', () => {
+      const requestedProvider: string = 'openai';
+      const envProvider: string = 'openrouter';
+      
+      // The key question: should we fallback to openrouter?
+      const isExplicitRequest = true;
+      const envProviderMatches = envProvider === requestedProvider;
+      
+      // With our new logic: explicit request + no match = NO fallback
+      const shouldAllowFallback = !isExplicitRequest || envProviderMatches;
+      
+      assert.strictEqual(shouldAllowFallback, false, 'MUST NOT fallback to different provider');
+      assert.strictEqual(envProviderMatches, false, 'env provider does not match requested');
+    });
+
+    it('allows OpenAI env key when OpenAI was explicitly requested', () => {
+      const requestedProvider: string = 'openai';
+      const envProvider: string = 'openai';
+      
+      const isExplicitRequest = true;
+      const envProviderMatches = envProvider === requestedProvider;
+      
+      // Same provider = fallback allowed
+      const shouldAllowFallback = !isExplicitRequest || envProviderMatches;
+      
+      assert.strictEqual(shouldAllowFallback, true, 'CAN fallback to same provider env key');
+    });
+  });
+
+  describe('Provider-Aware Model Defaults', () => {
+    it('selects gpt-4o-mini for openai provider', () => {
+      const provider: string = 'openai';
+      const modelOverride: string | undefined = undefined;
+      
+      const resolvedModel = modelOverride || (provider === 'openrouter' 
+        ? 'meta-llama/llama-3.3-70b-instruct:free' 
+        : 'gpt-4o-mini');
+      
+      assert.strictEqual(resolvedModel, 'gpt-4o-mini');
+    });
+
+    it('selects meta-llama for openrouter provider', () => {
+      const provider: string = 'openrouter';
+      const modelOverride: string | undefined = undefined;
+      
+      const resolvedModel = modelOverride || (provider === 'openrouter' 
+        ? 'meta-llama/llama-3.3-70b-instruct:free' 
+        : 'gpt-4o-mini');
+      
+      assert.strictEqual(resolvedModel, 'meta-llama/llama-3.3-70b-instruct:free');
+    });
+
+    it('respects model override regardless of provider', () => {
+      const provider: string = 'openai';
+      const modelOverride = 'gpt-4-turbo';
+      
+      const resolvedModel = modelOverride || (provider === 'openrouter' 
+        ? 'meta-llama/llama-3.3-70b-instruct:free' 
+        : 'gpt-4o-mini');
+      
+      assert.strictEqual(resolvedModel, 'gpt-4-turbo');
+    });
+  });
+
   describe('Provider Selection', () => {
     it('payload.aiProvider takes precedence over activeProvider', () => {
       // Given: user's activeProvider is 'openai' but payload requests 'openrouter'
@@ -85,9 +150,9 @@ describe('Provider Resolution Precedence', () => {
     });
 
     it('blocks env fallback when payload explicitly requested different provider', () => {
-      const payloadProvider = 'openai'; // User explicitly requested OpenAI
-      const requestedProvider = 'openai';
-      const envProvider = 'openrouter'; // ENV is configured for OpenRouter
+      const payloadProvider: string = 'openai'; // User explicitly requested OpenAI
+      const requestedProvider: string = 'openai';
+      const envProvider: string = 'openrouter'; // ENV is configured for OpenRouter
       // User has no key for OpenAI, env has key for OpenRouter
       // Should NOT fallback to env because provider mismatch
       

@@ -187,26 +187,64 @@ export async function agentsRoutes(fastify: FastifyInstance) {
             return;
           }
 
-          // Demo mode: Check env-based AI configuration first
+          // ========================================================================
+          // PROVIDER RESOLUTION (Contract-First)
+          // Priority: 1) Frontend payload.aiProvider  2) User activeProvider  3) ENV
+          // CRITICAL: Frontend selection MUST be respected - no cross-provider fallback
+          // ========================================================================
+          const payloadObj = body.payload as Record<string, unknown> | undefined;
+          const frontendProvider = payloadObj?.aiProvider as 'openai' | 'openrouter' | undefined;
+          
+          console.log(`[agents.ts] Frontend sent aiProvider: ${frontendProvider || 'none'}`);
+          
+          // Load env config for fallback only
           const aiConfig = getAIConfig(getEnv());
           const allowlist = getScribeModelAllowlist();
           
-          // Determine AI provider strategy:
-          // 1. If env AI_PROVIDER=openrouter and AI_API_KEY is set -> use env OpenRouter (no user key needed)
-          // 2. If env AI_PROVIDER=openai and AI_API_KEY is set -> use env OpenAI (no user key needed)
-          // 3. Otherwise, check user key configuration
-          const useEnvAI = (aiConfig.provider === 'openrouter' || aiConfig.provider === 'openai') && aiConfig.apiKey;
+          // Determine if we should use ENV AI (only when NO frontend provider AND ENV is configured)
+          // IMPORTANT: If frontend explicitly sends a provider, we MUST NOT override it with ENV
+          const useEnvAI = !frontendProvider && 
+                          (aiConfig.provider === 'openrouter' || aiConfig.provider === 'openai') && 
+                          aiConfig.apiKey;
           
-          if (!useEnvAI) {
-            // Fallback: require user-configured AI key
-            const keyStatus = await getUserAiKeyStatus(userId, 'openai');
-            if (!keyStatus.configured) {
-              throw new MissingAIKeyError('openai');
+          console.log(`[agents.ts] useEnvAI=${useEnvAI}, envProvider=${aiConfig.provider}, hasEnvKey=${!!aiConfig.apiKey}`);
+          
+          if (!useEnvAI && !frontendProvider) {
+            // No env AI and no frontend provider - check if user has any key configured
+            const openaiStatus = await getUserAiKeyStatus(userId, 'openai');
+            const openrouterStatus = await getUserAiKeyStatus(userId, 'openrouter');
+            if (!openaiStatus.configured && !openrouterStatus.configured) {
+              throw new MissingAIKeyError('openai', 'No AI provider configured. Please add an API key in Settings > API Keys.');
             }
           }
 
-          if (allowlist.length === 0 && !useEnvAI) {
+          if (allowlist.length === 0 && !useEnvAI && !frontendProvider) {
             throw new ModelNotAllowedError('openai', 'unknown', allowlist);
+          }
+          
+          // ========================================================================
+          // PROVIDER/MODEL CONSISTENCY VALIDATION
+          // Prevent sending OpenRouter models to OpenAI provider (and vice versa)
+          // ========================================================================
+          const frontendModel = payloadObj?.model as string | undefined || 
+                               payloadObj?.llmModelOverride as string | undefined;
+          
+          if (frontendProvider && frontendModel) {
+            const isOpenRouterModel = frontendModel.includes('/') || 
+                                      frontendModel.startsWith('meta-') ||
+                                      frontendModel.includes(':free');
+            const isOpenAIModel = frontendModel.startsWith('gpt-') || 
+                                  frontendModel.startsWith('o1') ||
+                                  frontendModel.startsWith('text-') ||
+                                  frontendModel.startsWith('davinci');
+            
+            if (frontendProvider === 'openai' && isOpenRouterModel && !isOpenAIModel) {
+              throw new Error(`Model "${frontendModel}" is not compatible with OpenAI provider. Please select an OpenAI model (e.g., gpt-4o-mini).`);
+            }
+            if (frontendProvider === 'openrouter' && isOpenAIModel && !isOpenRouterModel) {
+              // OpenRouter can actually use OpenAI models, so just log a warning
+              console.log(`[agents.ts] Warning: Using OpenAI model "${frontendModel}" with OpenRouter provider`);
+            }
           }
 
           if (body.payload && typeof body.payload === 'object') {
@@ -301,34 +339,56 @@ export async function agentsRoutes(fastify: FastifyInstance) {
               }
             }
 
-            // Determine AI model and provider
-            if (useEnvAI) {
-              // Demo mode: use env-based AI configuration
+            // ========================================================================
+            // AI MODEL + PROVIDER RESOLUTION
+            // CRITICAL: Frontend provider selection takes absolute priority
+            // ========================================================================
+            
+            // Determine the effective provider (frontend > env > undefined for orchestrator)
+            if (frontendProvider) {
+              // Frontend explicitly selected a provider - respect it completely
+              aiProvider = frontendProvider;
+              
+              // Select provider-appropriate model default
+              if (frontendProvider === 'openai') {
+                aiModel = modelOverride || 'gpt-4o-mini';
+              } else {
+                aiModel = modelOverride || 'meta-llama/llama-3.3-70b-instruct:free';
+              }
+              
+              console.log(`[agents.ts] Using frontend provider: ${aiProvider}, model: ${aiModel}`);
+            } else if (useEnvAI) {
+              // No frontend provider, use env-based AI configuration
               aiProvider = aiConfig.provider;
               aiModel = modelOverride || aiConfig.modelDefault;
+              console.log(`[agents.ts] Using ENV provider: ${aiProvider}, model: ${aiModel}`);
             } else {
-              // User key mode: validate model against allowlist
+              // No frontend provider, no env - let orchestrator resolve from user settings
+              // Orchestrator will use getUserActiveProvider() -> user key -> fail
+              aiProvider = undefined;
+              
+              // For model, use allowlist or default
               if (modelOverride && !isModelAllowed(modelOverride, allowlist)) {
                 throw new ModelNotAllowedError('openai', modelOverride, allowlist);
               }
-
-              const modelToUse = modelOverride || allowlist[0];
-              if (!isModelAllowed(modelToUse, allowlist)) {
+              const modelToUse = modelOverride || allowlist[0] || 'gpt-4o-mini';
+              if (modelOverride && !isModelAllowed(modelToUse, allowlist)) {
                 throw new ModelNotAllowedError('openai', modelToUse, allowlist);
               }
-
               aiModel = modelToUse;
-              // Don't hardcode provider - let orchestrator resolve from user settings
-              aiProvider = undefined;
+              console.log(`[agents.ts] Deferring to orchestrator, model: ${aiModel}`);
             }
             
-            // Add useEnvAI flag and aiProvider to payload for orchestrator
+            // Add aiProvider to payload - orchestrator will see this as payloadProvider
             enrichedPayload = {
               ...(enrichedPayload as Record<string, unknown>),
               llmModelOverride: aiModel,
               useEnvAI: useEnvAI || false,
-              aiProvider: aiProvider,
+              aiProvider: aiProvider, // This is now frontend's choice, not overwritten
             };
+            
+            console.log(`[agents.ts] Final enrichedPayload.aiProvider: ${(enrichedPayload as Record<string, unknown>).aiProvider}`);
+            console.log(`[agents.ts] Final enrichedPayload.llmModelOverride: ${(enrichedPayload as Record<string, unknown>).llmModelOverride}`);
           }
         }
 
