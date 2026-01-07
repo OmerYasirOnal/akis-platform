@@ -210,8 +210,97 @@ export class ScribeAgent extends BaseAgent {
   }
 
   /**
-   * Gather repository context for grounded documentation
-   * Reads key files to provide evidence for AI generation
+   * Configuration for full-repo context scanning
+   */
+  private static readonly REPO_SCAN_CONFIG = {
+    // Maximum number of files to read
+    maxFiles: 50,
+    // Maximum bytes per file (truncate larger files)
+    maxBytesPerFile: 20000,
+    // Preview length for AI prompt injection
+    previewLength: 3000,
+  };
+
+  /**
+   * Priority score for file paths (lower = higher priority)
+   */
+  private getFilePriority(path: string): number {
+    // Root config/readme files - highest priority
+    if (/^README(\..+)?$/i.test(path)) return 1;
+    if (/^package\.json$/i.test(path)) return 2;
+    if (/^LICENSE/i.test(path)) return 3;
+    if (/^\.env\.example$/i.test(path)) return 4;
+    if (/^tsconfig(\..+)?\.json$/i.test(path)) return 5;
+    if (/^Dockerfile/i.test(path)) return 6;
+    if (/^docker-compose.*\.ya?ml$/i.test(path)) return 7;
+    if (/^Makefile$/i.test(path)) return 8;
+    
+    // Docs folder - high priority
+    if (/^docs?\//i.test(path)) return 10;
+    if (/^\.github\//i.test(path)) return 11;
+    
+    // Backend source - medium priority
+    if (/^backend\/.*\.(ts|js|json|md)$/i.test(path)) return 20;
+    if (/^backend\/package\.json$/i.test(path)) return 15;
+    
+    // Frontend source - medium priority
+    if (/^frontend\/.*\.(ts|tsx|js|jsx|json|md)$/i.test(path)) return 25;
+    if (/^frontend\/package\.json$/i.test(path)) return 16;
+    
+    // Src folder - medium priority
+    if (/^src\/.*\.(ts|tsx|js|jsx|json|md)$/i.test(path)) return 30;
+    
+    // Config files anywhere
+    if (/\.(json|ya?ml|toml)$/i.test(path)) return 40;
+    
+    // Source files anywhere
+    if (/\.(ts|tsx|js|jsx)$/i.test(path)) return 50;
+    
+    // Documentation files anywhere
+    if (/\.(md|mdx|txt)$/i.test(path)) return 60;
+    
+    // Default low priority
+    return 100;
+  }
+
+  /**
+   * Check if a file should be excluded from repo scanning
+   */
+  private shouldExcludeFile(path: string): boolean {
+    const excludePatterns = [
+      /node_modules\//i,
+      /dist\//i,
+      /build\//i,
+      /\.git\//i,
+      /\.next\//i,
+      /coverage\//i,
+      /\.cache\//i,
+      /-lock\.(json|yaml)$/i,       // lockfiles
+      /package-lock\.json$/i,
+      /pnpm-lock\.yaml$/i,
+      /yarn\.lock$/i,
+      /\.(png|jpg|jpeg|gif|svg|ico|webp)$/i,  // images
+      /\.(woff|woff2|ttf|eot|otf)$/i,         // fonts
+      /\.(pdf|doc|docx|xls|xlsx)$/i,          // documents
+      /\.(zip|tar|gz|rar|7z)$/i,              // archives
+      /\.(mp3|mp4|avi|mov|wav)$/i,            // media
+      /\.min\.(js|css)$/i,                    // minified files
+      /\.map$/i,                              // source maps
+      /\.d\.ts$/i,                            // type definitions (often auto-generated)
+    ];
+    
+    return excludePatterns.some(p => p.test(path));
+  }
+
+  /**
+   * Gather comprehensive repository context for grounded documentation
+   * Reads docs + source code + configs to provide full evidence for AI generation
+   * 
+   * Strategy:
+   * 1. Try to read commonly expected files at known paths
+   * 2. Prioritize by importance (README > package.json > docs > source)
+   * 3. Cap at maxFiles to avoid token overflow
+   * 4. Truncate large files to previewLength
    */
   private async gatherRepoContext(owner: string, repo: string, branch: string): Promise<RepoContext> {
     const context: RepoContext = {
@@ -223,77 +312,248 @@ export class ScribeAgent extends BaseAgent {
       return context;
     }
 
-    // Key files to read for documentation context
-    const keyFilePaths = [
-      'package.json',
+    // Comprehensive list of paths to try (order matters for priority)
+    // This replaces the old hardcoded 8-file list with a much broader set
+    const pathsToTry = [
+      // Root configuration/readme (highest priority)
       'README.md',
+      'README',
+      'readme.md',
+      'package.json',
       'LICENSE',
-      'tsconfig.json',
-      'vite.config.ts',
-      'src/index.ts',
-      'src/main.ts',
-      'src/App.tsx',
+      'LICENSE.md',
       '.env.example',
+      'tsconfig.json',
+      'tsconfig.base.json',
+      'Dockerfile',
+      'docker-compose.yml',
+      'docker-compose.yaml',
+      'Makefile',
+      
+      // Monorepo workspace roots
+      'pnpm-workspace.yaml',
+      'lerna.json',
+      'turbo.json',
+      'nx.json',
+      
+      // CI/CD
+      '.github/workflows/ci.yml',
+      '.github/workflows/ci.yaml',
+      '.github/workflows/main.yml',
+      '.github/CONTRIBUTING.md',
+      '.github/PULL_REQUEST_TEMPLATE.md',
+      '.github/CODE_OF_CONDUCT.md',
+      
+      // Docs folder
+      'docs/README.md',
+      'docs/getting-started.md',
+      'docs/GETTING_STARTED.md',
+      'docs/installation.md',
+      'docs/setup.md',
+      'docs/architecture.md',
+      'docs/ARCHITECTURE.md',
+      'docs/api.md',
+      'docs/API.md',
+      'docs/contributing.md',
+      'docs/CONTRIBUTING.md',
+      'CONTRIBUTING.md',
+      'CHANGELOG.md',
+      'SECURITY.md',
+      
+      // Backend (common patterns)
+      'backend/package.json',
+      'backend/README.md',
+      'backend/tsconfig.json',
+      'backend/src/server.ts',
+      'backend/src/server.app.ts',
+      'backend/src/index.ts',
+      'backend/src/main.ts',
+      'backend/src/app.ts',
+      'backend/src/config/env.ts',
+      'backend/src/db/schema.ts',
+      'backend/src/routes/index.ts',
+      'backend/docs/Auth.md',
+      'backend/docs/API_SPEC.md',
+      
+      // Frontend (common patterns)
+      'frontend/package.json',
+      'frontend/README.md',
+      'frontend/tsconfig.json',
+      'frontend/vite.config.ts',
+      'frontend/vite.config.js',
+      'frontend/next.config.js',
+      'frontend/next.config.ts',
+      'frontend/src/App.tsx',
+      'frontend/src/App.jsx',
+      'frontend/src/main.tsx',
+      'frontend/src/main.ts',
+      'frontend/src/index.tsx',
+      'frontend/src/index.ts',
+      'frontend/src/pages/index.tsx',
+      'frontend/src/routes.tsx',
+      
+      // Simple src folder projects
+      'src/index.ts',
+      'src/index.js',
+      'src/main.ts',
+      'src/main.tsx',
+      'src/app.ts',
+      'src/App.tsx',
+      'src/App.jsx',
+      'src/server.ts',
+      'src/config.ts',
+      'src/types.ts',
+      'src/routes/index.ts',
+      
+      // Configuration files
+      'vite.config.ts',
+      'vite.config.js',
+      'next.config.js',
+      'next.config.mjs',
+      'webpack.config.js',
+      'rollup.config.js',
+      'esbuild.config.js',
+      'tailwind.config.js',
+      'tailwind.config.ts',
+      'postcss.config.js',
+      '.eslintrc.json',
+      '.eslintrc.js',
+      'eslint.config.js',
+      'jest.config.js',
+      'jest.config.ts',
+      'vitest.config.ts',
+      'playwright.config.ts',
+      '.prettierrc',
+      '.prettierrc.json',
+      'biome.json',
     ];
 
-    for (const filePath of keyFilePaths) {
-      try {
-        const fileData = await this.githubMCP.getFileContent(owner, repo, branch, filePath);
-        
-        // Truncate content to avoid huge prompts
-        const preview = fileData.content.substring(0, 1500);
-        
-        context.keyFiles!.push({
-          path: filePath,
-          preview: preview + (fileData.content.length > 1500 ? '\n... (truncated)' : ''),
-        });
+    const { maxFiles, previewLength } = ScribeAgent.REPO_SCAN_CONFIG;
+    const readFiles: { path: string; content: string; priority: number }[] = [];
 
-        // Detect tech stack from package.json
-        if (filePath === 'package.json') {
+    // Read files in parallel with concurrency limit
+    const BATCH_SIZE = 10;
+    for (let i = 0; i < pathsToTry.length && readFiles.length < maxFiles; i += BATCH_SIZE) {
+      const batch = pathsToTry.slice(i, i + BATCH_SIZE);
+      const results = await Promise.allSettled(
+        batch.map(async (filePath) => {
+          if (this.shouldExcludeFile(filePath)) return null;
           try {
-            const pkg = JSON.parse(fileData.content);
-            const deps = { ...pkg.dependencies, ...pkg.devDependencies };
-            
-            if (deps.react) context.techStack!.push('React');
-            if (deps.vue) context.techStack!.push('Vue');
-            if (deps.next) context.techStack!.push('Next.js');
-            if (deps.fastify) context.techStack!.push('Fastify');
-            if (deps.express) context.techStack!.push('Express');
-            if (deps.typescript) context.techStack!.push('TypeScript');
-            if (deps.vite) context.techStack!.push('Vite');
-            if (deps.tailwindcss) context.techStack!.push('Tailwind CSS');
-            if (deps['drizzle-orm']) context.techStack!.push('Drizzle ORM');
-            if (deps.zod) context.techStack!.push('Zod');
-            
-            // Detect package manager
-            if (pkg.packageManager?.includes('pnpm')) {
-              context.packageManager = 'pnpm';
-            } else if (pkg.packageManager?.includes('yarn')) {
-              context.packageManager = 'yarn';
-            } else {
-              context.packageManager = 'npm';
-            }
+            const fileData = await this.githubMCP!.getFileContent(owner, repo, branch, filePath);
+            return { path: filePath, content: fileData.content };
           } catch {
-            // JSON parse failed, skip
+            return null;
           }
+        })
+      );
+      
+      for (const result of results) {
+        if (result.status === 'fulfilled' && result.value) {
+          const { path, content } = result.value;
+          readFiles.push({
+            path,
+            content,
+            priority: this.getFilePriority(path),
+          });
         }
-
-        // Detect license
-        if (filePath === 'LICENSE') {
-          const content = fileData.content.toLowerCase();
-          if (content.includes('mit license')) context.license = 'MIT';
-          else if (content.includes('apache')) context.license = 'Apache-2.0';
-          else if (content.includes('gpl')) context.license = 'GPL';
-          else context.license = 'See LICENSE file';
-        }
-
-        this.traceRecorder?.recordDocRead(filePath, fileData.content.length, preview.substring(0, 100));
-      } catch {
-        // File doesn't exist, skip
       }
     }
 
+    // Sort by priority and take top maxFiles
+    readFiles.sort((a, b) => a.priority - b.priority);
+    const topFiles = readFiles.slice(0, maxFiles);
+
+    // Build context
+    for (const file of topFiles) {
+      const preview = file.content.length > previewLength
+        ? file.content.substring(0, previewLength) + '\n... [truncated]'
+        : file.content;
+
+      context.keyFiles!.push({
+        path: file.path,
+        preview,
+      });
+
+      // Detect tech stack from package.json files
+      if (/package\.json$/i.test(file.path)) {
+        this.detectTechStack(file.content, context);
+      }
+
+      // Detect license
+      if (/^LICENSE/i.test(file.path)) {
+        this.detectLicense(file.content, context);
+      }
+
+      // Record trace
+      this.traceRecorder?.recordDocRead(file.path, file.content.length, preview.substring(0, 100));
+    }
+
+    // Log summary
+    console.log(`[gatherRepoContext] Read ${topFiles.length} files for ${owner}/${repo}:${branch}`);
+    if (topFiles.length > 0) {
+      console.log(`[gatherRepoContext] Files: ${topFiles.map(f => f.path).join(', ')}`);
+    }
+
     return context;
+  }
+
+  /**
+   * Detect tech stack from package.json content
+   */
+  private detectTechStack(content: string, context: RepoContext): void {
+    try {
+      const pkg = JSON.parse(content);
+      const deps = { ...pkg.dependencies, ...pkg.devDependencies };
+      
+      if (deps.react) context.techStack!.push('React');
+      if (deps.vue) context.techStack!.push('Vue');
+      if (deps.next) context.techStack!.push('Next.js');
+      if (deps.nuxt) context.techStack!.push('Nuxt');
+      if (deps.svelte) context.techStack!.push('Svelte');
+      if (deps.fastify) context.techStack!.push('Fastify');
+      if (deps.express) context.techStack!.push('Express');
+      if (deps.koa) context.techStack!.push('Koa');
+      if (deps.nestjs || deps['@nestjs/core']) context.techStack!.push('NestJS');
+      if (deps.typescript) context.techStack!.push('TypeScript');
+      if (deps.vite) context.techStack!.push('Vite');
+      if (deps.tailwindcss) context.techStack!.push('Tailwind CSS');
+      if (deps['drizzle-orm']) context.techStack!.push('Drizzle ORM');
+      if (deps.prisma || deps['@prisma/client']) context.techStack!.push('Prisma');
+      if (deps.zod) context.techStack!.push('Zod');
+      if (deps.trpc || deps['@trpc/server']) context.techStack!.push('tRPC');
+      if (deps.graphql || deps['apollo-server']) context.techStack!.push('GraphQL');
+      if (deps.postgresql || deps.pg) context.techStack!.push('PostgreSQL');
+      if (deps.mongodb || deps.mongoose) context.techStack!.push('MongoDB');
+      if (deps.redis || deps.ioredis) context.techStack!.push('Redis');
+      
+      // Detect package manager
+      if (pkg.packageManager?.includes('pnpm')) {
+        context.packageManager = 'pnpm';
+      } else if (pkg.packageManager?.includes('yarn')) {
+        context.packageManager = 'yarn';
+      } else {
+        context.packageManager = 'npm';
+      }
+
+      // Remove duplicates
+      context.techStack = [...new Set(context.techStack)];
+    } catch {
+      // JSON parse failed, skip
+    }
+  }
+
+  /**
+   * Detect license type from LICENSE file content
+   */
+  private detectLicense(content: string, context: RepoContext): void {
+    const lowerContent = content.toLowerCase();
+    if (lowerContent.includes('mit license')) context.license = 'MIT';
+    else if (lowerContent.includes('apache license')) context.license = 'Apache-2.0';
+    else if (lowerContent.includes('gnu general public license') || lowerContent.includes('gpl')) context.license = 'GPL';
+    else if (lowerContent.includes('isc license')) context.license = 'ISC';
+    else if (lowerContent.includes('bsd')) context.license = 'BSD';
+    else if (lowerContent.includes('mozilla public license')) context.license = 'MPL-2.0';
+    else context.license = 'See LICENSE file';
   }
 
   /**

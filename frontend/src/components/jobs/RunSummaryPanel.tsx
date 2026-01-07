@@ -1,4 +1,4 @@
-import type { Job, JobTraceEvent } from '../../services/api/types';
+import type { Job, JobTraceEvent, JobAiCall } from '../../services/api/types';
 
 type AiUsage = {
   inputTokens?: number;
@@ -34,6 +34,26 @@ type RunSummaryTotals = {
 type RunSummaryPanelProps = {
   job: Job;
   traces: JobTraceEvent[];
+};
+
+/** Badge component for key source and fallback */
+const KeySourceBadge = ({ keySource, fallbackReason }: { keySource: string | null; fallbackReason: string | null }) => {
+  if (!keySource) return null;
+  
+  const isEnvFallback = keySource === 'env';
+  const badgeClass = isEnvFallback
+    ? 'bg-yellow-500/20 text-yellow-300 border-yellow-500/30'
+    : 'bg-green-500/20 text-green-300 border-green-500/30';
+  const label = isEnvFallback ? 'ENV Key' : 'User Key';
+  
+  return (
+    <span className={`inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded border ${badgeClass}`}>
+      {label}
+      {isEnvFallback && fallbackReason && (
+        <span className="text-yellow-400" title={fallbackReason}>⚠</span>
+      )}
+    </span>
+  );
 };
 
 const coerceNumber = (value: unknown): number | null => {
@@ -106,7 +126,28 @@ const buildTotalsFromCalls = (calls: AiCallRow[]): RunSummaryTotals => {
   };
 };
 
-const buildCallRows = (traces: JobTraceEvent[]): AiCallRow[] => {
+/**
+ * Build call rows from job.ai.calls (preferred) or fallback to traces
+ */
+const buildCallRows = (job: Job, traces: JobTraceEvent[]): AiCallRow[] => {
+  // Prefer job.ai.calls if available (new structured format)
+  if (job.ai?.calls && job.ai.calls.length > 0) {
+    return job.ai.calls.map((call: JobAiCall) => ({
+      label: call.purpose || `AI Call ${call.callIndex + 1}`,
+      provider: call.provider,
+      model: call.model,
+      durationMs: call.durationMs ?? undefined,
+      usage: {
+        inputTokens: call.inputTokens ?? undefined,
+        outputTokens: call.outputTokens ?? undefined,
+        totalTokens: call.totalTokens ?? undefined,
+      },
+      estimatedCostUsd: coerceNumber(call.estimatedCostUsd),
+      success: call.success,
+    }));
+  }
+
+  // Fallback to traces for backward compatibility
   return traces
     .filter((trace) => trace.eventType === 'ai_call')
     .map((trace, index) => {
@@ -133,22 +174,36 @@ const formatUsage = (usage?: AiUsage): string => {
 };
 
 export const RunSummaryPanel = ({ job, traces }: RunSummaryPanelProps) => {
-  const calls = buildCallRows(traces);
+  const calls = buildCallRows(job, traces);
   const totalsFromJob = buildTotalsFromJob(job);
   const totalsFromCalls = buildTotalsFromCalls(calls);
 
+  // Use job.ai.summary if available, otherwise fallback to legacy fields
+  const aiSummary = job.ai?.summary;
   const totals: RunSummaryTotals = {
-    durationMs: totalsFromJob.durationMs ?? totalsFromCalls.durationMs,
-    inputTokens: totalsFromJob.inputTokens ?? totalsFromCalls.inputTokens,
-    outputTokens: totalsFromJob.outputTokens ?? totalsFromCalls.outputTokens,
-    totalTokens: totalsFromJob.totalTokens ?? totalsFromCalls.totalTokens,
-    estimatedCostUsd: totalsFromJob.estimatedCostUsd ?? totalsFromCalls.estimatedCostUsd,
+    durationMs: coerceNumber(aiSummary?.totalDurationMs) ?? totalsFromJob.durationMs ?? totalsFromCalls.durationMs,
+    inputTokens: coerceNumber(aiSummary?.inputTokens) ?? totalsFromJob.inputTokens ?? totalsFromCalls.inputTokens,
+    outputTokens: coerceNumber(aiSummary?.outputTokens) ?? totalsFromJob.outputTokens ?? totalsFromCalls.outputTokens,
+    totalTokens: coerceNumber(aiSummary?.totalTokens) ?? totalsFromJob.totalTokens ?? totalsFromCalls.totalTokens,
+    estimatedCostUsd: coerceNumber(aiSummary?.estimatedCostUsd) ?? totalsFromJob.estimatedCostUsd ?? totalsFromCalls.estimatedCostUsd,
   };
 
-  const model =
-    job.aiModel || calls.find((call) => call.model)?.model || 'N/A';
-  const provider =
-    job.aiProvider || calls.find((call) => call.provider)?.provider || 'N/A';
+  // Resolved provider/model (preferred) vs requested (fallback)
+  const resolvedProvider = job.ai?.resolved?.provider;
+  const resolvedModel = job.ai?.resolved?.model;
+  const requestedProvider = job.ai?.requested?.provider || job.aiProvider;
+  const requestedModel = job.ai?.requested?.model || job.aiModel;
+  
+  // Display resolved if available, otherwise requested
+  const displayProvider = resolvedProvider || requestedProvider || calls.find((call) => call.provider)?.provider || 'N/A';
+  const displayModel = resolvedModel || requestedModel || calls.find((call) => call.model)?.model || 'N/A';
+  
+  // Key source and fallback info
+  const keySource = job.ai?.resolved?.keySource || null;
+  const fallbackReason = job.ai?.resolved?.fallbackReason || null;
+  
+  // Show if requested differs from resolved
+  const showRequestedVsResolved = resolvedProvider && requestedProvider && resolvedProvider !== requestedProvider;
 
   const hasTotals =
     totals.durationMs !== null ||
@@ -157,7 +212,7 @@ export const RunSummaryPanel = ({ job, traces }: RunSummaryPanelProps) => {
     totals.totalTokens !== null ||
     totals.estimatedCostUsd !== null;
 
-  if (calls.length === 0 && !hasTotals && !job.aiModel) {
+  if (calls.length === 0 && !hasTotals && !displayModel) {
     return null;
   }
 
@@ -170,15 +225,26 @@ export const RunSummaryPanel = ({ job, traces }: RunSummaryPanelProps) => {
             AI usage metrics captured during this job (cost is an estimate).
           </p>
         </div>
-        <div className="text-xs text-ak-text-secondary">
-          Provider: <span className="text-ak-text-primary">{provider}</span>
+        <div className="flex items-center gap-2 text-xs text-ak-text-secondary">
+          <span>Provider: <span className="text-ak-text-primary font-medium">{displayProvider}</span></span>
+          <KeySourceBadge keySource={keySource} fallbackReason={fallbackReason} />
         </div>
       </div>
 
+      {showRequestedVsResolved && (
+        <div className="mt-2 p-2 rounded bg-yellow-500/10 border border-yellow-500/20 text-xs text-yellow-300">
+          <span className="font-medium">Note:</span> Requested <code className="bg-ak-surface px-1 rounded">{requestedProvider}</code> but resolved to <code className="bg-ak-surface px-1 rounded">{resolvedProvider}</code>
+          {fallbackReason && <span className="ml-1">({fallbackReason})</span>}
+        </div>
+      )}
+
       <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <div className="rounded-lg border border-ak-border bg-ak-surface px-4 py-3">
-          <p className="text-xs uppercase tracking-wider text-ak-text-secondary">Model</p>
-          <p className="mt-1 text-sm font-semibold text-ak-text-primary">{model}</p>
+          <p className="text-xs uppercase tracking-wider text-ak-text-secondary">Model (Resolved)</p>
+          <p className="mt-1 text-sm font-semibold text-ak-text-primary">{displayModel}</p>
+          {requestedModel && requestedModel !== displayModel && (
+            <p className="mt-1 text-xs text-ak-text-secondary">Requested: {requestedModel}</p>
+          )}
         </div>
         <div className="rounded-lg border border-ak-border bg-ak-surface px-4 py-3">
           <p className="text-xs uppercase tracking-wider text-ak-text-secondary">Total Duration</p>
@@ -255,3 +321,4 @@ export const RunSummaryPanel = ({ job, traces }: RunSummaryPanelProps) => {
     </div>
   );
 };
+

@@ -47,6 +47,16 @@ export class MissingDependencyError extends Error {
 }
 
 /**
+ * AI Resolution result - tracks what provider/model was actually used at runtime
+ */
+export interface AIResolution {
+  provider: string;
+  model: string;
+  keySource: 'user' | 'env';
+  fallbackReason?: string;
+}
+
+/**
  * AgentOrchestrator - Central coordinator for agent workflows
  * Phase 5.D: Extended with Planner→Execute→Reflector pipeline with DI
  * Sole owner of lifecycle/FSM management
@@ -224,12 +234,26 @@ export class AgentOrchestrator {
       // Prepare dependencies (DI)
       const env = getEnv();
       const payload = (job.payload || {}) as Record<string, unknown>;
-      const { aiService: jobAiService, metrics } = await this.resolveAiServiceForJob(
+      const { aiService: jobAiService, metrics, resolution } = await this.resolveAiServiceForJob(
         job.type,
         payload,
         traceRecorder
       );
       aiMetrics = metrics;
+      
+      // Persist resolved AI configuration immediately after resolution
+      try {
+        await db.update(jobs).set({
+          aiProviderResolved: resolution.provider,
+          aiModelResolved: resolution.model,
+          aiKeySource: resolution.keySource,
+          aiFallbackReason: resolution.fallbackReason || null,
+        }).where(eq(jobs.id, jobId));
+        console.log(`[startJob] Persisted AI resolution: provider=${resolution.provider}, model=${resolution.model}, keySource=${resolution.keySource}, fallbackReason=${resolution.fallbackReason || 'none'}`);
+      } catch (error) {
+        console.error(`[startJob] Failed to persist AI resolution: ${error instanceof Error ? error.message : String(error)}`);
+        // Non-fatal: continue execution even if resolution persistence fails
+      }
       
       const resolvedTools: AgentDependencies = { 
         ...this.tools,
@@ -629,35 +653,45 @@ export class AgentOrchestrator {
    * 2. If user has active provider with configured key -> use user's provider
    * 3. Fallback to env provider if available and user key missing
    * 4. Throw MissingAIKeyError if no valid provider found
+   * 
+   * Returns resolution metadata for persistence to job record.
    */
   private async resolveAiServiceForJob(
     jobType: string,
     payload: Record<string, unknown>,
     traceRecorder: TraceRecorder
-  ): Promise<{ aiService?: AIService; metrics: AICallMetricsCollector }> {
+  ): Promise<{ aiService?: AIService; metrics: AICallMetricsCollector; resolution: AIResolution }> {
     const metrics = new AICallMetricsCollector();
     const observer: AIServiceObserver = {
       onAiCall: (call) => {
         metrics.record(call);
-        traceRecorder.recordAiCall(call.purpose, call.success, call.durationMs, {
+        traceRecorder.recordAiCall(call.purpose, call.success, call.durationMs ?? undefined, {
           provider: call.provider,
           model: call.model,
           usage: call.usage,
-          estimatedCostUsd: call.estimatedCostUsd,
+          estimatedCostUsd: call.estimatedCostUsd ?? undefined,
           errorCode: call.errorCode,
         });
       },
     };
 
+    const env = getEnv();
+    const envConfig = getAIConfig(env);
+    const modelOverride = payload.llmModelOverride as string | undefined;
+
     // Non-scribe jobs use global AIService
     if (jobType !== 'scribe') {
       console.log(`[resolveAiServiceForJob] jobType=${jobType}, using global AIService`);
-      return { aiService: this.aiService, metrics };
+      const resolution: AIResolution = {
+        provider: envConfig.provider,
+        model: modelOverride || envConfig.modelDefault,
+        keySource: 'env',
+      };
+      return { aiService: this.aiService, metrics, resolution };
     }
 
     const userId = payload.userId as string | undefined;
     const useEnvAI = payload.useEnvAI as boolean | undefined;
-    const modelOverride = payload.llmModelOverride as string | undefined;
     const payloadProvider = payload.aiProvider as AIKeyProvider | undefined;
 
     // Log diagnostic info
@@ -666,13 +700,24 @@ export class AgentOrchestrator {
     // If useEnvAI is explicitly set, use global AIService
     if (useEnvAI === true) {
       console.log('[resolveAiServiceForJob] Using global AIService (useEnvAI=true)');
-      return { aiService: this.aiService, metrics };
+      const resolution: AIResolution = {
+        provider: envConfig.provider,
+        model: modelOverride || envConfig.modelDefault,
+        keySource: 'env',
+      };
+      return { aiService: this.aiService, metrics, resolution };
     }
 
     // No userId means we can't look up user-specific config
     if (!userId) {
       console.log('[resolveAiServiceForJob] No userId, using global AIService');
-      return { aiService: this.aiService, metrics };
+      const resolution: AIResolution = {
+        provider: envConfig.provider,
+        model: modelOverride || envConfig.modelDefault,
+        keySource: 'env',
+        fallbackReason: 'NO_USER_ID',
+      };
+      return { aiService: this.aiService, metrics, resolution };
     }
 
     // Determine provider: explicit payload > user's active provider
@@ -690,18 +735,19 @@ export class AgentOrchestrator {
     
     if (userKey) {
       // User has a key for this provider - use it
-      const env = getEnv();
       const baseUrl = selectedProvider === 'openrouter' 
         ? 'https://openrouter.ai/api/v1'
         : (env.OPENAI_BASE_URL || 'https://api.openai.com/v1');
+      
+      const resolvedModel = modelOverride || (selectedProvider === 'openrouter' ? 'meta-llama/llama-3.3-70b-instruct:free' : 'gpt-4o-mini');
       
       const aiConfig = {
         provider: selectedProvider,
         apiKey: userKey.key,
         baseUrl,
-        modelDefault: modelOverride || (selectedProvider === 'openrouter' ? 'meta-llama/llama-3.3-70b-instruct:free' : 'gpt-4o-mini'),
-        modelPlanner: modelOverride || (selectedProvider === 'openrouter' ? 'meta-llama/llama-3.3-70b-instruct:free' : 'gpt-4o-mini'),
-        modelValidation: modelOverride || (selectedProvider === 'openrouter' ? 'meta-llama/llama-3.3-70b-instruct:free' : 'gpt-4o-mini'),
+        modelDefault: resolvedModel,
+        modelPlanner: resolvedModel,
+        modelValidation: resolvedModel,
         siteUrl: env.OPENROUTER_SITE_URL,
         appName: env.OPENROUTER_APP_NAME,
       };
@@ -709,17 +755,25 @@ export class AgentOrchestrator {
       console.log(`[resolveAiServiceForJob] Creating user AIService: provider=${selectedProvider}, baseUrl=${baseUrl}, hasApiKey=true, keyPrefix=${userKey.key.substring(0, 10)}...`);
       
       const aiService = createAIService(aiConfig, observer);
-      return { aiService, metrics };
+      const resolution: AIResolution = {
+        provider: selectedProvider,
+        model: resolvedModel,
+        keySource: 'user',
+      };
+      return { aiService, metrics, resolution };
     }
 
     // User doesn't have a key for selected provider
     // Check if env fallback is available
-    const env = getEnv();
-    const envConfig = getAIConfig(env);
-    
     if (envConfig.apiKey && (envConfig.provider === 'openrouter' || envConfig.provider === 'openai')) {
       console.log(`[resolveAiServiceForJob] User key missing for ${selectedProvider}, falling back to env AIService (provider=${envConfig.provider})`);
-      return { aiService: this.aiService, metrics };
+      const resolution: AIResolution = {
+        provider: envConfig.provider,
+        model: modelOverride || envConfig.modelDefault,
+        keySource: 'env',
+        fallbackReason: 'USER_KEY_MISSING',
+      };
+      return { aiService: this.aiService, metrics, resolution };
     }
 
     // No user key and no env fallback - throw error

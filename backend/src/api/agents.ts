@@ -2,7 +2,7 @@ import { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { AgentOrchestrator } from '../core/orchestrator/AgentOrchestrator.js';
 import { db } from '../db/client.js';
-import { jobs, jobPlans, jobAudits, jobTraces, jobArtifacts, agentConfigs, jobComments } from '../db/schema.js';
+import { jobs, jobPlans, jobAudits, jobTraces, jobArtifacts, agentConfigs, jobComments, jobAiCalls } from '../db/schema.js';
 import { eq, desc, and, sql, asc } from 'drizzle-orm';
 import { JobNotFoundError, MissingAIKeyError, ModelNotAllowedError } from '../core/errors.js';
 import { metrics } from './metrics.js';
@@ -536,9 +536,79 @@ export async function agentsRoutes(fastify: FastifyInstance) {
           }
         }
 
+        // Fetch per-call AI metrics if traces are requested
+        let aiCalls: Array<{
+          id: string;
+          callIndex: number;
+          provider: string;
+          model: string;
+          purpose: string | null;
+          inputTokens: number | null;
+          outputTokens: number | null;
+          totalTokens: number | null;
+          durationMs: number | null;
+          estimatedCostUsd: string | null;
+          success: boolean;
+          errorCode: string | null;
+          timestamp: Date;
+        }> = [];
+
+        if (includeTrace) {
+          try {
+            const aiCallRows = await db
+              .select()
+              .from(jobAiCalls)
+              .where(eq(jobAiCalls.jobId, params.id))
+              .orderBy(asc(jobAiCalls.callIndex));
+            aiCalls = aiCallRows.map((row) => ({
+              id: row.id,
+              callIndex: row.callIndex,
+              provider: row.provider,
+              model: row.model,
+              purpose: row.purpose,
+              inputTokens: row.inputTokens,
+              outputTokens: row.outputTokens,
+              totalTokens: row.totalTokens,
+              durationMs: row.durationMs,
+              estimatedCostUsd: row.estimatedCostUsd,
+              success: row.success,
+              errorCode: row.errorCode,
+              timestamp: row.timestamp,
+            }));
+          } catch (error) {
+            console.error(`Failed to fetch AI calls for job ${params.id}:`, error);
+          }
+        }
+
         // Return job data with optional plan/audit/trace/artifacts
         const correlationId =
           extractCorrelationIdFromText(job.errorMessage) || extractCorrelationIdFromText(job.error);
+
+        // Build structured AI response object
+        const aiResponse = {
+          // Requested (what was originally submitted)
+          requested: {
+            provider: job.aiProvider,
+            model: job.aiModel,
+          },
+          // Resolved (what was actually used at runtime)
+          resolved: {
+            provider: job.aiProviderResolved,
+            model: job.aiModelResolved,
+            keySource: job.aiKeySource,
+            fallbackReason: job.aiFallbackReason,
+          },
+          // Summary (aggregate metrics)
+          summary: {
+            totalDurationMs: job.aiTotalDurationMs,
+            inputTokens: job.aiInputTokens,
+            outputTokens: job.aiOutputTokens,
+            totalTokens: job.aiTotalTokens,
+            estimatedCostUsd: job.aiEstimatedCostUsd,
+          },
+          // Per-call breakdown (if includeTrace)
+          calls: aiCalls,
+        };
 
         const response: Record<string, unknown> = {
           id: job.id,
@@ -551,6 +621,7 @@ export async function agentsRoutes(fastify: FastifyInstance) {
           errorMessage: job.errorMessage,
           rawErrorPayload: job.rawErrorPayload,
           mcpGatewayUrl: job.mcpGatewayUrl,
+          // Legacy fields (keep for backward compatibility)
           aiProvider: job.aiProvider,
           aiModel: job.aiModel,
           aiTotalDurationMs: job.aiTotalDurationMs,
@@ -558,6 +629,8 @@ export async function agentsRoutes(fastify: FastifyInstance) {
           aiOutputTokens: job.aiOutputTokens,
           aiTotalTokens: job.aiTotalTokens,
           aiEstimatedCostUsd: job.aiEstimatedCostUsd,
+          // New structured AI object
+          ai: aiResponse,
           correlationId,
           createdAt: job.createdAt,
           updatedAt: job.updatedAt,

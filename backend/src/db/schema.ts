@@ -46,10 +46,18 @@ export const jobs = pgTable('jobs', {
   rawErrorPayload: text('raw_error_payload'),
   /** MCP Gateway URL used for this job (for diagnostics) */
   mcpGatewayUrl: varchar('mcp_gateway_url', { length: 255 }),
-  /** AI provider used for this job (e.g., openai) */
+  /** AI provider requested at job submission (e.g., openai) */
   aiProvider: varchar('ai_provider', { length: 50 }),
-  /** AI model used for this job (e.g., gpt-4o-mini) */
+  /** AI model requested at job submission (e.g., gpt-4o-mini) */
   aiModel: varchar('ai_model', { length: 255 }),
+  /** Resolved AI provider actually used at runtime */
+  aiProviderResolved: varchar('ai_provider_resolved', { length: 50 }),
+  /** Resolved AI model actually used at runtime */
+  aiModelResolved: varchar('ai_model_resolved', { length: 255 }),
+  /** Key source: 'user' = user's stored key, 'env' = environment/server key */
+  aiKeySource: varchar('ai_key_source', { length: 20 }),
+  /** Fallback reason if env key used instead of user key (e.g., USER_KEY_MISSING) */
+  aiFallbackReason: varchar('ai_fallback_reason', { length: 100 }),
   /** Aggregate AI duration (ms) */
   aiTotalDurationMs: integer('ai_total_duration_ms'),
   /** Aggregate input tokens */
@@ -209,6 +217,45 @@ export const jobTraces = pgTable('job_traces', {
 
 export type JobTrace = typeof jobTraces.$inferSelect;
 export type NewJobTrace = typeof jobTraces.$inferInsert;
+
+/**
+ * Job AI calls - stores per-call AI metrics for detailed breakdown
+ * Enables: total tokens/cost, per-call breakdown, model usage analytics
+ */
+export const jobAiCalls = pgTable('job_ai_calls', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  jobId: uuid('job_id').notNull().references(() => jobs.id, { onDelete: 'cascade' }),
+  /** Call index within the job (0-based, for ordering) */
+  callIndex: integer('call_index').notNull(),
+  /** AI provider used for this call */
+  provider: varchar('provider', { length: 50 }).notNull(),
+  /** AI model used for this call */
+  model: varchar('model', { length: 255 }).notNull(),
+  /** Purpose/description of the AI call */
+  purpose: varchar('purpose', { length: 255 }),
+  /** Input tokens for this call */
+  inputTokens: integer('input_tokens'),
+  /** Output tokens for this call */
+  outputTokens: integer('output_tokens'),
+  /** Total tokens for this call */
+  totalTokens: integer('total_tokens'),
+  /** Duration in milliseconds */
+  durationMs: integer('duration_ms'),
+  /** Estimated cost in USD for this call */
+  estimatedCostUsd: numeric('estimated_cost_usd', { precision: 12, scale: 6 }),
+  /** Whether the call succeeded */
+  success: boolean('success').default(true).notNull(),
+  /** Error code if failed */
+  errorCode: varchar('error_code', { length: 50 }),
+  /** Timestamp of the call */
+  timestamp: timestamp('timestamp').defaultNow().notNull(),
+}, (table) => ({
+  jobIdIdx: index('idx_job_ai_calls_job_id').on(table.jobId),
+  jobIdCallIndexIdx: index('idx_job_ai_calls_job_id_call_index').on(table.jobId, table.callIndex),
+}));
+
+export type JobAiCall = typeof jobAiCalls.$inferSelect;
+export type NewJobAiCall = typeof jobAiCalls.$inferInsert;
 
 /**
  * Job artifacts - stores files/documents produced by jobs
