@@ -1,4 +1,6 @@
-import 'dotenv/config';
+// NOTE: Do NOT import 'dotenv/config' here.
+// Env loading is handled by config/env.ts with correct precedence:
+// 1) Shell exports  2) backend/.env.local  3) backend/.env
 import Fastify from 'fastify';
 import type { FastifyRequest, FastifyReply } from 'fastify';
 import { randomUUID } from 'crypto';
@@ -40,6 +42,11 @@ export async function buildApp() {
   const configSummary = aiService.getConfigSummary();
   console.log(`[buildApp] AI Provider: ${configSummary.provider}`);
   console.log(`[buildApp] AI Models: default=${configSummary.models.default}, planner=${configSummary.models.planner}, validation=${configSummary.models.validation}`);
+  console.log(`[buildApp] AI Base URL: ${configSummary.baseUrl}`);
+  console.log(`[buildApp] AI API Key: ${configSummary.hasApiKey ? 'configured' : 'NOT CONFIGURED'}`);
+  if (configSummary.hasApiKey && configSummary.apiKeyPrefix) {
+    console.log(`[buildApp] AI API Key prefix: ${configSummary.apiKeyPrefix}...`);
+  }
 
   // Phase 5.D: Create MCPTools (signature-only adapters for now)
   // In production, these would be initialized with real tokens/baseUrls
