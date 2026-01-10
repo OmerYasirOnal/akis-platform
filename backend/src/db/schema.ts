@@ -392,12 +392,21 @@ export type NewEmailVerificationToken = typeof emailVerificationTokens.$inferIns
 
 /**
  * OAuth provider enum - supported OAuth providers
+ * - github: GitHub OAuth for repository access
+ * - google: Google OAuth for user login
+ * - atlassian: Atlassian OAuth 2.0 (3LO) for Jira + Confluence
  */
-export const oauthProviderEnum = pgEnum('oauth_provider', ['github', 'google']);
+export const oauthProviderEnum = pgEnum('oauth_provider', ['github', 'google', 'atlassian']);
 
 /**
  * OAuth accounts - stores linked OAuth provider accounts
  * Links external OAuth identities to internal users
+ * 
+ * For Atlassian OAuth 2.0 (3LO):
+ * - cloudId: Atlassian Cloud ID for API calls
+ * - siteUrl: Atlassian site URL (e.g., https://your-domain.atlassian.net)
+ * - scopes: Granted OAuth scopes (space-separated)
+ * - refreshTokenRotatedAt: Timestamp of last refresh token rotation
  */
 export const oauthAccounts = pgTable('oauth_accounts', {
   id: uuid('id').defaultRandom().primaryKey(),
@@ -407,6 +416,11 @@ export const oauthAccounts = pgTable('oauth_accounts', {
   accessToken: text('access_token'),
   refreshToken: text('refresh_token'),
   tokenExpiresAt: timestamp('token_expires_at', { withTimezone: false }),
+  // Atlassian-specific fields (nullable for other providers)
+  cloudId: varchar('cloud_id', { length: 255 }),
+  siteUrl: varchar('site_url', { length: 500 }),
+  scopes: text('scopes'),
+  refreshTokenRotatedAt: timestamp('refresh_token_rotated_at', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: false }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: false }).defaultNow().notNull(),
 }, (table) => ({
