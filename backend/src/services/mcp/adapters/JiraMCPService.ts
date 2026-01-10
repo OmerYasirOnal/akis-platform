@@ -1,9 +1,13 @@
 import { HttpClient } from '../../http/HttpClient.js';
+import { atlassianOAuthService } from '../../atlassian/index.js';
+import { getEnv } from '../../../config/env.js';
 
 /**
  * JiraMCPService - MCP client adapter for Jira
  * Phase 10: Full MCP JSON-RPC 2.0 implementation
  * Provides high-level methods that internally use JSON-RPC 2.0 to Jira MCP endpoint
+ * 
+ * Supports OAuth 2.0 (3LO) tokens via fromOAuth factory method
  */
 
 export interface JiraMCPServiceOptions {
@@ -85,6 +89,29 @@ export class JiraMCPService {
     this.baseUrl = opts.baseUrl.replace(/\/$/, ''); // Remove trailing slash
     this.token = opts.token;
     this.httpClient = opts.httpClient || new HttpClient();
+  }
+
+  /**
+   * Factory method to create JiraMCPService using Atlassian OAuth tokens
+   * @param userId - AKIS user ID
+   * @returns JiraMCPService instance or null if OAuth is not available
+   */
+  static async fromOAuth(userId: string): Promise<JiraMCPService | null> {
+    const env = getEnv();
+    
+    if (!env.ATLASSIAN_MCP_BASE_URL) {
+      return null;
+    }
+
+    const token = await atlassianOAuthService.getValidToken(userId);
+    if (!token) {
+      return null;
+    }
+
+    return new JiraMCPService({
+      baseUrl: env.ATLASSIAN_MCP_BASE_URL,
+      token,
+    });
   }
 
   /**
