@@ -201,11 +201,11 @@ export default function PricingPage() {
           Join developers who are already using AKIS to automate their workflows.
         </p>
         <div className="mt-8 flex flex-col items-center justify-center gap-4 sm:flex-row">
-          <Button variant="primary" size="lg" asChild>
-            <Link to="/signup">Get Started Free</Link>
+          <Button as={Link} to="/signup" variant="primary" size="lg">
+            Get Started Free
           </Button>
-          <Button variant="outline" size="lg" asChild>
-            <Link to="/docs">Read Documentation</Link>
+          <Button as={Link} to="/docs" variant="outline" size="lg">
+            Read Documentation
           </Button>
         </div>
       </section>

@@ -308,7 +308,7 @@ export default function DashboardSettingsAiKeysPage() {
                 {isConfigured && !isActive && (
                   <Button
                     variant="outline"
-                    size="sm"
+                    size="md"
                     onClick={() => handleSetActive(provider.id)}
                   >
                     Set as Active
