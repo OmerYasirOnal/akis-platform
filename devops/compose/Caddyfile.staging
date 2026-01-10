@@ -1,0 +1,84 @@
+# AKIS Platform - Staging Caddyfile
+# Reverse proxy configuration for staging environment
+
+{
+    # Staging: Use Let's Encrypt staging CA for testing
+    # Uncomment for production-like SSL testing:
+    # acme_ca https://acme-staging-v02.api.letsencrypt.org/directory
+    
+    # Email for ACME notifications
+    email {$ACME_EMAIL:admin@akis.dev}
+}
+
+# Staging domain
+staging.akis.dev {
+    # Enable compression
+    encode gzip zstd
+
+    # Security headers
+    header {
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "DENY"
+        X-XSS-Protection "1; mode=block"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        -Server
+    }
+
+    # Health check endpoint (for load balancer / uptime monitoring)
+    handle /health {
+        reverse_proxy backend:3000
+    }
+
+    # Readiness check endpoint
+    handle /ready {
+        reverse_proxy backend:3000
+    }
+
+    # Version endpoint
+    handle /version {
+        reverse_proxy backend:3000
+    }
+
+    # API routes → Backend
+    handle /api/* {
+        reverse_proxy backend:3000
+    }
+
+    # Auth routes → Backend
+    handle /auth/* {
+        reverse_proxy backend:3000
+    }
+
+    # OpenAPI docs → Backend
+    handle /docs* {
+        reverse_proxy backend:3000
+    }
+
+    handle /openapi.json {
+        reverse_proxy backend:3000
+    }
+
+    # Metrics endpoint (internal only in production)
+    handle /metrics {
+        reverse_proxy backend:3000
+    }
+
+    # Static frontend files
+    handle {
+        root * /srv/frontend
+        try_files {path} /index.html
+        file_server
+    }
+
+    # Access logging
+    log {
+        output stdout
+        format console
+        level INFO
+    }
+}
+
+# HTTP → HTTPS redirect
+http://staging.akis.dev {
+    redir https://{host}{uri} permanent
+}

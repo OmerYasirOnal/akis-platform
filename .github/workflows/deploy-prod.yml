@@ -1,0 +1,480 @@
+# AKIS Platform - Production Deployment
+# Deploys to production when a release is published or a semver tag is pushed
+#
+# Trigger: GitHub Release publish OR semver tag (v*.*.*)
+# Target: OCI Free Tier VM (akis.dev)
+# Requires: Manual approval via GitHub Environment protection
+
+name: Deploy to Production
+
+on:
+  release:
+    types: [published]
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+      - 'v[0-9]+.[0-9]+.[0-9]+-*'
+
+# Prevent concurrent production deployments
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+env:
+  REGISTRY: ghcr.io
+  BACKEND_IMAGE: ghcr.io/${{ github.repository }}/akis-backend
+  FRONTEND_IMAGE: ghcr.io/${{ github.repository }}/akis-frontend
+  NODE_VERSION: '22.12.0'
+
+jobs:
+  # ============================================================================
+  # Validate Release
+  # ============================================================================
+  validate:
+    name: Validate Release
+    runs-on: ubuntu-latest
+    
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      commit: ${{ steps.version.outputs.commit }}
+      tag: ${{ steps.version.outputs.tag }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Extract version info
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "release" ]; then
+            TAG="${{ github.event.release.tag_name }}"
+          else
+            TAG="${GITHUB_REF#refs/tags/}"
+          fi
+          
+          # Remove 'v' prefix for semver
+          VERSION="${TAG#v}"
+          COMMIT=${GITHUB_SHA::7}
+          
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "commit=$COMMIT" >> $GITHUB_OUTPUT
+          
+          echo "Tag: $TAG"
+          echo "Version: $VERSION"
+          echo "Commit: $COMMIT"
+
+      - name: Validate semver format
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9]+)?$ ]]; then
+            echo "❌ Invalid semver format: $VERSION"
+            exit 1
+          fi
+          echo "✅ Valid semver: $VERSION"
+
+  # ============================================================================
+  # Build and Test
+  # ============================================================================
+  build:
+    name: Build & Test
+    runs-on: ubuntu-latest
+    needs: validate
+    
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: akis_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: pnpm install --frozen-lockfile || pnpm install
+
+      - name: Run backend tests
+        working-directory: backend
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/akis_test
+          NODE_ENV: test
+        run: |
+          pnpm db:migrate
+          pnpm run typecheck
+          pnpm run lint
+          pnpm run test:ci
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci || npm install
+
+      - name: Run frontend tests
+        working-directory: frontend
+        run: |
+          npm run typecheck
+          npm run lint
+          npm run test
+
+      - name: Build frontend (production)
+        working-directory: frontend
+        env:
+          VITE_API_URL: /api
+          NODE_ENV: production
+        run: npm run build
+
+      - name: Upload frontend build
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dist-prod
+          path: frontend/dist
+          retention-days: 30
+
+  # ============================================================================
+  # Build Docker Images
+  # ============================================================================
+  docker:
+    name: Build Docker Images
+    runs-on: ubuntu-latest
+    needs: [validate, build]
+    
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download frontend build
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-dist-prod
+          path: frontend/dist
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push backend image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile
+          push: true
+          tags: |
+            ${{ env.BACKEND_IMAGE }}:latest
+            ${{ env.BACKEND_IMAGE }}:${{ needs.validate.outputs.tag }}
+            ${{ env.BACKEND_IMAGE }}:${{ needs.validate.outputs.version }}
+          build-args: |
+            BUILD_COMMIT=${{ needs.validate.outputs.commit }}
+            BUILD_TIME=${{ github.event.head_commit.timestamp || github.event.release.created_at }}
+            APP_VERSION=${{ needs.validate.outputs.version }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64,linux/arm64
+
+  # ============================================================================
+  # Deploy to Production (Requires Manual Approval)
+  # ============================================================================
+  deploy:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: [validate, build, docker]
+    environment:
+      name: production
+      url: https://akis.dev
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download frontend build
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-dist-prod
+          path: frontend/dist
+
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.PROD_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H ${{ secrets.PROD_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Get previous version for rollback
+        id: previous
+        run: |
+          PREV_VERSION=$(ssh -i ~/.ssh/deploy_key ${{ secrets.PROD_USER }}@${{ secrets.PROD_HOST }} \
+            "docker inspect akis-prod-backend --format '{{.Config.Image}}' 2>/dev/null || echo 'none'")
+          echo "previous_image=$PREV_VERSION" >> $GITHUB_OUTPUT
+          echo "Previous image: $PREV_VERSION"
+
+      - name: Create full database backup
+        run: |
+          echo "📦 Creating pre-deployment database backup..."
+          ssh -i ~/.ssh/deploy_key ${{ secrets.PROD_USER }}@${{ secrets.PROD_HOST }} << 'EOF'
+            cd /opt/akis
+            BACKUP_FILE="/opt/akis/backups/prod-pre-deploy-v${{ needs.validate.outputs.version }}-$(date +%Y%m%d-%H%M%S).dump"
+            docker exec akis-prod-db pg_dump -U akis -Fc akis_prod > "$BACKUP_FILE"
+            echo "Backup created: $BACKUP_FILE"
+            ls -lh "$BACKUP_FILE"
+          EOF
+
+      - name: Deploy to production server
+        env:
+          BACKEND_VERSION: ${{ needs.validate.outputs.tag }}
+        run: |
+          # Copy compose files and Caddyfile
+          scp -i ~/.ssh/deploy_key devops/compose/docker-compose.prod.yml \
+            ${{ secrets.PROD_USER }}@${{ secrets.PROD_HOST }}:/opt/akis/docker-compose.yml
+          scp -i ~/.ssh/deploy_key devops/compose/Caddyfile.prod \
+            ${{ secrets.PROD_USER }}@${{ secrets.PROD_HOST }}:/opt/akis/Caddyfile.prod
+          
+          # Copy frontend dist
+          scp -r -i ~/.ssh/deploy_key frontend/dist/* \
+            ${{ secrets.PROD_USER }}@${{ secrets.PROD_HOST }}:/opt/akis/frontend/
+          
+          # Deploy
+          ssh -i ~/.ssh/deploy_key ${{ secrets.PROD_USER }}@${{ secrets.PROD_HOST }} << EOF
+            cd /opt/akis
+            
+            # Pull new images
+            export BACKEND_VERSION=${{ needs.validate.outputs.tag }}
+            docker compose pull
+            
+            # Run migrations (with backup already done)
+            docker compose run --rm backend pnpm db:migrate
+            
+            # Deploy with zero-downtime (if possible)
+            docker compose up -d --remove-orphans
+            
+            # Cleanup old images (keep last 3)
+            docker image prune -f
+          EOF
+
+      - name: Wait for deployment
+        run: sleep 45
+
+      - name: Health check
+        id: health
+        run: |
+          echo "🏥 Running health checks..."
+          for i in {1..30}; do
+            HEALTH=$(curl -s -o /dev/null -w "%{http_code}" https://akis.dev/health || echo "000")
+            READY=$(curl -s -o /dev/null -w "%{http_code}" https://akis.dev/ready || echo "000")
+            
+            if [ "$HEALTH" = "200" ] && [ "$READY" = "200" ]; then
+              echo "✅ Health checks passed!"
+              echo "health_status=success" >> $GITHUB_OUTPUT
+              exit 0
+            fi
+            
+            echo "Attempt $i/30: health=$HEALTH, ready=$READY"
+            sleep 5
+          done
+          
+          echo "❌ Health checks failed after 30 attempts"
+          echo "health_status=failure" >> $GITHUB_OUTPUT
+          exit 1
+
+      - name: Verify deployed version
+        if: steps.health.outputs.health_status == 'success'
+        run: |
+          DEPLOYED=$(curl -s https://akis.dev/version)
+          DEPLOYED_VERSION=$(echo "$DEPLOYED" | jq -r '.version')
+          DEPLOYED_COMMIT=$(echo "$DEPLOYED" | jq -r '.commit')
+          EXPECTED_VERSION="${{ needs.validate.outputs.version }}"
+          EXPECTED_COMMIT="${{ needs.validate.outputs.commit }}"
+          
+          echo "Deployed version: $DEPLOYED_VERSION (commit: $DEPLOYED_COMMIT)"
+          echo "Expected version: $EXPECTED_VERSION (commit: $EXPECTED_COMMIT)"
+          
+          if [ "$DEPLOYED_VERSION" = "$EXPECTED_VERSION" ]; then
+            echo "✅ Version verified!"
+          else
+            echo "❌ Version mismatch!"
+            exit 1
+          fi
+
+      - name: Rollback on failure
+        if: failure() && steps.previous.outputs.previous_image != 'none'
+        run: |
+          echo "⚠️ Deployment failed, initiating rollback..."
+          ssh -i ~/.ssh/deploy_key ${{ secrets.PROD_USER }}@${{ secrets.PROD_HOST }} << EOF
+            cd /opt/akis
+            echo "Rolling back to: ${{ steps.previous.outputs.previous_image }}"
+            docker compose pull backend:${{ steps.previous.outputs.previous_image }}
+            docker compose up -d backend
+            
+            # Note: Database is NOT rolled back automatically
+            # Manual intervention required for schema changes
+            echo "⚠️ WARNING: Database schema was NOT rolled back."
+            echo "Check backup files if data restoration is needed."
+          EOF
+
+      - name: Save deployment logs
+        if: always()
+        run: |
+          echo "📋 Collecting deployment logs..."
+          {
+            echo "=== Deployment Info ==="
+            echo "Version: ${{ needs.validate.outputs.version }}"
+            echo "Commit: ${{ needs.validate.outputs.commit }}"
+            echo "Time: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            echo ""
+            echo "=== Container Logs ==="
+            ssh -i ~/.ssh/deploy_key ${{ secrets.PROD_USER }}@${{ secrets.PROD_HOST }} \
+              "docker compose -f /opt/akis/docker-compose.yml logs --tail=200" 2>&1 || echo "Failed to get logs"
+            echo ""
+            echo "=== Health Check Results ==="
+            curl -s https://akis.dev/health || echo "Health check failed"
+            echo ""
+            curl -s https://akis.dev/ready || echo "Ready check failed"
+            echo ""
+            curl -s https://akis.dev/version || echo "Version check failed"
+          } > deploy-evidence.txt
+
+      - name: Upload deployment evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: prod-deploy-evidence-${{ needs.validate.outputs.tag }}
+          path: deploy-evidence.txt
+          retention-days: 90
+
+  # ============================================================================
+  # Post-Deploy Smoke Tests
+  # ============================================================================
+  smoke-test:
+    name: Production Smoke Tests
+    runs-on: ubuntu-latest
+    needs: [validate, deploy]
+    if: success()
+
+    steps:
+      - name: Wait for services to stabilize
+        run: sleep 15
+
+      - name: Test health endpoints
+        run: |
+          echo "Testing /health..."
+          curl -sf https://akis.dev/health
+          
+          echo "Testing /ready..."
+          curl -sf https://akis.dev/ready
+          
+          echo "Testing /version..."
+          curl -sf https://akis.dev/version
+
+      - name: Test API endpoints
+        run: |
+          echo "Testing /api/agents/jobs (should return 401 or jobs list)..."
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" https://akis.dev/api/agents/jobs)
+          if [ "$HTTP_CODE" = "401" ] || [ "$HTTP_CODE" = "200" ]; then
+            echo "✅ API responding correctly (HTTP $HTTP_CODE)"
+          else
+            echo "❌ Unexpected response: HTTP $HTTP_CODE"
+            exit 1
+          fi
+
+      - name: Test frontend loading
+        run: |
+          echo "Testing frontend..."
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" https://akis.dev/)
+          if [ "$HTTP_CODE" = "200" ]; then
+            echo "✅ Frontend loading correctly"
+          else
+            echo "❌ Frontend failed to load: HTTP $HTTP_CODE"
+            exit 1
+          fi
+
+      - name: Create smoke test report
+        run: |
+          {
+            echo "## Production Smoke Test Results"
+            echo ""
+            echo "| Test | Result |"
+            echo "|------|--------|"
+            echo "| Health Check | ✅ Pass |"
+            echo "| Ready Check | ✅ Pass |"
+            echo "| Version Check | ✅ Pass |"
+            echo "| API Response | ✅ Pass |"
+            echo "| Frontend Load | ✅ Pass |"
+          } > smoke-test-results.md
+          cat smoke-test-results.md >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload smoke test results
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-test-results-${{ needs.validate.outputs.tag }}
+          path: smoke-test-results.md
+          retention-days: 90
+
+  # ============================================================================
+  # Create Deployment Summary
+  # ============================================================================
+  summary:
+    name: Deployment Summary
+    runs-on: ubuntu-latest
+    needs: [validate, deploy, smoke-test]
+    if: always()
+
+    steps:
+      - name: Create summary
+        run: |
+          if [ "${{ needs.deploy.result }}" = "success" ] && [ "${{ needs.smoke-test.result }}" = "success" ]; then
+            STATUS="✅ Successful"
+          else
+            STATUS="❌ Failed"
+          fi
+          
+          {
+            echo "# 🚀 Production Deployment Report"
+            echo ""
+            echo "## Status: $STATUS"
+            echo ""
+            echo "### Deployment Details"
+            echo ""
+            echo "| Field | Value |"
+            echo "|-------|-------|"
+            echo "| Version | ${{ needs.validate.outputs.version }} |"
+            echo "| Tag | ${{ needs.validate.outputs.tag }} |"
+            echo "| Commit | ${{ needs.validate.outputs.commit }} |"
+            echo "| URL | https://akis.dev |"
+            echo "| Workflow Run | [#${{ github.run_number }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) |"
+            echo "| Triggered By | ${{ github.actor }} |"
+            echo "| Timestamp | $(date -u +%Y-%m-%dT%H:%M:%SZ) |"
+            echo ""
+            echo "### Artifacts"
+            echo ""
+            echo "- [Deployment Evidence](./prod-deploy-evidence-${{ needs.validate.outputs.tag }})"
+            echo "- [Smoke Test Results](./smoke-test-results-${{ needs.validate.outputs.tag }})"
+            echo "- [Frontend Build](./frontend-dist-prod)"
+          } >> $GITHUB_STEP_SUMMARY
