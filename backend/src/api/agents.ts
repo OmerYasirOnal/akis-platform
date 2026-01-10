@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { AgentOrchestrator } from '../core/orchestrator/AgentOrchestrator.js';
 import { db } from '../db/client.js';
 import { jobs, jobPlans, jobAudits, jobTraces, jobArtifacts, agentConfigs, jobComments, jobAiCalls } from '../db/schema.js';
-import { eq, desc, and, sql, asc } from 'drizzle-orm';
+import { eq, desc, and, sql, asc, inArray } from 'drizzle-orm';
 import { JobNotFoundError, MissingAIKeyError, ModelNotAllowedError } from '../core/errors.js';
 import { metrics } from './metrics.js';
 import { formatErrorResponse, getStatusCodeForError } from '../utils/errorHandler.js';
@@ -185,6 +185,45 @@ export async function agentsRoutes(fastify: FastifyInstance) {
             const errorResponse = formatErrorResponse(request, authError);
             reply.code(401).send(errorResponse);
             return;
+          }
+
+          // ========================================================================
+          // DUPLICATE RUN PREVENTION
+          // Check if there's already a running/pending job for this user + type + repo
+          // ========================================================================
+          const payloadForDupeCheck = body.payload as Record<string, unknown> | undefined;
+          const owner = payloadForDupeCheck?.owner as string | undefined;
+          const repo = payloadForDupeCheck?.repo as string | undefined;
+          
+          if (owner && repo) {
+            const existingJob = await db
+              .select({
+                id: jobs.id,
+                state: jobs.state,
+                createdAt: jobs.createdAt,
+              })
+              .from(jobs)
+              .where(
+                and(
+                  inArray(jobs.state, ['pending', 'running']),
+                  eq(jobs.type, body.type),
+                  sql`(${jobs.payload}->>'userId')::text = ${userId}`,
+                  sql`(${jobs.payload}->>'owner')::text = ${owner}`,
+                  sql`(${jobs.payload}->>'repo')::text = ${repo}`
+                )
+              )
+              .limit(1);
+
+            if (existingJob.length > 0) {
+              return reply.code(409).send({
+                error: {
+                  code: 'DUPLICATE_JOB',
+                  message: `A ${body.type} job is already running for ${owner}/${repo}. Please wait for it to complete.`,
+                },
+                existingJobId: existingJob[0].id,
+                existingJobState: existingJob[0].state,
+              });
+            }
           }
 
           // ========================================================================
@@ -832,6 +871,121 @@ export async function agentsRoutes(fastify: FastifyInstance) {
         };
       } catch (error) {
         // Phase 7.E: Use unified error model
+        const errorResponse = formatErrorResponse(request, error);
+        const statusCode = getStatusCodeForError(errorResponse.error.code);
+        reply.code(statusCode).send(errorResponse);
+      }
+    }
+  );
+
+  // GET /api/agents/jobs/running - Get currently running jobs for the authenticated user
+  // Used for: live progress display, duplicate run prevention
+  fastify.get(
+    '/api/agents/jobs/running',
+    {
+      schema: {
+        description: 'Get currently running or pending jobs for the authenticated user',
+        tags: ['agents'],
+        response: {
+          200: {
+            type: 'object',
+            properties: {
+              jobs: {
+                type: 'array',
+                items: {
+                  type: 'object',
+                  properties: {
+                    id: { type: 'string', format: 'uuid' },
+                    type: { type: 'string', enum: ['scribe', 'trace', 'proto'] },
+                    state: { type: 'string', enum: ['pending', 'running'] },
+                    payload: { type: 'object' },
+                    createdAt: { type: 'string', format: 'date-time' },
+                    updatedAt: { type: 'string', format: 'date-time' },
+                    latestTrace: {
+                      type: 'object',
+                      nullable: true,
+                      properties: {
+                        title: { type: 'string' },
+                        detail: { type: 'string', nullable: true },
+                        timestamp: { type: 'string', format: 'date-time' },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      try {
+        // Require authentication
+        const user = await requireAuth(request);
+
+        // Fetch running/pending jobs for this user
+        // We need to join with payload to filter by userId in payload
+        const runningJobs = await db
+          .select({
+            id: jobs.id,
+            type: jobs.type,
+            state: jobs.state,
+            payload: jobs.payload,
+            createdAt: jobs.createdAt,
+            updatedAt: jobs.updatedAt,
+          })
+          .from(jobs)
+          .where(
+            and(
+              inArray(jobs.state, ['pending', 'running']),
+              // Filter by userId in payload JSON
+              sql`(${jobs.payload}->>'userId')::text = ${user.id}`
+            )
+          )
+          .orderBy(desc(jobs.createdAt))
+          .limit(10); // Limit to 10 active jobs
+
+        // For each job, get the latest trace event
+        const jobsWithTrace = await Promise.all(
+          runningJobs.map(async (job) => {
+            let latestTrace = null;
+            try {
+              const [trace] = await db
+                .select({
+                  title: jobTraces.title,
+                  detail: jobTraces.detail,
+                  timestamp: jobTraces.timestamp,
+                })
+                .from(jobTraces)
+                .where(eq(jobTraces.jobId, job.id))
+                .orderBy(desc(jobTraces.timestamp))
+                .limit(1);
+              
+              if (trace) {
+                latestTrace = {
+                  title: trace.title,
+                  detail: trace.detail,
+                  timestamp: trace.timestamp,
+                };
+              }
+            } catch {
+              // Ignore trace fetch errors
+            }
+
+            return {
+              ...job,
+              latestTrace,
+            };
+          })
+        );
+
+        return { jobs: jobsWithTrace };
+      } catch (error) {
+        if (error instanceof Error && error.message === 'UNAUTHORIZED') {
+          return reply.code(401).send({
+            error: { code: 'UNAUTHORIZED', message: 'Authentication required' },
+          });
+        }
         const errorResponse = formatErrorResponse(request, error);
         const statusCode = getStatusCodeForError(errorResponse.error.code);
         reply.code(statusCode).send(errorResponse);
