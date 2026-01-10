@@ -69,6 +69,11 @@ const envSchema = z
     APP_PUBLIC_URL: z.string().url().optional(),
     GOOGLE_OAUTH_CLIENT_ID: z.string().optional(),
     GOOGLE_OAUTH_CLIENT_SECRET: z.string().optional(),
+    // Atlassian OAuth 2.0 (3LO) Configuration
+    // For Jira + Confluence integration via OAuth
+    ATLASSIAN_OAUTH_CLIENT_ID: z.string().optional(),
+    ATLASSIAN_OAUTH_CLIENT_SECRET: z.string().optional(),
+    ATLASSIAN_OAUTH_CALLBACK_URL: z.string().url().optional().default('http://localhost:3000/api/integrations/atlassian/oauth/callback'),
     // GitHub App Configuration (MCP Integration)
     // These are for GitHub App installation, NOT for OAuth user login
     // Preprocess empty strings to undefined to handle test environments
@@ -205,6 +210,21 @@ const envSchema = z
         code: z.ZodIssueCode.custom,
         message: 'GOOGLE_OAUTH_CLIENT_ID is required when GOOGLE_OAUTH_CLIENT_SECRET is provided',
         path: ['GOOGLE_OAUTH_CLIENT_ID'],
+      });
+    }
+    // Atlassian OAuth 2.0 (3LO) validation
+    if (data.ATLASSIAN_OAUTH_CLIENT_ID && !data.ATLASSIAN_OAUTH_CLIENT_SECRET) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'ATLASSIAN_OAUTH_CLIENT_SECRET is required when ATLASSIAN_OAUTH_CLIENT_ID is provided',
+        path: ['ATLASSIAN_OAUTH_CLIENT_SECRET'],
+      });
+    }
+    if (!data.ATLASSIAN_OAUTH_CLIENT_ID && data.ATLASSIAN_OAUTH_CLIENT_SECRET) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'ATLASSIAN_OAUTH_CLIENT_ID is required when ATLASSIAN_OAUTH_CLIENT_SECRET is provided',
+        path: ['ATLASSIAN_OAUTH_CLIENT_ID'],
       });
     }
 
