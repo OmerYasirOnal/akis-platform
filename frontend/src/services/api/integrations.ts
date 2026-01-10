@@ -16,7 +16,7 @@ export interface GitHubStatus {
   connected: boolean;
   login?: string;
   avatarUrl?: string;
-  error?: string;
+  error?: string | { code: string; message: string };
 }
 
 export interface GitHubDisconnectResponse {
@@ -29,6 +29,7 @@ export interface AtlassianStatus {
   userEmail?: string;
   tokenLast4?: string;
   lastValidatedAt?: string;
+  error?: { code: string; message: string };
 }
 
 export interface AtlassianConnectRequest {
@@ -50,7 +51,7 @@ export interface AtlassianTestResponse {
 }
 
 export interface AllIntegrationsStatus {
-  github: { connected: boolean; login?: string };
+  github: { connected: boolean; login?: string; error?: { code: string; message: string } };
   jira: AtlassianStatus;
   confluence: AtlassianStatus;
 }

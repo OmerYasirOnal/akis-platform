@@ -98,6 +98,40 @@ export interface GetJobOptions {
   include?: ('plan' | 'audit' | 'trace' | 'artifacts')[];
 }
 
+export interface LatestTrace {
+  title: string;
+  detail?: string | null;
+  timestamp: string;
+}
+
+export interface RunningJob {
+  id: string;
+  type: AgentType;
+  state: 'pending' | 'running';
+  payload?: {
+    owner?: string;
+    repo?: string;
+    baseBranch?: string;
+    [key: string]: unknown;
+  };
+  createdAt: string;
+  updatedAt: string;
+  latestTrace?: LatestTrace | null;
+}
+
+export interface RunningJobsResponse {
+  jobs: RunningJob[];
+}
+
+export interface DuplicateJobError {
+  error: {
+    code: 'DUPLICATE_JOB';
+    message: string;
+  };
+  existingJobId: string;
+  existingJobState: string;
+}
+
 export const agentsApi = {
   listAgents: async (): Promise<AgentDefinition[]> => {
     return agents;
@@ -117,5 +151,13 @@ export const agentsApi = {
       ? `/api/agents/jobs/${jobId}?include=${includeParam}`
       : `/api/agents/jobs/${jobId}`;
     return httpClient.get<JobDetail>(url, withCredentials);
+  },
+
+  /**
+   * Get currently running or pending jobs for the authenticated user
+   * Used for: live progress display, duplicate run prevention
+   */
+  getRunningJobs: async (): Promise<RunningJobsResponse> => {
+    return httpClient.get<RunningJobsResponse>('/api/agents/jobs/running', withCredentials);
   },
 };

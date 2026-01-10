@@ -72,6 +72,7 @@ temp/
 frontend/pnpm-lock.yaml
 backend/pnpm-lock.yaml
 backend/package-lock.json
+mcp-gateway/pnpm-lock.yaml
 
 # Build Artifacts (Recursive)
 **/dist

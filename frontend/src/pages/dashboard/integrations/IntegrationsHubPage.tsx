@@ -118,20 +118,45 @@ export default function IntegrationsHubPage() {
 
   // Load all integration statuses
   const loadAllStatuses = useCallback(async () => {
-    try {
-      const [github, jira, confluence] = await Promise.all([
-        integrationsApi.getGitHubStatus(),
-        integrationsApi.getJiraStatus(),
-        integrationsApi.getConfluenceStatus(),
-      ]);
-      setGithubStatus(github.connected ? 'connected' : 'not_connected');
-      setJiraStatus(jira);
-      setConfluenceStatus(confluence);
-    } catch (err) {
-      console.error('Failed to load integration statuses:', err);
-    } finally {
-      setLoading(false);
-    }
+    // Load each status independently to prevent one failure from blocking others
+    const loadGitHub = async () => {
+      try {
+        const github = await integrationsApi.getGitHubStatus();
+        setGithubStatus(github.connected ? 'connected' : 'not_connected');
+      } catch (err) {
+        console.error('Failed to load GitHub status:', err);
+        setGithubStatus('not_connected');
+      }
+    };
+
+    const loadJira = async () => {
+      try {
+        const jira = await integrationsApi.getJiraStatus();
+        setJiraStatus(jira);
+      } catch (err) {
+        console.error('Failed to load Jira status:', err);
+        setJiraStatus({ 
+          connected: false, 
+          error: { code: 'LOAD_FAILED', message: 'Could not load Jira status' }
+        });
+      }
+    };
+
+    const loadConfluence = async () => {
+      try {
+        const confluence = await integrationsApi.getConfluenceStatus();
+        setConfluenceStatus(confluence);
+      } catch (err) {
+        console.error('Failed to load Confluence status:', err);
+        setConfluenceStatus({ 
+          connected: false, 
+          error: { code: 'LOAD_FAILED', message: 'Could not load Confluence status' }
+        });
+      }
+    };
+
+    await Promise.all([loadGitHub(), loadJira(), loadConfluence()]);
+    setLoading(false);
   }, []);
 
   // Handle OAuth callback params
@@ -335,6 +360,14 @@ export default function IntegrationsHubPage() {
                   <p>Site: {atlassianInfo.siteUrl}</p>
                   {atlassianInfo.userEmail && <p>User: {atlassianInfo.userEmail}</p>}
                   {atlassianInfo.tokenLast4 && <p>Token: ••••{atlassianInfo.tokenLast4}</p>}
+                </div>
+              )}
+
+              {/* Error Info (for degraded status) */}
+              {atlassianInfo?.error && (
+                <div className="mt-4 rounded-lg bg-yellow-500/10 border border-yellow-500/20 p-3 text-xs text-yellow-400">
+                  <p className="font-medium">Connection check failed</p>
+                  <p className="mt-1 text-yellow-400/80">{atlassianInfo.error.message}</p>
                 </div>
               )}
 
