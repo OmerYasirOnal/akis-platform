@@ -167,7 +167,6 @@ export interface AIService {
     models: { default: string; planner: string; validation: string };
     baseUrl: string;
     hasApiKey: boolean;
-    apiKeyPrefix?: string;
   };
 }
 
@@ -259,7 +258,6 @@ class RealAIService implements AIService {
       },
       baseUrl: this.config.baseUrl,
       hasApiKey: Boolean(this.config.apiKey),
-      apiKeyPrefix: this.config.apiKey ? this.config.apiKey.substring(0, 10) : undefined,
     };
   }
 
@@ -860,7 +858,6 @@ class MockAIService implements AIService {
       },
       baseUrl: 'mock://localhost',
       hasApiKey: true,
-      apiKeyPrefix: 'mock-key-',
     };
   }
 
