@@ -67,6 +67,8 @@ Thumbs.db
 tmp/
 temp/
 .cache/
+cookies.txt
+*.cookie
 
 # Nested Lockfiles (Monorepo Rule)
 frontend/pnpm-lock.yaml
