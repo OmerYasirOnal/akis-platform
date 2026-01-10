@@ -18,6 +18,45 @@ export default {
         'ak-border': 'var(--ak-border)',
         'ak-danger': 'var(--ak-danger)',
       },
+      // Glow shadows (Liquid Neon)
+      boxShadow: {
+        'ak-glow': 'var(--ak-glow-accent)',
+        'ak-glow-sm': 'var(--ak-glow-subtle)',
+        'ak-glow-lg': '0 0 40px rgba(7, 209, 175, 0.3)',
+        'ak-sm': '0 2px 8px rgba(0, 0, 0, 0.4)',
+        'ak-md': '0 4px 16px rgba(0, 0, 0, 0.5)',
+        'ak-lg': '0 8px 32px rgba(0, 0, 0, 0.6)',
+      },
+      // Motion durations
+      transitionDuration: {
+        'fast': 'var(--ak-motion-fast)',
+        'base': 'var(--ak-motion-base)',
+        'slow': 'var(--ak-motion-slow)',
+      },
+      // Blur values
+      blur: {
+        'backdrop': 'var(--ak-blur-backdrop)',
+        'card': 'var(--ak-blur-card)',
+        'blob': 'var(--ak-blur-blob)',
+      },
+      // Animation keyframes for liquid background
+      keyframes: {
+        'blob-drift': {
+          '0%, 100%': { transform: 'translate(0, 0) scale(1)', opacity: '0.15' },
+          '25%': { transform: 'translate(20px, -15px) scale(1.05)', opacity: '0.18' },
+          '50%': { transform: 'translate(-10px, 10px) scale(0.95)', opacity: '0.12' },
+          '75%': { transform: 'translate(15px, 20px) scale(1.02)', opacity: '0.16' },
+        },
+        'blob-drift-alt': {
+          '0%, 100%': { transform: 'translate(0, 0) scale(1)', opacity: '0.12' },
+          '33%': { transform: 'translate(-25px, 10px) scale(1.08)', opacity: '0.15' },
+          '66%': { transform: 'translate(15px, -20px) scale(0.92)', opacity: '0.10' },
+        },
+      },
+      animation: {
+        'blob-drift': 'blob-drift 20s ease-in-out infinite',
+        'blob-drift-alt': 'blob-drift-alt 25s ease-in-out infinite',
+      },
     },
   },
   plugins: [],
