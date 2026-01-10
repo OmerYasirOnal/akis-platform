@@ -13,6 +13,14 @@ vi.mock('../../../services/api/integrations', () => ({
     getGitHubStatus: vi.fn(),
     startGitHubOAuth: vi.fn(),
     disconnectGitHub: vi.fn(),
+    getJiraStatus: vi.fn(),
+    connectJira: vi.fn(),
+    testJira: vi.fn(),
+    disconnectJira: vi.fn(),
+    getConfluenceStatus: vi.fn(),
+    connectConfluence: vi.fn(),
+    testConfluence: vi.fn(),
+    disconnectConfluence: vi.fn(),
   },
 }));
 
@@ -23,31 +31,32 @@ const renderWithRouter = (ui: React.ReactElement) => {
 describe('DashboardIntegrationsPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-  });
-
-  it('renders the Integrations page header', async () => {
+    // Default mock responses
     (integrationsApi.getGitHubStatus as ReturnType<typeof vi.fn>).mockResolvedValue({
       connected: false,
     });
+    (integrationsApi.getJiraStatus as ReturnType<typeof vi.fn>).mockResolvedValue({
+      connected: false,
+    });
+    (integrationsApi.getConfluenceStatus as ReturnType<typeof vi.fn>).mockResolvedValue({
+      connected: false,
+    });
+  });
 
+  it('renders the Integrations page header', async () => {
     renderWithRouter(<DashboardIntegrationsPage />);
 
     expect(screen.getByText(/Integrations/i)).toBeInTheDocument();
     expect(
-      screen.getByText(/Manage connections between AKIS and external systems/i)
+      screen.getByText(/Connect AKIS to your development tools and services/i)
     ).toBeInTheDocument();
   });
 
   it('shows GitHub status as "Not connected" when disconnected', async () => {
-    (integrationsApi.getGitHubStatus as ReturnType<typeof vi.fn>).mockResolvedValue({
-      connected: false,
-    });
-
     renderWithRouter(<DashboardIntegrationsPage />);
 
     await waitFor(() => {
-      expect(screen.getByText(/Not connected/i)).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: /Connect/i })).toBeInTheDocument();
+      expect(screen.getAllByText(/Not connected/i).length).toBeGreaterThan(0);
     });
   });
 
@@ -60,27 +69,21 @@ describe('DashboardIntegrationsPage', () => {
     renderWithRouter(<DashboardIntegrationsPage />);
 
     await waitFor(() => {
-      expect(screen.getByText(/Connected as: testuser/i)).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: /Disconnect/i })).toBeInTheDocument();
+      expect(screen.getByText('testuser')).toBeInTheDocument();
     });
   });
 
   it('calls startGitHubOAuth when Connect button is clicked', async () => {
-    (integrationsApi.getGitHubStatus as ReturnType<typeof vi.fn>).mockResolvedValue({
-      connected: false,
-    });
-
     renderWithRouter(<DashboardIntegrationsPage />);
 
-    let connectButton: HTMLElement;
     await waitFor(() => {
       const buttons = screen.getAllByRole('button', { name: /Connect/i });
-      // First Connect button should be for GitHub
-      connectButton = buttons[0];
-      expect(connectButton).toBeInTheDocument();
+      expect(buttons.length).toBeGreaterThan(0);
     });
 
-    fireEvent.click(connectButton!);
+    // First Connect button should be for GitHub
+    const connectButtons = screen.getAllByRole('button', { name: /Connect/i });
+    fireEvent.click(connectButtons[0]);
 
     // Should call OAuth start
     await waitFor(() => {
@@ -116,21 +119,41 @@ describe('DashboardIntegrationsPage', () => {
     vi.restoreAllMocks();
   });
 
-  // Note: OAuth callback notification test skipped - requires router query params
-  // Manual testing covers this scenario
+  it('renders all integration cards', async () => {
+    renderWithRouter(<DashboardIntegrationsPage />);
 
-  it('renders placeholder integrations as coming soon', async () => {
-    (integrationsApi.getGitHubStatus as ReturnType<typeof vi.fn>).mockResolvedValue({
-      connected: false,
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { name: /GitHub/i })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: /Jira/i })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: /Confluence/i })).toBeInTheDocument();
+    });
+  });
+
+  it('shows Jira as connected when status is connected', async () => {
+    (integrationsApi.getJiraStatus as ReturnType<typeof vi.fn>).mockResolvedValue({
+      connected: true,
+      siteUrl: 'https://test.atlassian.net',
+      userEmail: 'user@test.com',
     });
 
     renderWithRouter(<DashboardIntegrationsPage />);
 
     await waitFor(() => {
-      expect(screen.getByRole('heading', { name: /Jira Cloud/i })).toBeInTheDocument();
-      expect(screen.getByRole('heading', { name: /^Confluence$/i })).toBeInTheDocument();
-      expect(screen.getByRole('heading', { name: /Slack \(Notifications\)/i })).toBeInTheDocument();
+      expect(screen.getByText('user@test.com')).toBeInTheDocument();
+    });
+  });
+
+  it('shows Confluence as connected when status is connected', async () => {
+    (integrationsApi.getConfluenceStatus as ReturnType<typeof vi.fn>).mockResolvedValue({
+      connected: true,
+      siteUrl: 'https://test.atlassian.net',
+      userEmail: 'confluence@test.com',
+    });
+
+    renderWithRouter(<DashboardIntegrationsPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText('confluence@test.com')).toBeInTheDocument();
     });
   });
 });
-
