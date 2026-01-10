@@ -888,7 +888,8 @@ export class ScribeAgent extends BaseAgent {
       status: 'running',
     });
 
-    const repoContext = await this.gatherRepoContext(task.owner, task.repo, workingBranch);
+    // Use baseBranch for reading context (workingBranch may not exist yet)
+    const repoContext = await this.gatherRepoContext(task.owner, task.repo, baseBranch);
     
     this.traceRecorder?.recordPlanStep({
       stepId: 'gather-context',

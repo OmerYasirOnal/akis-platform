@@ -30,9 +30,9 @@ ALTER TABLE oauth_accounts
 ALTER TABLE oauth_accounts
   ADD COLUMN IF NOT EXISTS refresh_token_rotated_at TIMESTAMPTZ;
 
--- Create partial index for efficient Atlassian OAuth lookups
-CREATE INDEX IF NOT EXISTS idx_oauth_accounts_atlassian_user
-  ON oauth_accounts(user_id) WHERE provider = 'atlassian';
+-- Note: Partial index for Atlassian OAuth is not created in this migration
+-- because PostgreSQL requires enum values to be committed before they can be used in WHERE clauses.
+-- The existing idx_oauth_accounts_user_id index provides sufficient performance for OAuth lookups.
 
 -- Add comment for documentation
 COMMENT ON COLUMN oauth_accounts.cloud_id IS 'Atlassian Cloud ID for API calls (Atlassian OAuth only)';
