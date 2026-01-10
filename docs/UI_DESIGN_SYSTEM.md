@@ -1580,7 +1580,141 @@ module.exports = {
 
 ---
 
-## 14. Sonuç ve Kullanım Kılavuzu
+## 14. Motion & Animation Tokens (Cursor UI Update)
+
+**Güncelleme Notu:** Phase 10 - Cursor-inspired UI ile eklenen motion, glow ve blur tokenları.
+
+### 14.1 Motion Duration Tokens
+
+Animasyon sürelerini tutarlı tutmak için standart token'lar:
+
+| Token | Değer | Kullanım |
+|-------|-------|----------|
+| `--ak-motion-fast` | `150ms` | Hover state'leri, micro-interactions |
+| `--ak-motion-base` | `200ms` | Varsayılan geçişler |
+| `--ak-motion-slow` | `300ms` | Modal/drawer açılışları |
+| `--ak-motion-slower` | `500ms` | Sayfa geçişleri |
+
+**CSS Implementation:**
+
+```css
+:root {
+  --ak-motion-fast: 150ms;
+  --ak-motion-base: 200ms;
+  --ak-motion-slow: 300ms;
+  --ak-motion-slower: 500ms;
+}
+```
+
+### 14.2 Easing Functions
+
+| Token | Değer | Kullanım |
+|-------|-------|----------|
+| `--ak-ease-default` | `cubic-bezier(0.4, 0, 0.2, 1)` | Genel geçişler (ease-in-out) |
+| `--ak-ease-out` | `cubic-bezier(0, 0, 0.2, 1)` | Giriş animasyonları |
+| `--ak-ease-in` | `cubic-bezier(0.4, 0, 1, 1)` | Çıkış animasyonları |
+
+### 14.3 Glow Tokens
+
+AKIS Liquid Neon efekti için glow token'ları:
+
+| Token | Değer | Kullanım |
+|-------|-------|----------|
+| `--ak-glow-accent` | `0 0 24px rgba(7, 209, 175, 0.25)` | Primary buton hover, accent elementler |
+| `--ak-glow-subtle` | `0 0 16px rgba(7, 209, 175, 0.12)` | Kart hover, hafif vurgu |
+| `--ak-glow-edge` | `0 0 40px rgba(7, 209, 175, 0.08)` | Background blob'lar |
+
+**Tailwind Extension:**
+
+```javascript
+boxShadow: {
+  'ak-glow': '0 0 24px rgba(7, 209, 175, 0.25)',
+  'ak-glow-sm': '0 0 16px rgba(7, 209, 175, 0.12)',
+  'ak-glow-lg': '0 0 40px rgba(7, 209, 175, 0.3)',
+}
+```
+
+### 14.4 Blur Tokens
+
+Glassmorphism ve backdrop efektleri için:
+
+| Token | Değer | Kullanım |
+|-------|-------|----------|
+| `--ak-blur-backdrop` | `16px` | Header frosted glass, modal overlay |
+| `--ak-blur-card` | `8px` | Kart blur efekti |
+| `--ak-blur-blob` | `36px` | Background blob'ları |
+
+### 14.5 Reduced Motion Kuralları
+
+**Sistem Tercihi Desteği:**
+
+```css
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  
+  .liquid-blob {
+    animation: none !important;
+    opacity: 0.1 !important;
+  }
+}
+```
+
+**Manuel Toggle:**
+
+localStorage'da `akis-reduced-motion` anahtarı ile kullanıcı tercihi saklanır:
+
+```typescript
+// Okuma
+const reducedMotion = localStorage.getItem('akis-reduced-motion') === 'true';
+
+// Yazma
+localStorage.setItem('akis-reduced-motion', String(newValue));
+```
+
+### 14.6 Animation Best Practices
+
+**Yapılması Gerekenler:**
+
+- ✅ Yalnızca `transform` ve `opacity` animate edin (GPU-accelerated)
+- ✅ `will-change` özelliğini ihtiyatlı kullanın
+- ✅ Maksimum animasyon süresi: 500ms
+- ✅ Arka plan animasyonları: 10-20 saniye döngü, çok hafif
+- ✅ Her zaman `prefers-reduced-motion` kontrol edin
+
+**Yapılmaması Gerekenler:**
+
+- ❌ `width`, `height`, `top`, `left`, `margin`, `padding` animate etmeyin
+- ❌ Ana içerik alanında döngüsel animasyonlar kullanmayın
+- ❌ Yoğun JavaScript animation frame kullanmayın
+- ❌ Canvas veya WebGL gerektiren efektler eklemeyin (OCI performans kısıtı)
+
+### 14.7 Liquid Neon Background Kullanımı
+
+Background blob'ları için standart yapılandırma:
+
+| Blob | Boyut | Blur | Opacity | Animasyon Süresi |
+|------|-------|------|---------|------------------|
+| Primary | 384px | 40px | 0.15-0.20 | 20s |
+| Secondary | 320px | 32px | 0.12-0.18 | 25s |
+| Tertiary | 288px | 36px | 0.15-0.22 | 22s |
+| Ambient | 256px | 28px | 0.10-0.15 | 28s |
+| Edge | 224px | 28px | 0.08-0.12 | 30s |
+
+**Responsive Blob Sayısı:**
+
+- Desktop (lg+): 5 blob
+- Tablet (md): 3 blob  
+- Mobile (< md): 2 blob
+
+---
+
+## 15. Sonuç ve Kullanım Kılavuzu
 
 Bu design system dokümanı, AKIS Platform'un tüm UI bileşenlerini, renk paletini, tipografiyi ve kullanım kurallarını tanımlar.
 
