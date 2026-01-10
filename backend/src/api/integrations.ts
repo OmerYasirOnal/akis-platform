@@ -513,48 +513,80 @@ export async function integrationsRoutes(fastify: FastifyInstance) {
       try {
         const user = await requireAuth(request);
 
-        // Get GitHub status
-        const token = await getGitHubToken(user.id);
-        let githubStatus: { connected: boolean; login?: string } = { connected: false };
-        if (token) {
-          try {
-            const githubUser = await fetchFromGitHub<{ login: string }>('/user', token);
-            githubStatus = { connected: true, login: githubUser.login };
-          } catch {
-            githubStatus = { connected: false };
+        // Get GitHub status - isolated error handling
+        let githubStatus: { connected: boolean; login?: string; error?: { code: string; message: string } } = { connected: false };
+        try {
+          const token = await getGitHubToken(user.id);
+          if (token) {
+            try {
+              const githubUser = await fetchFromGitHub<{ login: string }>('/user', token);
+              githubStatus = { connected: true, login: githubUser.login };
+            } catch {
+              githubStatus = { connected: false };
+            }
           }
+        } catch (ghErr) {
+          console.error('[integrations] GitHub status check failed:', ghErr);
+          githubStatus = { 
+            connected: false, 
+            error: { code: 'STATUS_CHECK_FAILED', message: 'Unable to check GitHub status' }
+          };
         }
 
-        // Get Jira status
-        const jiraCred = await db.query.integrationCredentials.findFirst({
-          where: and(
-            eq(integrationCredentials.userId, user.id),
-            eq(integrationCredentials.provider, 'jira')
-          ),
-        });
+        // Get Jira status - isolated error handling
+        let jiraStatus: { connected: boolean; siteUrl?: string; userEmail?: string; lastValidatedAt?: Date | null; error?: { code: string; message: string } } = { connected: false };
+        try {
+          const jiraCred = await db.query.integrationCredentials.findFirst({
+            where: and(
+              eq(integrationCredentials.userId, user.id),
+              eq(integrationCredentials.provider, 'jira')
+            ),
+          });
+          if (jiraCred) {
+            jiraStatus = {
+              connected: jiraCred.isValid,
+              siteUrl: jiraCred.siteUrl,
+              userEmail: jiraCred.userEmail,
+              lastValidatedAt: jiraCred.lastValidatedAt,
+            };
+          }
+        } catch (jiraErr) {
+          console.error('[integrations] Jira status check failed:', jiraErr);
+          jiraStatus = { 
+            connected: false, 
+            error: { code: 'STATUS_CHECK_FAILED', message: 'Unable to check Jira status' }
+          };
+        }
 
-        // Get Confluence status
-        const confluenceCred = await db.query.integrationCredentials.findFirst({
-          where: and(
-            eq(integrationCredentials.userId, user.id),
-            eq(integrationCredentials.provider, 'confluence')
-          ),
-        });
+        // Get Confluence status - isolated error handling
+        let confluenceStatus: { connected: boolean; siteUrl?: string; userEmail?: string; lastValidatedAt?: Date | null; error?: { code: string; message: string } } = { connected: false };
+        try {
+          const confluenceCred = await db.query.integrationCredentials.findFirst({
+            where: and(
+              eq(integrationCredentials.userId, user.id),
+              eq(integrationCredentials.provider, 'confluence')
+            ),
+          });
+          if (confluenceCred) {
+            confluenceStatus = {
+              connected: confluenceCred.isValid,
+              siteUrl: confluenceCred.siteUrl,
+              userEmail: confluenceCred.userEmail,
+              lastValidatedAt: confluenceCred.lastValidatedAt,
+            };
+          }
+        } catch (confErr) {
+          console.error('[integrations] Confluence status check failed:', confErr);
+          confluenceStatus = { 
+            connected: false, 
+            error: { code: 'STATUS_CHECK_FAILED', message: 'Unable to check Confluence status' }
+          };
+        }
 
         return reply.code(200).send({
           github: githubStatus,
-          jira: jiraCred ? {
-            connected: jiraCred.isValid,
-            siteUrl: jiraCred.siteUrl,
-            userEmail: jiraCred.userEmail,
-            lastValidatedAt: jiraCred.lastValidatedAt,
-          } : { connected: false },
-          confluence: confluenceCred ? {
-            connected: confluenceCred.isValid,
-            siteUrl: confluenceCred.siteUrl,
-            userEmail: confluenceCred.userEmail,
-            lastValidatedAt: confluenceCred.lastValidatedAt,
-          } : { connected: false },
+          jira: jiraStatus,
+          confluence: confluenceStatus,
         });
       } catch (err: unknown) {
         if (err instanceof Error && err.message === 'UNAUTHORIZED') {
@@ -562,7 +594,13 @@ export async function integrationsRoutes(fastify: FastifyInstance) {
             error: { code: 'UNAUTHORIZED', message: 'Authentication required' },
           });
         }
-        throw err;
+        // Even if something catastrophic happens, return a degraded response
+        console.error('[integrations] All status check failed:', err);
+        return reply.code(200).send({
+          github: { connected: false, error: { code: 'STATUS_CHECK_FAILED', message: 'Service unavailable' } },
+          jira: { connected: false, error: { code: 'STATUS_CHECK_FAILED', message: 'Service unavailable' } },
+          confluence: { connected: false, error: { code: 'STATUS_CHECK_FAILED', message: 'Service unavailable' } },
+        });
       }
     }
   );
@@ -725,7 +763,16 @@ export async function integrationsRoutes(fastify: FastifyInstance) {
             error: { code: 'UNAUTHORIZED', message: 'Authentication required' },
           });
         }
-        throw err;
+        // Graceful degradation: return disconnected status with error info
+        // Never return 500 for status check endpoints
+        console.error('[integrations] Jira status check failed:', err);
+        return reply.code(200).send({
+          connected: false,
+          error: {
+            code: 'STATUS_CHECK_FAILED',
+            message: 'Unable to check Jira connection status. Please try again later.',
+          },
+        });
       }
     }
   );
@@ -938,7 +985,16 @@ export async function integrationsRoutes(fastify: FastifyInstance) {
             error: { code: 'UNAUTHORIZED', message: 'Authentication required' },
           });
         }
-        throw err;
+        // Graceful degradation: return disconnected status with error info
+        // Never return 500 for status check endpoints
+        console.error('[integrations] Confluence status check failed:', err);
+        return reply.code(200).send({
+          connected: false,
+          error: {
+            code: 'STATUS_CHECK_FAILED',
+            message: 'Unable to check Confluence connection status. Please try again later.',
+          },
+        });
       }
     }
   );

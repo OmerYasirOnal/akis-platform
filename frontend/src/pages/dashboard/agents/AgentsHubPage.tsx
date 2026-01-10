@@ -10,7 +10,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import Card from '../../../components/common/Card';
 import Button from '../../../components/common/Button';
 import SearchableSelect, { type SelectOption } from '../../../components/common/SearchableSelect';
-import { agentsApi, type AgentType, type JobDetail } from '../../../services/api/agents';
+import { agentsApi, type AgentType, type JobDetail, type RunningJob } from '../../../services/api/agents';
 import { agentConfigsApi, type ScribeConfig } from '../../../services/api/agent-configs';
 import { githubDiscoveryApi, type GitHubRepo, type GitHubBranch } from '../../../services/api/github-discovery';
 import { integrationsApi } from '../../../services/api/integrations';
@@ -176,10 +176,17 @@ export default function AgentsHubPage() {
   const [loadingRepos, setLoadingRepos] = useState(false);
   const [loadingBranches, setLoadingBranches] = useState(false);
   
+  // Branch strategy state
+  const [branchStrategy, setBranchStrategy] = useState<'manual' | 'auto'>('auto');
+  const [autoBranchPreview, setAutoBranchPreview] = useState('');
+  
   // Job state
   const [currentJob, setCurrentJob] = useState<JobDetail | null>(null);
   const [isRunning, setIsRunning] = useState(false);
   const [jobError, setJobError] = useState<string | null>(null);
+  
+  // Running jobs (for duplicate prevention)
+  const [runningJobs, setRunningJobs] = useState<RunningJob[]>([]);
   
   // User configs
   const [userConfigs, setUserConfigs] = useState<ScribeConfig[]>([]);
@@ -199,6 +206,47 @@ export default function AgentsHubPage() {
     };
     checkGitHub();
   }, []);
+
+  // Fetch running jobs for duplicate prevention and live progress
+  useEffect(() => {
+    const fetchRunningJobs = async () => {
+      try {
+        const result = await agentsApi.getRunningJobs();
+        setRunningJobs(result.jobs);
+        
+        // If there's a running job for the current repo, set it as current
+        if (selectedRepo && result.jobs.length > 0) {
+          const matchingJob = result.jobs.find(
+            (job) => job.payload?.owner === githubUser && job.payload?.repo === selectedRepo
+          );
+          if (matchingJob && !currentJob) {
+            // Fetch full job details
+            const fullJob = await agentsApi.getJob(matchingJob.id, { include: ['trace'] });
+            setCurrentJob(fullJob);
+            if (fullJob.state === 'running' || fullJob.state === 'pending') {
+              setIsRunning(true);
+            }
+          }
+        }
+      } catch {
+        // Silently ignore errors fetching running jobs
+      }
+    };
+
+    // Initial fetch
+    if (githubConnected) {
+      fetchRunningJobs();
+    }
+
+    // Poll every 3 seconds while connected
+    const interval = setInterval(() => {
+      if (githubConnected) {
+        fetchRunningJobs();
+      }
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }, [githubConnected, githubUser, selectedRepo, currentJob]);
 
   // Load repos when GitHub is connected
   useEffect(() => {
@@ -253,6 +301,25 @@ export default function AgentsHubPage() {
       }
     };
     loadConfigs();
+  }, []);
+
+  // Generate auto branch preview
+  useEffect(() => {
+    const generatePreview = () => {
+      const now = new Date();
+      const yyyy = now.getFullYear();
+      const mm = String(now.getMonth() + 1).padStart(2, '0');
+      const dd = String(now.getDate()).padStart(2, '0');
+      const HH = String(now.getHours()).padStart(2, '0');
+      const MM = String(now.getMinutes()).padStart(2, '0');
+      const SS = String(now.getSeconds()).padStart(2, '0');
+      setAutoBranchPreview(`scribe/docs-${yyyy}${mm}${dd}-${HH}${MM}${SS}`);
+    };
+    
+    generatePreview();
+    // Regenerate preview every second when auto is selected
+    const interval = setInterval(generatePreview, 1000);
+    return () => clearInterval(interval);
   }, []);
 
   // Filtered agents based on search
@@ -310,26 +377,35 @@ export default function AgentsHubPage() {
           owner: githubUser,
           repo: selectedRepo,
           baseBranch: selectedBranch,
+          // If auto strategy, don't send featureBranch - backend will generate
+          // If manual, also don't send - backend will auto-generate unique name
+          branchStrategy,
           dryRun: true,
           ...(aiProvider && { aiProvider }),
         },
       });
 
-      // Poll for job status
+      // Poll for job status - faster polling (1s) while running
       const pollJob = async () => {
-        const job = await agentsApi.getJob(response.jobId, { include: ['trace'] });
-        setCurrentJob(job);
-        
-        if (job.state === 'completed' || job.state === 'failed') {
-          setIsRunning(false);
-          if (job.state === 'failed') {
-            setJobError(job.errorMessage || job.error?.toString() || 'Job failed');
+        try {
+          const job = await agentsApi.getJob(response.jobId, { include: ['trace'] });
+          setCurrentJob(job);
+          
+          if (job.state === 'completed' || job.state === 'failed') {
+            setIsRunning(false);
+            if (job.state === 'failed') {
+              setJobError(job.errorMessage || job.error?.toString() || 'Job failed');
+            }
+            return;
           }
-          return;
+          
+          // Continue polling with 1 second interval for live updates
+          setTimeout(pollJob, 1000);
+        } catch (pollError) {
+          console.error('Failed to poll job:', pollError);
+          // Retry after longer delay on error
+          setTimeout(pollJob, 3000);
         }
-        
-        // Continue polling
-        setTimeout(pollJob, 2000);
       };
       
       pollJob();
@@ -347,7 +423,17 @@ export default function AgentsHubPage() {
     }
   };
 
-  const canRun = selectedAgent?.status === 'available' && githubConnected && selectedRepo && selectedBranch && !isRunning;
+  // Check if there's already a running job for the current repo
+  const existingRunningJob = runningJobs.find(
+    (job) => job.payload?.owner === githubUser && job.payload?.repo === selectedRepo
+  );
+  
+  const canRun = selectedAgent?.status === 'available' && 
+                 githubConnected && 
+                 selectedRepo && 
+                 selectedBranch && 
+                 !isRunning && 
+                 !existingRunningJob;
 
   return (
     <div className="flex h-full gap-6">
@@ -529,33 +615,127 @@ export default function AgentsHubPage() {
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {/* Repo Selection - Symmetric Grid Layout */}
-                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                      <div className="w-full">
-                        <SearchableSelect
-                          label="Repository"
-                          placeholder="Select repository"
-                          options={repoOptions}
-                          value={selectedRepo}
-                          onChange={setSelectedRepo}
-                          loading={loadingRepos}
-                          emptyMessage="No repositories"
-                        />
-                      </div>
-                      <div className="w-full">
-                        <SearchableSelect
-                          label="Branch"
-                          placeholder="Select branch"
-                          options={branchOptions}
-                          value={selectedBranch}
-                          onChange={setSelectedBranch}
-                          loading={loadingBranches}
-                          emptyMessage="No branches"
-                          disabled={!selectedRepo}
-                          allowManualInput={false}
-                        />
-                      </div>
+                    {/* Repo Selection */}
+                    <div className="w-full">
+                      <SearchableSelect
+                        label="Repository"
+                        placeholder="Select repository"
+                        options={repoOptions}
+                        value={selectedRepo}
+                        onChange={setSelectedRepo}
+                        loading={loadingRepos}
+                        emptyMessage="No repositories"
+                        allowManualInput={false}
+                      />
                     </div>
+
+                    {/* Base Branch Selection */}
+                    <div className="w-full">
+                      <SearchableSelect
+                        label="Base Branch"
+                        placeholder="Select base branch"
+                        options={branchOptions}
+                        value={selectedBranch}
+                        onChange={setSelectedBranch}
+                        loading={loadingBranches}
+                        emptyMessage="No branches"
+                        disabled={!selectedRepo}
+                        allowManualInput={false}
+                        description="The branch to base your documentation update on"
+                      />
+                    </div>
+
+                    {/* Branch Strategy Selector */}
+                    <div className="space-y-2">
+                      <label className="block text-sm font-medium text-ak-text-primary">
+                        Feature Branch
+                      </label>
+                      <div className="flex gap-4">
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="radio"
+                            name="branchStrategy"
+                            value="auto"
+                            checked={branchStrategy === 'auto'}
+                            onChange={() => setBranchStrategy('auto')}
+                            className="w-4 h-4 text-ak-primary border-ak-border focus:ring-ak-primary"
+                          />
+                          <span className="text-sm text-ak-text-primary">Auto-create</span>
+                        </label>
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="radio"
+                            name="branchStrategy"
+                            value="manual"
+                            checked={branchStrategy === 'manual'}
+                            onChange={() => setBranchStrategy('manual')}
+                            className="w-4 h-4 text-ak-primary border-ak-border focus:ring-ak-primary"
+                          />
+                          <span className="text-sm text-ak-text-primary">Manual</span>
+                        </label>
+                      </div>
+                      
+                      {branchStrategy === 'auto' ? (
+                        <div className="mt-2 p-3 rounded-lg bg-ak-surface-2 border border-ak-border">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <span className="text-xs text-ak-text-secondary">Preview:</span>
+                              <code className="ml-2 text-sm font-mono text-ak-primary">
+                                {autoBranchPreview}
+                              </code>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const now = new Date();
+                                const yyyy = now.getFullYear();
+                                const mm = String(now.getMonth() + 1).padStart(2, '0');
+                                const dd = String(now.getDate()).padStart(2, '0');
+                                const HH = String(now.getHours()).padStart(2, '0');
+                                const MM = String(now.getMinutes()).padStart(2, '0');
+                                const SS = String(now.getSeconds()).padStart(2, '0');
+                                setAutoBranchPreview(`scribe/docs-${yyyy}${mm}${dd}-${HH}${MM}${SS}`);
+                              }}
+                              className="text-xs text-ak-primary hover:underline"
+                            >
+                              Refresh
+                            </button>
+                          </div>
+                          <p className="mt-1 text-xs text-ak-text-secondary">
+                            A unique branch will be created when you run the agent
+                          </p>
+                        </div>
+                      ) : (
+                        <p className="mt-1 text-xs text-ak-text-secondary">
+                          The agent will create a new branch from the selected base branch
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Existing Running Job Warning */}
+                    {existingRunningJob && (
+                      <div className="rounded-xl border border-yellow-500/30 bg-yellow-500/10 p-4">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <div className="h-2 w-2 rounded-full bg-yellow-500 animate-pulse" />
+                            <span className="text-sm text-yellow-400">
+                              Agent is already running for this repository
+                            </span>
+                          </div>
+                          <Link
+                            to={`/dashboard/jobs/${existingRunningJob.id}`}
+                            className="text-sm font-medium text-ak-primary hover:underline"
+                          >
+                            View Run →
+                          </Link>
+                        </div>
+                        {existingRunningJob.latestTrace && (
+                          <p className="mt-2 text-xs text-ak-text-secondary">
+                            Current step: {existingRunningJob.latestTrace.title}
+                          </p>
+                        )}
+                      </div>
+                    )}
 
                     {/* Run Button */}
                     <div className="flex items-center gap-3">
@@ -565,7 +745,7 @@ export default function AgentsHubPage() {
                         className="gap-2"
                       >
                         <PlayIcon />
-                        {isRunning ? 'Running...' : 'Run Agent'}
+                        {isRunning ? 'Running...' : existingRunningJob ? 'Agent Running' : 'Run Agent'}
                       </Button>
                       {currentJob && (
                         <Link
@@ -582,7 +762,7 @@ export default function AgentsHubPage() {
                       <div className={`rounded-xl p-4 ${
                         currentJob.state === 'completed' ? 'bg-green-500/10 border border-green-500/30' :
                         currentJob.state === 'failed' ? 'bg-red-500/10 border border-red-500/30' :
-                        'bg-ak-surface-2'
+                        'bg-ak-surface-2 border border-ak-border'
                       }`}>
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
@@ -601,6 +781,37 @@ export default function AgentsHubPage() {
                             {currentJob.id.substring(0, 8)}...
                           </span>
                         </div>
+
+                        {/* Live Progress: Latest Trace Events */}
+                        {(currentJob.state === 'running' || currentJob.state === 'pending') && currentJob.trace && Array.isArray(currentJob.trace) && currentJob.trace.length > 0 && (
+                          <div className="mt-3 pt-3 border-t border-ak-border/50">
+                            <div className="flex items-center gap-2 mb-2">
+                              <svg className="h-4 w-4 text-ak-primary animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                              </svg>
+                              <span className="text-xs font-medium text-ak-primary">Live Progress</span>
+                            </div>
+                            <div className="space-y-1 max-h-32 overflow-y-auto">
+                              {(currentJob.trace as Array<{ title?: string; eventType?: string; timestamp?: string }>).slice(-5).reverse().map((trace, idx) => (
+                                <div key={idx} className="flex items-start gap-2 text-xs">
+                                  <span className="text-ak-text-secondary">
+                                    {trace.eventType === 'step_start' ? '▶' :
+                                     trace.eventType === 'step_complete' ? '✓' :
+                                     trace.eventType === 'ai_call' ? '🤖' :
+                                     trace.eventType === 'mcp_call' ? '⚡' :
+                                     trace.eventType === 'error' ? '❌' : '•'}
+                                  </span>
+                                  <span className="text-ak-text-secondary truncate flex-1">
+                                    {trace.title || trace.eventType}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                            <div className="mt-2 text-[10px] text-ak-text-secondary">
+                              Updated: {new Date().toLocaleTimeString()}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     )}
 
