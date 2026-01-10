@@ -26,7 +26,9 @@ describe('Health Endpoints', async () => {
 
       assert.strictEqual(response.statusCode, 200);
       const body = JSON.parse(response.body);
-      assert.deepStrictEqual(body, { status: 'ok' });
+      assert.strictEqual(body.status, 'ok');
+      assert.ok(body.timestamp, 'Should include timestamp');
+      assert.ok(typeof body.timestamp === 'string', 'Timestamp should be a string');
     });
 
     test('should have correct content-type', async () => {
