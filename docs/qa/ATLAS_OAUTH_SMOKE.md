@@ -10,13 +10,20 @@ This document provides curl-based verification commands to test the Atlassian OA
 
 ## Get Session Cookie
 
-First, log into AKIS and save the session cookie:
+First, log into AKIS using the multi-step auth flow and save the session cookie:
 
 ```bash
-# Login and save cookies
-curl -c cookies.txt -X POST http://localhost:3000/api/auth/login \
+# Step 1: Get userId from email
+USER_ID=$(curl -s -X POST http://localhost:3000/auth/login/start \
   -H "Content-Type: application/json" \
-  -d '{"email":"your@email.com","password":"your-password"}'
+  -d '{"email":"your@email.com"}' | jq -r '.userId')
+
+echo "User ID: $USER_ID"
+
+# Step 2: Complete login with userId and password
+curl -c cookies.txt -X POST http://localhost:3000/auth/login/complete \
+  -H "Content-Type: application/json" \
+  -d "{\"userId\":\"$USER_ID\",\"password\":\"your-password\"}"
 ```
 
 ## Health Check
