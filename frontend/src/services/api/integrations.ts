@@ -1,5 +1,5 @@
 /**
- * Integrations API Client - GitHub, Jira, Confluence
+ * Integrations API Client - GitHub, Atlassian OAuth, Jira, Confluence
  * For managing external integrations
  */
 import { HttpClient } from './HttpClient';
@@ -23,12 +23,35 @@ export interface GitHubDisconnectResponse {
   ok: boolean;
 }
 
+/**
+ * Atlassian OAuth 2.0 (3LO) status
+ * Single OAuth connection enables both Jira + Confluence
+ */
+export interface AtlassianOAuthStatus {
+  connected: boolean;
+  configured: boolean;
+  siteUrl?: string;
+  cloudId?: string;
+  scopes?: string;
+  jiraAvailable: boolean;
+  confluenceAvailable: boolean;
+  tokenExpiresAt?: string;
+  refreshTokenRotatedAt?: string;
+  error?: { code: string; message: string };
+}
+
+/**
+ * Jira/Confluence individual status
+ * Can be connected via OAuth or legacy API token
+ */
 export interface AtlassianStatus {
   connected: boolean;
   siteUrl?: string;
   userEmail?: string;
   tokenLast4?: string;
   lastValidatedAt?: string;
+  viaOAuth?: boolean;
+  scopes?: string;
   error?: { code: string; message: string };
 }
 
@@ -52,6 +75,7 @@ export interface AtlassianTestResponse {
 
 export interface AllIntegrationsStatus {
   github: { connected: boolean; login?: string; error?: { code: string; message: string } };
+  atlassian: { connected: boolean; siteUrl?: string; cloudId?: string; jiraAvailable: boolean; confluenceAvailable: boolean; error?: { code: string; message: string } };
   jira: AtlassianStatus;
   confluence: AtlassianStatus;
 }
@@ -97,7 +121,36 @@ export const integrationsApi = {
   },
 
   // =========================================================================
-  // Jira
+  // Atlassian OAuth 2.0 (3LO) - Single OAuth for Jira + Confluence
+  // =========================================================================
+
+  /**
+   * Get Atlassian OAuth status
+   * Returns combined status for both Jira and Confluence
+   */
+  async getAtlassianStatus(): Promise<AtlassianOAuthStatus> {
+    return httpClient.get<AtlassianOAuthStatus>('/api/integrations/atlassian/status');
+  },
+
+  /**
+   * Start Atlassian OAuth flow (redirects browser)
+   * One OAuth connection enables both Jira and Confluence
+   */
+  startAtlassianOAuth(): void {
+    window.location.href = `${apiBaseURL}/api/integrations/atlassian/oauth/start`;
+  },
+
+  /**
+   * Disconnect Atlassian OAuth
+   * Removes OAuth connection for both Jira and Confluence
+   */
+  async disconnectAtlassian(): Promise<{ ok: boolean }> {
+    return httpClient.post<{ ok: boolean }>('/api/integrations/atlassian/disconnect', {});
+  },
+
+  // =========================================================================
+  // Jira (Legacy API Token - Soft Deprecated)
+  // OAuth is now the primary method
   // =========================================================================
   
   /**

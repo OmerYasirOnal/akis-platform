@@ -1,13 +1,19 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import Button from '../../../components/common/Button';
-import AtlassianConnectModal from '../../../components/integrations/AtlassianConnectModal';
-import { integrationsApi, type AtlassianStatus } from '../../../services/api/integrations';
+import { integrationsApi, type AtlassianStatus, type AtlassianOAuthStatus } from '../../../services/api/integrations';
 
 // GitHub icon
 const GitHubIcon = () => (
   <svg className="h-8 w-8" fill="currentColor" viewBox="0 0 24 24">
     <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+  </svg>
+);
+
+// Atlassian icon (combined)
+const AtlassianIcon = () => (
+  <svg className="h-8 w-8" viewBox="0 0 24 24" fill="currentColor">
+    <path d="M7.12 11.08a.74.74 0 00-1.2.18L.62 21.9a.72.72 0 00.65 1.05h7.55a.72.72 0 00.65-.42c1.48-3.12.57-7.85-2.35-11.45zM11.55.17a15.06 15.06 0 00-1.1 15.08l3.77 7.61a.72.72 0 00.65.42h7.55a.72.72 0 00.65-1.05L12.75.35a.74.74 0 00-1.2-.18z"/>
   </svg>
 );
 
@@ -39,7 +45,7 @@ const CheckIcon = () => (
   </svg>
 );
 
-type IntegrationStatus = 'connected' | 'not_connected';
+type IntegrationStatus = 'connected' | 'not_connected' | 'connected_via_oauth';
 
 interface Integration {
   id: 'github' | 'jira' | 'confluence';
@@ -97,6 +103,10 @@ const statusStyles = {
     badge: 'bg-green-500/10 text-green-400 border-green-500/20',
     text: 'Connected',
   },
+  connected_via_oauth: {
+    badge: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
+    text: 'Connected via Atlassian',
+  },
   not_connected: {
     badge: 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20',
     text: 'Not Connected',
@@ -110,11 +120,14 @@ export default function IntegrationsHubPage() {
 
   // Integration statuses
   const [githubStatus, setGithubStatus] = useState<IntegrationStatus>('not_connected');
+  const [atlassianOAuthStatus, setAtlassianOAuthStatus] = useState<AtlassianOAuthStatus>({
+    connected: false,
+    configured: false,
+    jiraAvailable: false,
+    confluenceAvailable: false,
+  });
   const [jiraStatus, setJiraStatus] = useState<AtlassianStatus>({ connected: false });
   const [confluenceStatus, setConfluenceStatus] = useState<AtlassianStatus>({ connected: false });
-
-  // Modal state
-  const [connectModalOpen, setConnectModalOpen] = useState<'jira' | 'confluence' | null>(null);
 
   // Load all integration statuses
   const loadAllStatuses = useCallback(async () => {
@@ -126,6 +139,21 @@ export default function IntegrationsHubPage() {
       } catch (err) {
         console.error('Failed to load GitHub status:', err);
         setGithubStatus('not_connected');
+      }
+    };
+
+    const loadAtlassian = async () => {
+      try {
+        const atlassian = await integrationsApi.getAtlassianStatus();
+        setAtlassianOAuthStatus(atlassian);
+      } catch (err) {
+        console.error('Failed to load Atlassian status:', err);
+        setAtlassianOAuthStatus({
+          connected: false,
+          configured: false,
+          jiraAvailable: false,
+          confluenceAvailable: false,
+        });
       }
     };
 
@@ -155,23 +183,48 @@ export default function IntegrationsHubPage() {
       }
     };
 
-    await Promise.all([loadGitHub(), loadJira(), loadConfluence()]);
+    await Promise.all([loadGitHub(), loadAtlassian(), loadJira(), loadConfluence()]);
     setLoading(false);
   }, []);
 
   // Handle OAuth callback params
   useEffect(() => {
+    // GitHub OAuth callback
     const githubParam = searchParams.get('github');
     if (githubParam === 'connected') {
       setMessage({ type: 'success', text: 'GitHub connected successfully!' });
       searchParams.delete('github');
       setSearchParams(searchParams, { replace: true });
-      // Refresh statuses
       loadAllStatuses();
     } else if (githubParam === 'error') {
       const reason = searchParams.get('reason') || 'unknown';
       setMessage({ type: 'error', text: `GitHub connection failed: ${reason}` });
       searchParams.delete('github');
+      searchParams.delete('reason');
+      setSearchParams(searchParams, { replace: true });
+    }
+
+    // Atlassian OAuth callback
+    const atlassianParam = searchParams.get('atlassian');
+    if (atlassianParam === 'connected') {
+      setMessage({ type: 'success', text: 'Atlassian connected successfully! Both Jira and Confluence are now available.' });
+      searchParams.delete('atlassian');
+      setSearchParams(searchParams, { replace: true });
+      loadAllStatuses();
+    } else if (atlassianParam === 'error') {
+      const reason = searchParams.get('reason') || 'unknown';
+      let errorMessage = 'Atlassian connection failed';
+      if (reason === 'state_mismatch') {
+        errorMessage = 'Atlassian connection failed: Security verification failed. Please try again.';
+      } else if (reason === 'no_accessible_resources') {
+        errorMessage = 'Atlassian connection failed: No accessible Atlassian sites found.';
+      } else if (reason === 'missing_code') {
+        errorMessage = 'Atlassian connection failed: Authorization was cancelled or denied.';
+      } else {
+        errorMessage = `Atlassian connection failed: ${reason}`;
+      }
+      setMessage({ type: 'error', text: errorMessage });
+      searchParams.delete('atlassian');
       searchParams.delete('reason');
       setSearchParams(searchParams, { replace: true });
     }
@@ -196,8 +249,14 @@ export default function IntegrationsHubPage() {
       case 'github':
         return githubStatus;
       case 'jira':
+        if (jiraStatus.viaOAuth || (atlassianOAuthStatus.connected && atlassianOAuthStatus.jiraAvailable)) {
+          return 'connected_via_oauth';
+        }
         return jiraStatus.connected ? 'connected' : 'not_connected';
       case 'confluence':
+        if (confluenceStatus.viaOAuth || (atlassianOAuthStatus.connected && atlassianOAuthStatus.confluenceAvailable)) {
+          return 'connected_via_oauth';
+        }
         return confluenceStatus.connected ? 'connected' : 'not_connected';
       default:
         return 'not_connected';
@@ -220,37 +279,25 @@ export default function IntegrationsHubPage() {
     }
   };
 
-  const handleAtlassianConnect = async (
-    provider: 'jira' | 'confluence',
-    data: { siteUrl: string; email: string; apiToken: string }
-  ) => {
-    if (provider === 'jira') {
-      await integrationsApi.connectJira(data);
-      const status = await integrationsApi.getJiraStatus();
-      setJiraStatus(status);
-      setMessage({ type: 'success', text: 'Jira connected successfully!' });
-    } else {
-      await integrationsApi.connectConfluence(data);
-      const status = await integrationsApi.getConfluenceStatus();
-      setConfluenceStatus(status);
-      setMessage({ type: 'success', text: 'Confluence connected successfully!' });
-    }
+  const handleAtlassianOAuthConnect = () => {
+    integrationsApi.startAtlassianOAuth();
   };
 
-  const handleAtlassianDisconnect = async (provider: 'jira' | 'confluence') => {
+  const handleAtlassianOAuthDisconnect = async () => {
     try {
-      if (provider === 'jira') {
-        await integrationsApi.disconnectJira();
-        setJiraStatus({ connected: false });
-        setMessage({ type: 'success', text: 'Jira disconnected successfully.' });
-      } else {
-        await integrationsApi.disconnectConfluence();
-        setConfluenceStatus({ connected: false });
-        setMessage({ type: 'success', text: 'Confluence disconnected successfully.' });
-      }
+      await integrationsApi.disconnectAtlassian();
+      setAtlassianOAuthStatus({
+        connected: false,
+        configured: atlassianOAuthStatus.configured,
+        jiraAvailable: false,
+        confluenceAvailable: false,
+      });
+      setJiraStatus({ connected: false });
+      setConfluenceStatus({ connected: false });
+      setMessage({ type: 'success', text: 'Atlassian disconnected. Both Jira and Confluence are now disconnected.' });
     } catch (error) {
-      console.error(`Failed to disconnect ${provider}:`, error);
-      setMessage({ type: 'error', text: `Failed to disconnect ${provider}. Please try again.` });
+      console.error('Failed to disconnect Atlassian:', error);
+      setMessage({ type: 'error', text: 'Failed to disconnect Atlassian. Please try again.' });
     }
   };
 
@@ -258,7 +305,8 @@ export default function IntegrationsHubPage() {
     if (id === 'github') {
       handleGitHubConnect();
     } else {
-      setConnectModalOpen(id);
+      // For Jira/Confluence, use Atlassian OAuth
+      handleAtlassianOAuthConnect();
     }
   };
 
@@ -266,7 +314,8 @@ export default function IntegrationsHubPage() {
     if (id === 'github') {
       handleGitHubDisconnect();
     } else {
-      handleAtlassianDisconnect(id);
+      // For Jira/Confluence connected via OAuth, disconnect the Atlassian OAuth
+      handleAtlassianOAuthDisconnect();
     }
   };
 
@@ -300,6 +349,78 @@ export default function IntegrationsHubPage() {
         </div>
       )}
 
+      {/* Atlassian OAuth Section */}
+      <div className="rounded-2xl border border-ak-border bg-ak-surface-2 p-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 text-white">
+              <AtlassianIcon />
+            </div>
+            <div>
+              <h2 className="text-lg font-bold text-ak-text-primary">Atlassian Integration</h2>
+              <p className="text-sm text-ak-text-secondary">
+                Connect once to enable both Jira and Confluence
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-4">
+            {atlassianOAuthStatus.connected ? (
+              <>
+                <div className="text-right">
+                  <span className="inline-block rounded-full border border-green-500/20 bg-green-500/10 px-3 py-1 text-sm font-medium text-green-400">
+                    Connected
+                  </span>
+                  {atlassianOAuthStatus.siteUrl && (
+                    <p className="mt-1 text-xs text-ak-text-secondary">{atlassianOAuthStatus.siteUrl}</p>
+                  )}
+                </div>
+                <Button
+                  variant="outline"
+                  onClick={handleAtlassianOAuthDisconnect}
+                >
+                  Disconnect
+                </Button>
+              </>
+            ) : atlassianOAuthStatus.configured ? (
+              <Button
+                variant="primary"
+                onClick={handleAtlassianOAuthConnect}
+                disabled={loading}
+              >
+                {loading ? 'Loading...' : 'Connect with Atlassian'}
+              </Button>
+            ) : (
+              <div className="text-right">
+                <span className="inline-block rounded-full border border-yellow-500/20 bg-yellow-500/10 px-3 py-1 text-sm font-medium text-yellow-400">
+                  Not Configured
+                </span>
+                <p className="mt-1 text-xs text-ak-text-secondary">
+                  Set ATLASSIAN_OAUTH_* env vars
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+        
+        {/* Products enabled by Atlassian OAuth */}
+        {atlassianOAuthStatus.connected && (
+          <div className="mt-4 flex gap-4 border-t border-ak-border pt-4">
+            <div className="flex items-center gap-2">
+              <JiraIcon />
+              <span className={`text-sm ${atlassianOAuthStatus.jiraAvailable ? 'text-green-400' : 'text-ak-text-secondary'}`}>
+                {atlassianOAuthStatus.jiraAvailable ? '✓ Jira Available' : 'Jira Not Available'}
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <ConfluenceIcon />
+              <span className={`text-sm ${atlassianOAuthStatus.confluenceAvailable ? 'text-green-400' : 'text-ak-text-secondary'}`}>
+                {atlassianOAuthStatus.confluenceAvailable ? '✓ Confluence Available' : 'Confluence Not Available'}
+              </span>
+            </div>
+          </div>
+        )}
+      </div>
+
       {/* Info Callout */}
       <div className="rounded-xl border border-ak-primary/20 bg-ak-primary/5 p-4">
         <div className="flex gap-3">
@@ -309,9 +430,9 @@ export default function IntegrationsHubPage() {
             </svg>
           </div>
           <div>
-            <h3 className="font-medium text-ak-primary">Secure Credential Storage</h3>
+            <h3 className="font-medium text-ak-primary">Secure OAuth Connection</h3>
             <p className="mt-1 text-sm text-ak-text-secondary">
-              Your API tokens are encrypted using AES-256-GCM before storage. Credentials are never logged and only the last 4 characters are shown for identification.
+              Connecting with Atlassian uses OAuth 2.0 - your credentials are never stored. Tokens are encrypted using AES-256-GCM and automatically refreshed.
             </p>
           </div>
         </div>
@@ -321,6 +442,8 @@ export default function IntegrationsHubPage() {
       <div className="grid gap-6 lg:grid-cols-2 xl:grid-cols-3">
         {integrations.map((integration) => {
           const status = getStatus(integration.id);
+          const isAtlassianProduct = integration.id === 'jira' || integration.id === 'confluence';
+          const isConnectedViaOAuth = status === 'connected_via_oauth';
           const atlassianInfo = integration.id === 'jira' ? jiraStatus : integration.id === 'confluence' ? confluenceStatus : null;
 
           return (
@@ -354,8 +477,16 @@ export default function IntegrationsHubPage() {
                 {integration.description}
               </p>
 
-              {/* Connection Info (for Atlassian) */}
-              {atlassianInfo?.connected && atlassianInfo.siteUrl && (
+              {/* Connection Info */}
+              {(isConnectedViaOAuth && atlassianOAuthStatus.siteUrl) && (
+                <div className="mt-4 rounded-lg bg-blue-500/5 border border-blue-500/20 p-3 text-xs text-blue-400">
+                  <p className="font-medium">Connected via Atlassian OAuth</p>
+                  <p className="mt-1">Site: {atlassianOAuthStatus.siteUrl}</p>
+                </div>
+              )}
+
+              {/* Legacy connection info (for API token connections) */}
+              {!isConnectedViaOAuth && atlassianInfo?.connected && atlassianInfo.siteUrl && (
                 <div className="mt-4 rounded-lg bg-ak-surface p-3 text-xs text-ak-text-secondary">
                   <p>Site: {atlassianInfo.siteUrl}</p>
                   {atlassianInfo.userEmail && <p>User: {atlassianInfo.userEmail}</p>}
@@ -383,7 +514,7 @@ export default function IntegrationsHubPage() {
 
               {/* Actions */}
               <div className="mt-6 flex items-center gap-3">
-                {status === 'connected' ? (
+                {status === 'connected' || status === 'connected_via_oauth' ? (
                   <>
                     <Button
                       variant="outline"
@@ -406,9 +537,9 @@ export default function IntegrationsHubPage() {
                     variant="primary"
                     onClick={() => handleConnect(integration.id)}
                     className="flex-1"
-                    disabled={loading}
+                    disabled={loading || (isAtlassianProduct && !atlassianOAuthStatus.configured)}
                   >
-                    {loading ? 'Loading...' : 'Connect'}
+                    {loading ? 'Loading...' : isAtlassianProduct ? 'Connect with Atlassian' : 'Connect'}
                   </Button>
                 )}
 
@@ -443,16 +574,6 @@ export default function IntegrationsHubPage() {
           Request an Integration →
         </a>
       </div>
-
-      {/* Atlassian Connect Modal */}
-      {connectModalOpen && (
-        <AtlassianConnectModal
-          provider={connectModalOpen}
-          isOpen={true}
-          onClose={() => setConnectModalOpen(null)}
-          onConnect={(data) => handleAtlassianConnect(connectModalOpen, data)}
-        />
-      )}
     </div>
   );
 }
