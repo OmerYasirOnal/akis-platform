@@ -9,6 +9,17 @@ export default defineConfig({
     host: '127.0.0.1',
     port: 5173,
     strictPort: true,
+    // Proxy API requests to backend (fixes JSON parse errors from HTML responses)
+    proxy: {
+      '/api': {
+        target: 'http://localhost:3000',
+        changeOrigin: true,
+      },
+      '/auth': {
+        target: 'http://localhost:3000',
+        changeOrigin: true,
+      },
+    },
   },
   test: {
     environment: 'jsdom',
