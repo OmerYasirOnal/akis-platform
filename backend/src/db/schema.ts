@@ -457,6 +457,54 @@ export const emailVerificationTokensRelations = relations(emailVerificationToken
 }));
 
 /**
+ * Integration provider enum for Jira/Confluence credentials
+ */
+export const integrationProviderEnum = pgEnum('integration_provider', ['jira', 'confluence']);
+
+/**
+ * Integration credentials - stores encrypted API tokens for Jira/Confluence
+ * Uses same encryption pattern as user_ai_keys (AES-256-GCM)
+ */
+export const integrationCredentials = pgTable('integration_credentials', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  provider: integrationProviderEnum('provider').notNull(),
+  /** Site URL (e.g., https://your-domain.atlassian.net) */
+  siteUrl: varchar('site_url', { length: 500 }).notNull(),
+  /** User email for Atlassian */
+  userEmail: varchar('user_email', { length: 255 }).notNull(),
+  /** Encrypted API token (AES-256-GCM) */
+  encryptedToken: text('encrypted_token').notNull(),
+  /** IV for encryption */
+  tokenIv: varchar('token_iv', { length: 64 }).notNull(),
+  /** Auth tag for encryption */
+  tokenTag: varchar('token_tag', { length: 64 }).notNull(),
+  /** Encryption key version */
+  keyVersion: varchar('key_version', { length: 20 }).notNull(),
+  /** Last 4 characters of the token (for display) */
+  tokenLast4: varchar('token_last4', { length: 4 }).notNull(),
+  /** Last successful validation timestamp */
+  lastValidatedAt: timestamp('last_validated_at', { withTimezone: true }),
+  /** Whether the connection is currently valid */
+  isValid: boolean('is_valid').default(true).notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  userProviderUnique: uniqueIndex('idx_integration_creds_user_provider').on(table.userId, table.provider),
+  userIdIdx: index('idx_integration_creds_user_id').on(table.userId),
+}));
+
+export type IntegrationCredential = typeof integrationCredentials.$inferSelect;
+export type NewIntegrationCredential = typeof integrationCredentials.$inferInsert;
+
+export const integrationCredentialsRelations = relations(integrationCredentials, ({ one }) => ({
+  user: one(users, {
+    fields: [integrationCredentials.userId],
+    references: [users.id],
+  }),
+}));
+
+/**
  * Agent configs - stores per-user, per-agent configuration
  * S0.4.6: Persistent Scribe configuration storage
  */

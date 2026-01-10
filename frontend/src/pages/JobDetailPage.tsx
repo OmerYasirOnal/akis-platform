@@ -120,15 +120,17 @@ function TabButton({ id, label, count, active, onClick }: TabButtonProps) {
   return (
     <button
       onClick={() => onClick(id)}
-      className={`px-4 py-2 text-sm font-medium rounded-t-lg border-b-2 transition-colors ${
+      className={`px-4 py-2.5 text-sm font-medium rounded-lg transition-all ${
         active
-          ? 'border-ak-primary text-ak-primary bg-ak-surface-2'
-          : 'border-transparent text-ak-text-secondary hover:text-ak-text-primary hover:border-ak-border'
+          ? 'bg-ak-primary/10 text-ak-primary border border-ak-primary/30'
+          : 'text-ak-text-secondary hover:text-ak-text-primary hover:bg-ak-surface-2 border border-transparent'
       }`}
     >
       {label}
       {count !== undefined && count > 0 && (
-        <span className="ml-2 px-1.5 py-0.5 text-xs rounded-full bg-ak-surface-3">
+        <span className={`ml-2 px-1.5 py-0.5 text-xs rounded-full ${
+          active ? 'bg-ak-primary/20 text-ak-primary' : 'bg-ak-surface-3 text-ak-text-secondary'
+        }`}>
           {count}
         </span>
       )}
@@ -308,7 +310,14 @@ export default function JobDetailPage() {
   const containerClass = 'mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8';
 
   if (isLoading && !job) {
-    return <div className={`${containerClass} py-12 text-center`}>Loading...</div>;
+    return (
+      <div className={`${containerClass} py-12`}>
+        <div className="flex flex-col items-center justify-center gap-4">
+          <div className="h-10 w-10 animate-spin rounded-full border-2 border-ak-primary border-t-transparent" />
+          <p className="text-sm text-ak-text-secondary">Loading job details...</p>
+        </div>
+      </div>
+    );
   }
 
   if (error && !job) {

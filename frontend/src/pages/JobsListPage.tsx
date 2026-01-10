@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../services/api';
 import type { Job } from '../services/api';
+import Card from '../components/common/Card';
 import {
   Table,
   TableHeader,
@@ -15,17 +16,33 @@ import { Pill } from '../components/ui/Pill';
 import { Pagination } from '../components/ui/Pagination';
 import { ErrorToast } from '../components/ui/ErrorToast';
 
+// Icons
+const SearchIcon = () => (
+  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+  </svg>
+);
+
+const RefreshIcon = () => (
+  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+  </svg>
+);
+
+const EmptyIcon = () => (
+  <svg className="h-16 w-16 mx-auto text-ak-text-secondary/30" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+  </svg>
+);
+
 export default function JobsListPage() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<{ message: string; code?: string; requestId?: string } | null>(
-    null
-  );
+  const [error, setError] = useState<{ message: string; code?: string; requestId?: string } | null>(null);
   const [filterType, setFilterType] = useState<'scribe' | 'trace' | 'proto' | ''>('');
-  const [filterState, setFilterState] = useState<
-    'pending' | 'running' | 'completed' | 'failed' | ''
-  >('');
+  const [filterState, setFilterState] = useState<'pending' | 'running' | 'completed' | 'failed' | ''>('');
+  const [searchQuery, setSearchQuery] = useState('');
 
   // Use refs for filters to avoid closure issues
   const filterTypeRef = useRef(filterType);
@@ -71,25 +88,77 @@ export default function JobsListPage() {
     }
   }, [nextCursor, loadJobs]);
 
+  const handleRefresh = () => {
+    loadJobs();
+  };
+
+  // Filter jobs by search query (client-side)
+  const filteredJobs = jobs.filter((job) => {
+    if (!searchQuery.trim()) return true;
+    const query = searchQuery.toLowerCase();
+    return (
+      job.id.toLowerCase().includes(query) ||
+      job.type.toLowerCase().includes(query) ||
+      job.state.toLowerCase().includes(query) ||
+      job.errorMessage?.toLowerCase().includes(query) ||
+      job.errorCode?.toLowerCase().includes(query)
+    );
+  });
+
   return (
-    <div className="mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-ak-text-primary mb-4">Jobs</h1>
-        <div className="flex gap-4">
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-ak-text-primary">Jobs</h1>
+          <p className="text-sm text-ak-text-secondary mt-1">
+            View and manage your agent job history
+          </p>
+        </div>
+        <button
+          onClick={handleRefresh}
+          disabled={isLoading}
+          className="flex items-center gap-2 rounded-lg bg-ak-surface-2 px-4 py-2 text-sm font-medium text-ak-text-primary transition-colors hover:bg-ak-surface disabled:opacity-50"
+        >
+          <RefreshIcon />
+          Refresh
+        </button>
+      </div>
+
+      {/* Filters Card */}
+      <Card className="bg-ak-surface p-4">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+          {/* Search */}
+          <div className="relative flex-1">
+            <input
+              type="text"
+              placeholder="Search jobs..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full rounded-lg border border-ak-border bg-ak-bg py-2 pl-10 pr-4 text-sm text-ak-text-primary placeholder:text-ak-text-secondary/50 focus:border-ak-primary focus:outline-none focus:ring-1 focus:ring-ak-primary"
+            />
+            <div className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ak-text-secondary">
+              <SearchIcon />
+            </div>
+          </div>
+
+          {/* Type Filter */}
           <select
             value={filterType}
             onChange={(e) => setFilterType(e.target.value as typeof filterType)}
-            className="px-3 py-2 bg-ak-surface border border-ak-border text-ak-text-primary rounded-md focus:outline-none focus:ring-2 focus:ring-ak-primary focus:ring-offset-2 focus:ring-offset-ak-bg"
+            className="rounded-lg border border-ak-border bg-ak-bg px-4 py-2 text-sm text-ak-text-primary focus:border-ak-primary focus:outline-none focus:ring-1 focus:ring-ak-primary"
           >
             <option value="">All Types</option>
             <option value="scribe">Scribe</option>
             <option value="trace">Trace</option>
             <option value="proto">Proto</option>
           </select>
+
+          {/* State Filter */}
           <select
             value={filterState}
             onChange={(e) => setFilterState(e.target.value as typeof filterState)}
-            className="px-3 py-2 bg-ak-surface border border-ak-border text-ak-text-primary rounded-md focus:outline-none focus:ring-2 focus:ring-ak-primary focus:ring-offset-2 focus:ring-offset-ak-bg"
+            className="rounded-lg border border-ak-border bg-ak-bg px-4 py-2 text-sm text-ak-text-primary focus:border-ak-primary focus:outline-none focus:ring-1 focus:ring-ak-primary"
           >
             <option value="">All States</option>
             <option value="pending">Pending</option>
@@ -98,71 +167,113 @@ export default function JobsListPage() {
             <option value="failed">Failed</option>
           </select>
         </div>
-      </div>
+      </Card>
 
       {error && <ErrorToast error={error} onClose={() => setError(null)} />}
 
-      {isLoading && jobs.length === 0 ? (
-        <div className="text-center py-8">Loading...</div>
-      ) : jobs.length === 0 ? (
-        <div className="text-center py-8 text-ak-text-secondary">No jobs found</div>
-      ) : (
-        <>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>ID</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>State</TableHead>
-                <TableHead>Error</TableHead>
-                <TableHead>Created At</TableHead>
-                <TableHead>Updated At</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {jobs.map((job) => (
-                <TableRow key={job.id} className="hover:bg-ak-surface">
-                  <TableCell>
-                    <Link to={`/dashboard/jobs/${job.id}`} className="text-ak-primary hover:text-ak-text-primary transition-colors">
-                      {job.id.slice(0, 8)}...
-                    </Link>
-                  </TableCell>
-                  <TableCell>
-                    <Pill type={job.type} />
-                  </TableCell>
-                  <TableCell>
-                    <Badge state={job.state} />
-                  </TableCell>
-                  <TableCell className="text-sm">
-                    {job.state === 'failed' && (job.errorCode || job.errorMessage) ? (
-                      <div className="max-w-xs">
-                        {job.errorCode && (
-                          <span className="inline-block rounded bg-ak-danger/20 px-1.5 py-0.5 text-xs font-medium text-ak-danger">
-                            {job.errorCode}
-                          </span>
+      {/* Jobs Table */}
+      <Card className="bg-ak-surface overflow-hidden">
+        {isLoading && jobs.length === 0 ? (
+          <div className="flex items-center justify-center py-16">
+            <div className="flex flex-col items-center gap-3">
+              <div className="h-8 w-8 animate-spin rounded-full border-2 border-ak-primary border-t-transparent" />
+              <p className="text-sm text-ak-text-secondary">Loading jobs...</p>
+            </div>
+          </div>
+        ) : filteredJobs.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-16 text-center">
+            <EmptyIcon />
+            <h3 className="mt-4 text-lg font-medium text-ak-text-primary">No jobs found</h3>
+            <p className="mt-1 text-sm text-ak-text-secondary">
+              {searchQuery || filterType || filterState
+                ? 'Try adjusting your filters'
+                : 'Run an agent to create your first job'}
+            </p>
+            {!searchQuery && !filterType && !filterState && (
+              <Link
+                to="/dashboard/agents"
+                className="mt-4 inline-flex items-center gap-2 rounded-lg bg-ak-primary px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-ak-primary/90"
+              >
+                Go to Agents
+              </Link>
+            )}
+          </div>
+        ) : (
+          <>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>ID</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead>State</TableHead>
+                    <TableHead>Error</TableHead>
+                    <TableHead>Created</TableHead>
+                    <TableHead>Updated</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredJobs.map((job) => (
+                    <TableRow key={job.id} className="group hover:bg-ak-surface-2 transition-colors">
+                      <TableCell>
+                        <Link 
+                          to={`/dashboard/jobs/${job.id}`} 
+                          className="font-mono text-sm text-ak-primary hover:text-ak-text-primary transition-colors"
+                        >
+                          {job.id.slice(0, 8)}...
+                        </Link>
+                      </TableCell>
+                      <TableCell>
+                        <Pill type={job.type} />
+                      </TableCell>
+                      <TableCell>
+                        <Badge state={job.state} />
+                      </TableCell>
+                      <TableCell className="text-sm">
+                        {job.state === 'failed' && (job.errorCode || job.errorMessage) ? (
+                          <div className="max-w-xs">
+                            {job.errorCode && (
+                              <span className="inline-block rounded bg-red-500/20 px-1.5 py-0.5 text-xs font-medium text-red-400">
+                                {job.errorCode}
+                              </span>
+                            )}
+                            {job.errorMessage && (
+                              <p className="mt-1 truncate text-xs text-ak-text-secondary" title={job.errorMessage}>
+                                {job.errorMessage}
+                              </p>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-ak-text-secondary">—</span>
                         )}
-                        {job.errorMessage && (
-                          <p className="mt-1 truncate text-xs text-ak-text-secondary" title={job.errorMessage}>
-                            {job.errorMessage}
-                          </p>
-                        )}
-                      </div>
-                    ) : (
-                      <span className="text-ak-text-secondary">—</span>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-sm text-ak-text-secondary">
-                    {new Date(job.createdAt).toLocaleString()}
-                  </TableCell>
-                  <TableCell className="text-sm text-ak-text-secondary">
-                    {new Date(job.updatedAt).toLocaleString()}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-          <Pagination nextCursor={nextCursor} onNext={handleLoadMore} isLoading={isLoading} />
-        </>
+                      </TableCell>
+                      <TableCell className="text-sm text-ak-text-secondary">
+                        {new Date(job.createdAt).toLocaleString()}
+                      </TableCell>
+                      <TableCell className="text-sm text-ak-text-secondary">
+                        {new Date(job.updatedAt).toLocaleString()}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+            <Pagination nextCursor={nextCursor} onNext={handleLoadMore} isLoading={isLoading} />
+          </>
+        )}
+      </Card>
+
+      {/* Stats Footer */}
+      {filteredJobs.length > 0 && (
+        <div className="flex items-center justify-between text-xs text-ak-text-secondary">
+          <span>
+            Showing {filteredJobs.length} {filteredJobs.length === 1 ? 'job' : 'jobs'}
+            {searchQuery && ` matching "${searchQuery}"`}
+          </span>
+          {nextCursor && (
+            <span>More jobs available</span>
+          )}
+        </div>
       )}
     </div>
   );

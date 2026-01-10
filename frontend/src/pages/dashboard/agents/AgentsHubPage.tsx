@@ -549,6 +549,7 @@ export default function AgentsHubPage() {
                         loading={loadingBranches}
                         emptyMessage="No branches"
                         disabled={!selectedRepo}
+                        allowManualInput={false}
                       />
                     </div>
 
