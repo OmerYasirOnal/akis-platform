@@ -303,6 +303,51 @@ pnpm dev
 
 ---
 
+## 🔗 Atlassian OAuth 2.0 (3LO) Konfigürasyonu
+
+AKIS, Jira ve Confluence entegrasyonu için Atlassian OAuth 2.0 (3LO) kullanır. Tek bir OAuth bağlantısı hem Jira hem de Confluence erişimini sağlar.
+
+### Gerekli Environment Variables
+
+```bash
+# backend/.env.local (NO SECRETS IN .env!)
+ATLASSIAN_OAUTH_CLIENT_ID=your-client-id
+ATLASSIAN_OAUTH_CLIENT_SECRET=your-client-secret
+ATLASSIAN_OAUTH_CALLBACK_URL=http://localhost:3000/api/integrations/atlassian/oauth/callback
+```
+
+### Kurulum Adımları
+
+1. [Atlassian Developer Console](https://developer.atlassian.com/console)'a gidin
+2. Yeni OAuth 2.0 integration oluşturun
+3. Callback URL'i ekleyin: `http://localhost:3000/api/integrations/atlassian/oauth/callback`
+4. Gerekli scope'ları etkinleştirin:
+   - `offline_access` (ZORUNLU - refresh token için)
+   - `read:me`, `read:account`
+   - `read:jira-work`, `read:jira-user`
+   - `read:confluence-content.all`, `read:confluence-user`
+5. Client ID ve Secret'ı kopyalayıp `.env.local`'a ekleyin
+
+### Yaygın Hatalar
+
+| Hata | Neden | Çözüm |
+|------|-------|-------|
+| redirect_uri mismatch | Callback URL uyuşmazlığı | URL'in Atlassian Console'da TAM OLARAK eşleştiğini kontrol edin |
+| No refresh token | offline_access scope eksik | Atlassian Console'da offline_access'i etkinleştirin |
+| invalid_grant on refresh | Token zaten kullanılmış veya süresi dolmuş | Kullanıcının yeniden bağlanması gerekir |
+
+### Doğrulama
+
+```bash
+# Atlassian OAuth durumunu kontrol et
+curl -s -b cookies.txt http://localhost:3000/api/integrations/atlassian/status | jq .
+# Beklenen: { "connected": false, "configured": true, ... }
+```
+
+> 📖 **Detaylı Bilgi**: [ATLASSIAN_OAUTH_SETUP.md](integrations/ATLASSIAN_OAUTH_SETUP.md)
+
+---
+
 ## 📊 Environment Variable Referansı
 
 ### Backend
@@ -320,6 +365,9 @@ pnpm dev
 | `AI_MODEL_DEFAULT`        | ❌      | Provider-specific   | Varsayılan LLM modeli            |
 | `AI_MODEL_PLANNER`        | ❌      | Provider-specific   | Planlama LLM modeli              |
 | `AI_MODEL_VALIDATION`     | ❌      | Provider-specific   | Doğrulama LLM modeli             |
+| `ATLASSIAN_OAUTH_CLIENT_ID` | ❌    | -                   | Atlassian OAuth Client ID        |
+| `ATLASSIAN_OAUTH_CLIENT_SECRET` | ❌| -                   | Atlassian OAuth Client Secret    |
+| `ATLASSIAN_OAUTH_CALLBACK_URL` | ❌ | `http://localhost:3000/api/integrations/atlassian/oauth/callback` | OAuth callback URL |
 
 ### Frontend
 
