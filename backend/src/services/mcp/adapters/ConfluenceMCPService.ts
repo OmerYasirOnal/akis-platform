@@ -1,9 +1,13 @@
 import { HttpClient } from '../../http/HttpClient.js';
+import { atlassianOAuthService } from '../../atlassian/index.js';
+import { getEnv } from '../../../config/env.js';
 
 /**
  * ConfluenceMCPService - MCP client adapter for Confluence
  * Phase 10: Full MCP JSON-RPC 2.0 implementation
  * Provides high-level methods that internally use JSON-RPC 2.0 to Confluence MCP endpoint
+ * 
+ * Supports OAuth 2.0 (3LO) tokens via fromOAuth factory method
  */
 
 export interface ConfluenceMCPServiceOptions {
@@ -81,6 +85,29 @@ export class ConfluenceMCPService {
     this.baseUrl = opts.baseUrl.replace(/\/$/, ''); // Remove trailing slash
     this.token = opts.token;
     this.httpClient = opts.httpClient || new HttpClient();
+  }
+
+  /**
+   * Factory method to create ConfluenceMCPService using Atlassian OAuth tokens
+   * @param userId - AKIS user ID
+   * @returns ConfluenceMCPService instance or null if OAuth is not available
+   */
+  static async fromOAuth(userId: string): Promise<ConfluenceMCPService | null> {
+    const env = getEnv();
+    
+    if (!env.ATLASSIAN_MCP_BASE_URL) {
+      return null;
+    }
+
+    const token = await atlassianOAuthService.getValidToken(userId);
+    if (!token) {
+      return null;
+    }
+
+    return new ConfluenceMCPService({
+      baseUrl: env.ATLASSIAN_MCP_BASE_URL,
+      token,
+    });
   }
 
   /**
