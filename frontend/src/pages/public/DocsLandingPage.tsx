@@ -50,9 +50,9 @@ const docSections: DocSection[] = [
     title: 'Getting Started',
     description: 'Set up your AKIS environment and run your first agent job in under 10 minutes.',
     links: [
-      { label: 'Quick Start Guide', href: '/docs#quickstart' },
-      { label: 'Installation', href: '/docs#installation' },
-      { label: 'Authentication', href: '/docs#authentication' },
+      { label: 'Quick Start Guide', href: '/docs/getting-started' },
+      { label: 'Introduction', href: '/docs' },
+      { label: 'Authentication', href: '/docs/api/auth' },
     ],
   },
   {
@@ -60,9 +60,9 @@ const docSections: DocSection[] = [
     title: 'Agents',
     description: 'Scribe, Trace, and Proto - three agents that automate docs, tests, and prototypes.',
     links: [
-      { label: 'Scribe Overview', href: '/docs#scribe' },
-      { label: 'Trace Overview', href: '/docs#trace' },
-      { label: 'Proto Overview', href: '/docs#proto' },
+      { label: 'Scribe Overview', href: '/docs/agents/scribe' },
+      { label: 'Trace Overview', href: '/docs/agents/trace' },
+      { label: 'Proto Overview', href: '/docs/agents/proto' },
     ],
   },
   {
@@ -70,9 +70,9 @@ const docSections: DocSection[] = [
     title: 'Integrations',
     description: 'Connect AKIS to GitHub, Jira, and Confluence via MCP (Model Context Protocol).',
     links: [
-      { label: 'GitHub Integration', href: '/docs#github' },
-      { label: 'MCP Protocol', href: '/docs#mcp' },
-      { label: 'Atlassian (Coming Soon)', href: '/docs#atlassian' },
+      { label: 'GitHub Integration', href: '/docs/integrations/github' },
+      { label: 'MCP Protocol', href: '/docs/integrations/mcp' },
+      { label: 'Atlassian', href: '/docs/integrations/atlassian' },
     ],
   },
   {
@@ -80,9 +80,9 @@ const docSections: DocSection[] = [
     title: 'Security',
     description: 'API key encryption, OAuth flows, and data privacy policies.',
     links: [
-      { label: 'API Key Management', href: '/docs#api-keys' },
-      { label: 'OAuth Flow', href: '/docs#oauth' },
-      { label: 'Data Privacy', href: '/docs#privacy' },
+      { label: 'API Key Management', href: '/docs/security/api-keys' },
+      { label: 'OAuth Flow', href: '/docs/security/oauth' },
+      { label: 'Data Privacy', href: '/docs/security/privacy' },
     ],
   },
   {
@@ -90,9 +90,9 @@ const docSections: DocSection[] = [
     title: 'API Reference',
     description: 'REST endpoints, authentication, and webhook payloads for developers.',
     links: [
-      { label: 'REST API', href: '/docs#rest-api' },
-      { label: 'Authentication', href: '/docs#api-auth' },
-      { label: 'Webhooks', href: '/docs#webhooks' },
+      { label: 'REST API', href: '/docs/api/rest' },
+      { label: 'Authentication', href: '/docs/api/auth' },
+      { label: 'Webhooks', href: '/docs/api/webhooks' },
     ],
   },
   {
@@ -100,9 +100,9 @@ const docSections: DocSection[] = [
     title: 'Guides',
     description: 'Best practices, troubleshooting tips, and self-hosting instructions.',
     links: [
-      { label: 'Best Practices', href: '/docs#best-practices' },
-      { label: 'Troubleshooting', href: '/docs#troubleshooting' },
-      { label: 'Self-Hosting', href: '/docs#self-hosting' },
+      { label: 'Best Practices', href: '/docs/guides/best-practices' },
+      { label: 'Troubleshooting', href: '/docs/guides/troubleshooting' },
+      { label: 'Self-Hosting', href: '/docs/guides/self-hosting' },
     ],
   },
 ];
@@ -144,19 +144,19 @@ export default function DocsLandingPage() {
       <section className="border-y border-ak-border bg-ak-surface py-8">
         <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-center gap-4 px-4 sm:gap-8 sm:px-6 lg:px-8">
           <Link
-            to="/docs#quickstart"
+            to="/docs/getting-started"
             className="text-sm font-medium text-ak-primary hover:underline"
           >
             Quick Start →
           </Link>
           <Link
-            to="/docs#scribe"
+            to="/docs/agents/scribe"
             className="text-sm font-medium text-ak-primary hover:underline"
           >
             Scribe Agent →
           </Link>
           <Link
-            to="/docs#rest-api"
+            to="/docs/api/rest"
             className="text-sm font-medium text-ak-primary hover:underline"
           >
             API Reference →

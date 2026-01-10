@@ -40,6 +40,45 @@ export class HttpClient {
     return error;
   }
 
+  /**
+   * Safely parse JSON response with content-type validation
+   * Throws helpful error if response is HTML (common proxy/routing issue)
+   */
+  private async parseJsonResponse<T>(response: Response): Promise<T> {
+    const contentType = response.headers.get('content-type') || '';
+    
+    // Check if response is HTML (likely a proxy/routing error)
+    if (contentType.includes('text/html')) {
+      const error: ApiError = new Error(
+        'Received HTML response instead of JSON. This usually means the API endpoint was not found or the request was routed incorrectly. Please check that the backend server is running.'
+      ) as ApiError;
+      error.code = 'HTML_RESPONSE_ERROR';
+      error.statusCode = response.status;
+      error.requestId = response.headers.get('request-id') || undefined;
+      throw error;
+    }
+
+    try {
+      const data = await response.json();
+      const requestId = response.headers.get('request-id');
+      
+      // Attach request-id to response if present
+      if (requestId && typeof data === 'object' && data !== null) {
+        (data as { requestId?: string }).requestId = requestId;
+      }
+
+      return data as T;
+    } catch {
+      const error: ApiError = new Error(
+        'Failed to parse JSON response. The server may have returned invalid data.'
+      ) as ApiError;
+      error.code = 'JSON_PARSE_ERROR';
+      error.statusCode = response.status;
+      error.requestId = response.headers.get('request-id') || undefined;
+      throw error;
+    }
+  }
+
   private async fetchWithRetry(url: string, options: RequestOptions = {}): Promise<Response> {
     const { retries = 3, retryDelay = 1000, ...fetchOptions } = options;
     let lastError: Error | null = null;
@@ -105,15 +144,7 @@ export class HttpClient {
       method: 'GET',
     });
 
-    const requestId = response.headers.get('request-id');
-    const data = await response.json();
-
-    // Attach request-id to response if present
-    if (requestId && typeof data === 'object' && data !== null) {
-      (data as { requestId?: string }).requestId = requestId;
-    }
-
-    return data as T;
+    return this.parseJsonResponse<T>(response);
   }
 
   async post<T>(path: string, body?: unknown, options?: RequestOptions): Promise<T> {
@@ -125,14 +156,7 @@ export class HttpClient {
       body: body ? JSON.stringify(body) : undefined,
     });
 
-    const requestId = response.headers.get('request-id');
-    const data = await response.json();
-
-    if (requestId && typeof data === 'object' && data !== null) {
-      (data as { requestId?: string }).requestId = requestId;
-    }
-
-    return data as T;
+    return this.parseJsonResponse<T>(response);
   }
 
   async put<T>(path: string, body?: unknown, options?: RequestOptions): Promise<T> {
@@ -144,14 +168,7 @@ export class HttpClient {
       body: body ? JSON.stringify(body) : undefined,
     });
 
-    const requestId = response.headers.get('request-id');
-    const data = await response.json();
-
-    if (requestId && typeof data === 'object' && data !== null) {
-      (data as { requestId?: string }).requestId = requestId;
-    }
-
-    return data as T;
+    return this.parseJsonResponse<T>(response);
   }
 
   async delete<T>(path: string, options?: RequestOptions, body?: unknown): Promise<T> {
@@ -163,13 +180,6 @@ export class HttpClient {
       body: body ? JSON.stringify(body) : undefined,
     });
 
-    const requestId = response.headers.get('request-id');
-    const data = await response.json();
-
-    if (requestId && typeof data === 'object' && data !== null) {
-      (data as { requestId?: string }).requestId = requestId;
-    }
-
-    return data as T;
+    return this.parseJsonResponse<T>(response);
   }
 }

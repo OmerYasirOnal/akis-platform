@@ -30,8 +30,27 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 // Lazy loaded public pages
 const PricingPage = lazy(() => import('./pages/public/PricingPage'));
 const BlogIndexPage = lazy(() => import('./pages/public/BlogIndexPage'));
-const DocsLandingPage = lazy(() => import('./pages/public/DocsLandingPage'));
 const LearnLandingPage = lazy(() => import('./pages/public/LearnLandingPage'));
+
+// Lazy loaded docs pages
+const DocsLayout = lazy(() => import('./components/docs/DocsLayout'));
+const DocsIndexPage = lazy(() => import('./pages/docs/DocsIndexPage'));
+const GettingStartedPage = lazy(() => import('./pages/docs/GettingStartedPage'));
+const ScribeDocsPage = lazy(() => import('./pages/docs/agents/ScribeDocsPage'));
+const TraceDocsPage = lazy(() => import('./pages/docs/agents/TraceDocsPage'));
+const ProtoDocsPage = lazy(() => import('./pages/docs/agents/ProtoDocsPage'));
+const GitHubDocsPage = lazy(() => import('./pages/docs/integrations/GitHubDocsPage'));
+const MCPDocsPage = lazy(() => import('./pages/docs/integrations/MCPDocsPage'));
+const AtlassianDocsPage = lazy(() => import('./pages/docs/integrations/AtlassianDocsPage'));
+const ApiKeysDocsPage = lazy(() => import('./pages/docs/security/ApiKeysDocsPage'));
+const OAuthDocsPage = lazy(() => import('./pages/docs/security/OAuthDocsPage'));
+const PrivacyDocsPage = lazy(() => import('./pages/docs/security/PrivacyDocsPage'));
+const RestApiDocsPage = lazy(() => import('./pages/docs/api/RestApiDocsPage'));
+const AuthDocsPage = lazy(() => import('./pages/docs/api/AuthDocsPage'));
+const WebhooksDocsPage = lazy(() => import('./pages/docs/api/WebhooksDocsPage'));
+const BestPracticesPage = lazy(() => import('./pages/docs/guides/BestPracticesPage'));
+const TroubleshootingPage = lazy(() => import('./pages/docs/guides/TroubleshootingPage'));
+const SelfHostingPage = lazy(() => import('./pages/docs/guides/SelfHostingPage'));
 
 // Lazy loaded dashboard pages
 const IntegrationsHubPage = lazy(() => import('./pages/dashboard/integrations/IntegrationsHubPage'));
@@ -75,14 +94,6 @@ function App() {
               element={
                 <Suspense fallback={<PageLoader />}>
                   <BlogIndexPage />
-                </Suspense>
-              }
-            />
-            <Route
-              path="docs"
-              element={
-                <Suspense fallback={<PageLoader />}>
-                  <DocsLandingPage />
                 </Suspense>
               }
             />
@@ -189,6 +200,39 @@ function App() {
                 element={<DashboardSettingsNotificationsPage />}
               />
             </Route>
+          </Route>
+
+          {/* Docs Routes with DocsLayout (separate from AppShell) */}
+          <Route
+            path="/docs"
+            element={
+              <Suspense fallback={<PageLoader />}>
+                <DocsLayout />
+              </Suspense>
+            }
+          >
+            <Route index element={<Suspense fallback={<PageLoader />}><DocsIndexPage /></Suspense>} />
+            <Route path="getting-started" element={<Suspense fallback={<PageLoader />}><GettingStartedPage /></Suspense>} />
+            {/* Agents */}
+            <Route path="agents/scribe" element={<Suspense fallback={<PageLoader />}><ScribeDocsPage /></Suspense>} />
+            <Route path="agents/trace" element={<Suspense fallback={<PageLoader />}><TraceDocsPage /></Suspense>} />
+            <Route path="agents/proto" element={<Suspense fallback={<PageLoader />}><ProtoDocsPage /></Suspense>} />
+            {/* Integrations */}
+            <Route path="integrations/github" element={<Suspense fallback={<PageLoader />}><GitHubDocsPage /></Suspense>} />
+            <Route path="integrations/mcp" element={<Suspense fallback={<PageLoader />}><MCPDocsPage /></Suspense>} />
+            <Route path="integrations/atlassian" element={<Suspense fallback={<PageLoader />}><AtlassianDocsPage /></Suspense>} />
+            {/* Security */}
+            <Route path="security/api-keys" element={<Suspense fallback={<PageLoader />}><ApiKeysDocsPage /></Suspense>} />
+            <Route path="security/oauth" element={<Suspense fallback={<PageLoader />}><OAuthDocsPage /></Suspense>} />
+            <Route path="security/privacy" element={<Suspense fallback={<PageLoader />}><PrivacyDocsPage /></Suspense>} />
+            {/* API */}
+            <Route path="api/rest" element={<Suspense fallback={<PageLoader />}><RestApiDocsPage /></Suspense>} />
+            <Route path="api/auth" element={<Suspense fallback={<PageLoader />}><AuthDocsPage /></Suspense>} />
+            <Route path="api/webhooks" element={<Suspense fallback={<PageLoader />}><WebhooksDocsPage /></Suspense>} />
+            {/* Guides */}
+            <Route path="guides/best-practices" element={<Suspense fallback={<PageLoader />}><BestPracticesPage /></Suspense>} />
+            <Route path="guides/troubleshooting" element={<Suspense fallback={<PageLoader />}><TroubleshootingPage /></Suspense>} />
+            <Route path="guides/self-hosting" element={<Suspense fallback={<PageLoader />}><SelfHostingPage /></Suspense>} />
           </Route>
 
           <Route path="*" element={<Navigate to="/" replace />} />

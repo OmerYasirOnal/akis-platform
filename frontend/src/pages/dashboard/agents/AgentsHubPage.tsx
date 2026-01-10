@@ -529,28 +529,32 @@ export default function AgentsHubPage() {
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {/* Repo Selection */}
-                    <div className="grid grid-cols-2 gap-4">
-                      <SearchableSelect
-                        label="Repository"
-                        placeholder="Select repository"
-                        options={repoOptions}
-                        value={selectedRepo}
-                        onChange={setSelectedRepo}
-                        loading={loadingRepos}
-                        emptyMessage="No repositories"
-                      />
-                      <SearchableSelect
-                        label="Branch"
-                        placeholder="Select branch"
-                        options={branchOptions}
-                        value={selectedBranch}
-                        onChange={setSelectedBranch}
-                        loading={loadingBranches}
-                        emptyMessage="No branches"
-                        disabled={!selectedRepo}
-                        allowManualInput={false}
-                      />
+                    {/* Repo Selection - Symmetric Grid Layout */}
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                      <div className="w-full">
+                        <SearchableSelect
+                          label="Repository"
+                          placeholder="Select repository"
+                          options={repoOptions}
+                          value={selectedRepo}
+                          onChange={setSelectedRepo}
+                          loading={loadingRepos}
+                          emptyMessage="No repositories"
+                        />
+                      </div>
+                      <div className="w-full">
+                        <SearchableSelect
+                          label="Branch"
+                          placeholder="Select branch"
+                          options={branchOptions}
+                          value={selectedBranch}
+                          onChange={setSelectedBranch}
+                          loading={loadingBranches}
+                          emptyMessage="No branches"
+                          disabled={!selectedRepo}
+                          allowManualInput={false}
+                        />
+                      </div>
                     </div>
 
                     {/* Run Button */}
