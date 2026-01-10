@@ -19,5 +19,31 @@
   --ak-color-primary: #07D1AF;
   --ak-color-primary-soft: rgba(7, 209, 175, 0.16);
   --ak-color-danger: #FF6B6B;
+
+  /* Motion tokens (Cursor UI) */
+  --ak-motion-fast: 150ms;
+  --ak-motion-base: 200ms;
+  --ak-motion-slow: 300ms;
+  --ak-motion-slower: 500ms;
+
+  /* Easing tokens */
+  --ak-ease-default: cubic-bezier(0.4, 0, 0.2, 1);
+  --ak-ease-out: cubic-bezier(0, 0, 0.2, 1);
+  --ak-ease-in: cubic-bezier(0.4, 0, 1, 1);
+
+  /* Glow tokens (Liquid Neon) */
+  --ak-glow-accent: 0 0 24px rgba(7, 209, 175, 0.25);
+  --ak-glow-subtle: 0 0 16px rgba(7, 209, 175, 0.12);
+  --ak-glow-edge: 0 0 40px rgba(7, 209, 175, 0.08);
+
+  /* Blur tokens */
+  --ak-blur-backdrop: 16px;
+  --ak-blur-card: 8px;
+  --ak-blur-blob: 36px;
+
+  /* Blob opacity tokens */
+  --ak-blob-opacity-primary: 0.15;
+  --ak-blob-opacity-secondary: 0.12;
+  --ak-blob-opacity-ambient: 0.08;
 }
 

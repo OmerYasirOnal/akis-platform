@@ -2,7 +2,7 @@
 
 > **Schedule Anchor:** `docs/PROJECT_TRACKING_BASELINE.md` (derived from spreadsheet)  
 > **Audit Report:** `docs/DOCS_AUDIT_REPORT.md`  
-> **Last Updated:** 2025-12-27
+> **Last Updated:** 2026-01-10
 
 ### Planning Chain
 
@@ -12,17 +12,68 @@ docs/PROJECT_TRACKING_BASELINE.md  →  docs/ROADMAP.md  →  docs/NEXT.md (this
 
 ---
 
-## Current Focus (2025-12-27)
+## Current Focus (2026-01-10)
 
 | Priority | Task | Status | Sprint |
 |----------|------|--------|--------|
-| **P0** | Semester Scribe demo readiness (OpenAI keys + metrics + run summary) | ✅ Complete | S1.0.x |
-| **P0** | S0.4.6 Scribe Config Dashboard | ✅ Complete | S0.4.6 |
-| P1 | Scribe temel akış | 📋 Next | S1.0.1 |
-| P2 | Trace/Proto MVP | 📋 Planned | S1.0.2 |
-| P3 | Job loglama v1 | 📋 Planned | S1.5.1 |
+| **P0** | Cursor-Inspired UI + Liquid Neon Layer | 🔄 In Progress | S2.0.1 |
+| **P0** | Scribe Console (functional) | 📋 Next | S2.0.1 |
+| P1 | Integrations Hub (GitHub connected, Jira/Confluence coming soon) | ✅ Complete | S2.0.1 |
+| P1 | AI Keys Management UI (functional) | ✅ Complete | S2.0.1 |
+| P2 | Public Pages (Pricing, Blog, Docs, Learn) | ✅ Complete | S2.0.1 |
 
-**Next Milestone:** Phase 1 Functional Complete — **2025-12-25**
+**Next Milestone:** Cursor-Inspired UI Release — **2026-01-15**
+
+---
+
+## 🚀 NEW: Cursor-Inspired UI Milestone (S2.0.1)
+
+**Branch:** `feat/ui-cursor-inspired-liquid-neon`  
+**Dates:** Jan 10–15, 2026
+
+### Shipped (S2.0.1)
+
+| Component | Description | Status |
+|-----------|-------------|--------|
+| **DashboardLayout** | Cursor-like sidebar navigation with grouped sections | ✅ |
+| **LiquidNeonBackground** | AKIS-branded animated gradient blobs | ✅ |
+| **Motion Tokens** | Duration, easing, glow, blur tokens in theme | ✅ |
+| **Public Pages** | Pricing, Blog, Docs, Learn landing pages | ✅ |
+| **IntegrationsHub** | GitHub status + Jira/Confluence placeholders | ✅ |
+| **AI Keys Page** | Functional key management (save/delete/activate) | ✅ |
+| **API Spec Update** | Multi-provider AI keys documentation | ✅ |
+| **QA Documentation** | Rollout notes + evidence checklist | ✅ |
+
+### Next (S2.0.2)
+
+| Component | Description | Status |
+|-----------|-------------|--------|
+| Scribe Console Enhancement | Model selection, job lifecycle, result preview | 📋 |
+| Jira Integration | MCP-based connect flow (if backend ready) | 📋 |
+| Confluence Integration | MCP-based connect flow (if backend ready) | 📋 |
+| Settings: Workspace | Team/workspace management UI | 📋 |
+| Settings: Billing | Usage metrics and invoices | 📋 |
+
+### Design References
+
+- Master Plan: `docs/ux/AKIS_CURSOR_UI_MASTER_PLAN.md`
+- Cursor Reference: `docs/ux/CURSOR_REFERENCE_NOTES.md`
+- Liquid Neon Spec: `docs/ux/AKIS_LIQUID_NEON_LAYER.md`
+- QA Notes: `docs/qa/QA_NOTES_CURSOR_UI_ROLLOUT.md`
+
+---
+
+## Previous Milestones
+
+### ✅ Phase 1 Complete (Dec 2025)
+
+| Priority | Task | Status | Sprint |
+|----------|------|--------|--------|
+| **P0** | Semester Scribe demo readiness | ✅ Complete | S1.0.x |
+| **P0** | S0.4.6 Scribe Config Dashboard | ✅ Complete | S0.4.6 |
+| P1 | Scribe temel akış | ✅ Complete | S1.0.1 |
+| P2 | Trace/Proto MVP scaffolds | ✅ Complete | S1.0.2 |
+| P3 | Job logging v1 | ✅ Complete | S1.5.1 |
 
 ---
 

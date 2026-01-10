@@ -261,28 +261,39 @@ Return allowlisted models for the agent (Scribe only).
 
 Base path: `/api/settings`
 
+AKIS supports multiple AI providers (OpenAI, OpenRouter). Keys are encrypted using AES-256-GCM before storage. **Plaintext keys are never returned or logged.**
+
 ### GET /api/settings/ai-keys/status
 
-Return status-only information for the authenticated user's OpenAI key.
+Return multi-provider status including active provider selection.
 
 **Response (200)**:
 ```json
 {
-  "provider": "openai",
-  "configured": true,
-  "last4": "abcd",
-  "updatedAt": "2025-01-01T12:00:00.000Z"
+  "activeProvider": "openai",
+  "providers": {
+    "openai": {
+      "configured": true,
+      "last4": "abcd",
+      "updatedAt": "2025-01-01T12:00:00.000Z"
+    },
+    "openrouter": {
+      "configured": false,
+      "last4": null,
+      "updatedAt": null
+    }
+  }
 }
 ```
 
 ### PUT /api/settings/ai-keys
 
-Store/update the OpenAI key (never returns plaintext).
+Store/update an API key for a specific provider. Key is encrypted server-side and only last 4 characters are stored for identification.
 
 **Request Body**:
 ```json
 {
-  "provider": "openai",
+  "provider": "openai" | "openrouter",
   "apiKey": "sk-..."
 }
 ```
@@ -297,14 +308,54 @@ Store/update the OpenAI key (never returns plaintext).
 }
 ```
 
+**Errors**:
+- `400 Bad Request`: Invalid provider or empty key
+- `401 Unauthorized`: Missing or invalid session
+
+### PUT /api/settings/ai-provider/active
+
+Set the active AI provider to use for agent jobs.
+
+**Request Body**:
+```json
+{
+  "provider": "openai" | "openrouter"
+}
+```
+
+**Response (200)**:
+```json
+{
+  "activeProvider": "openai",
+  "providers": {
+    "openai": { "configured": true, "last4": "abcd", "updatedAt": "..." },
+    "openrouter": { "configured": false, "last4": null, "updatedAt": null }
+  }
+}
+```
+
+**Errors**:
+- `400 Bad Request`: Provider not configured (no key saved)
+
 ### DELETE /api/settings/ai-keys
 
-Remove the user's key.
+Remove the user's key for a specific provider.
+
+**Request Body**:
+```json
+{
+  "provider": "openai" | "openrouter"
+}
+```
 
 **Response (200)**:
 ```json
 { "ok": true }
 ```
+
+**Notes**:
+- If the deleted key belongs to the active provider, `activeProvider` is set to `null`
+- User must configure a new key before running agent jobs
 
 ---
 
