@@ -18,7 +18,6 @@ import WelcomeBeta from './pages/auth/WelcomeBeta';
 import PrivacyConsent from './pages/auth/PrivacyConsent';
 import DashboardOverviewPage from './pages/dashboard/DashboardOverviewPage';
 import DashboardAgentScribePage from './pages/dashboard/agents/DashboardAgentScribePage';
-import DashboardIntegrationsPage from './pages/dashboard/DashboardIntegrationsPage';
 import DashboardSettingsProfilePage from './pages/dashboard/settings/DashboardSettingsProfilePage';
 import DashboardSettingsWorkspacePage from './pages/dashboard/settings/DashboardSettingsWorkspacePage';
 import DashboardSettingsApiKeysPage from './pages/dashboard/settings/DashboardSettingsApiKeysPage';
