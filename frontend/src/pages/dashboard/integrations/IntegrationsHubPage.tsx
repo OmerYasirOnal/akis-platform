@@ -1,6 +1,8 @@
-import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { useState, useEffect, useCallback } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import Button from '../../../components/common/Button';
+import AtlassianConnectModal from '../../../components/integrations/AtlassianConnectModal';
+import { integrationsApi, type AtlassianStatus } from '../../../services/api/integrations';
 
 // GitHub icon
 const GitHubIcon = () => (
@@ -37,12 +39,13 @@ const CheckIcon = () => (
   </svg>
 );
 
+type IntegrationStatus = 'connected' | 'not_connected';
+
 interface Integration {
-  id: string;
+  id: 'github' | 'jira' | 'confluence';
   name: string;
   description: string;
   icon: React.ReactNode;
-  status: 'connected' | 'not_connected' | 'coming_soon';
   features: string[];
   docsUrl?: string;
 }
@@ -53,7 +56,6 @@ const integrations: Integration[] = [
     name: 'GitHub',
     description: 'Connect your GitHub repositories to enable Scribe to analyze commits, generate documentation, and create pull requests.',
     icon: <GitHubIcon />,
-    status: 'not_connected', // Will be updated based on OAuth status
     features: [
       'Repository discovery',
       'Branch & commit analysis',
@@ -67,7 +69,6 @@ const integrations: Integration[] = [
     name: 'Jira',
     description: 'Connect Jira to link agent jobs with issues, auto-update ticket status, and sync changelog entries.',
     icon: <JiraIcon />,
-    status: 'coming_soon',
     features: [
       'Issue linking',
       'Status synchronization',
@@ -81,7 +82,6 @@ const integrations: Integration[] = [
     name: 'Confluence',
     description: 'Publish generated documentation directly to Confluence spaces and keep technical docs in sync.',
     icon: <ConfluenceIcon />,
-    status: 'coming_soon',
     features: [
       'Documentation publishing',
       'Space management',
@@ -101,59 +101,147 @@ const statusStyles = {
     badge: 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20',
     text: 'Not Connected',
   },
-  coming_soon: {
-    badge: 'bg-ak-surface-2 text-ak-text-secondary border-ak-border',
-    text: 'Coming Soon',
-  },
 };
 
 export default function IntegrationsHubPage() {
-  const [githubStatus, setGithubStatus] = useState<'connected' | 'not_connected'>('not_connected');
+  const [searchParams, setSearchParams] = useSearchParams();
   const [loading, setLoading] = useState(true);
+  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
-  // Check GitHub OAuth status
-  useEffect(() => {
-    async function checkGithubStatus() {
-      try {
-        const response = await fetch('/api/integrations/github/status', {
-          credentials: 'include',
-        });
-        if (response.ok) {
-          const data = await response.json();
-          setGithubStatus(data.connected ? 'connected' : 'not_connected');
-        }
-      } catch {
-        // API might not exist yet, default to not_connected
-        setGithubStatus('not_connected');
-      } finally {
-        setLoading(false);
-      }
+  // Integration statuses
+  const [githubStatus, setGithubStatus] = useState<IntegrationStatus>('not_connected');
+  const [jiraStatus, setJiraStatus] = useState<AtlassianStatus>({ connected: false });
+  const [confluenceStatus, setConfluenceStatus] = useState<AtlassianStatus>({ connected: false });
+
+  // Modal state
+  const [connectModalOpen, setConnectModalOpen] = useState<'jira' | 'confluence' | null>(null);
+
+  // Load all integration statuses
+  const loadAllStatuses = useCallback(async () => {
+    try {
+      const [github, jira, confluence] = await Promise.all([
+        integrationsApi.getGitHubStatus(),
+        integrationsApi.getJiraStatus(),
+        integrationsApi.getConfluenceStatus(),
+      ]);
+      setGithubStatus(github.connected ? 'connected' : 'not_connected');
+      setJiraStatus(jira);
+      setConfluenceStatus(confluence);
+    } catch (err) {
+      console.error('Failed to load integration statuses:', err);
+    } finally {
+      setLoading(false);
     }
-    checkGithubStatus();
   }, []);
 
-  // Update integrations with actual GitHub status
-  const integrationsWithStatus = integrations.map((integration) => ({
-    ...integration,
-    status: integration.id === 'github' ? githubStatus : integration.status,
-  }));
+  // Handle OAuth callback params
+  useEffect(() => {
+    const githubParam = searchParams.get('github');
+    if (githubParam === 'connected') {
+      setMessage({ type: 'success', text: 'GitHub connected successfully!' });
+      searchParams.delete('github');
+      setSearchParams(searchParams, { replace: true });
+      // Refresh statuses
+      loadAllStatuses();
+    } else if (githubParam === 'error') {
+      const reason = searchParams.get('reason') || 'unknown';
+      setMessage({ type: 'error', text: `GitHub connection failed: ${reason}` });
+      searchParams.delete('github');
+      searchParams.delete('reason');
+      setSearchParams(searchParams, { replace: true });
+    }
+  }, [searchParams, setSearchParams, loadAllStatuses]);
 
+  // Clear message after 5 seconds
+  useEffect(() => {
+    if (message) {
+      const timer = setTimeout(() => setMessage(null), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [message]);
+
+  // Load statuses on mount
+  useEffect(() => {
+    loadAllStatuses();
+  }, [loadAllStatuses]);
+
+  // Get status for an integration
+  const getStatus = (id: Integration['id']): IntegrationStatus => {
+    switch (id) {
+      case 'github':
+        return githubStatus;
+      case 'jira':
+        return jiraStatus.connected ? 'connected' : 'not_connected';
+      case 'confluence':
+        return confluenceStatus.connected ? 'connected' : 'not_connected';
+      default:
+        return 'not_connected';
+    }
+  };
+
+  // Handlers
   const handleGitHubConnect = () => {
-    // Redirect to GitHub OAuth flow
-    window.location.href = '/api/auth/github';
+    integrationsApi.startGitHubOAuth();
   };
 
   const handleGitHubDisconnect = async () => {
     try {
-      const response = await fetch('/api/integrations/github/disconnect', {
-        method: 'POST',
-        credentials: 'include',
-      });
-      if (response.ok) {
-        setGithubStatus('not_connected');
-      }
+      await integrationsApi.disconnectGitHub();
+      setGithubStatus('not_connected');
+      setMessage({ type: 'success', text: 'GitHub disconnected successfully.' });
     } catch (error) {
       console.error('Failed to disconnect GitHub:', error);
+      setMessage({ type: 'error', text: 'Failed to disconnect GitHub. Please try again.' });
+    }
+  };
+
+  const handleAtlassianConnect = async (
+    provider: 'jira' | 'confluence',
+    data: { siteUrl: string; email: string; apiToken: string }
+  ) => {
+    if (provider === 'jira') {
+      await integrationsApi.connectJira(data);
+      const status = await integrationsApi.getJiraStatus();
+      setJiraStatus(status);
+      setMessage({ type: 'success', text: 'Jira connected successfully!' });
+    } else {
+      await integrationsApi.connectConfluence(data);
+      const status = await integrationsApi.getConfluenceStatus();
+      setConfluenceStatus(status);
+      setMessage({ type: 'success', text: 'Confluence connected successfully!' });
+    }
+  };
+
+  const handleAtlassianDisconnect = async (provider: 'jira' | 'confluence') => {
+    try {
+      if (provider === 'jira') {
+        await integrationsApi.disconnectJira();
+        setJiraStatus({ connected: false });
+        setMessage({ type: 'success', text: 'Jira disconnected successfully.' });
+      } else {
+        await integrationsApi.disconnectConfluence();
+        setConfluenceStatus({ connected: false });
+        setMessage({ type: 'success', text: 'Confluence disconnected successfully.' });
+      }
+    } catch (error) {
+      console.error(`Failed to disconnect ${provider}:`, error);
+      setMessage({ type: 'error', text: `Failed to disconnect ${provider}. Please try again.` });
+    }
+  };
+
+  const handleConnect = (id: Integration['id']) => {
+    if (id === 'github') {
+      handleGitHubConnect();
+    } else {
+      setConnectModalOpen(id);
+    }
+  };
+
+  const handleDisconnect = (id: Integration['id']) => {
+    if (id === 'github') {
+      handleGitHubDisconnect();
+    } else {
+      handleAtlassianDisconnect(id);
     }
   };
 
@@ -164,15 +252,28 @@ export default function IntegrationsHubPage() {
         <h1 className="text-2xl font-bold text-ak-text-primary">Integrations</h1>
         <p className="mt-2 text-ak-text-secondary">
           Connect AKIS to your development tools. All integrations use{' '}
-          <a
-            href="/docs/integrations/mcp"
+          <Link
+            to="/docs/integrations/mcp"
             className="text-ak-primary hover:underline"
           >
             MCP (Model Context Protocol)
-          </a>{' '}
+          </Link>{' '}
           for secure, credential-free communication.
         </p>
       </div>
+
+      {/* Status Message */}
+      {message && (
+        <div
+          className={`rounded-xl border p-4 ${
+            message.type === 'success'
+              ? 'border-green-500/20 bg-green-500/10 text-green-400'
+              : 'border-red-500/20 bg-red-500/10 text-red-400'
+          }`}
+        >
+          <p className="text-sm font-medium">{message.text}</p>
+        </div>
+      )}
 
       {/* Info Callout */}
       <div className="rounded-xl border border-ak-primary/20 bg-ak-primary/5 p-4">
@@ -183,9 +284,9 @@ export default function IntegrationsHubPage() {
             </svg>
           </div>
           <div>
-            <h3 className="font-medium text-ak-primary">MCP-Backed Integrations</h3>
+            <h3 className="font-medium text-ak-primary">Secure Credential Storage</h3>
             <p className="mt-1 text-sm text-ak-text-secondary">
-              AKIS uses Model Context Protocol to interact with external services. Your credentials are never stored - MCP handles authentication securely through your configured gateways.
+              Your API tokens are encrypted using AES-256-GCM before storage. Credentials are never logged and only the last 4 characters are shown for identification.
             </p>
           </div>
         </div>
@@ -193,91 +294,103 @@ export default function IntegrationsHubPage() {
 
       {/* Integration Cards */}
       <div className="grid gap-6 lg:grid-cols-2 xl:grid-cols-3">
-        {integrationsWithStatus.map((integration) => (
-          <div
-            key={integration.id}
-            className="flex flex-col rounded-2xl border border-ak-border bg-ak-surface-2 p-6 transition-all duration-base hover:shadow-ak-lg"
-          >
-            {/* Header */}
-            <div className="flex items-start justify-between">
-              <div className="flex items-center gap-4">
-                <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-ak-surface text-ak-text-primary">
-                  {integration.icon}
-                </div>
-                <div>
-                  <h3 className="text-lg font-bold text-ak-text-primary">
-                    {integration.name}
-                  </h3>
-                  <span
-                    className={`inline-block mt-1 rounded-full border px-2.5 py-0.5 text-xs font-medium ${
-                      statusStyles[integration.status].badge
-                    }`}
-                  >
-                    {statusStyles[integration.status].text}
-                  </span>
+        {integrations.map((integration) => {
+          const status = getStatus(integration.id);
+          const atlassianInfo = integration.id === 'jira' ? jiraStatus : integration.id === 'confluence' ? confluenceStatus : null;
+
+          return (
+            <div
+              key={integration.id}
+              className="flex flex-col rounded-2xl border border-ak-border bg-ak-surface-2 p-6 transition-all duration-base hover:shadow-ak-lg"
+            >
+              {/* Header */}
+              <div className="flex items-start justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-ak-surface text-ak-text-primary">
+                    {integration.icon}
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-ak-text-primary">
+                      {integration.name}
+                    </h3>
+                    <span
+                      className={`inline-block mt-1 rounded-full border px-2.5 py-0.5 text-xs font-medium ${
+                        statusStyles[status].badge
+                      }`}
+                    >
+                      {statusStyles[status].text}
+                    </span>
+                  </div>
                 </div>
               </div>
-            </div>
 
-            {/* Description */}
-            <p className="mt-4 flex-1 text-sm text-ak-text-secondary">
-              {integration.description}
-            </p>
+              {/* Description */}
+              <p className="mt-4 flex-1 text-sm text-ak-text-secondary">
+                {integration.description}
+              </p>
 
-            {/* Features */}
-            <ul className="mt-4 space-y-2">
-              {integration.features.map((feature) => (
-                <li key={feature} className="flex items-center gap-2 text-sm text-ak-text-secondary">
-                  <CheckIcon />
-                  {feature}
-                </li>
-              ))}
-            </ul>
+              {/* Connection Info (for Atlassian) */}
+              {atlassianInfo?.connected && atlassianInfo.siteUrl && (
+                <div className="mt-4 rounded-lg bg-ak-surface p-3 text-xs text-ak-text-secondary">
+                  <p>Site: {atlassianInfo.siteUrl}</p>
+                  {atlassianInfo.userEmail && <p>User: {atlassianInfo.userEmail}</p>}
+                  {atlassianInfo.tokenLast4 && <p>Token: ••••{atlassianInfo.tokenLast4}</p>}
+                </div>
+              )}
 
-            {/* Actions */}
-            <div className="mt-6 flex items-center gap-3">
-              {integration.status === 'coming_soon' ? (
-                <Button variant="outline" disabled className="flex-1">
-                  Coming Soon
-                </Button>
-              ) : integration.status === 'connected' ? (
-                <>
+              {/* Features */}
+              <ul className="mt-4 space-y-2">
+                {integration.features.map((feature) => (
+                  <li key={feature} className="flex items-center gap-2 text-sm text-ak-text-secondary">
+                    <CheckIcon />
+                    {feature}
+                  </li>
+                ))}
+              </ul>
+
+              {/* Actions */}
+              <div className="mt-6 flex items-center gap-3">
+                {status === 'connected' ? (
+                  <>
+                    <Button
+                      variant="outline"
+                      onClick={() => handleDisconnect(integration.id)}
+                      className="flex-1"
+                    >
+                      Disconnect
+                    </Button>
+                    {integration.id === 'github' && (
+                      <Link
+                        to="/dashboard/agents"
+                        className="flex items-center gap-1 text-sm font-medium text-ak-primary hover:underline"
+                      >
+                        Use <LinkIcon />
+                      </Link>
+                    )}
+                  </>
+                ) : (
                   <Button
-                    variant="outline"
-                    onClick={integration.id === 'github' ? handleGitHubDisconnect : undefined}
+                    variant="primary"
+                    onClick={() => handleConnect(integration.id)}
                     className="flex-1"
+                    disabled={loading}
                   >
-                    Disconnect
+                    {loading ? 'Loading...' : 'Connect'}
                   </Button>
-                  <Link
-                    to={`/dashboard/integrations/${integration.id}`}
-                    className="flex items-center gap-1 text-sm font-medium text-ak-primary hover:underline"
-                  >
-                    Manage <LinkIcon />
-                  </Link>
-                </>
-              ) : (
-                <Button
-                  variant="primary"
-                  onClick={integration.id === 'github' ? handleGitHubConnect : undefined}
-                  className="flex-1"
-                  disabled={loading}
-                >
-                  {loading ? 'Loading...' : 'Connect'}
-                </Button>
-              )}
+                )}
 
-              {integration.docsUrl && (
-                <Link
-                  to={integration.docsUrl}
-                  className="flex items-center gap-1 text-sm text-ak-text-secondary hover:text-ak-primary"
-                >
-                  Docs <LinkIcon />
-                </Link>
-              )}
+                {integration.docsUrl && (
+                  <Link
+                    to={integration.docsUrl}
+                    className="flex items-center gap-1 text-sm text-ak-text-secondary hover:text-ak-primary"
+                  >
+                    Docs <LinkIcon />
+                  </Link>
+                )}
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Request Integration */}
@@ -286,7 +399,7 @@ export default function IntegrationsHubPage() {
           Need a Different Integration?
         </h3>
         <p className="mt-2 text-ak-text-secondary">
-          We're always adding new integrations. Let us know what tools you use.
+          We&apos;re always adding new integrations. Let us know what tools you use.
         </p>
         <a
           href="https://github.com/akis-platform/akis/discussions"
@@ -297,6 +410,16 @@ export default function IntegrationsHubPage() {
           Request an Integration →
         </a>
       </div>
+
+      {/* Atlassian Connect Modal */}
+      {connectModalOpen && (
+        <AtlassianConnectModal
+          provider={connectModalOpen}
+          isOpen={true}
+          onClose={() => setConnectModalOpen(null)}
+          onConnect={(data) => handleAtlassianConnect(connectModalOpen, data)}
+        />
+      )}
     </div>
   );
 }
