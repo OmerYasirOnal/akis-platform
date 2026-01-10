@@ -1,21 +1,33 @@
 /**
- * Integrations API - OAuth-based GitHub integration
- * GET /api/integrations/github/oauth/start
- * GET /api/integrations/github/oauth/callback
- * GET /api/integrations/github/status
- * DELETE /api/integrations/github
- * GET /api/integrations/github/owners
- * GET /api/integrations/github/repos
- * GET /api/integrations/github/branches
+ * Integrations API - OAuth-based GitHub integration + Jira/Confluence
+ * GitHub:
+ *   GET /api/integrations/github/oauth/start
+ *   GET /api/integrations/github/oauth/callback
+ *   GET /api/integrations/github/status
+ *   DELETE /api/integrations/github
+ *   GET /api/integrations/github/owners
+ *   GET /api/integrations/github/repos
+ *   GET /api/integrations/github/branches
+ * Jira/Confluence:
+ *   GET /api/integrations - List all integration statuses
+ *   POST /api/integrations/jira - Connect Jira
+ *   GET /api/integrations/jira/status
+ *   POST /api/integrations/jira/test - Test connection
+ *   DELETE /api/integrations/jira
+ *   POST /api/integrations/confluence - Connect Confluence
+ *   GET /api/integrations/confluence/status
+ *   POST /api/integrations/confluence/test - Test connection
+ *   DELETE /api/integrations/confluence
  */
 import { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { randomBytes } from 'crypto';
 import { getEnv } from '../config/env.js';
 import { requireAuth } from '../utils/auth.js';
 import { db } from '../db/client.js';
-import { oauthAccounts } from '../db/schema.js';
+import { oauthAccounts, integrationCredentials } from '../db/schema.js';
 import { eq, and } from 'drizzle-orm';
 import { DEV_GITHUB_BOOTSTRAP_TOKEN_PLACEHOLDER } from '../core/orchestrator/AgentOrchestrator.js';
+import { encryptSecret, decryptSecret } from '../utils/crypto.js';
 
 // GitHub API helper
 async function fetchFromGitHub<T>(endpoint: string, accessToken: string): Promise<T> {
@@ -479,6 +491,538 @@ export async function integrationsRoutes(fastify: FastifyInstance) {
           branches,
           defaultBranch: repoInfo.default_branch,
         });
+      } catch (err: unknown) {
+        if (err instanceof Error && err.message === 'UNAUTHORIZED') {
+          return reply.code(401).send({
+            error: { code: 'UNAUTHORIZED', message: 'Authentication required' },
+          });
+        }
+        throw err;
+      }
+    }
+  );
+
+  // ===========================================================================
+  // Jira & Confluence Integration Endpoints
+  // ===========================================================================
+
+  // GET /api/integrations - List all integration statuses
+  fastify.get(
+    '/api/integrations',
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      try {
+        const user = await requireAuth(request);
+
+        // Get GitHub status
+        const token = await getGitHubToken(user.id);
+        let githubStatus: { connected: boolean; login?: string } = { connected: false };
+        if (token) {
+          try {
+            const githubUser = await fetchFromGitHub<{ login: string }>('/user', token);
+            githubStatus = { connected: true, login: githubUser.login };
+          } catch {
+            githubStatus = { connected: false };
+          }
+        }
+
+        // Get Jira status
+        const jiraCred = await db.query.integrationCredentials.findFirst({
+          where: and(
+            eq(integrationCredentials.userId, user.id),
+            eq(integrationCredentials.provider, 'jira')
+          ),
+        });
+
+        // Get Confluence status
+        const confluenceCred = await db.query.integrationCredentials.findFirst({
+          where: and(
+            eq(integrationCredentials.userId, user.id),
+            eq(integrationCredentials.provider, 'confluence')
+          ),
+        });
+
+        return reply.code(200).send({
+          github: githubStatus,
+          jira: jiraCred ? {
+            connected: jiraCred.isValid,
+            siteUrl: jiraCred.siteUrl,
+            userEmail: jiraCred.userEmail,
+            lastValidatedAt: jiraCred.lastValidatedAt,
+          } : { connected: false },
+          confluence: confluenceCred ? {
+            connected: confluenceCred.isValid,
+            siteUrl: confluenceCred.siteUrl,
+            userEmail: confluenceCred.userEmail,
+            lastValidatedAt: confluenceCred.lastValidatedAt,
+          } : { connected: false },
+        });
+      } catch (err: unknown) {
+        if (err instanceof Error && err.message === 'UNAUTHORIZED') {
+          return reply.code(401).send({
+            error: { code: 'UNAUTHORIZED', message: 'Authentication required' },
+          });
+        }
+        throw err;
+      }
+    }
+  );
+
+  // Helper: Test Atlassian API connection
+  async function testAtlassianConnection(
+    siteUrl: string,
+    email: string,
+    apiToken: string,
+    provider: 'jira' | 'confluence'
+  ): Promise<{ success: boolean; error?: string; displayName?: string }> {
+    try {
+      const auth = Buffer.from(`${email}:${apiToken}`).toString('base64');
+      const endpoint = provider === 'jira' 
+        ? `${siteUrl}/rest/api/3/myself`
+        : `${siteUrl}/wiki/rest/api/user/current`;
+
+      const response = await fetch(endpoint, {
+        headers: {
+          'Authorization': `Basic ${auth}`,
+          'Accept': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text().catch(() => '');
+        if (response.status === 401) {
+          return { success: false, error: 'Invalid credentials. Check your email and API token.' };
+        }
+        if (response.status === 403) {
+          return { success: false, error: 'Access forbidden. Your API token may lack required permissions.' };
+        }
+        return { success: false, error: `API error (${response.status}): ${errorText.substring(0, 200)}` };
+      }
+
+      const data = await response.json() as { displayName?: string };
+      return { success: true, displayName: data.displayName };
+    } catch (error) {
+      return { 
+        success: false, 
+        error: error instanceof Error ? error.message : 'Connection failed' 
+      };
+    }
+  }
+
+  // POST /api/integrations/jira - Connect Jira
+  fastify.post(
+    '/api/integrations/jira',
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      try {
+        const user = await requireAuth(request);
+        const body = request.body as { siteUrl?: string; email?: string; apiToken?: string };
+
+        // Validate input
+        if (!body.siteUrl || !body.email || !body.apiToken) {
+          return reply.code(400).send({
+            error: { code: 'MISSING_FIELDS', message: 'siteUrl, email, and apiToken are required' },
+          });
+        }
+
+        // Normalize site URL (remove trailing slash)
+        const siteUrl = body.siteUrl.replace(/\/+$/, '');
+
+        // Test connection first
+        const testResult = await testAtlassianConnection(siteUrl, body.email, body.apiToken, 'jira');
+        if (!testResult.success) {
+          return reply.code(400).send({
+            error: { code: 'CONNECTION_FAILED', message: testResult.error || 'Failed to connect to Jira' },
+          });
+        }
+
+        // Encrypt the API token
+        const encrypted = encryptSecret(body.apiToken, `jira:${user.id}`);
+        const tokenLast4 = body.apiToken.slice(-4);
+
+        // Check if exists, update or insert
+        const existing = await db.query.integrationCredentials.findFirst({
+          where: and(
+            eq(integrationCredentials.userId, user.id),
+            eq(integrationCredentials.provider, 'jira')
+          ),
+        });
+
+        if (existing) {
+          await db
+            .update(integrationCredentials)
+            .set({
+              siteUrl,
+              userEmail: body.email,
+              encryptedToken: encrypted.cipherText,
+              tokenIv: encrypted.iv,
+              tokenTag: encrypted.authTag,
+              keyVersion: encrypted.keyVersion,
+              tokenLast4,
+              lastValidatedAt: new Date(),
+              isValid: true,
+              updatedAt: new Date(),
+            })
+            .where(eq(integrationCredentials.id, existing.id));
+        } else {
+          await db.insert(integrationCredentials).values({
+            userId: user.id,
+            provider: 'jira',
+            siteUrl,
+            userEmail: body.email,
+            encryptedToken: encrypted.cipherText,
+            tokenIv: encrypted.iv,
+            tokenTag: encrypted.authTag,
+            keyVersion: encrypted.keyVersion,
+            tokenLast4,
+            lastValidatedAt: new Date(),
+            isValid: true,
+          });
+        }
+
+        return reply.code(200).send({
+          success: true,
+          message: 'Jira connected successfully',
+          displayName: testResult.displayName,
+        });
+      } catch (err: unknown) {
+        if (err instanceof Error && err.message === 'UNAUTHORIZED') {
+          return reply.code(401).send({
+            error: { code: 'UNAUTHORIZED', message: 'Authentication required' },
+          });
+        }
+        throw err;
+      }
+    }
+  );
+
+  // GET /api/integrations/jira/status
+  fastify.get(
+    '/api/integrations/jira/status',
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      try {
+        const user = await requireAuth(request);
+
+        const cred = await db.query.integrationCredentials.findFirst({
+          where: and(
+            eq(integrationCredentials.userId, user.id),
+            eq(integrationCredentials.provider, 'jira')
+          ),
+        });
+
+        if (!cred) {
+          return reply.code(200).send({ connected: false });
+        }
+
+        return reply.code(200).send({
+          connected: cred.isValid,
+          siteUrl: cred.siteUrl,
+          userEmail: cred.userEmail,
+          tokenLast4: cred.tokenLast4,
+          lastValidatedAt: cred.lastValidatedAt,
+        });
+      } catch (err: unknown) {
+        if (err instanceof Error && err.message === 'UNAUTHORIZED') {
+          return reply.code(401).send({
+            error: { code: 'UNAUTHORIZED', message: 'Authentication required' },
+          });
+        }
+        throw err;
+      }
+    }
+  );
+
+  // POST /api/integrations/jira/test - Test existing connection
+  fastify.post(
+    '/api/integrations/jira/test',
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      try {
+        const user = await requireAuth(request);
+
+        const cred = await db.query.integrationCredentials.findFirst({
+          where: and(
+            eq(integrationCredentials.userId, user.id),
+            eq(integrationCredentials.provider, 'jira')
+          ),
+        });
+
+        if (!cred) {
+          return reply.code(404).send({
+            error: { code: 'NOT_CONNECTED', message: 'Jira is not connected' },
+          });
+        }
+
+        // Decrypt token
+        const apiToken = decryptSecret({
+          cipherText: cred.encryptedToken,
+          iv: cred.tokenIv,
+          authTag: cred.tokenTag,
+          keyVersion: cred.keyVersion,
+        }, `jira:${user.id}`);
+
+        // Test connection
+        const testResult = await testAtlassianConnection(cred.siteUrl, cred.userEmail, apiToken, 'jira');
+
+        // Update validation status
+        await db
+          .update(integrationCredentials)
+          .set({
+            isValid: testResult.success,
+            lastValidatedAt: new Date(),
+            updatedAt: new Date(),
+          })
+          .where(eq(integrationCredentials.id, cred.id));
+
+        if (!testResult.success) {
+          return reply.code(200).send({
+            success: false,
+            error: testResult.error,
+          });
+        }
+
+        return reply.code(200).send({
+          success: true,
+          displayName: testResult.displayName,
+        });
+      } catch (err: unknown) {
+        if (err instanceof Error && err.message === 'UNAUTHORIZED') {
+          return reply.code(401).send({
+            error: { code: 'UNAUTHORIZED', message: 'Authentication required' },
+          });
+        }
+        throw err;
+      }
+    }
+  );
+
+  // DELETE /api/integrations/jira
+  (fastify as FastifyInstance & { delete: typeof fastify.get }).delete(
+    '/api/integrations/jira',
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      try {
+        const user = await requireAuth(request);
+
+        await db
+          .delete(integrationCredentials)
+          .where(
+            and(
+              eq(integrationCredentials.userId, user.id),
+              eq(integrationCredentials.provider, 'jira')
+            )
+          );
+
+        return reply.code(200).send({ ok: true });
+      } catch (err: unknown) {
+        if (err instanceof Error && err.message === 'UNAUTHORIZED') {
+          return reply.code(401).send({
+            error: { code: 'UNAUTHORIZED', message: 'Authentication required' },
+          });
+        }
+        throw err;
+      }
+    }
+  );
+
+  // POST /api/integrations/confluence - Connect Confluence
+  fastify.post(
+    '/api/integrations/confluence',
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      try {
+        const user = await requireAuth(request);
+        const body = request.body as { siteUrl?: string; email?: string; apiToken?: string };
+
+        // Validate input
+        if (!body.siteUrl || !body.email || !body.apiToken) {
+          return reply.code(400).send({
+            error: { code: 'MISSING_FIELDS', message: 'siteUrl, email, and apiToken are required' },
+          });
+        }
+
+        // Normalize site URL (remove trailing slash)
+        const siteUrl = body.siteUrl.replace(/\/+$/, '');
+
+        // Test connection first
+        const testResult = await testAtlassianConnection(siteUrl, body.email, body.apiToken, 'confluence');
+        if (!testResult.success) {
+          return reply.code(400).send({
+            error: { code: 'CONNECTION_FAILED', message: testResult.error || 'Failed to connect to Confluence' },
+          });
+        }
+
+        // Encrypt the API token
+        const encrypted = encryptSecret(body.apiToken, `confluence:${user.id}`);
+        const tokenLast4 = body.apiToken.slice(-4);
+
+        // Check if exists, update or insert
+        const existing = await db.query.integrationCredentials.findFirst({
+          where: and(
+            eq(integrationCredentials.userId, user.id),
+            eq(integrationCredentials.provider, 'confluence')
+          ),
+        });
+
+        if (existing) {
+          await db
+            .update(integrationCredentials)
+            .set({
+              siteUrl,
+              userEmail: body.email,
+              encryptedToken: encrypted.cipherText,
+              tokenIv: encrypted.iv,
+              tokenTag: encrypted.authTag,
+              keyVersion: encrypted.keyVersion,
+              tokenLast4,
+              lastValidatedAt: new Date(),
+              isValid: true,
+              updatedAt: new Date(),
+            })
+            .where(eq(integrationCredentials.id, existing.id));
+        } else {
+          await db.insert(integrationCredentials).values({
+            userId: user.id,
+            provider: 'confluence',
+            siteUrl,
+            userEmail: body.email,
+            encryptedToken: encrypted.cipherText,
+            tokenIv: encrypted.iv,
+            tokenTag: encrypted.authTag,
+            keyVersion: encrypted.keyVersion,
+            tokenLast4,
+            lastValidatedAt: new Date(),
+            isValid: true,
+          });
+        }
+
+        return reply.code(200).send({
+          success: true,
+          message: 'Confluence connected successfully',
+          displayName: testResult.displayName,
+        });
+      } catch (err: unknown) {
+        if (err instanceof Error && err.message === 'UNAUTHORIZED') {
+          return reply.code(401).send({
+            error: { code: 'UNAUTHORIZED', message: 'Authentication required' },
+          });
+        }
+        throw err;
+      }
+    }
+  );
+
+  // GET /api/integrations/confluence/status
+  fastify.get(
+    '/api/integrations/confluence/status',
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      try {
+        const user = await requireAuth(request);
+
+        const cred = await db.query.integrationCredentials.findFirst({
+          where: and(
+            eq(integrationCredentials.userId, user.id),
+            eq(integrationCredentials.provider, 'confluence')
+          ),
+        });
+
+        if (!cred) {
+          return reply.code(200).send({ connected: false });
+        }
+
+        return reply.code(200).send({
+          connected: cred.isValid,
+          siteUrl: cred.siteUrl,
+          userEmail: cred.userEmail,
+          tokenLast4: cred.tokenLast4,
+          lastValidatedAt: cred.lastValidatedAt,
+        });
+      } catch (err: unknown) {
+        if (err instanceof Error && err.message === 'UNAUTHORIZED') {
+          return reply.code(401).send({
+            error: { code: 'UNAUTHORIZED', message: 'Authentication required' },
+          });
+        }
+        throw err;
+      }
+    }
+  );
+
+  // POST /api/integrations/confluence/test - Test existing connection
+  fastify.post(
+    '/api/integrations/confluence/test',
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      try {
+        const user = await requireAuth(request);
+
+        const cred = await db.query.integrationCredentials.findFirst({
+          where: and(
+            eq(integrationCredentials.userId, user.id),
+            eq(integrationCredentials.provider, 'confluence')
+          ),
+        });
+
+        if (!cred) {
+          return reply.code(404).send({
+            error: { code: 'NOT_CONNECTED', message: 'Confluence is not connected' },
+          });
+        }
+
+        // Decrypt token
+        const apiToken = decryptSecret({
+          cipherText: cred.encryptedToken,
+          iv: cred.tokenIv,
+          authTag: cred.tokenTag,
+          keyVersion: cred.keyVersion,
+        }, `confluence:${user.id}`);
+
+        // Test connection
+        const testResult = await testAtlassianConnection(cred.siteUrl, cred.userEmail, apiToken, 'confluence');
+
+        // Update validation status
+        await db
+          .update(integrationCredentials)
+          .set({
+            isValid: testResult.success,
+            lastValidatedAt: new Date(),
+            updatedAt: new Date(),
+          })
+          .where(eq(integrationCredentials.id, cred.id));
+
+        if (!testResult.success) {
+          return reply.code(200).send({
+            success: false,
+            error: testResult.error,
+          });
+        }
+
+        return reply.code(200).send({
+          success: true,
+          displayName: testResult.displayName,
+        });
+      } catch (err: unknown) {
+        if (err instanceof Error && err.message === 'UNAUTHORIZED') {
+          return reply.code(401).send({
+            error: { code: 'UNAUTHORIZED', message: 'Authentication required' },
+          });
+        }
+        throw err;
+      }
+    }
+  );
+
+  // DELETE /api/integrations/confluence
+  (fastify as FastifyInstance & { delete: typeof fastify.get }).delete(
+    '/api/integrations/confluence',
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      try {
+        const user = await requireAuth(request);
+
+        await db
+          .delete(integrationCredentials)
+          .where(
+            and(
+              eq(integrationCredentials.userId, user.id),
+              eq(integrationCredentials.provider, 'confluence')
+            )
+          );
+
+        return reply.code(200).send({ ok: true });
       } catch (err: unknown) {
         if (err instanceof Error && err.message === 'UNAUTHORIZED') {
           return reply.code(401).send({
