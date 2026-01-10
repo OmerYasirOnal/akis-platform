@@ -34,7 +34,7 @@ const tutorials: Tutorial[] = [
   {
     id: 'intro-to-akis',
     title: 'Introduction to AKIS Platform',
-    description: 'Learn the basics of AKIS, its architecture, and how AI agents can transform your development workflow.',
+    description: 'Understand the AKIS architecture: agents, jobs, MCP gateway, and how they work together to automate your SDLC.',
     duration: '15 min',
     level: 'Beginner',
     category: 'Getting Started',
@@ -42,7 +42,7 @@ const tutorials: Tutorial[] = [
   {
     id: 'first-scribe-job',
     title: 'Running Your First Scribe Job',
-    description: 'Step-by-step guide to connecting your GitHub repository and generating documentation with Scribe.',
+    description: 'Connect GitHub, select a repository, and watch Scribe generate documentation from your latest commits.',
     duration: '20 min',
     level: 'Beginner',
     category: 'Getting Started',
@@ -50,7 +50,7 @@ const tutorials: Tutorial[] = [
   {
     id: 'configuring-ai-models',
     title: 'Configuring AI Models',
-    description: 'How to set up OpenAI and OpenRouter API keys, choose the right model, and optimize for your use case.',
+    description: 'Add OpenAI or OpenRouter keys, select models from the allowlist, and monitor token usage per job.',
     duration: '12 min',
     level: 'Beginner',
     category: 'Configuration',
@@ -58,7 +58,7 @@ const tutorials: Tutorial[] = [
   {
     id: 'github-integration-deep-dive',
     title: 'GitHub Integration Deep Dive',
-    description: 'Advanced GitHub integration features including branch selection, commit filtering, and PR automation.',
+    description: 'OAuth setup, repository discovery, branch selection, and automated PR creation with Scribe.',
     duration: '25 min',
     level: 'Intermediate',
     category: 'Integrations',
@@ -66,7 +66,7 @@ const tutorials: Tutorial[] = [
   {
     id: 'understanding-mcp',
     title: 'Understanding MCP Protocol',
-    description: 'Learn how Model Context Protocol enables secure integrations without exposing credentials.',
+    description: 'MCP (Model Context Protocol) enables zero-credential integrations. Learn the JSON-RPC flow and tool calls.',
     duration: '18 min',
     level: 'Intermediate',
     category: 'Architecture',
@@ -74,7 +74,7 @@ const tutorials: Tutorial[] = [
   {
     id: 'custom-scribe-templates',
     title: 'Custom Scribe Output Templates',
-    description: 'Create custom templates for changelogs, release notes, and documentation styles.',
+    description: 'Define PR title templates, body templates, and branch naming patterns for consistent documentation.',
     duration: '30 min',
     level: 'Intermediate',
     category: 'Customization',
@@ -82,7 +82,7 @@ const tutorials: Tutorial[] = [
   {
     id: 'job-orchestration',
     title: 'Job Orchestration & Workflows',
-    description: 'Build complex workflows combining multiple agent runs with conditional logic and dependencies.',
+    description: 'Chain agent runs, implement approval flows, and handle revision requests with the feedback loop.',
     duration: '35 min',
     level: 'Advanced',
     category: 'Workflows',
@@ -90,7 +90,7 @@ const tutorials: Tutorial[] = [
   {
     id: 'self-hosting-guide',
     title: 'Self-Hosting AKIS on OCI',
-    description: 'Complete guide to deploying AKIS on Oracle Cloud Infrastructure free tier.',
+    description: 'Deploy AKIS on Oracle Cloud free tier: Docker Compose, ARM64 builds, and production hardening.',
     duration: '45 min',
     level: 'Advanced',
     category: 'DevOps',
@@ -232,7 +232,7 @@ export default function LearnLandingPage() {
           </p>
           <div className="mt-8 flex flex-col gap-4 sm:flex-row sm:justify-center">
             <a
-              href="https://github.com/akis-platform/akis/discussions"
+              href="https://github.com/OmerYasirOnal/akis-platform-devolopment/discussions"
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center justify-center gap-2 rounded-xl border border-ak-border bg-ak-surface-2 px-6 py-3 font-semibold text-ak-text-primary transition-colors hover:bg-ak-surface"
@@ -243,15 +243,13 @@ export default function LearnLandingPage() {
               GitHub Discussions
             </a>
             <a
-              href="https://discord.gg/akis"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center justify-center gap-2 rounded-xl bg-[#5865F2] px-6 py-3 font-semibold text-white transition-colors hover:bg-[#4752C4]"
+              href="mailto:support@akis.dev"
+              className="flex items-center justify-center gap-2 rounded-xl bg-ak-primary px-6 py-3 font-semibold text-ak-bg transition-colors hover:bg-ak-primary/90"
             >
-              <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M20.317 4.3698a19.7913 19.7913 0 00-4.8851-1.5152.0741.0741 0 00-.0785.0371c-.211.3753-.4447.8648-.6083 1.2495-1.8447-.2762-3.68-.2762-5.4868 0-.1636-.3933-.4058-.8742-.6177-1.2495a.077.077 0 00-.0785-.037 19.7363 19.7363 0 00-4.8852 1.515.0699.0699 0 00-.0321.0277C.5334 9.0458-.319 13.5799.0992 18.0578a.0824.0824 0 00.0312.0561c2.0528 1.5076 4.0413 2.4228 5.9929 3.0294a.0777.0777 0 00.0842-.0276c.4616-.6304.8731-1.2952 1.226-1.9942a.076.076 0 00-.0416-.1057c-.6528-.2476-1.2743-.5495-1.8722-.8923a.077.077 0 01-.0076-.1277c.1258-.0943.2517-.1923.3718-.2914a.0743.0743 0 01.0776-.0105c3.9278 1.7933 8.18 1.7933 12.0614 0a.0739.0739 0 01.0785.0095c.1202.099.246.1981.3728.2924a.077.077 0 01-.0066.1276 12.2986 12.2986 0 01-1.873.8914.0766.0766 0 00-.0407.1067c.3604.698.7719 1.3628 1.225 1.9932a.076.076 0 00.0842.0286c1.961-.6067 3.9495-1.5219 6.0023-3.0294a.077.077 0 00.0313-.0552c.5004-5.177-.8382-9.6739-3.5485-13.6604a.061.061 0 00-.0312-.0286zM8.02 15.3312c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9555-2.4189 2.157-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.9555 2.4189-2.1569 2.4189zm7.9748 0c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9554-2.4189 2.1569-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.946 2.4189-2.1568 2.4189z"/>
+              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
               </svg>
-              Join Discord
+              Contact Support
             </a>
           </div>
         </div>

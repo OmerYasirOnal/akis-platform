@@ -36,6 +36,7 @@ const LearnLandingPage = lazy(() => import('./pages/public/LearnLandingPage'));
 // Lazy loaded dashboard pages
 const IntegrationsHubPage = lazy(() => import('./pages/dashboard/integrations/IntegrationsHubPage'));
 const DashboardSettingsAiKeysPage = lazy(() => import('./pages/dashboard/settings/DashboardSettingsAiKeysPage'));
+const AgentsHubPage = lazy(() => import('./pages/dashboard/agents/AgentsHubPage'));
 
 // Loading fallback for lazy loaded pages
 const PageLoader = () => (
@@ -139,9 +140,15 @@ function App() {
               />
             </Route>
             <Route path="agents">
-              <Route index element={<Navigate to="/dashboard/scribe" replace />} />
+              <Route
+                index
+                element={
+                  <Suspense fallback={<PageLoader />}>
+                    <AgentsHubPage />
+                  </Suspense>
+                }
+              />
               <Route path="scribe" element={<Navigate to="/dashboard/scribe" replace />} />
-              <Route path="scribe/run" element={<Navigate to="/dashboard/scribe" replace />} />
             </Route>
             
             {/* Integrations Hub (New) */}

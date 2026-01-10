@@ -10,13 +10,13 @@ interface BlogPost {
   readTime: string;
 }
 
-// Placeholder blog posts - AKIS-focused content
+// AKIS-focused blog content
 const blogPosts: BlogPost[] = [
   {
     id: 'introducing-scribe-agent',
     title: 'Introducing Scribe: Your AI-Powered Documentation Assistant',
     excerpt:
-      'Learn how Scribe automatically generates comprehensive documentation, changelog entries, and release notes from your Git commits and code changes.',
+      'Scribe transforms your Git activity into living documentation. See how teams are saving 10+ hours weekly on changelog, API docs, and release notes.',
     date: '2026-01-08',
     author: 'AKIS Team',
     category: 'Product',
@@ -26,7 +26,7 @@ const blogPosts: BlogPost[] = [
     id: 'mcp-integration-philosophy',
     title: 'Why We Chose Model Context Protocol for Integrations',
     excerpt:
-      'A deep dive into our decision to use MCP for external service integrations, and how it enables secure, flexible automation without exposing credentials.',
+      'MCP enables zero-credential integrations. Learn how AKIS agents communicate with GitHub, Jira, and Confluence without storing your tokens.',
     date: '2026-01-05',
     author: 'AKIS Team',
     category: 'Engineering',
@@ -36,7 +36,7 @@ const blogPosts: BlogPost[] = [
     id: 'secure-ai-key-management',
     title: 'Secure AI Key Management in Multi-Tenant Environments',
     excerpt:
-      'How AKIS encrypts and manages user API keys for OpenAI and other providers while maintaining security and compliance.',
+      'Your API keys are encrypted at rest with AES-256-GCM. Discover our defense-in-depth approach to protecting sensitive credentials.',
     date: '2026-01-02',
     author: 'AKIS Team',
     category: 'Security',
@@ -46,7 +46,7 @@ const blogPosts: BlogPost[] = [
     id: 'roadmap-2026',
     title: 'AKIS Roadmap 2026: Trace, Proto, and Beyond',
     excerpt:
-      'A preview of upcoming agents including Trace for debugging assistance and Proto for rapid prototyping, plus our vision for AI-assisted development.',
+      'Trace generates test plans from Jira specs. Proto scaffolds MVPs in minutes. Here is what we are shipping next and why it matters for your team.',
     date: '2025-12-28',
     author: 'AKIS Team',
     category: 'Roadmap',
@@ -56,7 +56,7 @@ const blogPosts: BlogPost[] = [
     id: 'getting-started-with-akis',
     title: 'Getting Started with AKIS: A Complete Guide',
     excerpt:
-      'Step-by-step tutorial on setting up AKIS, connecting your GitHub repositories, and running your first Scribe job.',
+      'From signup to your first automated PR in under 10 minutes. Follow this hands-on walkthrough to connect GitHub and run Scribe.',
     date: '2025-12-20',
     author: 'AKIS Team',
     category: 'Tutorial',
@@ -66,7 +66,7 @@ const blogPosts: BlogPost[] = [
     id: 'oci-free-tier-deployment',
     title: 'Running AKIS on OCI Free Tier: A Cost-Effective Setup',
     excerpt:
-      'How we optimized AKIS to run efficiently on Oracle Cloud Infrastructure\'s free tier, and how you can self-host it too.',
+      'Self-host AKIS for $0/month. We share our ARM64 optimizations, Docker Compose config, and production-ready deployment scripts.',
     date: '2025-12-15',
     author: 'AKIS Team',
     category: 'DevOps',

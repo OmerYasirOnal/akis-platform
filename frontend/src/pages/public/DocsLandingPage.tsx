@@ -48,61 +48,61 @@ const docSections: DocSection[] = [
   {
     icon: <RocketIcon />,
     title: 'Getting Started',
-    description: 'Set up your AKIS environment and run your first agent job.',
+    description: 'Set up your AKIS environment and run your first agent job in under 10 minutes.',
     links: [
-      { label: 'Quick Start Guide', href: '/docs/quickstart' },
-      { label: 'Installation', href: '/docs/installation' },
-      { label: 'Authentication', href: '/docs/auth' },
+      { label: 'Quick Start Guide', href: '/docs#quickstart' },
+      { label: 'Installation', href: '/docs#installation' },
+      { label: 'Authentication', href: '/docs#authentication' },
     ],
   },
   {
     icon: <CubeIcon />,
     title: 'Agents',
-    description: 'Learn about Scribe and other AI agents available in AKIS.',
+    description: 'Scribe, Trace, and Proto - three agents that automate docs, tests, and prototypes.',
     links: [
-      { label: 'Scribe Overview', href: '/docs/agents/scribe' },
-      { label: 'Running Jobs', href: '/docs/agents/jobs' },
-      { label: 'Model Selection', href: '/docs/agents/models' },
+      { label: 'Scribe Overview', href: '/docs#scribe' },
+      { label: 'Trace Overview', href: '/docs#trace' },
+      { label: 'Proto Overview', href: '/docs#proto' },
     ],
   },
   {
     icon: <LinkIcon />,
     title: 'Integrations',
-    description: 'Connect AKIS to GitHub, Jira, Confluence, and other services.',
+    description: 'Connect AKIS to GitHub, Jira, and Confluence via MCP (Model Context Protocol).',
     links: [
-      { label: 'GitHub Integration', href: '/docs/integrations/github' },
-      { label: 'MCP Protocol', href: '/docs/integrations/mcp' },
-      { label: 'Jira & Confluence', href: '/docs/integrations/atlassian' },
+      { label: 'GitHub Integration', href: '/docs#github' },
+      { label: 'MCP Protocol', href: '/docs#mcp' },
+      { label: 'Atlassian (Coming Soon)', href: '/docs#atlassian' },
     ],
   },
   {
     icon: <KeyIcon />,
     title: 'Security',
-    description: 'Understand how AKIS handles security and API key management.',
+    description: 'API key encryption, OAuth flows, and data privacy policies.',
     links: [
-      { label: 'API Key Management', href: '/docs/security/api-keys' },
-      { label: 'OAuth Flow', href: '/docs/security/oauth' },
-      { label: 'Data Privacy', href: '/docs/security/privacy' },
+      { label: 'API Key Management', href: '/docs#api-keys' },
+      { label: 'OAuth Flow', href: '/docs#oauth' },
+      { label: 'Data Privacy', href: '/docs#privacy' },
     ],
   },
   {
     icon: <CommandLineIcon />,
     title: 'API Reference',
-    description: 'Complete API documentation for developers building on AKIS.',
+    description: 'REST endpoints, authentication, and webhook payloads for developers.',
     links: [
-      { label: 'REST API', href: '/docs/api/rest' },
-      { label: 'Authentication', href: '/docs/api/auth' },
-      { label: 'Webhooks', href: '/docs/api/webhooks' },
+      { label: 'REST API', href: '/docs#rest-api' },
+      { label: 'Authentication', href: '/docs#api-auth' },
+      { label: 'Webhooks', href: '/docs#webhooks' },
     ],
   },
   {
     icon: <BookOpenIcon />,
     title: 'Guides',
-    description: 'In-depth tutorials and best practices for using AKIS.',
+    description: 'Best practices, troubleshooting tips, and self-hosting instructions.',
     links: [
-      { label: 'Best Practices', href: '/docs/guides/best-practices' },
-      { label: 'Troubleshooting', href: '/docs/guides/troubleshooting' },
-      { label: 'Self-Hosting', href: '/docs/guides/self-hosting' },
+      { label: 'Best Practices', href: '/docs#best-practices' },
+      { label: 'Troubleshooting', href: '/docs#troubleshooting' },
+      { label: 'Self-Hosting', href: '/docs#self-hosting' },
     ],
   },
 ];
@@ -144,25 +144,25 @@ export default function DocsLandingPage() {
       <section className="border-y border-ak-border bg-ak-surface py-8">
         <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-center gap-4 px-4 sm:gap-8 sm:px-6 lg:px-8">
           <Link
-            to="/docs/quickstart"
+            to="/docs#quickstart"
             className="text-sm font-medium text-ak-primary hover:underline"
           >
             Quick Start →
           </Link>
           <Link
-            to="/docs/agents/scribe"
+            to="/docs#scribe"
             className="text-sm font-medium text-ak-primary hover:underline"
           >
             Scribe Agent →
           </Link>
           <Link
-            to="/docs/api/rest"
+            to="/docs#rest-api"
             className="text-sm font-medium text-ak-primary hover:underline"
           >
             API Reference →
           </Link>
           <a
-            href="https://github.com/akis-platform/akis"
+            href="https://github.com/OmerYasirOnal/akis-platform-devolopment"
             target="_blank"
             rel="noopener noreferrer"
             className="text-sm font-medium text-ak-primary hover:underline"
@@ -211,7 +211,7 @@ export default function DocsLandingPage() {
           </p>
           <div className="mt-8 flex flex-col gap-4 sm:flex-row sm:justify-center">
             <a
-              href="https://github.com/akis-platform/akis/discussions"
+              href="https://github.com/OmerYasirOnal/akis-platform-devolopment/discussions"
               target="_blank"
               rel="noopener noreferrer"
               className="rounded-xl border border-ak-border bg-ak-surface-2 px-6 py-3 font-semibold text-ak-text-primary transition-colors hover:bg-ak-surface"
