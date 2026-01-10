@@ -755,7 +755,7 @@ export class AgentOrchestrator {
       if (userKey) {
         apiKey = userKey.key;
         keySource = 'user';
-        console.log(`[resolveAiServiceForJob] Using user key for ${providerCandidate}, keyPrefix=${apiKey.substring(0, 10)}...`);
+        console.log(`[resolveAiServiceForJob] Using user key for ${providerCandidate}`);
       }
     }
 

@@ -45,9 +45,6 @@ export async function buildApp() {
   console.log(`[buildApp] AI Models: default=${configSummary.models.default}, planner=${configSummary.models.planner}, validation=${configSummary.models.validation}`);
   console.log(`[buildApp] AI Base URL: ${configSummary.baseUrl}`);
   console.log(`[buildApp] AI API Key: ${configSummary.hasApiKey ? 'configured' : 'NOT CONFIGURED'}`);
-  if (configSummary.hasApiKey && configSummary.apiKeyPrefix) {
-    console.log(`[buildApp] AI API Key prefix: ${configSummary.apiKeyPrefix}...`);
-  }
 
   // Phase 5.D: Create MCPTools (signature-only adapters for now)
   // In production, these would be initialized with real tokens/baseUrls
