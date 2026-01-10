@@ -1,53 +1,116 @@
-# AKIS Platform Dokümantasyon
+```markdown
+# AKIS Platform
 
-Bu klasör, AKIS Platform'un teknik dokümantasyonunu içerir.
+**Yapay Zekâ Ajanı İş Akışı Motoru** (AI Agent Workflow Engine)
 
-## 📐 Web Sitesi Tasarım Dokümanları (YENİ)
-
-AKIS Platform web sitesi için kapsamlı tasarım ve bilgi mimarisi dokümanları:
-
-### [**Web Information Architecture**](./WEB_INFORMATION_ARCHITECTURE.md) 
-Sayfa yapıları, içerik organizasyonu ve kullanıcı akışları:
-- **Site mimarisi (Sitemap):** Public marketing site + authenticated dashboard
-- **Detaylı sayfa içerikleri:** Landing page, agent pages, pricing, docs, dashboard
-- **Kullanıcı akışları:** İlk ziyaret → kayıt → ilk agent çalıştırma
-- **Hedef kitle analizi:** Teknik liderler, C-level, bireysel geliştiriciler
-- **SEO ve analytics:** Meta tags, structured data, conversion events
-- **Responsive stratejiler:** Mobile-first approach, breakpoints, adaptive layouts
-
-### [**UI Design System**](./UI_DESIGN_SYSTEM.md)
-Görsel tasarım sistemi, marka token'ları ve UI komponentleri:
-- **Renk paleti:** Dark theme (#0A1215 bg, #07D1AF primary), WCAG AA compliance
-- **Tipografi:** System font stack, type scale, responsive typography
-- **Spacing & Layout:** Grid systems, elevation, shadows
-- **Component library:** Buttons, inputs, cards, modals, navigation, tables, toasts
-- **Animasyonlar:** Transitions, hover effects, loading states
-- **Accessibility:** Focus states, ARIA patterns, keyboard navigation
-- **Tailwind config:** Complete configuration özeti
-
-**Kullanım:** 
-- Frontend geliştirme sırasında referans rehber olarak kullanın
-- Yeni component geliştirirken ilgili bölüme bakın
-- Design token'ları değişirse `tailwind.config.js`'i güncelleyin
+AKIS Platform, yazılım geliştirme süreçlerindeki tekrarlayan görevleri otomatikleştiren bir otonom ajan platformudur.
 
 ---
 
-## 📋 Kontrol Listeleri
+## 📍 Start Here
 
-Kalite, güvenlik ve performans kontrolleri için:
+> **Hangi dökümana bakmalıyım?** Aşağıdaki kanonik zincir, tüm planlama ve uygulama dokümanlarını birbirine bağlar:
 
-- [Definition of Done (DoD)](../.cursor/checklists/DoD.md)
-- [Security Checklist](../.cursor/checklists/Security.md)
-- [Performance Checklist](../.cursor/checklists/Performance.md)
+```
+docs/PROJECT_TRACKING_BASELINE.md  (schedule anchor, spreadsheet source)
+          ↓
+docs/ROADMAP.md                    (phase overview)
+          ↓
+docs/NEXT.md                       (immediate actions + gating)
+```
 
-## 🏗️ Mimari Dokümantasyon
+| Amaç | Doküman |
+|------|---------|
+| Sprint/phase/milestone takibi | [PROJECT_TRACKING_BASELINE.md](docs/PROJECT_TRACKING_BASELINE.md) |
+| Faz görünümü & kabul kriterleri | [ROADMAP.md](docs/ROADMAP.md) |
+| Anlık aksiyon listesi & gating | [NEXT.md](docs/NEXT.md) |
+| Mimari ve teknoloji yığını | [CONTEXT_ARCHITECTURE.md](.cursor/context/CONTEXT_ARCHITECTURE.md) |
+| Proje kapsamı & gereksinimler | [CONTEXT_SCOPE.md](.cursor/context/CONTEXT_SCOPE.md) |
 
-- [Architecture Context](../.cursor/context/CONTEXT_ARCHITECTURE.md)
-- [Scope Context](../.cursor/context/CONTEXT_SCOPE.md)
+---
 
-## 👨‍💻 Geliştirme Rehberleri
+## Özellikler
 
-- [Cursor + Codex Strategy](../CURSOR_CODEX_STRATEGY.md)
-- [Rules & Guardrails](../.cursor/rules/rules.mdc)
-- [Constraints](../.cursor/constraints.md)
-- [Glossary](../.cursor/glossary.md)
+- **AKIS Scribe**: Teknik dokümantasyon güncelleme
+- **AKIS Trace**: Test otomasyonu üretimi
+- **AKIS Proto**: MVP prototipleme
+
+## Teknoloji Stack
+
+- **Backend**: Fastify + TypeScript (Node ≥ 20)
+- **Database**: PostgreSQL + Drizzle ORM
+- **Frontend**: React (Vite SPA, Next.js kullanılmıyor) + Tailwind CSS
+- **Integrations**: MCP (Model Context Protocol) adapters
+
+## Installation
+
+### Prerequisites
+
+- Node.js (≥ 20)
+- PostgreSQL
+
+### Setup Commands
+
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/OmerYasirOnal/akis-platform-devolopment.git
+   cd akis-platform-devolopment
+   ```
+
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+
+3. Set up your database (details to follow in TODO).
+
+---
+
+## Usage
+
+### Starting the Server
+
+To start the server, run:
+```bash
+npm run start
+```
+
+### Accessing the API
+
+The API is built with Fastify. For detailed API specifications, refer to the [Backend API Spec](backend/docs/API_SPEC.md).
+
+---
+
+## Canonical Docs
+
+- [Cursor + Codex Strategy](CURSOR_CODEX_STRATEGY.md) – Cursor/Codex kullanım kuralları
+- [CONTEXT_SCOPE (.cursor)](.cursor/context/CONTEXT_SCOPE.md) – problemin tanımı ve hedefler
+- [CONTEXT_ARCHITECTURE (.cursor)](.cursor/context/CONTEXT_ARCHITECTURE.md) – mimari kararlar ve teknoloji yığını
+- [UI_DESIGN_SYSTEM](docs/UI_DESIGN_SYSTEM.md) – tasarım token'ları ve komponent kuralları
+- [WEB_INFORMATION_ARCHITECTURE](docs/WEB_INFORMATION_ARCHITECTURE.md) – site yapısı ve kullanıcı akışları
+- [ROADMAP](docs/ROADMAP.md) – faz ve teslimat planı
+- [constraints](docs/constraints.md) – OCI Free Tier ve platform kısıtları
+- [Agent Workflows](backend/docs/AGENT_WORKFLOWS.md) – Plan→Execute→Reflect→Validate yaşam döngüsü
+
+---
+
+## Project Tracking & Execution
+
+### Canonical Planning Sources
+
+| Document | Purpose |
+|----------|---------|
+| [PROJECT_TRACKING_BASELINE.md](docs/PROJECT_TRACKING_BASELINE.md) | Sprint/phase/milestone schedule (from spreadsheet) |
+| [NEXT.md](docs/NEXT.md) | Immediate actions + gating criteria |
+| [ROADMAP.md](docs/ROADMAP.md) | Phase overview and delivery plan |
+
+---
+
+## Contributing
+
+TODO: Add contributing guidelines.
+
+## License
+
+TODO: Add license information.
+```
