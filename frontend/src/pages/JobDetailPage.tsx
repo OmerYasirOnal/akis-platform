@@ -7,7 +7,7 @@ import { Pill } from '../components/ui/Pill';
 import { CodeBlock } from '../components/ui/CodeBlock';
 import { ErrorToast } from '../components/ui/ErrorToast';
 import { StepTimeline } from '../components/agents/StepTimeline';
-import { ArtifactPreview, PRMetadataCard, RunSummaryPanel } from '../components/jobs';
+import { ArtifactPreview, PRMetadataCard, RunSummaryPanel, IssueReportModal } from '../components/jobs';
 import { PlanView } from '../components/jobs/PlanView';
 import { FeedbackTab } from '../components/jobs/FeedbackTab';
 
@@ -218,6 +218,9 @@ export default function JobDetailPage() {
   const [includeTrace] = useState(true); // Always include trace by default
   const [includeArtifacts] = useState(true); // Always include artifacts by default
 
+  // Issue report modal state
+  const [showIssueModal, setShowIssueModal] = useState(false);
+
   // Use refs for options to avoid closure issues
   const includePlanRef = useRef(includePlan);
   const includeAuditRef = useRef(includeAudit);
@@ -336,6 +339,15 @@ export default function JobDetailPage() {
 
   return (
     <div className={containerClass}>
+      {/* Issue Report Modal */}
+      {job && (
+        <IssueReportModal
+          job={job}
+          isOpen={showIssueModal}
+          onClose={() => setShowIssueModal(false)}
+        />
+      )}
+
       {/* Header */}
       <div className="mb-6">
         <Link to="/dashboard/jobs" className="text-ak-primary hover:text-ak-text-primary mb-4 inline-flex items-center gap-1 text-sm group">
@@ -360,6 +372,17 @@ export default function JobDetailPage() {
             )}
           </div>
           <div className="flex items-center gap-2">
+            {job.state === 'failed' && (
+              <button
+                onClick={() => setShowIssueModal(true)}
+                className="px-3 py-1.5 text-sm bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 rounded-lg text-red-400 transition-colors flex items-center gap-1.5"
+              >
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+                </svg>
+                Report Issue
+              </button>
+            )}
             <button
               onClick={() => loadJob()}
               disabled={isLoading}

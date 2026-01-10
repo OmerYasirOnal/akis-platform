@@ -407,5 +407,32 @@
   "auth.oauth.error.providerError": "Giriş sağlayıcısı bir hata döndürdü. Lütfen tekrar deneyin.",
   "auth.oauth.error.generic": "Giriş sırasında bir hata oluştu. Lütfen tekrar deneyin.",
   "auth.oauth.error.tryAgain": "Tekrar deneyebilir veya e-posta ile giriş yapabilirsiniz.",
-  "auth.oauth.error.dismiss": "Kapat"
+  "auth.oauth.error.dismiss": "Kapat",
+
+  "agentsHub.title": "Ajanlar",
+  "agentsHub.searchPlaceholder": "Ajan ara...",
+  "agentsHub.builtInAgents": "Yerleşik Ajanlar",
+  "agentsHub.yourConfigurations": "Yapılandırmalarınız",
+  "agentsHub.capabilities": "Yetenekler",
+  "agentsHub.quickActions": "Hızlı İşlemler",
+  "agentsHub.runAgent": "Ajanı Çalıştır",
+  "agentsHub.running": "Çalışıyor...",
+  "agentsHub.advancedConsole": "Gelişmiş Konsol",
+  "agentsHub.connectGitHub": "Ajanları çalıştırmak için GitHub'ı bağlayın.",
+  "agentsHub.goToIntegrations": "Entegrasyonlara Git",
+  "agentsHub.viewJobDetails": "İş Detaylarını Görüntüle",
+  "agentsHub.selectAgent": "Listeden bir ajan seçin",
+  "agentsHub.comingSoon": "Yakında",
+  "agentsHub.available": "Kullanılabilir",
+
+  "issueReport.title": "Sorun Bildir",
+  "issueReport.issueTitle": "Sorun Başlığı",
+  "issueReport.additionalContext": "Ek Bağlam (isteğe bağlı)",
+  "issueReport.additionalContextPlaceholder": "Sorunu teşhis etmeye yardımcı olabilecek ek bilgiler ekleyin...",
+  "issueReport.preview": "Sorun Önizleme",
+  "issueReport.copyMarkdown": "Markdown Kopyala",
+  "issueReport.copied": "Kopyalandı!",
+  "issueReport.createGitHubIssue": "GitHub Issue Oluştur",
+  "issueReport.gitHubConnected": "GitHub'a bağlı - doğrudan bir issue oluşturabilirsiniz",
+  "issueReport.gitHubNotConnected": "Markdown'u kopyalayın ve yeni bir GitHub issue'ya yapıştırın"
 }
