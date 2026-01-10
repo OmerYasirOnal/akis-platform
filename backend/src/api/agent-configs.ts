@@ -35,6 +35,35 @@ const scribeConfigSchema = z.object({
 });
 
 export async function agentConfigRoutes(fastify: FastifyInstance) {
+  // GET /api/agents/configs - List all agent configs for current user
+  fastify.get(
+    '/api/agents/configs',
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      try {
+        const user = await requireAuth(request);
+
+        // Load all configs for this user
+        const configs = await db.query.agentConfigs.findMany({
+          where: eq(agentConfigs.userId, user.id),
+        });
+
+        return reply.code(200).send({
+          configs,
+        });
+      } catch (err: unknown) {
+        if (err instanceof Error && err.message === 'UNAUTHORIZED') {
+          return reply.code(401).send({
+            error: {
+              code: 'UNAUTHORIZED',
+              message: 'Authentication required',
+            },
+          });
+        }
+        throw err;
+      }
+    }
+  );
+
   // GET /api/agents/configs/:agentType
   fastify.get(
     '/api/agents/configs/:agentType',

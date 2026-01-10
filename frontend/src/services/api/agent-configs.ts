@@ -115,6 +115,16 @@ export interface ConfigUpdatePayload {
 
 export const agentConfigsApi = {
   /**
+   * List all agent configurations for current user
+   */
+  listConfigs: async (): Promise<{ configs: ScribeConfig[] }> => {
+    return httpClient.get<{ configs: ScribeConfig[] }>(
+      '/api/agents/configs',
+      withCredentials
+    );
+  },
+
+  /**
    * Get agent configuration
    */
   getConfig: async (agentType: AgentType): Promise<ConfigResponse> => {

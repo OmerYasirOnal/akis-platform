@@ -407,5 +407,32 @@
   "auth.oauth.error.providerError": "The sign-in provider returned an error. Please try again.",
   "auth.oauth.error.generic": "Something went wrong during sign-in. Please try again.",
   "auth.oauth.error.tryAgain": "You can try again or use email sign-in.",
-  "auth.oauth.error.dismiss": "Dismiss"
+  "auth.oauth.error.dismiss": "Dismiss",
+
+  "agentsHub.title": "Agents",
+  "agentsHub.searchPlaceholder": "Search agents...",
+  "agentsHub.builtInAgents": "Built-in Agents",
+  "agentsHub.yourConfigurations": "Your Configurations",
+  "agentsHub.capabilities": "Capabilities",
+  "agentsHub.quickActions": "Quick Actions",
+  "agentsHub.runAgent": "Run Agent",
+  "agentsHub.running": "Running...",
+  "agentsHub.advancedConsole": "Advanced Console",
+  "agentsHub.connectGitHub": "Connect GitHub to run agents.",
+  "agentsHub.goToIntegrations": "Go to Integrations",
+  "agentsHub.viewJobDetails": "View Job Details",
+  "agentsHub.selectAgent": "Select an agent from the list",
+  "agentsHub.comingSoon": "Coming Soon",
+  "agentsHub.available": "Available",
+
+  "issueReport.title": "Report Issue",
+  "issueReport.issueTitle": "Issue Title",
+  "issueReport.additionalContext": "Additional Context (optional)",
+  "issueReport.additionalContextPlaceholder": "Add any additional information that might help diagnose the issue...",
+  "issueReport.preview": "Issue Preview",
+  "issueReport.copyMarkdown": "Copy Markdown",
+  "issueReport.copied": "Copied!",
+  "issueReport.createGitHubIssue": "Create GitHub Issue",
+  "issueReport.gitHubConnected": "Connected to GitHub - you can create an issue directly",
+  "issueReport.gitHubNotConnected": "Copy the markdown and paste it into a new GitHub issue"
 }
