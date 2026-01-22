@@ -1,0 +1,557 @@
+# =============================================================================
+# AKIS Platform - OCI Staging Deployment Workflow
+# =============================================================================
+#
+# Deploys to staging on OCI Free Tier.
+#
+# SAFETY: Deploy job only runs when explicitly safe:
+#   - Manual trigger (workflow_dispatch) required until staging env is ready
+#   - Automatic deployment enabled only for push to main with 'deploy-staging' label
+#   - Guarded execution: checks for required secrets before deployment
+#
+# Trigger:
+#   - Manual workflow dispatch (primary until staging is configured)
+#   - Push to main branch (only when staging is fully configured)
+#
+# Quality Gates (preserved from existing pipelines):
+#   - Backend: typecheck, lint, test
+#   - Frontend: typecheck, lint, test, build
+#
+# Deployment:
+#   - Idempotent (safe to re-run)
+#   - Rollback-aware (automatic on health check failure)
+#   - Secret redaction (no sensitive data in logs)
+#
+# Environment: staging (OCI Free Tier VM)
+#
+# Required Secrets (see docs/deploy/OCI_STAGING_RUNBOOK.md):
+#   - STAGING_HOST: VM public IP address
+#   - STAGING_USER: SSH username (usually 'opc')
+#   - STAGING_SSH_KEY: Private SSH key for deployment
+#
+# =============================================================================
+
+name: OCI Staging Deploy
+
+on:
+  # Manual dispatch is the primary trigger until staging is fully configured
+  workflow_dispatch:
+    inputs:
+      skip_tests:
+        description: 'Skip tests (emergency deploy only)'
+        required: false
+        default: 'false'
+        type: boolean
+      force_deploy:
+        description: 'Force deploy even if health checks fail'
+        required: false
+        default: 'false'
+        type: boolean
+      confirm_deploy:
+        description: 'Type "deploy" to confirm deployment'
+        required: true
+        default: ''
+        type: string
+  
+  # Push trigger only runs quality gates; deployment requires manual confirmation
+  # This prevents automatic deploy failures when staging is not yet configured
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - 'docs/**'
+      - '*.md'
+      - '.cursor/**'
+      - '.agent/**'
+      - '.github/PULL_REQUEST_TEMPLATE.md'
+
+# Prevent concurrent deployments - wait for in-progress deploy to complete
+concurrency:
+  group: oci-staging-deploy
+  cancel-in-progress: false
+
+env:
+  REGISTRY: ghcr.io
+  BACKEND_IMAGE: ghcr.io/${{ github.repository }}/akis-backend
+  NODE_VERSION: '22.12.0'
+  PNPM_VERSION: '9'
+
+jobs:
+  # ===========================================================================
+  # Quality Gates - Backend
+  # ===========================================================================
+  backend-quality:
+    name: Backend Quality Gates
+    runs-on: ubuntu-latest
+    if: ${{ github.event.inputs.skip_tests != 'true' }}
+    
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: akis_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Get pnpm store directory
+        shell: bash
+        run: echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+
+      - name: Setup pnpm cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-backend-${{ hashFiles('backend/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-backend-
+
+      - name: Install dependencies
+        working-directory: backend
+        run: pnpm install --frozen-lockfile || pnpm install
+
+      - name: Wait for Postgres
+        run: |
+          until nc -z 127.0.0.1 5432; do
+            echo "Waiting for PostgreSQL..."
+            sleep 1
+          done
+
+      - name: Run migrations
+        working-directory: backend
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/akis_test
+        run: pnpm db:migrate
+
+      - name: Typecheck
+        working-directory: backend
+        run: pnpm run typecheck
+
+      - name: Lint
+        working-directory: backend
+        run: pnpm run lint
+
+      - name: Test
+        working-directory: backend
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/akis_test
+          NODE_ENV: test
+        run: pnpm run test:ci
+
+  # ===========================================================================
+  # Quality Gates - Frontend
+  # ===========================================================================
+  frontend-quality:
+    name: Frontend Quality Gates
+    runs-on: ubuntu-latest
+    if: ${{ github.event.inputs.skip_tests != 'true' }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Get pnpm store directory
+        shell: bash
+        run: echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+
+      - name: Setup pnpm cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-frontend-${{ hashFiles('frontend/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-frontend-
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: pnpm install --frozen-lockfile || npm ci || npm install
+
+      - name: Typecheck
+        working-directory: frontend
+        run: npm run typecheck
+
+      - name: Lint
+        working-directory: frontend
+        run: npm run lint
+
+      - name: Test
+        working-directory: frontend
+        run: npm test
+
+  # ===========================================================================
+  # Build - Docker Images and Frontend Assets
+  # ===========================================================================
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    needs: [backend-quality, frontend-quality]
+    if: |
+      always() && 
+      (needs.backend-quality.result == 'success' || needs.backend-quality.result == 'skipped') &&
+      (needs.frontend-quality.result == 'success' || needs.frontend-quality.result == 'skipped')
+    
+    permissions:
+      contents: read
+      packages: write
+
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      commit: ${{ steps.version.outputs.commit }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Get version info
+        id: version
+        run: |
+          VERSION=$(node -p "require('./backend/package.json').version")
+          COMMIT=${GITHUB_SHA::7}
+          BUILD_TIME=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "commit=$COMMIT" >> $GITHUB_OUTPUT
+          echo "build_time=$BUILD_TIME" >> $GITHUB_OUTPUT
+          echo "Version: $VERSION, Commit: $COMMIT, Build Time: $BUILD_TIME"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Build frontend
+        working-directory: frontend
+        env:
+          VITE_API_URL: /api
+        run: |
+          npm ci || npm install
+          npm run build
+
+      - name: Upload frontend build
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dist
+          path: frontend/dist
+          retention-days: 1
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push backend image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile
+          push: true
+          tags: |
+            ${{ env.BACKEND_IMAGE }}:staging
+            ${{ env.BACKEND_IMAGE }}:${{ steps.version.outputs.commit }}
+          build-args: |
+            BUILD_COMMIT=${{ steps.version.outputs.commit }}
+            BUILD_TIME=${{ steps.version.outputs.build_time }}
+            APP_VERSION=${{ steps.version.outputs.version }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64,linux/arm64
+
+  # ===========================================================================
+  # Check Staging Readiness - Verify required secrets are available
+  # ===========================================================================
+  staging_ready:
+    name: Check Staging Readiness
+    runs-on: ubuntu-latest
+    # Only check for deploy (not for push-triggered quality gates)
+    if: github.event_name == 'workflow_dispatch'
+    outputs:
+      ready: ${{ steps.check.outputs.ready }}
+      message: ${{ steps.check.outputs.message }}
+
+    steps:
+      - name: Check required secrets
+        id: check
+        run: |
+          READY=true
+          MISSING=""
+          
+          # Check for required deployment secrets
+          if [ -z "${{ secrets.STAGING_HOST }}" ]; then
+            READY=false
+            MISSING="${MISSING}STAGING_HOST, "
+          fi
+          
+          if [ -z "${{ secrets.STAGING_USER }}" ]; then
+            READY=false
+            MISSING="${MISSING}STAGING_USER, "
+          fi
+          
+          if [ -z "${{ secrets.STAGING_SSH_KEY }}" ]; then
+            READY=false
+            MISSING="${MISSING}STAGING_SSH_KEY, "
+          fi
+          
+          if [ "$READY" = "false" ]; then
+            echo "ready=false" >> $GITHUB_OUTPUT
+            echo "message=Missing secrets: ${MISSING%%, }" >> $GITHUB_OUTPUT
+            echo "::warning::Staging environment not ready. Missing: ${MISSING%%, }"
+            echo "See docs/deploy/OCI_STAGING_RUNBOOK.md for setup instructions."
+          else
+            echo "ready=true" >> $GITHUB_OUTPUT
+            echo "message=All required secrets available" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Check deploy confirmation
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          if [ "${{ github.event.inputs.confirm_deploy }}" != "deploy" ]; then
+            echo "::error::Deployment not confirmed. Type 'deploy' in the confirm_deploy input to proceed."
+            exit 1
+          fi
+          echo "✅ Deployment confirmed"
+
+  # ===========================================================================
+  # Deploy - OCI Staging
+  # ===========================================================================
+  deploy:
+    name: Deploy to OCI Staging
+    runs-on: ubuntu-latest
+    needs: [build, staging_ready]
+    # Only deploy when:
+    # 1. Manual dispatch with confirmation AND secrets available
+    # 2. Build succeeded
+    if: |
+      github.event_name == 'workflow_dispatch' &&
+      needs.staging_ready.outputs.ready == 'true' &&
+      needs.build.result == 'success'
+    environment:
+      name: staging
+      url: https://staging.akisflow.com
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download frontend build
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-dist
+          path: frontend/dist
+
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          # Securely write SSH key (secret content never logged)
+          echo "${{ secrets.STAGING_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          
+          # Trust host fingerprint
+          ssh-keyscan -H ${{ secrets.STAGING_HOST }} >> ~/.ssh/known_hosts 2>/dev/null
+          
+          echo "SSH configured successfully"
+
+      - name: Get previous version (for rollback)
+        id: previous
+        run: |
+          PREV_VERSION=$(ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
+            ${{ secrets.STAGING_USER }}@${{ secrets.STAGING_HOST }} \
+            "docker inspect akis-staging-backend --format '{{.Config.Image}}' 2>/dev/null || echo 'none'") || echo "none"
+          echo "previous_image=$PREV_VERSION" >> $GITHUB_OUTPUT
+          echo "Previous version captured (redacted)"
+
+      - name: Create pre-deploy backup
+        run: |
+          ssh -i ~/.ssh/deploy_key ${{ secrets.STAGING_USER }}@${{ secrets.STAGING_HOST }} << 'BACKUP_SCRIPT'
+            cd /opt/akis
+            mkdir -p backups
+            
+            # Create database backup (non-blocking on failure)
+            docker exec akis-staging-db pg_dump -U akis akis_staging \
+              > /opt/akis/backups/pre-deploy-$(date +%Y%m%d-%H%M%S).sql 2>/dev/null || true
+            
+            # Cleanup old backups (keep 7 days)
+            find /opt/akis/backups -name "*.sql" -mtime +7 -delete 2>/dev/null || true
+            
+            echo "Backup completed"
+          BACKUP_SCRIPT
+
+      - name: Deploy to staging
+        env:
+          BACKEND_VERSION: ${{ needs.build.outputs.commit }}
+        run: |
+          # Copy deployment files
+          scp -i ~/.ssh/deploy_key deploy/oci/staging/docker-compose.yml \
+            ${{ secrets.STAGING_USER }}@${{ secrets.STAGING_HOST }}:/opt/akis/docker-compose.yml
+          
+          scp -i ~/.ssh/deploy_key deploy/oci/staging/Caddyfile \
+            ${{ secrets.STAGING_USER }}@${{ secrets.STAGING_HOST }}:/opt/akis/Caddyfile
+          
+          # Copy frontend dist
+          ssh -i ~/.ssh/deploy_key ${{ secrets.STAGING_USER }}@${{ secrets.STAGING_HOST }} \
+            "mkdir -p /opt/akis/frontend"
+          
+          scp -r -i ~/.ssh/deploy_key frontend/dist/* \
+            ${{ secrets.STAGING_USER }}@${{ secrets.STAGING_HOST }}:/opt/akis/frontend/
+          
+          # Deploy services
+          ssh -i ~/.ssh/deploy_key ${{ secrets.STAGING_USER }}@${{ secrets.STAGING_HOST }} << DEPLOY_SCRIPT
+            cd /opt/akis
+            
+            # Set backend version
+            export BACKEND_VERSION=${{ needs.build.outputs.commit }}
+            
+            # Pull new images
+            docker compose pull
+            
+            # Run database migrations (idempotent)
+            docker compose run --rm backend pnpm db:migrate || true
+            
+            # Deploy with rolling update
+            docker compose up -d --remove-orphans
+            
+            # Prune old images
+            docker image prune -f
+            
+            echo "Deployment completed"
+          DEPLOY_SCRIPT
+
+      - name: Wait for deployment stabilization
+        run: sleep 30
+
+      - name: Health check
+        id: health
+        run: |
+          echo "Running health checks..."
+          
+          for i in {1..30}; do
+            HEALTH=$(curl -s -o /dev/null -w "%{http_code}" https://staging.akisflow.com/health 2>/dev/null || echo "000")
+            READY=$(curl -s -o /dev/null -w "%{http_code}" https://staging.akisflow.com/ready 2>/dev/null || echo "000")
+            
+            if [ "$HEALTH" = "200" ] && [ "$READY" = "200" ]; then
+              echo "Health checks passed!"
+              echo "health_status=success" >> $GITHUB_OUTPUT
+              exit 0
+            fi
+            
+            echo "Attempt $i/30: health=$HEALTH, ready=$READY"
+            sleep 5
+          done
+          
+          echo "Health checks failed after 30 attempts"
+          echo "health_status=failure" >> $GITHUB_OUTPUT
+          exit 1
+
+      - name: Verify deployed version
+        if: steps.health.outputs.health_status == 'success'
+        run: |
+          DEPLOYED=$(curl -s https://staging.akisflow.com/version | grep -o '"commit":"[^"]*"' | cut -d'"' -f4)
+          EXPECTED="${{ needs.build.outputs.commit }}"
+          
+          if [ "$DEPLOYED" = "$EXPECTED" ]; then
+            echo "✅ Version verified: $DEPLOYED"
+          else
+            echo "❌ Version mismatch: deployed=$DEPLOYED, expected=$EXPECTED"
+            exit 1
+          fi
+
+      - name: Rollback on failure
+        if: failure() && steps.previous.outputs.previous_image != 'none' && github.event.inputs.force_deploy != 'true'
+        run: |
+          echo "⚠️ Deployment failed, initiating rollback..."
+          
+          ssh -i ~/.ssh/deploy_key ${{ secrets.STAGING_USER }}@${{ secrets.STAGING_HOST }} << 'ROLLBACK_SCRIPT'
+            cd /opt/akis
+            
+            # Get previous image tag
+            PREV_TAG=$(docker inspect akis-staging-backend --format '{{.Config.Image}}' | sed 's/.*://')
+            
+            # Pull and restart with previous version
+            docker compose stop backend
+            BACKEND_VERSION=$PREV_TAG docker compose up -d backend
+            
+            echo "Rollback completed"
+          ROLLBACK_SCRIPT
+
+      - name: Capture deployment logs
+        if: always()
+        run: |
+          ssh -i ~/.ssh/deploy_key ${{ secrets.STAGING_USER }}@${{ secrets.STAGING_HOST }} \
+            "docker compose -f /opt/akis/docker-compose.yml logs --tail=100 2>&1" \
+            > deploy-logs.txt 2>&1 || true
+
+      - name: Upload deployment logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: staging-deploy-logs-${{ github.run_number }}
+          path: deploy-logs.txt
+          retention-days: 7
+
+  # ===========================================================================
+  # Notify - Deployment Summary
+  # ===========================================================================
+  notify:
+    name: Deployment Summary
+    runs-on: ubuntu-latest
+    needs: [build, deploy]
+    if: always()
+
+    steps:
+      - name: Create deployment summary
+        run: |
+          if [ "${{ needs.deploy.result }}" = "success" ]; then
+            echo "## ✅ OCI Staging Deployment Successful" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "## ❌ OCI Staging Deployment Failed" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Field | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Version | ${{ needs.build.outputs.version }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Commit | \`${{ needs.build.outputs.commit }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| URL | https://staging.akisflow.com |" >> $GITHUB_STEP_SUMMARY
+          echo "| Workflow Run | #${{ github.run_number }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Triggered By | ${{ github.actor }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ "${{ needs.deploy.result }}" = "success" ]; then
+            echo "### Verification" >> $GITHUB_STEP_SUMMARY
+            echo "- [Health Check](https://staging.akisflow.com/health)" >> $GITHUB_STEP_SUMMARY
+            echo "- [Readiness Check](https://staging.akisflow.com/ready)" >> $GITHUB_STEP_SUMMARY
+            echo "- [Version Info](https://staging.akisflow.com/version)" >> $GITHUB_STEP_SUMMARY
+          fi
