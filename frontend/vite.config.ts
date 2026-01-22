@@ -15,7 +15,16 @@ export default defineConfig({
         target: 'http://localhost:3000',
         changeOrigin: true,
       },
-      '/auth': {
+      // Proxy only backend auth endpoints, avoid proxying UI routes like /auth/privacy-consent
+      '/auth/oauth': {
+        target: 'http://localhost:3000',
+        changeOrigin: true,
+      },
+      '/auth/me': {
+        target: 'http://localhost:3000',
+        changeOrigin: true,
+      },
+      '/auth/logout': {
         target: 'http://localhost:3000',
         changeOrigin: true,
       },
