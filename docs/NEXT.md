@@ -1,8 +1,8 @@
-# Docs NEXT — Execution Order, Gating Criteria & Gap Audit
+# Docs NEXT — Current TODO & Execution Order
 
 > **Schedule Anchor:** `docs/PROJECT_TRACKING_BASELINE.md` (derived from spreadsheet)  
 > **Audit Report:** `docs/DOCS_AUDIT_REPORT.md`  
-> **Last Updated:** 2026-01-10
+> **Last Updated:** 2026-01-28
 
 ### Planning Chain
 
@@ -12,24 +12,101 @@ docs/PROJECT_TRACKING_BASELINE.md  →  docs/ROADMAP.md  →  docs/NEXT.md (this
 
 ---
 
-## Current Focus (2026-01-10)
+## ⚠️ Status Conflicts (Reconciliation Required)
 
-| Priority | Task | Status | Sprint |
-|----------|------|--------|--------|
-| **P0** | Cursor-Inspired UI + Liquid Neon Layer | 🔄 In Progress | S2.0.1 |
-| **P0** | Scribe Console (functional) | 📋 Next | S2.0.1 |
-| P1 | Integrations Hub (GitHub connected, Jira/Confluence coming soon) | ✅ Complete | S2.0.1 |
-| P1 | AI Keys Management UI (functional) | ✅ Complete | S2.0.1 |
-| P2 | Public Pages (Pricing, Blog, Docs, Learn) | ✅ Complete | S2.0.1 |
+> **IMPORTANT:** The following conflicts exist between canonical planning documents.
+> These must be resolved by the team before proceeding.
 
-**Next Milestone:** Cursor-Inspired UI Release — **2026-01-15**
+### CONFLICT #1: S0.4.6 Scribe Config Dashboard Status
+
+| Source | Status | Reference |
+|--------|--------|-----------|
+| `PROJECT_TRACKING_BASELINE.md` | Steps 3-5 **PENDING** | Line 15: "S0.4.6 \| Scribe Config Dashboard — Step 2 verified, Steps 3-5 pending" |
+| `ROADMAP.md` | Steps 3-5 **PENDING** | Lines 62-63: "[ ] Steps 3-5: Target platform, advanced options, review" |
+| `NEXT.md` (this file) | **✅ COMPLETE** | Previous Section showed all steps Complete |
+
+**Resolution Needed:** Confirm actual S0.4.6 completion status and update all three documents.
+
+### CONFLICT #2: Current Phase/Sprint
+
+| Source | Current Phase | Reference |
+|--------|--------------|-----------|
+| `PROJECT_TRACKING_BASELINE.md` | Phase 0.4 (S0.4.6) | Lines 14-16: "🔄 IN PROGRESS \| Phase 0.4" |
+| `ROADMAP.md` | Phase 0.4 (S0.4.6) | Lines 23: "**0.4** \| **🔄 In Progress**" |
+| `NEXT.md` (this file) | Phase 2 (S2.0.1) | Line 19: "Cursor-Inspired UI \| 🔄 In Progress \| S2.0.1" |
+
+**Resolution Needed:** Determine actual current phase and sync all documents.
+
+### CONFLICT #3: Last Updated Dates
+
+| Document | Last Updated | Gap from Today |
+|----------|--------------|----------------|
+| `PROJECT_TRACKING_BASELINE.md` | 2025-12-18 | 41 days stale |
+| `ROADMAP.md` | 2025-12-18 | 41 days stale |
+| `NEXT.md` | 2026-01-10 | 18 days stale |
 
 ---
 
-## 🚀 NEW: Cursor-Inspired UI Milestone (S2.0.1)
+## Current TODO List (Reconciled)
+
+> Assuming NEXT.md (2026-01-10) reflects actual progress and Phase 1 is complete.
+
+### P0 — Critical Path (Blockers)
+
+| ID | Task | Status | Sprint | Notes |
+|----|------|--------|--------|-------|
+| P0-1 | **CONFLICT** Sync S0.4.6 status across all planning docs | 🔴 CONFLICT | — | See Conflict #1 above |
+| P0-2 | **CONFLICT** Sync current phase/sprint across all planning docs | 🔴 CONFLICT | — | See Conflict #2 above |
+| P0-3 | Cursor-Inspired UI + Liquid Neon Layer | 🔄 In Progress | S2.0.1 | Per NEXT.md 2026-01-10 |
+| P0-4 | Scribe Console Enhancement (model selection, job lifecycle) | 📋 Next | S2.0.2 | Per NEXT.md S2.0.2 plan |
+
+### P1 — High Priority (This Sprint)
+
+| ID | Task | Status | Sprint | Notes |
+|----|------|--------|--------|-------|
+| P1-1 | Jira Integration (MCP-based connect flow) | 📋 Planned | S2.0.2 | Backend dependency |
+| P1-2 | Confluence Integration (MCP-based connect flow) | 📋 Planned | S2.0.2 | Backend dependency |
+| P1-3 | Settings: Workspace (team/workspace management) | 📋 Planned | S2.0.2 | |
+| P1-4 | Settings: Billing (usage metrics, invoices) | 📋 Planned | S2.0.2 | |
+| P1-5 | Update `PROJECT_TRACKING_BASELINE.md` to current state | 📋 Planned | — | Stale 41 days |
+| P1-6 | Update `ROADMAP.md` to current state | 📋 Planned | — | Stale 41 days |
+
+### P2 — Medium Priority (Backlog)
+
+| ID | Task | Status | Sprint | Notes |
+|----|------|--------|--------|-------|
+| P2-1 | Create `docs/ENV_SETUP.md` | 📋 Planned | — | Doc gap |
+| P2-2 | Create `docs/TESTING.md` | 📋 Planned | — | Doc gap |
+| P2-3 | Create `docs/PERFORMANCE.md` | 📋 Planned | — | Doc gap |
+| P2-4 | Create `docs/API_USAGE.md` | 📋 Planned | — | Doc gap |
+
+### P3 — Low Priority (Future)
+
+| ID | Task | Status | Sprint | Notes |
+|----|------|--------|--------|-------|
+| P3-1 | Expand `SECURITY.md` | 📋 Planned | — | Doc gap |
+| P3-2 | Phase 10 UX items (GitHub Epic #44) | 📋 Planned | — | Parallel track |
+
+---
+
+## Current Focus (2026-01-28)
+
+| Priority | Task | Status | Sprint |
+|----------|------|--------|--------|
+| **P0** | 🔴 Resolve planning doc conflicts | CONFLICT | — |
+| **P0** | Cursor-Inspired UI + Liquid Neon Layer | 🔄 In Progress | S2.0.1 |
+| **P0** | Scribe Console (functional) | 📋 Next | S2.0.2 |
+| P1 | Jira/Confluence Integration | 📋 Planned | S2.0.2 |
+| P1 | Settings: Workspace & Billing | 📋 Planned | S2.0.2 |
+
+**Next Milestone:** Cursor-Inspired UI Release — **Target: 2026-01-15** (PAST DUE)
+
+---
+
+## 🚀 Cursor-Inspired UI Milestone (S2.0.1)
 
 **Branch:** `feat/ui-cursor-inspired-liquid-neon`  
-**Dates:** Jan 10–15, 2026
+**Dates:** Jan 10–15, 2026 (Target PAST DUE as of 2026-01-28)
 
 ### Shipped (S2.0.1)
 
@@ -44,7 +121,7 @@ docs/PROJECT_TRACKING_BASELINE.md  →  docs/ROADMAP.md  →  docs/NEXT.md (this
 | **API Spec Update** | Multi-provider AI keys documentation | ✅ |
 | **QA Documentation** | Rollout notes + evidence checklist | ✅ |
 
-### Next (S2.0.2)
+### Remaining (S2.0.1 → S2.0.2)
 
 | Component | Description | Status |
 |-----------|-------------|--------|
@@ -65,36 +142,42 @@ docs/PROJECT_TRACKING_BASELINE.md  →  docs/ROADMAP.md  →  docs/NEXT.md (this
 
 ## Previous Milestones
 
-### ✅ Phase 1 Complete (Dec 2025)
+### ✅ Phase 1 Complete (Dec 2025) — Per NEXT.md
+
+> **⚠️ CONFLICT:** `PROJECT_TRACKING_BASELINE.md` and `ROADMAP.md` still show S0.4.6 as pending.
+> See Conflict #1 above.
 
 | Priority | Task | Status | Sprint |
 |----------|------|--------|--------|
 | **P0** | Semester Scribe demo readiness | ✅ Complete | S1.0.x |
-| **P0** | S0.4.6 Scribe Config Dashboard | ✅ Complete | S0.4.6 |
+| **P0** | S0.4.6 Scribe Config Dashboard | 🔴 **CONFLICT** | S0.4.6 |
 | P1 | Scribe temel akış | ✅ Complete | S1.0.1 |
 | P2 | Trace/Proto MVP scaffolds | ✅ Complete | S1.0.2 |
 | P3 | Job logging v1 | ✅ Complete | S1.5.1 |
 
 ---
 
-## Execution Order (Spreadsheet-Aligned)
+## Execution Order (Canonical — Per Baseline)
 
-### Phase 0.4: Web Shell + Basit Motor — CURRENT
+> **Note:** This section reflects `PROJECT_TRACKING_BASELINE.md` structure.
+> Actual progress may differ — see Conflicts section.
+
+### Phase 0.4: Web Shell + Basit Motor
 
 **Sprint Range:** S0.4.1 – S0.4.6  
 **Dates:** Nov 28, 2025 – Dec 18, 2025
 
-#### S0.4.6 — Scribe Config Dashboard (CURRENT)
+#### S0.4.6 — Scribe Config Dashboard
 
-| Step | Description | Status |
-|------|-------------|--------|
-| Step 1 | Pre-flight checks (GitHub connection) | ✅ Complete |
-| Step 2 | SearchableSelect for Owner/Repo/Branch | ✅ Complete (verified) |
-| Step 3 | Target platform configuration | ✅ Complete |
-| Step 4 | Advanced options | ✅ Complete |
-| Step 5 | Review and save | ✅ Complete |
+| Step | Description | Status (NEXT.md) | Status (BASELINE/ROADMAP) |
+|------|-------------|------------------|---------------------------|
+| Step 1 | Pre-flight checks (GitHub connection) | ✅ Complete | ✅ Complete |
+| Step 2 | SearchableSelect for Owner/Repo/Branch | ✅ Complete | ✅ Complete |
+| Step 3 | Target platform configuration | ✅ Complete | ❓ Pending |
+| Step 4 | Advanced options | ✅ Complete | ❓ Pending |
+| Step 5 | Review and save | ✅ Complete | ❓ Pending |
 
-**Exit Criteria:**
+**Exit Criteria (Per NEXT.md):**
 - [x] Step 2 SearchableSelect works (SCRIBE_STEP2_VERIFICATION.md)
 - [x] All 5 steps functional
 - [x] TypeScript/Lint/Tests pass
@@ -103,13 +186,13 @@ docs/PROJECT_TRACKING_BASELINE.md  →  docs/ROADMAP.md  →  docs/NEXT.md (this
 
 ---
 
-### Phase 0.5: Motor + GitHub Entegrasyonu — NEXT
+### Phase 0.5: Motor + GitHub Entegrasyonu
 
 **Dates:** Dec 5–12, 2025
 
 **Objective:** Deep GitHub integration for Scribe agent operations.
 
-**Tasks:**
+**Tasks (Per BASELINE — Status Unknown):**
 - [ ] GitHub webhook handlers
 - [ ] PR creation flow
 - [ ] File content retrieval
@@ -124,20 +207,20 @@ docs/PROJECT_TRACKING_BASELINE.md  →  docs/ROADMAP.md  →  docs/NEXT.md (this
 
 #### S1.0.1 (Dec 13–19)
 
-| Task | Workstream | Description |
-|------|------------|-------------|
-| S1.0.1-DOC-1 | Docs | Scribe AgentContract & Playbook |
-| S1.0.1-BE-1 | Backend | Orchestrator routing for Scribe |
-| S1.0.1-FE-1 | Frontend | Output viewer component |
-| S1.0.1-BE-2 | Backend | Reflection step implementation |
+| Task | Workstream | Description | Status |
+|------|------------|-------------|--------|
+| S1.0.1-DOC-1 | Docs | Scribe AgentContract & Playbook | ✅ (per NEXT.md) |
+| S1.0.1-BE-1 | Backend | Orchestrator routing for Scribe | ✅ (per NEXT.md) |
+| S1.0.1-FE-1 | Frontend | Output viewer component | ✅ (per NEXT.md) |
+| S1.0.1-BE-2 | Backend | Reflection step implementation | ✅ (per NEXT.md) |
 
 #### S1.0.2 (Dec 20–25)
 
-| Task | Workstream | Description |
-|------|------------|-------------|
-| S1.0.2-FE-1 | Frontend | Trace/Proto MVP scaffolds |
-| S1.0.2-FE-2 | Frontend | Job detail UI |
-| S1.0.2-QA-1 | QA | Phase 1 kapanış (Sadi Önal sign-off) |
+| Task | Workstream | Description | Status |
+|------|------------|-------------|--------|
+| S1.0.2-FE-1 | Frontend | Trace/Proto MVP scaffolds | ✅ (per NEXT.md) |
+| S1.0.2-FE-2 | Frontend | Job detail UI | ✅ (per NEXT.md) |
+| S1.0.2-QA-1 | QA | Phase 1 kapanış (Sadi Önal sign-off) | ✅ (per NEXT.md) |
 
 **Exit Criteria:**
 - ✅ Scribe job starts from UI
@@ -206,18 +289,20 @@ These are future proposals only and are not active priorities.
 
 V2 RepoOps agent development is **BLOCKED** until ALL criteria are green:
 
-| Criterion | Current Status | Required | Gate |
-|-----------|----------------|----------|------|
-| Phase 1 complete | 🔄 S0.4.6 + S1.0.x | ✅ Dec 25 milestone | Hard |
-| Scribe agent stable | 🔄 S0.4.6 | ✅ Production-ready | Hard |
-| Trace agent stable | ⚠️ Scaffold | ✅ MVP functional | Hard |
-| Proto agent stable | ⚠️ Scaffold | ✅ MVP functional | Hard |
-| GitHub MCP adapter | ✅ Functional | ✅ Production-ready | Hard |
-| Atlassian MCP adapter | ⚠️ Scaffold | ✅ Production-ready | Soft |
-| Job FSM reliable | ✅ 110/110 tests | ✅ No regressions | Hard |
-| QA sign-off | 📋 S1.0.2 | ✅ Sadi Önal approval | Hard |
+| Criterion | Current Status (per NEXT.md) | Status (per BASELINE) | Required | Gate |
+|-----------|------------------------------|----------------------|----------|------|
+| Phase 1 complete | ✅ Complete (Dec 2025) | 🔄 S0.4.6 + S1.0.x | ✅ Dec 25 milestone | Hard |
+| Scribe agent stable | ✅ Complete | 🔄 S0.4.6 | ✅ Production-ready | Hard |
+| Trace agent stable | ✅ MVP (per NEXT.md) | ⚠️ Scaffold | ✅ MVP functional | Hard |
+| Proto agent stable | ✅ MVP (per NEXT.md) | ⚠️ Scaffold | ✅ MVP functional | Hard |
+| GitHub MCP adapter | ✅ Functional | ✅ Functional | ✅ Production-ready | Hard |
+| Atlassian MCP adapter | ⚠️ Scaffold | ⚠️ Scaffold | ✅ Production-ready | Soft |
+| Job FSM reliable | ✅ 110/110 tests | ✅ 110/110 tests | ✅ No regressions | Hard |
+| QA sign-off | ✅ (per NEXT.md) | 📋 S1.0.2 | ✅ Sadi Önal approval | Hard |
 
-**V2 Start Date:** After Phase 1 complete (earliest Dec 26, 2025)
+> **⚠️ CONFLICT:** NEXT.md shows V2 gates as mostly met, but BASELINE shows them pending.
+
+**V2 Start Date:** After Phase 1 complete (earliest Dec 26, 2025) — **NOW PAST** if NEXT.md is accurate
 
 ---
 
@@ -232,6 +317,24 @@ V2 RepoOps agent development is **BLOCKED** until ALL criteria are green:
 ---
 
 ## Recent Updates
+
+### ⚠️ [2026-01-28] Reconciliation Audit
+
+**Status:** CONFLICTS IDENTIFIED  
+**Action Required:** Team must resolve status conflicts between planning documents.
+
+**Findings:**
+1. **S0.4.6 Status Conflict:** NEXT.md shows complete, BASELINE/ROADMAP show pending
+2. **Phase Conflict:** NEXT.md at Phase 2, BASELINE/ROADMAP at Phase 0.4
+3. **Stale Documents:** BASELINE and ROADMAP not updated since 2025-12-18 (41 days)
+
+**Recommended Actions:**
+1. Verify actual S0.4.6 completion status (check code, QA evidence)
+2. Update `PROJECT_TRACKING_BASELINE.md` with current state
+3. Update `ROADMAP.md` with current state
+4. Establish regular sync cadence (weekly recommended)
+
+---
 
 ### ✅ [2025-12-18] Spreadsheet Ingestion & Baseline Sync
 
@@ -311,13 +414,15 @@ V2 RepoOps agent development is **BLOCKED** until ALL criteria are green:
 
 ---
 
-## Team Assignments (from Spreadsheet)
+## Team Assignments (from Spreadsheet — NEEDS UPDATE)
 
-| Kişi | Rol | Current Focus |
-|------|-----|---------------|
-| **Yasir** | Product Owner / Tech Lead | S0.4.6 Scribe Config, development |
-| **Ayşe** | Research & Documentation Lead | SDTA prep (due Dec 26) |
-| **Sadi Önal** | QA & Test Lead | Phase 1 QA (S1.0.2) |
+> **Note:** This section is based on BASELINE (2025-12-18) and may be outdated.
+
+| Kişi | Rol | Focus (per BASELINE) | Focus (per NEXT.md) |
+|------|-----|---------------------|---------------------|
+| **Yasir** | Product Owner / Tech Lead | S0.4.6 Scribe Config | Cursor-Inspired UI (S2.0.1) |
+| **Ayşe** | Research & Documentation Lead | SDTA prep (due Dec 26) | Unknown (SDTA may be complete) |
+| **Sadi Önal** | QA & Test Lead | Phase 1 QA (S1.0.2) | Unknown (Phase 1 QA may be complete) |
 
 ---
 
@@ -334,4 +439,16 @@ V2 RepoOps agent development is **BLOCKED** until ALL criteria are green:
 
 ---
 
-*This document tracks immediate next actions and gating criteria. Schedule derived from `AKIS_Proje_Takibi_Profesyonel_SON_guncel_v2.xlsx`.*
+## Quick Reference: Canonical Planning Chain
+
+```
+docs/PROJECT_TRACKING_BASELINE.md  (schedule anchor — STALE: 2025-12-18)
+          ↓
+docs/ROADMAP.md                    (phase overview — STALE: 2025-12-18)
+          ↓
+docs/NEXT.md                       (this file — UPDATED: 2026-01-28)
+```
+
+---
+
+*This document tracks immediate next actions and gating criteria. Schedule derived from `AKIS_Proje_Takibi_Profesyonel_SON_guncel_v2.xlsx`. **⚠️ WARNING:** Conflicts exist between planning documents — see "Status Conflicts" section above.*
