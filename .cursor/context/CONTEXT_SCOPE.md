@@ -1,27 +1,82 @@
-### `CONTEXT_SCOPE.md` (Nihai İçerik)
+# AKIS Platform — Project Scope & Requirements
 
-**Proje Kapsamı ve Gereksinimler Dokümanı**  
-**Proje Adı:** AKIS  
-**Bölüm:** Bilgisayar Mühendisliği  
-**Öğrenci:** Ömer Yasir ÖNAL (2221221562)  
+**Proje Adı:** AKIS
+**Bölüm:** Bilgisayar Mühendisliği
+**Öğrenci:** Ömer Yasir ÖNAL (2221221562)
 **Danışman:** Dr. Öğr. Üyesi Nazlı DOĞAN
+**Last Updated:** 2026-01-28 (Gate 4 Context Refresh)
 
 ---
 
-> **Canonical Planning Sources:**
-> - Schedule Anchor: `docs/PROJECT_TRACKING_BASELINE.md`
-> - Documentation Audit: `docs/DOCS_AUDIT_REPORT.md`
-> - Roadmap: `docs/ROADMAP.md`
-> - Next Actions: `docs/NEXT.md`
-> - Current Status Snapshot: `.cursor/context/AKIS_STATUS_ROADMAP.md`
->
-> **Execution Order (Scribe First):**
-> 1. Scribe stabilization (S0.4.6)
-> 2. Phase 9.2 completion (i18n, theming)
-> 3. Phase 10 foundations (settings, a11y, performance)
-> 4. Public waitlist-only site
-> 5. QR/device-link ecosystem
-> 6. V2 RepoOps agent (later, gated)
+## Gate 4 Context Refresh (2026-01-28)
+
+### Current Status Snapshot
+
+**Phase:** Phase 2 (S2.0.1 Cursor-Inspired UI) In Progress (started 2026-01-10)
+**Last Completed:** S0.4.6 Scribe Config Dashboard (QA verified 2025-12-27)
+**Evidence:** `docs/qa/QA_EVIDENCE_S0.4.6.md`, `docs/qa/QA_EVIDENCE_CURSOR_UI_RELEASE.md`
+
+**Canonical Planning Sources:**
+- **Schedule Anchor:** `docs/PROJECT_TRACKING_BASELINE.md` (updated 2026-01-28, Gate 4)
+- **Roadmap:** `docs/ROADMAP.md` (updated 2026-01-28, Gate 3)
+- **Next Actions:** `docs/NEXT.md` (updated 2026-01-28, Gate 3)
+- **Architecture:** `.cursor/context/CONTEXT_ARCHITECTURE.md` (updated 2026-01-28, Gate 4)
+- **Documentation Audit:** `docs/DOCS_AUDIT_REPORT.md`
+
+### What Exists Now (Gate 4 Reality)
+
+**✅ Functional & Stable (Evidence-Based):**
+- S0.4.1-S0.4.5: Landing, OAuth, theme, dashboard, i18n (All Done)
+- S0.4.6: Scribe Config Dashboard Steps 1-5 (Done, QA verified `docs/qa/QA_EVIDENCE_S0.4.6.md`)
+- Job FSM: 110/110 tests passing (verified in BASELINE)
+- GitHub MCP Adapter: Functional (verified in BASELINE V2 gating table)
+- **Authentication:** Multi-step email/password + verification primary, OAuth (Google/GitHub) available
+  - Canonical flow: `backend/docs/Auth.md` (JWT-based, email/password primary, OAuth implemented S0.4.2 PR #90)
+  - QA verified: `docs/qa/QA_EVIDENCE_S0.4.6.md` (2025-12-27 PASS)
+- **Stack:** Fastify + Drizzle + React/Vite (verified `backend/package.json`, `frontend/package.json`)
+
+**🔄 In Progress:**
+- S2.0.1: Cursor-Inspired UI + Liquid Neon Layer (QA started 2026-01-10)
+  - Cursor-inspired UI components
+  - Liquid Neon background layer
+  - Responsive design updates
+
+**⚠️ Broken / Unstable:**
+- Phase 1 (S1.0.1, S1.0.2): Not Started, milestone PAST DUE (2025-12-25)
+  - Scribe basic flow (Orchestrator routing, UI output, reflection)
+  - Trace/Proto MVP scaffolds
+  - QA sign-off NOT FOUND
+- S1.5.1, S1.5.2: Status unknown (no QA evidence)
+  - Job logging v1
+  - Token/cost tracking
+- Atlassian MCP Adapter: Scaffold only (not production-ready)
+- V2 RepoOps: BLOCKED (3/7 gating criteria unmet)
+
+**📋 Planned Next:**
+- S2.0.2: Scribe Console Enhancement (Not Started)
+- Phase 1 completion (requires clarification/replanning)
+- Phase 2.5: Early users + usage metrics
+- Phase 3: Brand + content + final delivery
+
+### Execution Order (Gate 4 Updated)
+
+**DONE:**
+1. ✅ Phase 0.4 (S0.4.1-S0.4.6): Web shell + basic engine + Scribe config (Complete)
+2. ✅ S1.5.0: SDTA document final (Ayşe) (Complete)
+
+**CURRENT:**
+3. 🔄 Phase 2 (S2.0.1): Cursor-Inspired UI + Liquid Neon Layer (In Progress)
+
+**NEXT:**
+4. 📋 S2.0.2: Scribe Console Enhancement
+5. ⚠️ Phase 1 backfill: Clarify/replan S1.0.1, S1.0.2 (past due)
+6. 📋 Phase 2.5: Early users, usage metrics, pricing, templates
+7. 📋 Phase 3: Brand, content, final delivery
+
+**BLOCKED:**
+- V2 RepoOps agent: Gated by Phase 1 completion (Scribe/Trace/Proto MVPs, QA sign-off)
+
+---
 
 ---
 
@@ -96,11 +151,16 @@ AKIS Platform, Cursor tarzı bir çok adımlı kimlik doğrulama akışı kullan
 - **Hız Sınırlaması:** 15 dakikada en fazla 3 doğrulama denemesi (rate limiting).
 - **Şifre Güvenliği:** bcrypt ile hash'leme (12 rounds), ARM uyumlu `@node-rs/bcrypt` kullanılır.
 
-**Gelecek Özellikler (Kapsam Dışı - S0.4.2 sonrası):**
-- **OAuth Entegrasyonu:** Google ve GitHub ile oturum açma (OAuth, e-posta/şifre sisteminin üzerine katman olarak eklenecek; e-posta birincil kimlik olarak kalacak).
-- **Şifre Sıfırlama:** Unutulan şifre için e-posta ile sıfırlama akışı.
-- **E-posta Değiştirme:** Mevcut kullanıcıların e-posta adreslerini güncelleyebilmesi.
-- **İki Faktörlü Kimlik Doğrulama (2FA):** TOTP tabanlı ek güvenlik katmanı (isteğe bağlı).
+**✅ Implemented Features (S0.4.2 + S0.4.4 Done):**
+- **OAuth Integration:** Google and GitHub OAuth available (implemented S0.4.2, PR #90)
+  - Evidence: `backend/docs/Auth.md` confirms OAuth available
+  - Email/password remains primary authentication method
+  - OAuth serves as alternative sign-in option
+
+**Future Features (Out of Scope - Post S0.4.x):**
+- **Password Reset:** Email-based password reset flow (not yet implemented)
+- **Email Change:** Allow users to update email addresses (not yet implemented)
+- **Two-Factor Authentication (2FA):** TOTP-based additional security layer (optional, not yet implemented)
 
 **B. Otonom Ajanlar**
 * **B1. AKIS Scribe:** Kod değişikliklerini analiz ederek ilgili teknik dokümantasyonu (örneğin Confluence sayfaları) güncelleyen ajan.

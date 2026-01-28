@@ -1,3 +1,35 @@
+# AKIS Platform — Technical Architecture Context
+
+> **Last Updated:** 2026-01-28 (Gate 4 Refresh)
+> **Source:** Original architecture research + Gate 4 reality check
+> **Status:** Mandated architecture (DO NOT redesign)
+
+## Gate 4 Context Refresh
+
+**Purpose:** This document defines the MANDATED technical architecture and stack for AKIS Platform. This is NOT a proposal - it is the canonical architecture that must be followed.
+
+**Key Principles:**
+1. **MCP-Only Integration:** All external integrations (GitHub, Atlassian) MUST use Model Context Protocol (MCP) adapters
+2. **Authentication Flow Preservation:** DO NOT redesign or change authentication flows
+3. **Lightweight Stack:** Optimized for OCI Free Tier ARM constraints (4 OCPU, 24 GB RAM)
+4. **Modular Monolith:** Central orchestrator with plugin-like agents
+
+**What Changed (Gate 4 + Patch):**
+- Reality check: Current stack ALREADY uses Fastify + Drizzle + React/Vite (verified via package.json)
+- Current phase: Phase 2 (S2.0.1 Cursor-Inspired UI) in progress
+- S0.4.6 authentication work complete (do not touch)
+- GitHub MCP adapter functional, Atlassian MCP scaffold exists
+
+---
+
+## Historical Research & Rationale (Non-Canonical Background)
+
+> **Note:** Sections 1-2 below document the ORIGINAL architecture research and rationale that led to the mandated stack. These sections are HISTORICAL CONTEXT ONLY—they describe the decision-making process, not current reality. For CURRENT REALITY, see "Gate 4 Current Reality Check" section below.
+>
+> **Key Point:** These sections mention "Current: Next.js + Prisma" and "Proposed: Fastify + Drizzle" as part of the original research. The ACTUAL CURRENT REALITY (verified 2026-01-28) is that Fastify + Drizzle + React/Vite are ALREADY implemented. The "proposal" was accepted and implemented.
+
+---
+
 ### 1\. Agent System Architecture Research & Recommendation
 
 Common Architectures for Agent Systems: In software agent design, several architecture patterns are prevalent:
@@ -55,17 +87,81 @@ Considering the above architecture on an **ARM-based OCI Free Tier** instance, w
   * **AI Calls:** Continue with OpenRouter or direct OpenAI calls. These are external HTTP calls, the main consideration is to use streaming properly (so we don’t buffer huge responses in memory). The Vercel `ai` SDK or OpenAI SDK are okay – just avoid storing big responses fully if not needed. Given 24GB RAM, memory for AI responses isn’t a huge issue, but efficiency is always good.
   * **Concurrency & Task Queue:** For handling long-running agent tasks, consider using Node’s async features. We might not need a full external queue. Instead, we can use an in-memory queue and worker threads or child processes for heavier tasks. Node 18+ allows using **Worker Threads** if an agent’s task is CPU-bound (e.g., parsing a very large repository data structure). Offloading to a worker would utilize another CPU core without blocking the main event loop. This is part of Node, so no extra dependency needed. If tasks are mostly I/O (network/file), we can handle them with async/await in a single thread (Node will manage I/O asynchronously, which is very efficient). We should also leverage streaming when reading large files or network responses to keep memory steady.
 
-**Final Tech Stack Recommendation:**
+**Final Tech Stack Recommendation (MANDATED):**
 
   * **Node.js (18 or 20) with Fastify** for the backend server – giving us an efficient, ARM-friendly web API layer. Fastify will host both the REST API endpoints (for UI to call) and possibly a WebSocket or event endpoint if we need to push progress updates (could be useful for agent status, though a simpler polling might do initially).
   * **TypeScript** as the language, of course, for maintainability and safety.
-  * **Kysely or Drizzle** for database access instead of Prisma – dramatically reducing memory and CPU overhead for database interactions. This change specifically targets OCI’s constraints: a smaller memory footprint and faster startup will help on a low CPU machine. **(If forced to choose, Drizzle might be the top pick due to its minimalism and performance, provided it meets all feature needs.)**
+  * **Kysely or Drizzle** for database access instead of Prisma – dramatically reducing memory and CPU overhead for database interactions. This change specifically targets OCI's constraints: a smaller memory footprint and faster startup will help on a low CPU machine. **(If forced to choose, Drizzle might be the top pick due to its minimalism and performance, provided it meets all feature needs.)**
   * **PostgreSQL** as the database (with potential to use an external managed service or the same VM). Ensure ARM-compatible Postgres image if using Docker – PostgreSQL has no issue on ARM64.
   * **Shared Utilities:** Use lightweight libraries for any needed functionality. For example:
       * **HTTP requests:** use native `fetch` in Node 18+ (enabled by default) or a minimal library like axios only if needed. Avoid heavy HTTP client libs.
-      * **JSON Schema validation:** currently using Zod – Zod is fine (some performance hit, but our inputs aren’t massive; alternative could be `ajv` for pure JSON schema validation which is faster, but Zod is acceptable given developer convenience).
+      * **JSON Schema validation:** currently using Zod – Zod is fine (some performance hit, but our inputs aren't massive; alternative could be `ajv` for pure JSON schema validation which is faster, but Zod is acceptable given developer convenience).
       * **Logging:** use something simple (even console or a small Winston/pino logger) but avoid overly verbose logging in production to save I/O.
-  * **Frontend decoupling:** We will treat the frontend as a separate concern. The Next.js app (dashboard, etc.) can still be used **only for the UI**, or we can even host a static React build. The key is the backend (agent engine) will run as a standalone service. If keeping Next for UI, we might run it separately from the agent API to isolate resource usage (e.g., Next on one small instance and the agent engine on the ARM VM). However, given one big ARM VM is available, another approach is to serve the UI as static files (since the dashboard is not highly dynamic except for calling APIs). We could pre-build the Next app to static or use a lightweight UI stack. This is an extended consideration – but it’s clear the **backend agent engine should not be tightly coupled to Next**. For now, the assumption is Fastify will serve some API routes; the UI can be an SPA hitting those APIs. This separation ensures the backend can be optimized independently for performance.
+  * **Frontend decoupling:** We will treat the frontend as a separate concern. The Next.js app (dashboard, etc.) can still be used **only for the UI**, or we can even host a static React build. The key is the backend (agent engine) will run as a standalone service. If keeping Next for UI, we might run it separately from the agent API to isolate resource usage (e.g., Next on one small instance and the agent engine on the ARM VM). However, given one big ARM VM is available, another approach is to serve the UI as static files (since the dashboard is not highly dynamic except for calling APIs). We could pre-build the Next app to static or use a lightweight UI stack. This is an extended consideration – but it's clear the **backend agent engine should not be tightly coupled to Next**. For now, the assumption is Fastify will serve some API routes; the UI can be an SPA hitting those APIs. This separation ensures the backend can be optimized independently for performance.
+
+---
+
+## Gate 4 Current Reality Check (2026-01-28) — Evidence-Based
+
+**Mandated Architecture vs. Verified Current Implementation:**
+
+### Stack Reality (Evidence-Based)
+
+| Component | Mandated (Above) | Verified Current Reality | Evidence Source | Alignment Status |
+|-----------|------------------|--------------------------|-----------------|------------------|
+| Backend Framework | Fastify | **Fastify 4.x** | `backend/package.json` lines 32-36 (@fastify/* deps) | ✅ **ALIGNED** |
+| ORM/Database | Kysely or Drizzle | **Drizzle ORM** | `backend/package.json` line 40 (drizzle-orm), db scripts | ✅ **ALIGNED** |
+| Database | PostgreSQL | **PostgreSQL** | `backend/drizzle.config.ts` + pg driver | ✅ **ALIGNED** |
+| Language | TypeScript | **TypeScript** | Both package.json files, tsconfig.json | ✅ **ALIGNED** |
+| Frontend | Decoupled SPA | **React 19 + Vite SPA** | `frontend/package.json` lines 22-24 (react, vite) | ✅ **ALIGNED** |
+| Auth | JWT + email/password + OAuth | **JWT + email/password primary, OAuth available** | `backend/docs/Auth.md` lines 11-19 | ✅ **ALIGNED** |
+
+**Reality Summary:**
+- ✅ **Backend:** Fastify + Drizzle already implemented (NOT Next.js + Prisma)
+- ✅ **Frontend:** React + Vite SPA already decoupled (NOT Next.js App Router)
+- ✅ **Auth:** JWT-based with **email/password + verification primary**, OAuth available (NOT OAuth-only)
+- ✅ **Architecture matches mandate:** No migration needed
+
+**Gate 4 Patch Correction:**
+- **Previous Gate 4 claim was INCORRECT:** System already uses mandated stack
+- **No migration required:** Fastify + Drizzle + React/Vite fully implemented
+- **Auth flow verified:** Multi-step email/password + verification is primary method (per `backend/docs/Auth.md`)
+  - Step 1: Name + Email
+  - Step 2: Password
+  - Step 3: Email verification (6-digit code)
+  - Step 4: Consent flows
+  - OAuth (Google/GitHub) available as alternative (S0.4.2, PR #90)
+
+**Evidence References:**
+- Backend stack: `backend/package.json` (Fastify @fastify/*, Drizzle drizzle-orm, bcryptjs for passwords, jsonwebtoken for JWT)
+- Frontend stack: `frontend/package.json` (React 19.1.1, Vite build tool, react-router-dom 7.9.5)
+- Auth canonical: `backend/docs/Auth.md` sections 2-3 (multi-step signup, JWT sessions, email/password primary)
+- Database: `backend/drizzle.config.ts`, schema at `backend/src/db/schema/`
+
+### Integration Reality (Evidence-Based)
+
+| Integration | Status | Evidence Source | Notes |
+|-------------|--------|-----------------|-------|
+| GitHub MCP Adapter | Functional | `docs/PROJECT_TRACKING_BASELINE.md` V2 gating table | Verified functional |
+| Atlassian MCP Adapter | Scaffold | `docs/PROJECT_TRACKING_BASELINE.md` V2 gating table | Not production-ready yet |
+| Job FSM | 110/110 tests passing | `docs/PROJECT_TRACKING_BASELINE.md` V2 gating table | Verified reliable |
+| Auth Flow | Done | `docs/qa/QA_EVIDENCE_S0.4.6.md` (2025-12-27 PASS) | Multi-step email/password + OAuth |
+
+**Critical Constraints (DO NOT VIOLATE):**
+- **Authentication flows MUST NOT be redesigned** (S0.4.6 Done, QA verified 2025-12-27)
+- **Auth is email/password primary** (NOT OAuth-only) per `backend/docs/Auth.md`
+- **MCP-only integration** for GitHub/Atlassian is MANDATED (do not use direct REST APIs)
+
+### Current Phase Context
+- **Phase:** Phase 2 (S2.0.1 Cursor-Inspired UI)
+- **Sprint:** S2.0.1 In Progress (started 2026-01-10)
+- **Focus:** UI/UX improvements, Liquid Neon background, responsive design
+- **DO NOT:** Touch backend architecture, authentication flows, or agent scaffolds during this phase
+
+**No Migration Work Needed:**
+- Stack is already aligned with mandate
+- Focus remains on completing Phase 2 (S2.0.1) UI work
+- Atlassian MCP production-readiness can be Phase 2.5+ work
 
 **Net Result:** By adopting **Fastify + Drizzle (or Kysely)**, we get a highly efficient core. Fastify on ARM will easily run within a small memory footprint and handle I/O concurrently (it’s non-blocking). Drizzle/Kysely will eliminate Prisma’s heavy engine – saving CPU cycles on each query and memory on startup. The overall system will start faster and consume less RAM, which directly addresses the OCI Free Tier limits. This stack **maximizes throughput per CPU** (Fastify’s design) and **minimizes baseline memory usage**, allowing more headroom for caching or for the AI agents’ data processing.
 
