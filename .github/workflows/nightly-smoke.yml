@@ -71,17 +71,57 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile || pnpm install
 
+      - name: Check Nightly Preconditions
+        id: precheck
+        env:
+          MCP_GITHUB_TOKEN: ${{ secrets.MCP_GITHUB_TOKEN }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          SMOKE_TEST_EMAIL: ${{ secrets.SMOKE_TEST_EMAIL }}
+          SMOKE_TEST_PASSWORD: ${{ secrets.SMOKE_TEST_PASSWORD }}
+          SMOKE_TEST_OWNER: ${{ secrets.SMOKE_TEST_OWNER }}
+          SMOKE_TEST_REPO: ${{ secrets.SMOKE_TEST_REPO }}
+        run: |
+          run_backend=true
+          run_cli=true
+          run_e2e=true
+
+          reason_backend=""
+          reason_cli=""
+          reason_e2e=""
+
+          if [ -z "$MCP_GITHUB_TOKEN" ] || [ -z "$OPENAI_API_KEY" ]; then
+            run_backend=false
+            reason_backend="Missing MCP_GITHUB_TOKEN or OPENAI_API_KEY"
+          fi
+
+          if [ -z "$SMOKE_TEST_EMAIL" ] || [ -z "$SMOKE_TEST_PASSWORD" ] || [ -z "$SMOKE_TEST_OWNER" ] || [ -z "$SMOKE_TEST_REPO" ]; then
+            run_cli=false
+            run_e2e=false
+            reason_cli="Missing SMOKE_TEST_* secrets"
+            reason_e2e="Missing SMOKE_TEST_* secrets"
+          fi
+
+          echo "run_backend=$run_backend" >> "$GITHUB_OUTPUT"
+          echo "run_cli=$run_cli" >> "$GITHUB_OUTPUT"
+          echo "run_e2e=$run_e2e" >> "$GITHUB_OUTPUT"
+          echo "reason_backend=$reason_backend" >> "$GITHUB_OUTPUT"
+          echo "reason_cli=$reason_cli" >> "$GITHUB_OUTPUT"
+          echo "reason_e2e=$reason_e2e" >> "$GITHUB_OUTPUT"
+
       - name: Wait for Postgres
+        if: ${{ steps.precheck.outputs.run_backend == 'true' }}
         run: |
           until nc -z 127.0.0.1 5433; do echo "waiting for pg..."; sleep 1; done
 
       - name: Run database migrations
+        if: ${{ steps.precheck.outputs.run_backend == 'true' }}
         working-directory: backend
         env:
           DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5433/akis_v2
         run: pnpm db:migrate
 
       - name: Start MCP Gateway
+        if: ${{ steps.precheck.outputs.run_backend == 'true' }}
         env:
           GITHUB_TOKEN: ${{ secrets.MCP_GITHUB_TOKEN }}
         run: |
@@ -91,6 +131,7 @@ jobs:
           sleep 3
 
       - name: Start Backend Server
+        if: ${{ steps.precheck.outputs.run_backend == 'true' }}
         working-directory: backend
         env:
           DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5433/akis_v2
@@ -108,7 +149,7 @@ jobs:
           curl -s http://localhost:3000/health || (cat /tmp/backend.log && exit 1)
 
       - name: CLI Smoke Test
-        if: ${{ !inputs.skip_cli }}
+        if: ${{ steps.precheck.outputs.run_cli == 'true' && (github.event_name != 'workflow_dispatch' || !inputs.skip_cli) }}
         env:
           SCRIBE_DEV_GITHUB_BOOTSTRAP: true
           SCRIBE_SMOKE_EMAIL: ${{ secrets.SMOKE_TEST_EMAIL }}
@@ -130,12 +171,12 @@ jobs:
           fi
 
       - name: Install Playwright Browsers
-        if: ${{ !inputs.skip_e2e }}
+        if: ${{ steps.precheck.outputs.run_e2e == 'true' && (github.event_name != 'workflow_dispatch' || !inputs.skip_e2e) }}
         working-directory: frontend
         run: pnpm exec playwright install --with-deps chromium
 
       - name: Playwright E2E Smoke Test
-        if: ${{ !inputs.skip_e2e }}
+        if: ${{ steps.precheck.outputs.run_e2e == 'true' && (github.event_name != 'workflow_dispatch' || !inputs.skip_e2e) }}
         working-directory: frontend
         env:
           E2E_EMAIL: ${{ secrets.SMOKE_TEST_EMAIL }}
@@ -156,20 +197,22 @@ jobs:
           fi
 
       - name: Upload Playwright Report
-        if: always()
+        if: ${{ always() && hashFiles('frontend/playwright-report/**') != '' }}
         uses: actions/upload-artifact@v4
         with:
           name: playwright-report
           path: frontend/playwright-report/
           retention-days: 7
+          if-no-files-found: ignore
 
       - name: Upload Playwright Screenshots
-        if: always()
+        if: ${{ always() && hashFiles('frontend/test-results/**') != '' }}
         uses: actions/upload-artifact@v4
         with:
           name: playwright-screenshots
           path: frontend/test-results/
           retention-days: 7
+          if-no-files-found: ignore
 
       - name: Upload Backend Logs
         if: always()
@@ -178,6 +221,7 @@ jobs:
           name: backend-logs
           path: /tmp/backend.log
           retention-days: 7
+          if-no-files-found: ignore
 
       - name: Stop Services
         if: always()
@@ -189,6 +233,13 @@ jobs:
 
       - name: Smoke Test Summary
         if: always()
+        env:
+          CLI_ENABLED: ${{ steps.precheck.outputs.run_cli }}
+          E2E_ENABLED: ${{ steps.precheck.outputs.run_e2e }}
+          CLI_REASON: ${{ steps.precheck.outputs.reason_cli }}
+          E2E_REASON: ${{ steps.precheck.outputs.reason_e2e }}
+          MANUAL_SKIP_CLI: ${{ github.event_name == 'workflow_dispatch' && inputs.skip_cli }}
+          MANUAL_SKIP_E2E: ${{ github.event_name == 'workflow_dispatch' && inputs.skip_e2e }}
         run: |
           echo "## Nightly Smoke Test Results" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
@@ -203,7 +254,13 @@ jobs:
               echo "❌ CLI Smoke: FAIL" >> $GITHUB_STEP_SUMMARY
             fi
           else
-            echo "⏭️ CLI Smoke: SKIPPED" >> $GITHUB_STEP_SUMMARY
+            if [ "$CLI_ENABLED" = "false" ] && [ -n "$CLI_REASON" ]; then
+              echo "⏭️ CLI Smoke: SKIPPED ($CLI_REASON)" >> $GITHUB_STEP_SUMMARY
+            elif [ "$MANUAL_SKIP_CLI" = "true" ]; then
+              echo "⏭️ CLI Smoke: SKIPPED (manually disabled via input)" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "⏭️ CLI Smoke: SKIPPED (step not executed)" >> $GITHUB_STEP_SUMMARY
+            fi
           fi
           
           if [ -f /tmp/e2e-smoke.log ]; then
@@ -213,7 +270,13 @@ jobs:
               echo "❌ Playwright E2E: FAIL" >> $GITHUB_STEP_SUMMARY
             fi
           else
-            echo "⏭️ Playwright E2E: SKIPPED" >> $GITHUB_STEP_SUMMARY
+            if [ "$E2E_ENABLED" = "false" ] && [ -n "$E2E_REASON" ]; then
+              echo "⏭️ Playwright E2E: SKIPPED ($E2E_REASON)" >> $GITHUB_STEP_SUMMARY
+            elif [ "$MANUAL_SKIP_E2E" = "true" ]; then
+              echo "⏭️ Playwright E2E: SKIPPED (manually disabled via input)" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "⏭️ Playwright E2E: SKIPPED (step not executed)" >> $GITHUB_STEP_SUMMARY
+            fi
           fi
           
           echo "" >> $GITHUB_STEP_SUMMARY
