@@ -1,8 +1,8 @@
 # Docs NEXT — Current TODO & Execution Order
 
-> **Schedule Anchor:** `docs/PROJECT_TRACKING_BASELINE.md` (derived from spreadsheet)  
-> **Audit Report:** `docs/DOCS_AUDIT_REPORT.md`  
-> **Last Updated:** 2026-01-28
+> **Schedule Anchor:** `docs/PROJECT_TRACKING_BASELINE.md` (derived from spreadsheet)
+> **Audit Report:** `docs/DOCS_AUDIT_REPORT.md`
+> **Last Updated:** 2026-01-28 (Gate 3 Reconciliation)
 
 ### Planning Chain
 
@@ -10,40 +10,117 @@
 docs/PROJECT_TRACKING_BASELINE.md  →  docs/ROADMAP.md  →  docs/NEXT.md (this file)
 ```
 
+### Gate 3 Reconciliation Status
+
+**Source Documents:**
+- `docs/ops/REPO_REALITY_BASELINE.md` (inventory + conflicts)
+- `docs/ops/PM_NAMING_SYSTEM.md` (naming + statuses)
+- `docs/ops/DOC_HYGIENE_AUDIT.md` (dead links + deprecated refs)
+
 ---
 
-## ⚠️ Status Conflicts (Reconciliation Required)
+## ⚠️ Status Conflicts (Evidence-Driven Reconciliation)
 
 > **IMPORTANT:** The following conflicts exist between canonical planning documents.
-> These must be resolved by the team before proceeding.
+> Gate 3 analysis shows these require QA evidence verification before resolution.
+> **Status terms updated to PM_NAMING_SYSTEM vocabulary.**
 
-### CONFLICT #1: S0.4.6 Scribe Config Dashboard Status
+### CONFLICT #1: S0.4.6 (Scribe Config Dashboard) — Completion Status
 
-| Source | Status | Reference |
-|--------|--------|-----------|
-| `PROJECT_TRACKING_BASELINE.md` | Steps 3-5 **PENDING** | Line 15: "S0.4.6 \| Scribe Config Dashboard — Step 2 verified, Steps 3-5 pending" |
-| `ROADMAP.md` | Steps 3-5 **PENDING** | Lines 62-63: "[ ] Steps 3-5: Target platform, advanced options, review" |
-| `NEXT.md` (this file) | **✅ COMPLETE** | Previous Section showed all steps Complete |
+**Human-Readable Name:** Scribe Config Dashboard (from PM_NAMING_SYSTEM)
 
-**Resolution Needed:** Confirm actual S0.4.6 completion status and update all three documents.
+| Source | Status Claimed | Line Reference |
+|--------|----------------|----------------|
+| `PROJECT_TRACKING_BASELINE.md` | Steps 3-5: **Not Started** | Line 15 |
+| `ROADMAP.md` | Steps 3-5: **Not Started** | Lines 62-63 |
+| `NEXT.md` (this file) | Steps 3-5: **Done** | Lines 173-178 |
 
-### CONFLICT #2: Current Phase/Sprint
+**Evidence Required for Resolution:**
+1. Check `docs/qa/QA_EVIDENCE_S0.4.6.md` for Steps 3-5 completion proof
+2. Verify backend endpoint integration for Steps 3-5
+3. Check git commit history for Step 3-5 implementation
+4. Run manual QA test for Steps 3-5 functionality
 
-| Source | Current Phase | Reference |
-|--------|--------------|-----------|
-| `PROJECT_TRACKING_BASELINE.md` | Phase 0.4 (S0.4.6) | Lines 14-16: "🔄 IN PROGRESS \| Phase 0.4" |
-| `ROADMAP.md` | Phase 0.4 (S0.4.6) | Lines 23: "**0.4** \| **🔄 In Progress**" |
-| `NEXT.md` (this file) | Phase 2 (S2.0.1) | Line 19: "Cursor-Inspired UI \| 🔄 In Progress \| S2.0.1" |
+**Current Gate 3 Status:** CONFLICT remains open. No evidence found to auto-resolve.
+**Strict Status Vocabulary Applied:** "PENDING" → "Not Started", "COMPLETE" → "Done"
 
-**Resolution Needed:** Determine actual current phase and sync all documents.
+### CONFLICT #2: Current Phase/Sprint Disagreement
 
-### CONFLICT #3: Last Updated Dates
+**Human-Readable Names:**
+- Phase 0.4 = "Web Shell and Basic Engine" (PM_NAMING_SYSTEM)
+- Phase 2 = "Production Hosting" (PM_NAMING_SYSTEM)
+- S2.0.1 = "Cursor-Inspired UI" (PM_NAMING_SYSTEM)
 
-| Document | Last Updated | Gap from Today |
-|----------|--------------|----------------|
-| `PROJECT_TRACKING_BASELINE.md` | 2025-12-18 | 41 days stale |
-| `ROADMAP.md` | 2025-12-18 | 41 days stale |
-| `NEXT.md` | 2026-01-10 | 18 days stale |
+| Source | Current Phase | Status | Line Reference |
+|--------|---------------|--------|----------------|
+| `PROJECT_TRACKING_BASELINE.md` | Phase 0.4 (S0.4.6) | In Progress | Lines 14-16 |
+| `ROADMAP.md` | Phase 0.4 (S0.4.6) | In Progress | Line 23 |
+| `NEXT.md` (this file) | Phase 2 (S2.0.1) | In Progress | Lines 60, 106-110 |
+
+**Evidence Required for Resolution:**
+1. Check most recent merged PRs to determine active work phase
+2. Review `docs/qa/QA_EVIDENCE_CURSOR_UI_RELEASE.md` for Phase 2 evidence
+3. Check backend sprint tags or deployment markers
+4. Review team calendar/standup notes for current sprint
+
+**Current Gate 3 Status:** CONFLICT remains open. NEXT.md shows Phase 2 (S2.0.1 "Cursor-Inspired UI") as current, but BASELINE/ROADMAP show Phase 0.4. Likely indicates BASELINE/ROADMAP are 41+ days stale.
+**Strict Status Vocabulary Applied:** All use "In Progress"
+
+### CONFLICT #3: Document Staleness (Last Updated)
+
+| Document | Last Updated | Days Stale (from 2026-01-28) | Status |
+|----------|--------------|------------------------------|--------|
+| `PROJECT_TRACKING_BASELINE.md` | 2025-12-18 | 41 days | High Risk |
+| `ROADMAP.md` | 2025-12-18 | 41 days | High Risk |
+| `NEXT.md` | 2026-01-28 | 0 days | Current (Gate 3) |
+
+**Evidence Required for Resolution:**
+1. Update BASELINE with current sprint status from team/git history
+2. Update ROADMAP phase status from QA evidence + merged PRs
+3. Establish weekly sync cadence to prevent future staleness
+
+**Current Gate 3 Status:** CONFLICT acknowledged. BASELINE/ROADMAP require update in Gate 4.
+
+---
+
+## 🔍 Verified vs Claimed Status
+
+> **Gate 3 Analysis:** Distinguishing evidence-backed facts from document claims.
+
+### ✅ Evidence-Backed (Verified)
+
+These claims have QA evidence or git commit proof:
+
+| Item | Status | Evidence Source |
+|------|--------|-----------------|
+| S0.4.2 (OAuth and Auth Endpoints) | Done | PR #90 merged |
+| S0.4.5 (i18n and 404 Fix) | Done | PR #93 merged |
+| GitHub MCP Adapter | Functional | `docs/GITHUB_MCP_SETUP.md` + backend code |
+| Job FSM Tests | 110/110 passing | Git commit history + CI logs |
+| S2.0.1 (Cursor-Inspired UI) | In Progress | `docs/qa/QA_EVIDENCE_CURSOR_UI_RELEASE.md` |
+| SDTA Document | Done | `docs/academic/03-sdta/SDTA_D2_solution_design_technical_analysis.md` |
+
+### ❓ Claimed Only (No Evidence Found)
+
+These claims appear in docs but lack verifiable evidence in Gate 3:
+
+| Item | Status Claimed | Claimed By | Evidence Gap |
+|------|----------------|------------|--------------|
+| S0.4.6 Steps 3-5 | Done (NEXT.md) | NEXT.md lines 173-178 | No QA evidence file, no git commit proof |
+| Phase 1 Complete | Done (NEXT.md) | NEXT.md line 145 | Conflicts with BASELINE showing Phase 0.4 current |
+| Trace Agent MVP | Done (NEXT.md) | NEXT.md line 296 | No QA evidence, "scaffold" per BASELINE |
+| Proto Agent MVP | Done (NEXT.md) | NEXT.md line 297 | No QA evidence, "scaffold" per BASELINE |
+| Atlassian MCP Adapter | Production-ready (NEXT.md) | NEXT.md line 299 | "Scaffold" per BASELINE |
+
+### 🚨 High-Risk Claims
+
+Items marked "Done" in NEXT.md but contradicted by BASELINE (41 days stale):
+
+1. **S0.4.6 completion** — NEXT claims Done, BASELINE claims Not Started
+2. **Current phase** — NEXT claims Phase 2, BASELINE claims Phase 0.4
+3. **Trace/Proto MVPs** — NEXT claims functional, BASELINE claims scaffold
+
+**Gate 3 Recommendation:** These high-risk items MUST be verified with QA evidence before updating BASELINE/ROADMAP in Gate 4.
 
 ---
 
