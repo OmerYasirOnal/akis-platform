@@ -1,94 +1,72 @@
 # Documentation Archive
 
-> **Last Updated:** 2025-12-18  
-> **Cleanup Branch:** `docs/project-tracking-baseline-s0.4.6`
-
-This folder contains superseded, deprecated, or historical documentation that is kept for reference only. **Do not edit files here**—they are frozen records.
+> **Purpose:** Historical documentation and evidence files that are no longer actively referenced but preserved for audit trail and reference.
+> **Last Updated:** 2026-01-28 (Gate 5)
 
 ---
 
 ## Archive Structure
 
-```
-docs/archive/
-├── README.md                      # This file
-├── backend-project-deep-audit-report.md
-├── DEV_COOKIE_VERIFICATION.md
-├── repository-docs-audit.md
-├── repository-docs-cleanup-log.md
-├── deprecated/
-│   └── AUTH_GITHUB_INTEGRATION.md
-├── phase-9-2/
-│   ├── PHASE_9_2_BRAND_MIGRATION_NOTES.md
-│   └── QA_EVIDENCE_PHASE_9_2_BRAND.md
-└── qa-notes/
-    ├── QA_NOTES_AUTH_S0.4.4.md
-    └── QA_NOTES_S0.4.2_OAUTH.md
-```
+### qa-evidence/
+Historical QA evidence files from completed sprints and phases.
+
+| File | Original Date | Sprint/Phase | Reason Archived |
+|------|---------------|--------------|-----------------|
+| 2025-12-QA_EVIDENCE_PR127_FRONTEND_GATE_FIX.md | 2025-12-27 | S0.4.x | Historical QA evidence, not actively referenced |
+| 2025-12-QA_EVIDENCE_FRONTEND_IMPORTS.md | 2025-12-27 | S0.4.x | Historical QA evidence, not actively referenced |
+| 2025-12-QA_EVIDENCE_MERGE_GATE_DB_TESTS.md | 2025-12-27 | S0.4.x | Historical QA evidence, not actively referenced |
+
+### debug-plans/
+Debug and troubleshooting plans for resolved issues.
+
+| File | Original Date | Issue | Reason Archived |
+|------|---------------|-------|-----------------|
+| 2026-01-DEBUG_SCRIBE_AI_COOKIE_401_PLAN_V2.md | 2026-01-07 | Scribe AI cookie 401 errors | Issue resolved, debug plan superseded |
+
+### audits/
+Historical audit reports consolidated from various locations.
+
+| File | Original Date | Audit Scope | Reason Archived |
+|------|---------------|-------------|-----------------|
+| 2025-11-26-scribe-pipeline-audit.md | 2025-11-26 | Scribe pipeline architecture | Historical audit, findings incorporated |
+
+### phase-9-2/ (Pre-existing)
+QA evidence from Phase 9.2 (brand and theme work).
+
+| File | Phase | Reason Archived |
+|------|-------|-----------------|
+| QA_EVIDENCE_PHASE_9_2_BRAND.md | Phase 9.2 | Phase complete, evidence captured |
 
 ---
 
-## Archived Files
+## Archive Policy
 
-### Phase 9.2 Materials (`phase-9-2/`)
+### When to Archive
+- QA evidence files from completed sprints (>30 days old, not actively referenced)
+- Debug plans for resolved issues
+- Historical audit reports with findings already incorporated
+- Superseded documentation versions
 
-| File | Original Location | Reason | Date |
-|------|-------------------|--------|------|
-| `PHASE_9_2_BRAND_MIGRATION_NOTES.md` | `docs/` | Phase complete, superseded by `docs/BRAND_GUIDE.md` | 2025-12-18 |
-| `QA_EVIDENCE_PHASE_9_2_BRAND.md` | `docs/` | Phase complete, evidence captured | 2025-12-18 |
+### When NOT to Archive
+- Current sprint QA evidence
+- Active debug plans
+- Canonical documentation (BASELINE, ROADMAP, NEXT, etc.)
+- Referenced design documents
 
-### QA Notes (`qa-notes/`)
-
-| File | Original Location | Reason | Date |
-|------|-------------------|--------|------|
-| `QA_NOTES_AUTH_S0.4.4.md` | `docs/` | Implementation complete (PR #90), notes absorbed into `backend/docs/Auth.md` | 2025-12-18 |
-| `QA_NOTES_S0.4.2_OAUTH.md` | `docs/` | Implementation complete (PR #90), notes absorbed into `backend/docs/Auth.md` | 2025-12-18 |
-
-### Deprecated (`deprecated/`)
-
-| File | Original Location | Reason | Date |
-|------|-------------------|--------|------|
-| `AUTH_GITHUB_INTEGRATION.md` | `docs/` | Superseded by `backend/docs/Auth.md` and `backend/docs/API_SPEC.md` | 2025-12-18 |
-
-### Other Archived Files
-
-| File | Original Location | Reason | Date |
-|------|-------------------|--------|------|
-| `DEV_COOKIE_VERIFICATION.md` | `docs/` | Debugging notes, superseded by `backend/docs/Auth.md` | 2025-12-18 |
-| `backend-project-deep-audit-report.md` | `docs/archive/` | Legacy audit, architecture evolved | Pre-existing |
-| `repository-docs-audit.md` | `docs/` | Previous audit, superseded by `docs/DOCS_AUDIT_REPORT.md` | 2025-12-18 |
-| `repository-docs-cleanup-log.md` | `docs/` | Previous cleanup log, superseded by this cleanup | 2025-12-18 |
+### Retrieval
+All archived files preserve git history. Use `git log --follow <archived-file>` to trace original location and changes.
 
 ---
 
-## Deleted Files (Not Archived)
+## Archive Operations Log
 
-The following files were permanently deleted as they were exact duplicates or no longer relevant:
-
-| File | Reason |
-|------|--------|
-| `docs/Auth.md` | Duplicate of `backend/docs/Auth.md` |
-| `docs/CONTEXT_SCOPE.md` | Stale copy of `.cursor/context/CONTEXT_SCOPE.md` |
-| `docs/PR_DRAFTS/phase-9-2-brand.md` | PR merged, draft no longer needed |
-| `docs/PHASE10_PLAN.md` | Content consolidated into `docs/ROADMAP.md` Phase 10 section |
-| `docs/README.theme.md` | Content merged into `docs/UI_DESIGN_SYSTEM.md` |
-| `docs/PROJECT_SCOPE_REQUIREMENTS_SECTIONS_2_4_5_6.md` | Partial scope doc, superseded by `.cursor/context/CONTEXT_SCOPE.md` |
+### Gate 5 (2026-01-28)
+- **Moved:** 3 QA evidence files (S0.4.x sprint evidence)
+- **Moved:** 1 debug plan (Scribe AI cookie 401 resolved)
+- **Moved:** 1 backend audit (consolidated to main archive)
+- **Deleted:** 1 duplicate file (docs/academic/00-README 2.md)
+- **Git History:** Preserved via `git mv` for all moved files
 
 ---
 
-## Canonical Document Chain
-
-For current documentation, see the canonical chain:
-
-```
-docs/PROJECT_TRACKING_BASELINE.md  →  docs/ROADMAP.md  →  docs/NEXT.md
-```
-
-- **PROJECT_TRACKING_BASELINE.md**: Sprint/phase/milestone schedule (source: spreadsheet)
-- **ROADMAP.md**: High-level phase overview
-- **NEXT.md**: Immediate actions + gap audit
-
----
-
-*This archive was created as part of the documentation canonicalization effort (Sprint S0.4.6).*
-
+*This archive maintains project audit trail while keeping active documentation organized.*
