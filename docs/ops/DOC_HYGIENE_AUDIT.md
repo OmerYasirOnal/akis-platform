@@ -70,7 +70,7 @@ These documents are canonical and must never be archived or deleted.
 ### Agent Docs
 | Document | Path | Reason |
 |----------|------|--------|
-| SCRIBE_V2_CONTRACT_FIRST.md | docs/ | Scribe contract spec |
+| SCRIBE_MVP_CONTRACT_FIRST.md | docs/ | Scribe contract spec |
 | PLAYBOOK_RESEARCH_SUMMARY.md | docs/agents/scribe/ | Playbook research |
 | SCRIBE_PR_FACTORY_V1.md | docs/agents/scribe/ | PR factory spec |
 
