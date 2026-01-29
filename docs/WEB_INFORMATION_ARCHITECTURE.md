@@ -83,8 +83,9 @@ AKIS Platform (Public + Private Areas)
 │   ├── /integrations                                         │
 │   │   ├── Overview (all integrations)                       │
 │   │   ├── /github                                           │
-│   │   ├── /jira                                             │
-│   │   └── /confluence                                       │
+│   │   ├── /atlassian (Jira + Confluence via single OAuth)  │
+│   │      └── Note: Single OAuth enables both Jira/Confluence │
+│   │                                                          │
 │   │                                                          │
 │   ├── /solutions                                            │
 │   │   ├── /by-role                                          │

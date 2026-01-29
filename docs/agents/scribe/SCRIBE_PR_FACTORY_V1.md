@@ -744,7 +744,7 @@ After all PRs are merged:
 - [Agent Factory: Observability Best Practices](https://azure.microsoft.com/en-us/blog/agent-factory-top-5-agent-observability-best-practices-for-reliable-ai/)
 - [Building Effective LLM Agents](https://www.anthropic.com/engineering/building-effective-agents)
 - [AKIS Observability Trace Spec](../../OBSERVABILITY_TRACE_SPEC.md)
-- [Scribe v2 Contract-First Doc](../../SCRIBE_V2_CONTRACT_FIRST.md)
+- [Scribe MVP Contract-First Doc](../../SCRIBE_MVP_CONTRACT_FIRST.md)
 
 ---
 

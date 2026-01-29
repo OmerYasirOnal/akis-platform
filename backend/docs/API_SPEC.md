@@ -190,6 +190,41 @@ Get job status and result.
 }
 ```
 
+### POST /api/agents/jobs/:id/cancel
+
+Cancel a running or pending job (S2.0.2).
+
+**Parameters**:
+- `id` (path) - Job UUID
+
+**Response (200)**:
+```json
+{
+  "id": "uuid-string",
+  "state": "failed",
+  "message": "Job cancelled successfully"
+}
+```
+
+**Response (409)** - Cannot cancel (invalid state):
+```json
+{
+  "error": {
+    "code": "INVALID_STATE_TRANSITION",
+    "message": "Cannot cancel job in completed state",
+    "timestamp": "2024-01-01T00:00:00.000Z",
+    "path": "/api/agents/jobs/:id/cancel"
+  }
+}
+```
+
+**Response (404)**:
+```json
+{
+  "error": "Job not found"
+}
+```
+
 ### GET /api/agents/jobs
 
 List all jobs (paginated).
