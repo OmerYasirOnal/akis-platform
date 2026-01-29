@@ -1,14 +1,14 @@
-# Scribe v2: Contract-First Doc Specialist
+# Scribe MVP: Contract-First Doc Specialist
 
 ## Overview
 
-Scribe v2 is a major upgrade to the ScribeAgent that transforms it from a simple documentation updater into a contract-first, multi-file documentation specialist.
+Scribe MVP is a major upgrade to the ScribeAgent that transforms it from a simple documentation updater into a contract-first, multi-file documentation specialist.
 
 ## What's New in v2
 
 ### 1. Contract-Driven Documentation
 
-Scribe v2 uses **Documentation Contracts** that define:
+Scribe MVP uses **Documentation Contracts** that define:
 - Required and optional sections for different doc types
 - File patterns (README, guides, setup docs, API docs, ADRs, etc.)
 - Quality requirements (minimum length, code examples, tone)
@@ -17,14 +17,14 @@ Contracts ensure consistent, high-quality documentation across the repository.
 
 ### 2. Multi-File Support
 
-When `targetPath` points to a directory (e.g., `docs/`), Scribe v2:
+When `targetPath` points to a directory (e.g., `docs/`), Scribe MVP:
 - Scans for existing documentation files
 - Selects appropriate targets based on the task
 - Updates or creates multiple files in a single operation
 
 ### 3. Playbook-Driven Workflow
 
-Scribe v2 follows a structured playbook:
+Scribe MVP follows a structured playbook:
 
 1. **Branch Management** - Create or use existing feature branch
 2. **Repo Scan** - Discover documentation structure
@@ -90,7 +90,7 @@ export const README_CONTRACT: DocTypeContract = {
 };
 ```
 
-## How to Use Scribe v2
+## How to Use Scribe MVP
 
 ### Single File Update
 
@@ -139,7 +139,7 @@ Response includes:
       { path: 'docs/README.md', contentLength: 1234, linesAdded: 50 },
       { path: 'docs/DEV_SETUP.md', contentLength: 2345, linesAdded: 75 },
     ],
-    commitMessage: 'docs: update 2 files via Scribe v2',
+    commitMessage: 'docs: update 2 files via Scribe MVP',
   },
   diagnostics: {
     mode: 'dry-run',
@@ -151,7 +151,7 @@ Response includes:
 
 ## Quality Assurance
 
-Scribe v2 includes built-in quality checks:
+Scribe MVP includes built-in quality checks:
 
 1. **Contract Validation**: Ensures all required sections are present
 2. **AI Review**: Critiques generated content before commit
@@ -198,7 +198,7 @@ backend/src/agents/scribe/
 
 ## Security
 
-Scribe v2 maintains strict security:
+Scribe MVP maintains strict security:
 
 - **No Raw Chain-of-Thought**: Only user-facing reasoning summaries
 - **Secret Redaction**: Tokens, keys, and credentials never logged
@@ -214,7 +214,7 @@ Scribe v2 maintains strict security:
 
 ## Testing
 
-Run Scribe v2 tests:
+Run Scribe MVP tests:
 
 ```bash
 # Backend tests (includes v2 dry-run test)
@@ -282,7 +282,7 @@ const result = await scribeAgent.executeWithTools({}, undefined, {
 
 ### Issue: "No files found in target directory"
 
-**Solution**: Scribe v2 will create a default `docs/README.md` if no docs exist. Ensure the directory path ends with `/`.
+**Solution**: Scribe MVP will create a default `docs/README.md` if no docs exist. Ensure the directory path ends with `/`.
 
 ### Issue: "Contract validation failed"
 
@@ -294,7 +294,7 @@ const result = await scribeAgent.executeWithTools({}, undefined, {
 
 ## Summary
 
-Scribe v2 transforms documentation updates from a simple file append operation into a contract-driven, multi-file, quality-assured process. It ensures consistent, complete, and maintainable documentation across your entire repository.
+Scribe MVP transforms documentation updates from a simple file append operation into a contract-driven, multi-file, quality-assured process. It ensures consistent, complete, and maintainable documentation across your entire repository.
 
 **Key Benefits:**
 - ✅ Contract-enforced documentation structure
