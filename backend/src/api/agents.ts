@@ -1508,4 +1508,82 @@ export async function agentsRoutes(fastify: FastifyInstance) {
       }
     }
   );
+
+  /**
+   * POST /api/agents/jobs/:id/cancel - Cancel a running or pending job
+   * S2.0.2: Cancel semantics for job lifecycle control
+   */
+  fastify.post(
+    '/api/agents/jobs/:id/cancel',
+    {
+      preHandler: requireAuth,
+      schema: {
+        tags: ['agents'],
+        params: {
+          type: 'object',
+          required: ['id'],
+          properties: {
+            id: { type: 'string', format: 'uuid' },
+          },
+        },
+        response: {
+          200: {
+            type: 'object',
+            properties: {
+              id: { type: 'string' },
+              state: { type: 'string' },
+              message: { type: 'string' },
+            },
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      try {
+        const params = jobIdParamsSchema.parse(request.params);
+
+        // Fetch job
+        const [job] = await db.select().from(jobs).where(eq(jobs.id, params.id)).limit(1);
+        if (!job) {
+          throw new JobNotFoundError(params.id);
+        }
+
+        // Check if job can be cancelled (only pending or running)
+        if (job.state !== 'pending' && job.state !== 'running') {
+          return reply.code(409).send({
+            error: {
+              code: 'INVALID_STATE_TRANSITION',
+              message: `Cannot cancel job in ${job.state} state`,
+              timestamp: new Date().toISOString(),
+              path: request.url,
+            },
+          });
+        }
+
+        // Update job to failed state (cancel = graceful fail)
+        await db
+          .update(jobs)
+          .set({
+            state: 'failed',
+            error: 'Job cancelled by user',
+            errorCode: 'JOB_CANCELLED',
+            errorMessage: 'Job was cancelled by user request',
+            updatedAt: new Date(),
+          })
+          .where(eq(jobs.id, params.id));
+
+        metrics.jobsCancelled.inc({ type: job.type });
+
+        return {
+          id: params.id,
+          state: 'failed',
+          message: 'Job cancelled successfully',
+        };
+      } catch (error) {
+        const errorResponse = formatErrorResponse(request, error);
+        const statusCode = getStatusCodeForError(errorResponse.error.code);
+        reply.code(statusCode).send(errorResponse);
+      }
+    }
+  );
 }

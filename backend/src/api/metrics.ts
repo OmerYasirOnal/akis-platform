@@ -40,12 +40,20 @@ const jobsFailed = new Counter({
   registers: [register],
 });
 
+const jobsCancelled = new Counter({
+  name: 'jobs_cancelled_total',
+  help: 'Total number of jobs cancelled',
+  labelNames: ['type'],
+  registers: [register],
+});
+
 // Export metrics for use in other modules
 export const metrics = {
   httpDuration,
   jobsCreated,
   jobsCompleted,
   jobsFailed,
+  jobsCancelled,
 };
 
 export async function metricsRoutes(fastify: FastifyInstance) {

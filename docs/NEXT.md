@@ -55,13 +55,13 @@ These items lack QA evidence and remain flagged for future verification:
 | P0-1 | **CONFLICT** Sync S0.4.6 status across all planning docs | 🔴 CONFLICT | — | See Conflict #1 above |
 | P0-2 | **CONFLICT** Sync current phase/sprint across all planning docs | 🔴 CONFLICT | — | See Conflict #2 above |
 | P0-3 | Cursor-Inspired UI + Liquid Neon Layer | 🔄 In Progress | S2.0.1 | Per NEXT.md 2026-01-10 |
-| P0-4 | Scribe Console Enhancement (model selection, job lifecycle) | 📋 Next | S2.0.2 | Per NEXT.md S2.0.2 plan |
+| P0-4 | Scribe Console Enhancement (model selection, job lifecycle) | ✅ Done | S2.0.2 | **QA verified 2026-01-29** [evidence](qa/QA_EVIDENCE_S2.0.2_SCRIBE_CONSOLE.md) |
 
 ### P1 — High Priority (This Sprint)
 
 | ID | Task | Status | Sprint | Notes |
 |----|------|--------|--------|-------|
-| P1-1 | Atlassian (Jira/Confluence) integration (MCP-based connect flow) | 📋 Planned | S2.0.2 | Single OAuth enables both |
+| P1-1 | Atlassian (Jira/Confluence) integration (MCP-based connect flow) | ✅ Done | S2.0.2 | **QA verified 2026-01-29** Single OAuth enables both [evidence](qa/QA_EVIDENCE_S2.0.2_SCRIBE_CONSOLE.md) |
 | P1-3 | Settings: Workspace (team/workspace management) | 📋 Planned | S2.0.2 | |
 | P1-4 | Settings: Billing (usage metrics, invoices) | 📋 Planned | S2.0.2 | |
 | P1-5 | Update `PROJECT_TRACKING_BASELINE.md` to current state | 📋 Planned | — | Stale 41 days |
@@ -91,8 +91,8 @@ These items lack QA evidence and remain flagged for future verification:
 |----------|------|--------|--------|
 | **P0** | 🔴 Resolve planning doc conflicts | CONFLICT | — |
 | **P0** | Cursor-Inspired UI + Liquid Neon Layer | 🔄 In Progress | S2.0.1 |
-| **P0** | Scribe Console (functional) | 📋 Next | S2.0.2 |
-| P1 | Atlassian (Jira/Confluence) Integration | 📋 Planned | S2.0.2 |
+| **P0** | Scribe Console (functional) | ✅ Done | S2.0.2 |
+| P1 | Atlassian (Jira/Confluence) Integration | ✅ Done | S2.0.2 |
 | P1 | Settings: Workspace & Billing | 📋 Planned | S2.0.2 |
 
 **Next Milestone:** Cursor-Inspired UI Release — **Target: 2026-01-15** (PAST DUE)
@@ -121,8 +121,8 @@ These items lack QA evidence and remain flagged for future verification:
 
 | Component | Description | Status |
 |-----------|-------------|--------|
-| Scribe Console Enhancement | Model selection, job lifecycle, result preview | 📋 |
-| Atlassian (Jira/Confluence) Integration | MCP-based connect flow (single OAuth) | 📋 |
+| Scribe Console Enhancement | Model selection, job lifecycle, result preview | ✅ Done |
+| Atlassian (Jira/Confluence) Integration | MCP-based connect flow (single OAuth) | ✅ Done |
 | Settings: Workspace | Team/workspace management UI | 📋 |
 | Settings: Billing | Usage metrics and invoices | 📋 |
 
