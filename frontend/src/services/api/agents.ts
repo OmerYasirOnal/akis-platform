@@ -160,4 +160,16 @@ export const agentsApi = {
   getRunningJobs: async (): Promise<RunningJobsResponse> => {
     return httpClient.get<RunningJobsResponse>('/api/agents/jobs/running', withCredentials);
   },
+
+  /**
+   * Cancel a running or pending job
+   * S2.0.2: Job lifecycle control
+   */
+  cancelJob: async (jobId: string): Promise<{ id: string; state: string; message: string }> => {
+    return httpClient.post(
+      `/api/agents/jobs/${jobId}/cancel`,
+      {},
+      withCredentials
+    );
+  },
 };
