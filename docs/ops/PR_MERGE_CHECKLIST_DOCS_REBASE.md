@@ -325,10 +325,9 @@ ls -lh docs/ops/RELEASE_NAMING_PATCH_PLAN.md
 
 ```bash
 # Check if "Scribe v2" patch was applied
-grep -c "Scribe v2" docs/SCRIBE_V2_CONTRACT_FIRST.md 2>/dev/null || echo "File renamed or patched"
+grep -c "Scribe MVP" docs/SCRIBE_MVP_CONTRACT_FIRST.md 2>/dev/null || echo "File renamed or patched"
 
-# Note: If RELEASE_NAMING_PATCH_PLAN was executed, file may be renamed to SCRIBE_MVP_*
-# If not executed yet, file still exists with "Scribe v2" references
+# Note: File was renamed from SCRIBE_V2_CONTRACT_FIRST.md to SCRIBE_MVP_CONTRACT_FIRST.md per RELEASE_NAMING_PATCH_PLAN
 ```
 
 **Checkpoint:** ☐ Naming system + patch plan exist (execution status noted)

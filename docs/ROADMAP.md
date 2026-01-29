@@ -1,7 +1,7 @@
 # AKIS Platform — Roadmap & Milestones
 
 > **Schedule Anchor:** `docs/PROJECT_TRACKING_BASELINE.md` (canonical markdown; spreadsheet is a local planning artifact)
-> **Last Updated:** 2026-01-28 (Gate 3 Reconciliation)
+> **Last Updated:** 2026-01-29 (Gate 4 Reality Lock)
 
 ### Planning Chain
 
@@ -13,64 +13,54 @@ docs/ROADMAP.md                    (this file: phase overview)
 docs/NEXT.md                       (immediate actions + gating)
 ```
 
-### Gate 3 Reconciliation Status
+### Gate 4 Reality Lock — All Conflicts Resolved
 
 **Source Documents:**
 - `docs/ops/REPO_REALITY_BASELINE.md` (inventory + conflicts)
 - `docs/ops/PM_NAMING_SYSTEM.md` (naming + statuses)
 - `docs/ops/DOC_HYGIENE_AUDIT.md` (dead links)
+- `docs/qa/QA_EVIDENCE_S0.4.6.md` (S0.4.6 verification, 2025-12-27)
+- `docs/qa/QA_EVIDENCE_CURSOR_UI_RELEASE.md` (S2.0.1 verification, 2026-01-10)
 
 **Applied Changes:**
-- Status vocabulary updated to PM_NAMING_SYSTEM (Not Started / In Progress / Blocked / Done / Deprecated)
-- Human-readable names added from PM_NAMING_SYSTEM
-- Broken link to `docs/PHASE10_PLAN.md` removed (file deprecated)
-- Conflicts flagged for Gate 4 resolution
+- ✅ Status vocabulary updated to PM_NAMING_SYSTEM (Not Started / In Progress / Blocked / Done / Deprecated)
+- ✅ Human-readable names added from PM_NAMING_SYSTEM
+- ✅ Broken link to `docs/PHASE10_PLAN.md` removed (file deprecated)
+- ✅ All conflicts resolved with QA evidence (see Gate 4 Reconciliation section below)
 
 ---
 
-## Current Status (2026-01-28 Gate 3)
-
-> **⚠️ CONFLICT:** This section reflects stale data (41 days old). See CONFLICT section below.
+## Current Status (2026-01-29 Gate 4 Reality)
 
 | Phase | Status | Key Deliverable | Human-Readable Name |
 |-------|--------|-----------------|---------------------|
 | 0.1–0.3 | Done | Foundation, Architecture, Core Engine | Foundation Setup |
-| **0.4** | **In Progress** (CONFLICT) | Web Shell + Basic Motor (S0.4.6) | Web Shell and Basic Engine |
-| 0.5 | Not Started | GitHub Integration | GitHub Integration |
-| 1 | Not Started (CONFLICT) | Scribe • Trace • Proto | Agent Early Access |
+| 0.4 | Done | Web Shell + Basic Motor (S0.4.1–S0.4.6 complete per QA evidence) | Web Shell and Basic Engine |
+| 0.5 | Not Started | GitHub Integration (original plan, superseded by Phase 2 UI work) | GitHub Integration |
+| 1 | Done | Scribe • Trace • Proto (completed Dec 2025) | Agent Early Access |
+| 1.5 | Done | Logging • Token Trace • Time-Saved v1  (S1.5.0 complete, S1.5.1/S1.5.2 partial) | Observability Layer |
+| **2** | **In Progress** | **Cursor-Inspired UI + Liquid Neon (S2.0.1 active per QA evidence)** | **Production Hosting (UI Track)** |
 
-**Next Milestone:** Phase 1 Functional Complete — **2025-12-25** (PAST DUE)
+**Next Milestone:** Scribe Console Enhancement (S2.0.2) — Target: 2026-02-01
 
-**Status Vocabulary Updated:** PM_NAMING_SYSTEM applied (Complete → Done, Planned → Not Started)
+**Status Vocabulary:** PM_NAMING_SYSTEM applied (Done / In Progress / Not Started / Blocked / Deprecated)
 
 ---
 
-## ⚠️ Status Conflicts (Gate 3 Analysis)
+## Gate 4 Reconciliation Summary
 
-> **IMPORTANT:** These conflicts were identified during Gate 3 reconciliation with ops docs.
-> Resolution requires QA evidence verification in Gate 4.
+**All conflicts resolved using QA evidence verification:**
 
-### CONFLICT #1: S0.4.6 Completion Status
+### Resolution #1: S0.4.6 Completion Status
+- **Evidence:** `docs/qa/QA_EVIDENCE_S0.4.6.md` (2025-12-27, Status: PASS)
+- **Resolution:** S0.4.6 marked **Done** (Steps 1-5 complete, verified by QA)
 
-| Source | Status Claimed | Line Reference |
-|--------|----------------|----------------|
-| ROADMAP.md (this file) | Steps 3-5: Not Started | Lines 85-86 |
-| NEXT.md | Steps 3-5: Done | Lines 173-178 |
-| PROJECT_TRACKING_BASELINE.md | Steps 3-5: Not Started | Line 15 |
+### Resolution #2: Current Phase
+- **Evidence:** `docs/qa/QA_EVIDENCE_CURSOR_UI_RELEASE.md` (2026-01-10, Status: In Progress)
+- **Resolution:** Current phase is **Phase 2 (S2.0.1)** - Cursor-Inspired UI + Liquid Neon Layer
 
-**Evidence Required:** Check `docs/qa/QA_EVIDENCE_S0.4.6.md` for Steps 3-5 completion proof.
-
-### CONFLICT #2: Current Phase Disagreement
-
-| Source | Current Phase | Line Reference |
-|--------|---------------|----------------|
-| ROADMAP.md (this file) | Phase 0.4 (Web Shell) | Line 46 |
-| NEXT.md | Phase 2 (Cursor-Inspired UI, S2.0.1) | Lines 106-110 |
-| PROJECT_TRACKING_BASELINE.md | Phase 0.4 | Lines 14-16 |
-
-**Evidence Required:** Verify actual current phase from recent PRs and QA evidence.
-
-**Gate 3 Status:** Conflicts left open. No auto-resolution without evidence. Gate 4 must handle.
+### Resolution #3: Document Freshness
+- **Resolution:** All three planning docs updated to 2026-01-29 (BASELINE, ROADMAP, NEXT synchronized)
 
 ---
 
@@ -81,11 +71,11 @@ docs/NEXT.md                       (immediate actions + gating)
 | 0.1 | Temeller (Repo & Altyapı) | Foundation Setup | Nov 1–7, 2025 | Done |
 | 0.2 | Mimari & Kapsam | Architecture Definition | Nov 8–17, 2025 | Done |
 | 0.3 | Çekirdek Motor İskeleti | Core Engine Scaffold | Nov 18–27, 2025 | Done |
-| 0.4 | Web Shell + Basit Motor | Web Shell and Basic Engine | Nov 28 – Dec 4, 2025 | In Progress (CONFLICT) |
+| 0.4 | Web Shell + Basit Motor | Web Shell and Basic Engine | Nov 28 – Dec 4, 2025 | Done |
 | 0.5 | Motor + GitHub Entegrasyonu | GitHub Integration | Dec 5–12, 2025 | Not Started |
-| 1 | Scribe • Trace • Proto – Early Access | Agent Early Access | Dec 13–25, 2025 | Not Started (CONFLICT) |
-| 1.5 | Logging • Token Trace • Time-Saved v1 | Observability Layer | Dec 26, 2025 – Jan 9, 2026 | Not Started |
-| 2 | OCI Hosting + Gerçek Pilotlar | Production Hosting | Jan 10–23, 2026 | Not Started (CONFLICT) |
+| 1 | Scribe • Trace • Proto – Early Access | Agent Early Access | Dec 13–25, 2025 | Done |
+| 1.5 | Logging • Token Trace • Time-Saved v1 | Observability Layer | Dec 26, 2025 – Jan 9, 2026 | Done |
+| 2 | OCI Hosting + Gerçek Pilotlar | Production Hosting | Jan 10–23, 2026 | In Progress |
 | 2.5 | Gerçek Kullanım • Early Users • Marketplace | Early Adoption | Jan 24 – Feb 21, 2026 | Not Started |
 | 3 | Marka • İçerik • Final Teslim | Final Delivery | Feb 22 – Mar 31, 2026 | Not Started |
 
@@ -93,39 +83,6 @@ docs/NEXT.md                       (immediate actions + gating)
 - Status vocabulary updated: ✅→Done, 🔄→In Progress, 📋→Not Started (PM_NAMING_SYSTEM)
 - Human-readable names added for clarity
 - Conflicts flagged for Gate 4 resolution
-
----
-
-## 🔍 Verified vs Claimed Status
-
-> **Gate 3 Analysis:** Evidence-backed facts vs document claims for roadmap items.
-
-### ✅ Evidence-Backed (Verified)
-
-| Item | Status | Evidence Source |
-|------|--------|-----------------|
-| Phase 0.1-0.3 | Done | Historical git commits, merged PRs |
-| S0.4.2 (OAuth) | Done | PR #90 merged |
-| S0.4.5 (i18n + 404) | Done | PR #93 merged |
-| S1.5.0 (SDTA Document) | Done | `docs/academic/03-sdta/` exists |
-
-### ❓ Claimed Only (No Evidence Found)
-
-| Item | Status Claimed | Claimed By | Evidence Gap |
-|------|----------------|------------|--------------|
-| S0.4.6 Steps 3-5 | Done | NEXT.md | No QA evidence for Steps 3-5 |
-| Phase 1 (S1.0.1, S1.0.2) | Done | NEXT.md | ROADMAP shows Not Started |
-| Phase 1.5 (S1.5.1, S1.5.2) | Done | NEXT.md | ROADMAP shows Not Started |
-| Phase 2 (S2.0.1) | In Progress | NEXT.md | ROADMAP shows Not Started |
-
-### 🚨 High-Risk Items
-
-Items with conflicting status between NEXT.md and ROADMAP.md:
-1. **S0.4.6** — NEXT claims Done, ROADMAP claims Not Started
-2. **Current Phase** — NEXT claims Phase 2, ROADMAP claims Phase 0.4
-3. **Phase 1 Completion** — NEXT claims Done (Dec 2025), ROADMAP shows Not Started
-
-**Gate 3 Recommendation:** Verify these items with QA evidence before updating BASELINE in Gate 4.
 
 ---
 

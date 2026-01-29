@@ -120,7 +120,7 @@ docs/PROJECT_TRACKING_BASELINE.md  →  docs/ROADMAP.md  →  docs/NEXT.md
 
 | Path | Purpose | Owner | Last Updated | Referenced-by | Canonical | Action | Risk |
 |------|---------|-------|--------------|---------------|-----------|--------|------|
-| docs/SCRIBE_V2_CONTRACT_FIRST.md | Scribe v2 contract-first | — | — | — | Yes | Keep | Low |
+| docs/SCRIBE_MVP_CONTRACT_FIRST.md | Scribe MVP contract-first design | — | — | — | Yes | Keep | Low |
 | docs/agents/scribe/PLAYBOOK_RESEARCH_SUMMARY.md | Scribe playbook research | — | — | — | Yes | Keep | Low |
 | docs/agents/scribe/SCRIBE_PR_FACTORY_V1.md | Scribe PR factory spec | — | — | — | Yes | Keep | Low |
 

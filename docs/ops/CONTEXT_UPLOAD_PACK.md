@@ -155,7 +155,7 @@
 | `docs/CI_AUTOMATION.md` | CI/CD automation | Test automation, pipelines |
 | `docs/OBSERVABILITY_TRACE_SPEC.md` | Observability spec | Tracing and monitoring |
 | `docs/agents/scribe/SCRIBE_PR_FACTORY_V1.md` | Scribe agent spec | PR automation patterns |
-| `docs/SCRIBE_V2_CONTRACT_FIRST.md` | Scribe v2 design | Contract-first approach |
+| `docs/SCRIBE_MVP_CONTRACT_FIRST.md` | Scribe MVP design | Contract-first approach (v1.0 target) |
 
 ---
 
