@@ -22,6 +22,7 @@ import { jobEventsRoutes } from './api/job-events.js';
 import { webhookRoutes, setWebhookOrchestrator } from './api/webhooks.js';
 import { triggersRoutes } from './api/triggers.js';
 import { registerPlaybookRoutes } from './api/playbooks.js';
+import { billingRoutes, stripeWebhookRoutes } from './api/billing.js';
 import { AgentOrchestrator } from './core/orchestrator/AgentOrchestrator.js';
 import { createAIService } from './services/ai/AIService.js';
 import type { MCPTools } from './services/mcp/adapters/index.js';
@@ -175,6 +176,8 @@ export async function buildApp() {
   await app.register(webhookRoutes);
   await app.register(triggersRoutes);
   await app.register(registerPlaybookRoutes);
+  await app.register(billingRoutes);
+  await app.register(stripeWebhookRoutes);
   if (env.NODE_ENV !== 'production' && process.env.SCRIBE_DEV_GITHUB_BOOTSTRAP === 'true') {
     await app.register(testHelpersRoutes, { prefix: '/test' });
   }

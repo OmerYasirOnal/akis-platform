@@ -3,7 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import AppShell from './components/AppShell';
 import { DashboardLayout } from './components/layout';
 import { AgentsLayout } from './components/layout/AgentsLayout';
-import { ProtectedRoute, RequireRole } from './app/RouteGuards';
+import { ProtectedRoute } from './app/RouteGuards';
 import { AuthProvider } from './contexts/AuthContext';
 import { useI18n } from './i18n/useI18n';
 import LandingPage from './pages/LandingPage';
@@ -164,14 +164,7 @@ function App() {
                   </Suspense>
                 }
               />
-              <Route
-                path="billing"
-                element={
-                  <RequireRole roles={['admin']}>
-                    <DashboardSettingsBillingPage />
-                  </RequireRole>
-                }
-              />
+              <Route path="billing" element={<DashboardSettingsBillingPage />} />
               <Route path="notifications" element={<DashboardSettingsNotificationsPage />} />
             </Route>
           </Route>
