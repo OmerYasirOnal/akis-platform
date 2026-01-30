@@ -484,8 +484,8 @@ export default function JobDetailPage() {
               <p className="text-ak-danger">{job.errorMessage}</p>
             )}
             {getErrorHint(job.errorCode) && (
-              <div className="rounded bg-ak-info/10 px-3 py-2 border-l-4 border-ak-info">
-                <span className="text-sm font-medium text-ak-info">💡 Hint:</span>
+              <div className="rounded bg-blue-400/10 px-3 py-2 border-l-4 border-blue-400">
+                <span className="text-sm font-medium text-blue-400">💡 Hint:</span>
                 <p className="mt-1 text-sm text-ak-text-primary">{getErrorHint(job.errorCode)}</p>
                 {job.errorCode?.startsWith('MCP') && (
                   <div className="mt-2 flex items-center gap-2">

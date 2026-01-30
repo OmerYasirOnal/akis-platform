@@ -6,7 +6,7 @@ const httpClient = new HttpClient();
 export const api = {
   // GET /api/agents/jobs
   getJobs: async (params?: {
-    type?: 'scribe' | 'trace' | 'proto';
+    type?: 'scribe' | 'trace' | 'proto' | 'coder' | 'developer';
     state?: 'pending' | 'running' | 'completed' | 'failed';
     limit?: number;
     cursor?: string;
