@@ -1,24 +1,6 @@
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import Button from '../../components/common/Button';
 import { UsageWidget } from '../../components/dashboard/UsageWidget';
-
-const ScribeIcon = () => (
-  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
-  </svg>
-);
-
-const JobsIcon = () => (
-  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M6 6.878V6a2.25 2.25 0 012.25-2.25h7.5A2.25 2.25 0 0118 6v.878m-12 0c.235-.083.487-.128.75-.128h10.5c.263 0 .515.045.75.128m-12 0A2.25 2.25 0 004.5 9v.878m13.5-3A2.25 2.25 0 0119.5 9v.878m0 0a2.246 2.246 0 00-.75-.128H5.25c-.263 0-.515.045-.75.128m15 0A2.25 2.25 0 0121 12v6a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 18v-6c0-.98.626-1.813 1.5-2.122" />
-  </svg>
-);
-
-const IntegrationsIcon = () => (
-  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 16.875h3.375m0 0h3.375m-3.375 0V13.5m0 3.375v3.375M6 10.5h2.25a2.25 2.25 0 002.25-2.25V6a2.25 2.25 0 00-2.25-2.25H6A2.25 2.25 0 003.75 6v2.25A2.25 2.25 0 006 10.5zm0 9.75h2.25A2.25 2.25 0 0010.5 18v-2.25a2.25 2.25 0 00-2.25-2.25H6a2.25 2.25 0 00-2.25 2.25V18A2.25 2.25 0 006 20.25zm9.75-9.75H18a2.25 2.25 0 002.25-2.25V6A2.25 2.25 0 0018 3.75h-2.25A2.25 2.25 0 0013.5 6v2.25a2.25 2.25 0 002.25 2.25z" />
-  </svg>
-);
 
 const AgentsIcon = () => (
   <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
@@ -42,96 +24,147 @@ const TABS: { id: DashboardTab; label: string }[] = [
 
 function UsageTabContent() {
   return (
-    <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
-      {/* Main Content */}
-      <div className="lg:col-span-8 space-y-6">
-        <header className="space-y-1">
-          <h1 className="text-2xl font-semibold tracking-tight text-ak-text-primary">Overview</h1>
+    <div className="space-y-6">
+      <UsageWidget />
+      <div className="rounded-xl border border-ak-border bg-ak-surface p-5">
+        <h3 className="text-sm font-semibold text-ak-text-primary mb-3">Recent Activity</h3>
+        <div className="rounded-lg bg-ak-bg px-4 py-8 text-center">
           <p className="text-sm text-ak-text-secondary">
             No recent activity yet. Start an agent run to populate this feed.
           </p>
-        </header>
-
-        {/* Primary CTA */}
-        <div className="relative overflow-hidden rounded-2xl bg-ak-surface-2 p-6">
-          <div className="absolute inset-0 bg-gradient-to-br from-ak-primary/5 via-transparent to-transparent pointer-events-none" />
-          <div className="relative flex flex-col gap-4">
-            <div className="space-y-2">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-ak-primary/10 text-ak-primary">
-                  <AgentsIcon />
-                </div>
-                <div>
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-ak-text-secondary/60">
-                    Get Started
-                  </p>
-                  <h2 className="text-xl font-semibold text-ak-text-primary">
-                    Agents Hub
-                  </h2>
-                </div>
-              </div>
-              <p className="text-sm text-ak-text-secondary max-w-md">
-                Browse available agents, select your repository and branch, and start generating documentation with Scribe.
-              </p>
-            </div>
-            <Button
-              as={Link}
-              to="/dashboard/agents"
-              className="w-full justify-center sm:w-fit gap-2"
-            >
-              Open Agents Hub
-              <ArrowRightIcon />
-            </Button>
-          </div>
-        </div>
-
-        {/* Quick Actions */}
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          {[
-            { to: '/dashboard/agents', icon: <AgentsIcon />, label: 'Agents' },
-            { to: '/dashboard/scribe', icon: <ScribeIcon />, label: 'Scribe' },
-            { to: '/dashboard/jobs', icon: <JobsIcon />, label: 'Jobs' },
-            { to: '/dashboard/integrations', icon: <IntegrationsIcon />, label: 'Integrations' },
-          ].map((item) => (
-            <Link
-              key={item.to}
-              to={item.to}
-              className="flex flex-col items-center gap-2 rounded-xl bg-ak-surface-2/50 p-4 text-center transition-all hover:bg-ak-surface-2 group"
-            >
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-ak-primary/10 text-ak-primary group-hover:bg-ak-primary/15 transition-colors">
-                {item.icon}
-              </div>
-              <span className="text-sm font-medium text-ak-text-primary">{item.label}</span>
-            </Link>
-          ))}
+          <Link
+            to="/dashboard/agents"
+            className="mt-3 inline-flex items-center gap-1 text-sm font-medium text-ak-primary hover:underline"
+          >
+            Run your first agent <ArrowRightIcon />
+          </Link>
         </div>
       </div>
     </div>
   );
 }
 
-        {/* Activity Feed */}
-        <div className="rounded-2xl bg-ak-surface-2/50 p-5">
-          <h2 className="text-base font-semibold text-ak-text-primary mb-3">Activity Feed</h2>
-          <div className="rounded-xl bg-ak-bg/30 px-4 py-8 text-center">
-            <p className="text-sm text-ak-text-secondary">
-              No recent activity yet. Start a Scribe run to populate this feed.
-            </p>
-            <Link
-              to="/dashboard/agents"
-              className="mt-3 inline-flex items-center gap-1 text-sm font-medium text-ak-primary hover:underline"
-            >
-              Run your first agent
-              <ArrowRightIcon />
-            </Link>
+function SpendingTabContent() {
+  return (
+    <div className="space-y-6">
+      <div className="rounded-xl border border-ak-border bg-ak-surface p-5">
+        <h3 className="text-sm font-semibold text-ak-text-primary mb-1">AI Spending</h3>
+        <p className="text-xs text-ak-text-secondary mb-4">Token usage and estimated costs for the current billing period.</p>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <div className="rounded-lg bg-ak-bg p-4">
+            <p className="text-xs text-ak-text-secondary">Total Tokens</p>
+            <p className="mt-1 text-2xl font-semibold text-ak-text-primary">0</p>
+          </div>
+          <div className="rounded-lg bg-ak-bg p-4">
+            <p className="text-xs text-ak-text-secondary">Estimated Cost</p>
+            <p className="mt-1 text-2xl font-semibold text-ak-text-primary">$0.00</p>
+          </div>
+          <div className="rounded-lg bg-ak-bg p-4">
+            <p className="text-xs text-ak-text-secondary">Jobs Run</p>
+            <p className="mt-1 text-2xl font-semibold text-ak-text-primary">0</p>
           </div>
         </div>
       </div>
+      <div className="rounded-xl border border-ak-border bg-ak-surface p-5">
+        <h3 className="text-sm font-semibold text-ak-text-primary mb-3">Cost Breakdown</h3>
+        <div className="rounded-lg bg-ak-bg px-4 py-8 text-center">
+          <p className="text-sm text-ak-text-secondary">No spending data yet. Run an agent to see cost breakdown.</p>
+        </div>
+      </div>
+    </div>
+  );
+}
 
-      {/* Sidebar */}
-      <div className="lg:col-span-4 space-y-6">
-        <UsageWidget />
-        <ChangelogWidget />
+function IntegrationsTabContent() {
+  return (
+    <div className="space-y-4">
+      <div className="rounded-xl border border-ak-border bg-ak-surface p-5">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-sm font-semibold text-ak-text-primary">Connected Integrations</h3>
+            <p className="text-xs text-ak-text-secondary mt-0.5">Manage your external service connections.</p>
+          </div>
+          <Link to="/dashboard/integrations">
+            <Button variant="outline" size="sm">Manage</Button>
+          </Link>
+        </div>
+      </div>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <Link to="/dashboard/integrations" className="rounded-xl border border-ak-border bg-ak-surface p-4 hover:bg-ak-surface-2 transition-colors">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-ak-surface-2 text-ak-text-primary">
+              <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+              </svg>
+            </div>
+            <div>
+              <p className="text-sm font-medium text-ak-text-primary">GitHub</p>
+              <p className="text-xs text-ak-text-secondary">Repos, PRs, webhooks</p>
+            </div>
+          </div>
+        </Link>
+        <Link to="/dashboard/integrations" className="rounded-xl border border-ak-border bg-ak-surface p-4 hover:bg-ak-surface-2 transition-colors">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-ak-surface-2 text-blue-400">
+              <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M7.12 11.08a.74.74 0 00-1.2.18L.62 21.9a.72.72 0 00.65 1.05h7.55a.72.72 0 00.65-.42c1.48-3.12.57-7.85-2.35-11.45zM11.55.17a15.06 15.06 0 00-1.1 15.08l3.77 7.61a.72.72 0 00.65.42h7.55a.72.72 0 00.65-1.05L12.75.35a.74.74 0 00-1.2-.18z"/>
+              </svg>
+            </div>
+            <div>
+              <p className="text-sm font-medium text-ak-text-primary">Atlassian</p>
+              <p className="text-xs text-ak-text-secondary">Jira, Confluence</p>
+            </div>
+          </div>
+        </Link>
+      </div>
+    </div>
+  );
+}
+
+const DashboardOverviewPage = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = (searchParams.get('tab') as DashboardTab) || 'usage';
+
+  const setTab = (tab: DashboardTab) => {
+    setSearchParams({ tab }, { replace: true });
+  };
+
+  return (
+    <div className="max-w-5xl mx-auto space-y-6">
+      {/* Header */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight text-ak-text-primary">Dashboard</h1>
+          <p className="text-sm text-ak-text-secondary mt-0.5">
+            Overview of your workspace activity and resource usage.
+          </p>
+        </div>
+        <Button
+          as={Link}
+          to="/dashboard/agents"
+          className="gap-2 w-full sm:w-auto justify-center"
+        >
+          <AgentsIcon />
+          Open Agents Hub
+        </Button>
+      </div>
+
+      {/* Quick Actions */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        {[
+          { to: '/dashboard/agents', label: 'Agents Hub', color: 'text-ak-primary' },
+          { to: '/dashboard/jobs', label: 'Jobs', color: 'text-ak-text-secondary' },
+          { to: '/dashboard/integrations', label: 'Integrations', color: 'text-ak-text-secondary' },
+          { to: '/dashboard/settings/profile', label: 'Settings', color: 'text-ak-text-secondary' },
+        ].map((item) => (
+          <Link
+            key={item.to}
+            to={item.to}
+            className="flex items-center justify-center gap-2 rounded-xl border border-ak-border bg-ak-surface px-4 py-3 text-sm font-medium text-ak-text-primary transition-colors hover:bg-ak-surface-2"
+          >
+            {item.label}
+          </Link>
+        ))}
       </div>
 
       {/* Tab Bar */}

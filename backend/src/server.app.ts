@@ -29,6 +29,8 @@ import { StaleJobWatchdog } from './core/watchdog/StaleJobWatchdog.js';
 
 const QUIET_ROUTES = new Set([
   '/api/agents/jobs/running',
+  '/api/agents/configs',
+  '/api/usage/current-month',
   '/health',
   '/ready',
 ]);

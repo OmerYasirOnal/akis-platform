@@ -531,30 +531,6 @@ export async function agentsRoutes(fastify: FastifyInstance) {
           }
         }
 
-        // Usage limit check (best-effort — if no userId in payload, skip)
-        const payloadUserId = enrichedPayload && typeof enrichedPayload === 'object'
-          ? (enrichedPayload as Record<string, unknown>).userId as string | undefined
-          : undefined;
-        if (payloadUserId) {
-          try {
-            const limitCheck = await checkUsageLimits(payloadUserId);
-            if (!limitCheck.allowed) {
-              return reply.code(429).send({
-                error: {
-                  code: 'USAGE_LIMIT_EXCEEDED',
-                  message: limitCheck.reason || 'Usage limit exceeded. Please upgrade your plan.',
-                  upgradeRequired: limitCheck.upgradeRequired,
-                  currentUsage: limitCheck.currentUsage,
-                  limits: limitCheck.limits,
-                },
-              });
-            }
-          } catch (limitError) {
-            // Non-blocking: if billing check fails, allow the job to proceed
-            console.warn('[Billing] Usage limit check failed, allowing job:', limitError);
-          }
-        }
-
         // Submit job (creates DB row with pending state)
         const jobId = await orchestrator.submitJob({
           type: body.type,

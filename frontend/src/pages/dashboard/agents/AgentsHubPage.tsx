@@ -31,7 +31,14 @@ interface ChatMessage {
   isError?: boolean;
   isSuccess?: boolean;
   jobId?: string;
+  artifact?: { path: string; type: string };
 }
+
+const MODEL_OPTIONS = [
+  { id: 'gpt-4o-mini', label: 'GPT-4o Mini (Budget)', tier: 'budget' },
+  { id: 'gpt-5-mini', label: 'GPT-5 Mini (Standard)', tier: 'standard' },
+  { id: 'gpt-5.2', label: 'GPT-5.2 (Premium)', tier: 'premium' },
+];
 
 const ScribeIcon = () => (
   <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
@@ -48,6 +55,18 @@ const TraceIcon = () => (
 const ProtoIcon = () => (
   <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
     <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" />
+  </svg>
+);
+
+const CoderIcon = () => (
+  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M17.25 6.75L22.5 12l-5.25 5.25m-10.5 0L1.5 12l5.25-5.25m7.5-3l-4.5 16.5" />
+  </svg>
+);
+
+const DeveloperIcon = () => (
+  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 7.5l3 2.25-3 2.25m4.5 0h3m-9 8.25h13.5A2.25 2.25 0 0021 18V6a2.25 2.25 0 00-2.25-2.25H5.25A2.25 2.25 0 003 6v12a2.25 2.25 0 002.25 2.25z" />
   </svg>
 );
 
@@ -94,18 +113,53 @@ const builtInAgents: AgentDefinition[] = [
     inputPlaceholder: 'Describe what you want to build...\n\nExample: "A REST API with user auth, PostgreSQL, and Docker setup"',
     inputLabel: 'Requirements',
   },
+  {
+    id: 'coder',
+    name: 'Coder',
+    description: 'Generate code with planning, execution, and reflection.',
+    icon: <CoderIcon />,
+    capabilities: ['Task-driven generation', 'Language/framework aware', 'Planning + reflection', 'Auditable outputs'],
+    status: 'available',
+    color: 'amber-400',
+    requiresInput: true,
+    inputPlaceholder: 'Describe the coding task...\n\nExample: "Create a TypeScript utility for date formatting with unit tests"',
+    inputLabel: 'Coding Task',
+  },
+  {
+    id: 'developer',
+    name: 'Developer',
+    description: 'Full developer workflow with multi-step planning.',
+    icon: <DeveloperIcon />,
+    capabilities: ['Multi-step execution', 'Constraint-aware planning', 'Stepwise narrative', 'Guardrailed ops'],
+    status: 'available',
+    color: 'emerald-400',
+    requiresInput: true,
+    inputPlaceholder: 'Describe your goal or requirements...\n\nExample: "Add user authentication with JWT to the Express API"',
+    inputLabel: 'Goal / Requirements',
+  },
 ];
 
 const PHASE_LABELS: Record<string, { icon: string; label: string }> = {
-  thinking: { icon: '🧠', label: 'Thinking' },
-  discovery: { icon: '🔍', label: 'Discovery' },
-  reading: { icon: '📖', label: 'Reading' },
-  creating: { icon: '✨', label: 'Creating' },
-  reviewing: { icon: '🔎', label: 'Reviewing' },
-  publishing: { icon: '🚀', label: 'Publishing' },
-  done: { icon: '✅', label: 'Done' },
-  error: { icon: '❌', label: 'Error' },
+  thinking: { icon: '...', label: 'Thinking' },
+  discovery: { icon: '?', label: 'Discovery' },
+  reading: { icon: '>', label: 'Reading' },
+  creating: { icon: '+', label: 'Creating' },
+  reviewing: { icon: '~', label: 'Reviewing' },
+  publishing: { icon: '^', label: 'Publishing' },
+  done: { icon: 'ok', label: 'Done' },
+  error: { icon: '!', label: 'Error' },
 };
+
+function getAgentColor(id: string) {
+  switch (id) {
+    case 'scribe': return { bg: 'bg-ak-primary/10', text: 'text-ak-primary' };
+    case 'trace': return { bg: 'bg-blue-500/10', text: 'text-blue-400' };
+    case 'proto': return { bg: 'bg-purple-500/10', text: 'text-purple-400' };
+    case 'coder': return { bg: 'bg-amber-500/10', text: 'text-amber-400' };
+    case 'developer': return { bg: 'bg-emerald-500/10', text: 'text-emerald-400' };
+    default: return { bg: 'bg-ak-primary/10', text: 'text-ak-primary' };
+  }
+}
 
 export default function AgentsHubPage() {
   const navigate = useNavigate();
@@ -122,6 +176,7 @@ export default function AgentsHubPage() {
   const [loadingRepos, setLoadingRepos] = useState(false);
   const [loadingBranches, setLoadingBranches] = useState(false);
   const [branchStrategy, setBranchStrategy] = useState<'manual' | 'auto'>('auto');
+  const [selectedModel, setSelectedModel] = useState('gpt-5-mini');
 
   const [currentJob, setCurrentJob] = useState<JobDetail | null>(null);
   const [isRunning, setIsRunning] = useState(false);
@@ -252,9 +307,12 @@ export default function AgentsHubPage() {
     if (!githubConnected || !selectedRepo || !selectedBranch) return;
 
     if (selectedAgent.requiresInput && !extraInput?.trim()) {
-      setJobError(selectedAgent.id === 'trace'
-        ? 'Please provide a test specification'
-        : 'Please describe your requirements');
+      setJobError(
+        selectedAgent.id === 'trace' ? 'Please provide a test specification' :
+        selectedAgent.id === 'coder' ? 'Please describe the coding task' :
+        selectedAgent.id === 'developer' ? 'Please describe your goal or requirements' :
+        'Please describe your requirements'
+      );
       return;
     }
 
@@ -291,6 +349,7 @@ export default function AgentsHubPage() {
         baseBranch: selectedBranch,
         branchStrategy,
         dryRun: false,
+        modelId: selectedModel,
         ...(aiProvider && { aiProvider }),
       };
 
@@ -300,6 +359,10 @@ export default function AgentsHubPage() {
         payload.requirements = extraInput.trim();
       } else if (selectedAgent.id === 'scribe' && extraInput?.trim()) {
         payload.taskDescription = extraInput.trim();
+      } else if (selectedAgent.id === 'coder' && extraInput) {
+        payload.task = extraInput.trim();
+      } else if (selectedAgent.id === 'developer' && extraInput) {
+        payload.goal = extraInput.trim();
       }
 
       const response = await agentsApi.runAgent({
@@ -339,6 +402,23 @@ export default function AgentsHubPage() {
               }
             }
             lastTraceCount = traces.length;
+          }
+
+          // Show artifacts as they appear
+          const artifacts = (job.artifacts as Array<{ path?: string; artifactType?: string; preview?: string }>) || [];
+          for (const artifact of artifacts) {
+            if (artifact.path) {
+              const artKey = `artifact-${artifact.path}`;
+              if (!seenMessages.has(artKey)) {
+                seenMessages.add(artKey);
+                addMessage({
+                  role: 'agent',
+                  content: `File: ${artifact.path}${artifact.preview ? '\n' + artifact.preview.substring(0, 200) + (artifact.preview.length > 200 ? '...' : '') : ''}`,
+                  phase: 'creating',
+                  artifact: { path: artifact.path, type: artifact.artifactType || 'file' },
+                });
+              }
+            }
           }
 
           if (job.state === 'completed') {
@@ -415,14 +495,14 @@ export default function AgentsHubPage() {
   return (
     <div className="flex h-[calc(100vh-4rem)]">
       {/* Left Panel - Agent List */}
-      <div className="w-64 flex-shrink-0 flex flex-col border-r border-white/[0.06] bg-ak-bg/50 backdrop-blur-sm">
+      <div className="w-56 flex-shrink-0 flex flex-col border-r border-ak-border bg-ak-surface">
         <div className="p-3">
           <input
             type="text"
             placeholder="Search agents..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full rounded-lg bg-white/[0.04] py-2 pl-3 pr-3 text-sm text-ak-text-primary placeholder:text-ak-text-secondary/40 focus:outline-none focus:ring-1 focus:ring-ak-primary/40 border border-white/[0.06]"
+            className="w-full rounded-lg bg-ak-bg py-2 pl-3 pr-3 text-sm text-ak-text-primary placeholder:text-ak-text-secondary/40 focus:outline-none focus:ring-1 focus:ring-ak-primary/40 border border-ak-border"
           />
         </div>
 
@@ -431,35 +511,36 @@ export default function AgentsHubPage() {
             Agents
           </p>
           <div className="space-y-0.5">
-            {filteredAgents.map((agent) => (
-              <button
-                key={agent.id}
-                onClick={() => setSelectedAgent(agent)}
-                className={cn(
-                  'flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left transition-all duration-150',
-                  selectedAgent?.id === agent.id
-                    ? 'bg-white/[0.08] text-ak-text-primary'
-                    : 'text-ak-text-secondary hover:bg-white/[0.04] hover:text-ak-text-primary'
-                )}
-              >
-                <div className={cn(
-                  'flex h-8 w-8 items-center justify-center rounded-lg transition-colors',
-                  selectedAgent?.id === agent.id
-                    ? agent.id === 'scribe' ? 'bg-ak-primary/15 text-ak-primary' :
-                      agent.id === 'trace' ? 'bg-blue-500/15 text-blue-400' :
-                      'bg-purple-500/15 text-purple-400'
-                    : 'bg-white/[0.04] text-ak-text-secondary'
-                )}>
-                  {agent.icon}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <span className="font-medium text-[13px]">{agent.name}</span>
-                  <p className="truncate text-[11px] text-ak-text-secondary/70 leading-tight">
-                    {agent.description}
-                  </p>
-                </div>
-              </button>
-            ))}
+            {filteredAgents.map((agent) => {
+              const color = getAgentColor(agent.id);
+              return (
+                <button
+                  key={agent.id}
+                  onClick={() => setSelectedAgent(agent)}
+                  className={cn(
+                    'flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left transition-all duration-150',
+                    selectedAgent?.id === agent.id
+                      ? 'bg-ak-surface-2 text-ak-text-primary'
+                      : 'text-ak-text-secondary hover:bg-ak-surface-2/50 hover:text-ak-text-primary'
+                  )}
+                >
+                  <div className={cn(
+                    'flex h-8 w-8 items-center justify-center rounded-lg transition-colors',
+                    selectedAgent?.id === agent.id
+                      ? `${color.bg} ${color.text}`
+                      : 'bg-ak-bg text-ak-text-secondary'
+                  )}>
+                    {agent.icon}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <span className="font-medium text-[13px]">{agent.name}</span>
+                    <p className="truncate text-[11px] text-ak-text-secondary/70 leading-tight">
+                      {agent.description}
+                    </p>
+                  </div>
+                </button>
+              );
+            })}
           </div>
 
           {userConfigs.length > 0 && (
@@ -472,9 +553,9 @@ export default function AgentsHubPage() {
                   <button
                     key={config.id}
                     onClick={() => navigate('/dashboard/scribe')}
-                    className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-ak-text-secondary hover:bg-white/[0.04] hover:text-ak-text-primary transition-all"
+                    className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-ak-text-secondary hover:bg-ak-surface-2/50 hover:text-ak-text-primary transition-all"
                   >
-                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/[0.04] text-ak-text-secondary">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-ak-bg text-ak-text-secondary">
                       <ScribeIcon />
                     </div>
                     <div className="flex-1 min-w-0">
@@ -491,10 +572,10 @@ export default function AgentsHubPage() {
         </div>
 
         {/* Bottom nav links */}
-        <div className="border-t border-white/[0.06] p-3 space-y-1">
+        <div className="border-t border-ak-border p-3 space-y-1">
           <Link
             to="/dashboard"
-            className="flex items-center gap-2 rounded-lg px-2.5 py-2 text-[13px] text-ak-text-secondary hover:bg-white/[0.04] hover:text-ak-text-primary transition-all"
+            className="flex items-center gap-2 rounded-lg px-2.5 py-2 text-[13px] text-ak-text-secondary hover:bg-ak-surface-2/50 hover:text-ak-text-primary transition-all"
           >
             <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />
@@ -503,7 +584,7 @@ export default function AgentsHubPage() {
           </Link>
           <Link
             to="/dashboard/jobs"
-            className="flex items-center gap-2 rounded-lg px-2.5 py-2 text-[13px] text-ak-text-secondary hover:bg-white/[0.04] hover:text-ak-text-primary transition-all"
+            className="flex items-center gap-2 rounded-lg px-2.5 py-2 text-[13px] text-ak-text-secondary hover:bg-ak-surface-2/50 hover:text-ak-text-primary transition-all"
           >
             <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 12h16.5m-16.5 3.75h16.5M3.75 19.5h16.5M5.625 4.5h12.75a1.875 1.875 0 010 3.75H5.625a1.875 1.875 0 010-3.75z" />
@@ -516,13 +597,11 @@ export default function AgentsHubPage() {
       {/* Main Panel - Chat-like Run Experience */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-3 border-b border-white/[0.06] bg-ak-bg/60 backdrop-blur-md">
+        <div className="flex items-center justify-between px-5 py-3 border-b border-ak-border bg-ak-bg">
           <div className="flex items-center gap-3">
             <div className={cn(
               'flex h-9 w-9 items-center justify-center rounded-xl',
-              selectedAgent.id === 'scribe' ? 'bg-ak-primary/10 text-ak-primary' :
-              selectedAgent.id === 'trace' ? 'bg-blue-500/10 text-blue-400' :
-              'bg-purple-500/10 text-purple-400'
+              agentColor.bg, agentColor.text
             )}>
               {selectedAgent.icon}
             </div>
@@ -532,12 +611,23 @@ export default function AgentsHubPage() {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            {/* Model Selector */}
+            <select
+              value={selectedModel}
+              onChange={(e) => setSelectedModel(e.target.value)}
+              className="rounded-lg border border-ak-border bg-ak-surface px-2.5 py-1.5 text-xs text-ak-text-primary focus:outline-none focus:ring-1 focus:ring-ak-primary/40"
+            >
+              {MODEL_OPTIONS.map((m) => (
+                <option key={m.id} value={m.id}>{m.label}</option>
+              ))}
+            </select>
+
             {selectedAgent.id === 'scribe' && (
               <Link
                 to="/dashboard/scribe"
-                className="text-xs font-medium text-ak-text-secondary hover:text-ak-primary transition-colors px-2 py-1 rounded hover:bg-white/[0.04]"
+                className="text-xs font-medium text-ak-text-secondary hover:text-ak-primary transition-colors px-2 py-1 rounded hover:bg-ak-surface-2"
               >
-                Advanced Console →
+                Advanced Console
               </Link>
             )}
             {currentJob && (
@@ -558,10 +648,10 @@ export default function AgentsHubPage() {
         <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3">
           {/* Config Panel (collapsible) */}
           {showConfig && (
-            <div className="rounded-xl bg-white/[0.03] backdrop-blur-sm border border-white/[0.06] p-4 mb-4">
+            <div className="rounded-xl border border-ak-border bg-ak-surface p-4 mb-4">
               {!githubConnected ? (
                 <div className="flex items-center gap-3 p-3 rounded-lg bg-amber-500/[0.08] border border-amber-500/20">
-                  <span className="text-amber-400 text-lg">⚠️</span>
+                  <span className="text-amber-400 text-sm font-medium">!</span>
                   <div>
                     <p className="text-sm font-medium text-amber-300">GitHub not connected</p>
                     <p className="text-xs text-ak-text-secondary mt-0.5">
@@ -656,12 +746,10 @@ export default function AgentsHubPage() {
             >
               {msg.role === 'agent' && (
                 <div className={cn(
-                  'flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg text-sm mt-0.5',
-                  selectedAgent.id === 'scribe' ? 'bg-ak-primary/10 text-ak-primary' :
-                  selectedAgent.id === 'trace' ? 'bg-blue-500/10 text-blue-400' :
-                  'bg-purple-500/10 text-purple-400'
+                  'flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg text-[10px] font-mono font-bold mt-0.5',
+                  agentColor.bg, agentColor.text
                 )}>
-                  {msg.phase && PHASE_LABELS[msg.phase] ? PHASE_LABELS[msg.phase].icon : '🤖'}
+                  {msg.phase && PHASE_LABELS[msg.phase] ? PHASE_LABELS[msg.phase].icon : '>'}
                 </div>
               )}
               <div className={cn(
@@ -671,8 +759,10 @@ export default function AgentsHubPage() {
                   : msg.isError
                     ? 'bg-red-500/[0.08] border border-red-500/20 text-red-300'
                     : msg.isSuccess
-                      ? 'bg-green-500/[0.08] border border-green-500/20 text-green-300'
-                      : 'bg-white/[0.04] backdrop-blur-sm border border-white/[0.06] text-ak-text-primary'
+                      ? 'bg-emerald-500/[0.08] border border-emerald-500/20 text-emerald-300'
+                      : msg.artifact
+                        ? 'bg-ak-surface border border-ak-border text-ak-text-primary font-mono text-xs'
+                        : 'bg-ak-surface border border-ak-border text-ak-text-primary'
               )}>
                 {msg.phase && PHASE_LABELS[msg.phase] && !msg.isError && !msg.isSuccess && (
                   <span className="text-[10px] font-medium uppercase tracking-wider text-ak-text-secondary/60 block mb-0.5">
@@ -685,7 +775,7 @@ export default function AgentsHubPage() {
                     to={`/dashboard/jobs/${msg.jobId}`}
                     className="inline-flex items-center gap-1 mt-2 text-xs font-medium text-ak-primary hover:text-ak-primary/80 transition-colors"
                   >
-                    View Full Results →
+                    View Full Results
                   </Link>
                 )}
                 <span className="block mt-1 text-[10px] text-ak-text-secondary/40">
@@ -700,9 +790,7 @@ export default function AgentsHubPage() {
             <div className="flex-1 flex flex-col items-center justify-center py-16 text-center">
               <div className={cn(
                 'h-16 w-16 rounded-2xl flex items-center justify-center mb-4',
-                selectedAgent.id === 'scribe' ? 'bg-ak-primary/10 text-ak-primary' :
-                selectedAgent.id === 'trace' ? 'bg-blue-500/10 text-blue-400' :
-                'bg-purple-500/10 text-purple-400'
+                agentColor.bg, agentColor.text
               )}>
                 <div className="scale-150">{selectedAgent.icon}</div>
               </div>
@@ -710,7 +798,7 @@ export default function AgentsHubPage() {
               <p className="text-sm text-ak-text-secondary max-w-md mb-6">{selectedAgent.description}</p>
               <div className="flex flex-wrap justify-center gap-2">
                 {selectedAgent.capabilities.map((cap) => (
-                  <span key={cap} className="px-2.5 py-1 rounded-full bg-white/[0.04] border border-white/[0.06] text-xs text-ak-text-secondary">
+                  <span key={cap} className="px-2.5 py-1 rounded-full border border-ak-border bg-ak-surface text-xs text-ak-text-secondary">
                     {cap}
                   </span>
                 ))}
@@ -721,9 +809,6 @@ export default function AgentsHubPage() {
                   disabled={!canRun}
                   className="mt-6 gap-2"
                 >
-                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.348a1.125 1.125 0 010 1.971l-11.54 6.347a1.125 1.125 0 01-1.667-.985V5.653z" />
-                  </svg>
                   Run {selectedAgent.name}
                 </Button>
               )}
@@ -745,7 +830,7 @@ export default function AgentsHubPage() {
         </div>
 
         {/* Input Area */}
-        <div className="border-t border-white/[0.06] bg-ak-bg/60 backdrop-blur-md p-3">
+        <div className="border-t border-ak-border bg-ak-bg p-3">
           {jobError && (
             <div className="mb-2 px-3 py-2 rounded-lg bg-red-500/[0.08] border border-red-500/20 text-xs text-red-300">
               {jobError}
@@ -763,7 +848,7 @@ export default function AgentsHubPage() {
                 }
                 disabled={!githubConnected || !selectedRepo || isRunning}
                 rows={1}
-                className="w-full resize-none rounded-xl bg-white/[0.04] backdrop-blur-sm border border-white/[0.08] py-2.5 pl-3.5 pr-12 text-sm text-ak-text-primary placeholder:text-ak-text-secondary/40 focus:outline-none focus:ring-1 focus:ring-ak-primary/40 focus:border-ak-primary/40 disabled:opacity-40 min-h-[40px] max-h-[120px]"
+                className="w-full resize-none rounded-xl border border-ak-border bg-ak-surface py-2.5 pl-3.5 pr-12 text-sm text-ak-text-primary placeholder:text-ak-text-secondary/40 focus:outline-none focus:ring-1 focus:ring-ak-primary/40 focus:border-ak-primary/40 disabled:opacity-40 min-h-[40px] max-h-[120px]"
                 style={{ height: 'auto', overflow: 'hidden' }}
                 onInput={(e) => {
                   const target = e.target as HTMLTextAreaElement;
@@ -791,9 +876,6 @@ export default function AgentsHubPage() {
                 className="gap-1.5 whitespace-nowrap h-[40px]"
                 size="sm"
               >
-                <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.348a1.125 1.125 0 010 1.971l-11.54 6.347a1.125 1.125 0 01-1.667-.985V5.653z" />
-                </svg>
                 Run
               </Button>
             )}
