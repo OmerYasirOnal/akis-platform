@@ -1,10 +1,12 @@
 /**
  * TraceRecorder - Utility for recording job execution traces
  * S1.0: Scribe Observability - structured trace timeline
+ * S2.0.3: Real-time SSE streaming via JobEventBus
  */
 
 import { db } from '../../db/client.js';
 import { jobTraces, jobArtifacts, jobAiCalls, type NewJobTrace, type NewJobArtifact, type NewJobAiCall } from '../../db/schema.js';
+import { jobEventBus } from '../events/JobEventBus.js';
 
 export type TraceEventType = 
   | 'step_start'
@@ -207,7 +209,18 @@ function redactText(text: string): string {
 }
 
 /**
+ * TraceRecorder options
+ */
+export interface TraceRecorderOptions {
+  /** Enable live SSE streaming via JobEventBus (default: true) */
+  liveStreaming?: boolean;
+  /** Batch flush interval in ms (0 = no auto-flush, default: 0) */
+  batchFlushIntervalMs?: number;
+}
+
+/**
  * TraceRecorder class for recording job execution traces
+ * S2.0.3: Now supports real-time SSE streaming
  */
 export class TraceRecorder {
   private jobId: string;
@@ -216,9 +229,85 @@ export class TraceRecorder {
   private pendingAiCalls: NewJobAiCall[] = [];
   private stepTimers: Map<string, number> = new Map();
   private aiCallIndex: number = 0;
+  private liveStreaming: boolean;
+  private batchFlushTimer: ReturnType<typeof setInterval> | null = null;
+  private lastFlushTime: number = Date.now();
 
-  constructor(jobId: string) {
+  constructor(jobId: string, options: TraceRecorderOptions = {}) {
     this.jobId = jobId;
+    this.liveStreaming = options.liveStreaming !== false; // Default: true
+    
+    // Set up batch flush interval if specified
+    if (options.batchFlushIntervalMs && options.batchFlushIntervalMs > 0) {
+      this.batchFlushTimer = setInterval(() => {
+        void this.flushIfNeeded();
+      }, options.batchFlushIntervalMs);
+    }
+  }
+
+  /**
+   * Flush to DB if there are pending items and enough time has passed
+   */
+  private async flushIfNeeded(): Promise<void> {
+    const now = Date.now();
+    const timeSinceLastFlush = now - this.lastFlushTime;
+    const hasPendingItems = this.pendingTraces.length > 0 || 
+                           this.pendingArtifacts.length > 0 || 
+                           this.pendingAiCalls.length > 0;
+    
+    // Flush if we have >= 10 items or >= 500ms since last flush
+    if (hasPendingItems && (this.pendingTraces.length >= 10 || timeSinceLastFlush >= 500)) {
+      try {
+        await this.flush();
+      } catch (err) {
+        console.error('[TraceRecorder] Auto-flush failed:', err);
+      }
+    }
+  }
+
+  /**
+   * Emit trace event to SSE stream (real-time)
+   */
+  private emitToStream(event: TraceEvent): void {
+    if (!this.liveStreaming) return;
+    
+    jobEventBus.emitTrace(this.jobId, {
+      eventType: event.eventType,
+      stepId: event.stepId,
+      title: event.title,
+      detail: event.detail,
+      durationMs: event.durationMs,
+      status: (event.status as 'success' | 'failed' | 'warning' | 'info') || 'info',
+      correlationId: event.correlationId,
+      toolName: event.toolName,
+      inputSummary: event.inputSummary,
+      outputSummary: event.outputSummary,
+      reasoningSummary: event.reasoningSummary,
+      askedWhat: event.askedWhat,
+      didWhat: event.didWhat,
+      whyReason: event.whyReason,
+    });
+  }
+
+  /**
+   * Emit artifact event to SSE stream (real-time)
+   */
+  private emitArtifactToStream(artifact: ArtifactRecord): void {
+    if (!this.liveStreaming) return;
+    
+    const kind = artifact.artifactType === 'doc_read' ? 'doc_read' as const :
+                 artifact.artifactType === 'file_created' ? 'file' as const :
+                 artifact.artifactType === 'file_modified' ? 'file' as const :
+                 artifact.artifactType === 'file_preview' ? 'file' as const : 'file' as const;
+    
+    jobEventBus.emitArtifact(this.jobId, {
+      kind,
+      label: artifact.path.split('/').pop() || artifact.path,
+      path: artifact.path,
+      operation: artifact.operation,
+      preview: artifact.preview,
+      sizeBytes: artifact.sizeBytes,
+    });
   }
 
   /**
@@ -249,6 +338,9 @@ export class TraceRecorder {
     };
 
     this.pendingTraces.push(traceRow);
+    
+    // S2.0.3: Emit to SSE stream for real-time updates
+    this.emitToStream(event);
   }
 
   /**
@@ -269,6 +361,9 @@ export class TraceRecorder {
     };
 
     this.pendingArtifacts.push(artifactRow);
+    
+    // S2.0.3: Emit to SSE stream for real-time updates
+    this.emitArtifactToStream(artifact);
   }
 
   /**
@@ -431,6 +526,23 @@ export class TraceRecorder {
         errorCode: detail.errorCode ?? null,
       };
       this.pendingAiCalls.push(aiCallRecord);
+      
+      // S2.0.3: Emit to SSE stream for real-time updates
+      if (this.liveStreaming) {
+        jobEventBus.emitAiCall(this.jobId, {
+          purpose,
+          provider: detail.provider,
+          model: detail.model,
+          durationMs,
+          tokens: detail.usage ? {
+            input: detail.usage.inputTokens,
+            output: detail.usage.outputTokens,
+            total: detail.usage.totalTokens,
+          } : undefined,
+          ok: success,
+          errorCode: detail.errorCode,
+        });
+      }
     }
   }
 
@@ -494,6 +606,22 @@ export class TraceRecorder {
       detail: call.rawDetail,
       status: call.success ? 'success' : 'failed',
     });
+    
+    // S2.0.3: Emit to SSE stream for real-time updates
+    if (this.liveStreaming) {
+      jobEventBus.emitToolCall(this.jobId, {
+        toolName: call.toolName,
+        provider: 'mcp',
+        inputSummary: call.inputSummary,
+        durationMs: call.durationMs,
+        ok: call.success,
+        errorSummary: call.success ? undefined : 'Tool call failed',
+        correlationId: call.correlationId,
+        asked: call.asked,
+        did: call.did,
+        why: call.why,
+      });
+    }
   }
 
   /**
@@ -707,11 +835,70 @@ export class TraceRecorder {
       aiCallCount: this.pendingAiCalls.length,
     };
   }
+
+  /**
+   * Emit a stage change event to SSE stream
+   * S2.0.3: Real-time stage updates
+   */
+  emitStage(
+    stage: 'init' | 'planning' | 'executing' | 'reflecting' | 'validating' | 'publishing' | 'completed' | 'failed',
+    status: 'started' | 'progress' | 'completed',
+    message?: string
+  ): void {
+    if (!this.liveStreaming) return;
+    jobEventBus.emitStage(this.jobId, stage, status, message);
+  }
+
+  /**
+   * Emit a plan event to SSE stream
+   * S2.0.3: Real-time plan updates
+   */
+  emitPlan(
+    steps: Array<{ id: string; title: string; detail?: string }>,
+    currentStepId?: string,
+    planMarkdown?: string
+  ): void {
+    if (!this.liveStreaming) return;
+    jobEventBus.emitPlan(this.jobId, steps, currentStepId, planMarkdown);
+  }
+
+  /**
+   * Emit a log event to SSE stream
+   */
+  emitLog(level: 'info' | 'warn', message: string, detail?: Record<string, unknown>): void {
+    if (!this.liveStreaming) return;
+    jobEventBus.emitLog(this.jobId, level, message, detail);
+  }
+
+  /**
+   * Emit an error event to SSE stream
+   */
+  emitError(
+    message: string,
+    scope: 'planning' | 'execution' | 'reflection' | 'validation' | 'mcp' | 'ai' | 'github' | 'unknown',
+    fatal: boolean,
+    code?: string
+  ): void {
+    if (!this.liveStreaming) return;
+    jobEventBus.emitError(this.jobId, message, scope, fatal, code);
+  }
+
+  /**
+   * Cleanup resources (call when job completes)
+   */
+  destroy(): void {
+    if (this.batchFlushTimer) {
+      clearInterval(this.batchFlushTimer);
+      this.batchFlushTimer = null;
+    }
+  }
 }
 
 /**
  * Create a TraceRecorder for a job
+ * @param jobId - Job ID
+ * @param options - TraceRecorder options (liveStreaming defaults to true)
  */
-export function createTraceRecorder(jobId: string): TraceRecorder {
-  return new TraceRecorder(jobId);
+export function createTraceRecorder(jobId: string, options?: TraceRecorderOptions): TraceRecorder {
+  return new TraceRecorder(jobId, options);
 }

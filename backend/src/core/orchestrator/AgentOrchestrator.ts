@@ -13,7 +13,7 @@ import { getAIConfig } from '../../config/env.js';
 import type { MCPTools } from '../../services/mcp/adapters/index.js';
 import { getEnv } from '../../config/env.js';
 import { GitHubMCPService, McpError, McpConnectionError } from '../../services/mcp/adapters/GitHubMCPService.js';
-import { StaticCheckRunner } from '../../services/checks/index.js';
+import { StaticCheckRunner, type AllChecksResult } from '../../services/checks/index.js';
 import { createTraceRecorder, type TraceRecorder } from '../tracing/TraceRecorder.js';
 import { jobEventBus } from '../events/JobEventBus.js';
 
@@ -217,11 +217,15 @@ export class AgentOrchestrator {
       throw new DatabaseError(`Failed to update job state: ${error instanceof Error ? error.message : String(error)}`, error);
     }
 
-    // Emit SSE event: job started
+    // Emit SSE event: job started (legacy)
     jobEventBus.emitJobEvent(jobId, { phase: 'thinking', message: 'Job started, resolving dependencies...', ts: new Date().toISOString() });
 
     // S1.1: Create TraceRecorder for explainability (outside try so it's available in catch)
-    const traceRecorder: TraceRecorder = createTraceRecorder(jobId);
+    // S2.0.3: Enable live streaming for real-time trace updates
+    const traceRecorder: TraceRecorder = createTraceRecorder(jobId, { liveStreaming: true });
+    
+    // S2.0.3: Emit stage event for real-time tracking
+    traceRecorder.emitStage('init', 'started', 'Job started, resolving dependencies...');
     let aiMetrics: AICallMetricsCollector | null = null;
     let activeAiService: AIService | undefined;
 
@@ -355,13 +359,28 @@ export class AgentOrchestrator {
         // Call agent's plan method
         if (agent.plan) {
           jobEventBus.emitJobEvent(jobId, { phase: 'discovery', message: 'Planning phase started...', ts: new Date().toISOString() });
+          // S2.0.3: Emit planning stage event
+          traceRecorder.emitStage('planning', 'started', 'Planning phase started...');
+          
           try {
             plan = await agent.plan(activeAiService.planner, context);
           } catch (planError) {
             // PR-2: Planning failure is fatal - throw immediately
             const errorMessage = planError instanceof Error ? planError.message : String(planError);
             console.error(`[AgentOrchestrator] Planning failed for job ${jobId}:`, planError);
+            // S2.0.3: Emit error event
+            traceRecorder.emitError(`Planning phase failed: ${errorMessage}`, 'planning', true, 'PLANNING_FAILED');
             throw new Error(`Planning phase failed: ${errorMessage}`);
+          }
+
+          // S2.0.3: Emit plan event immediately after planning completes
+          if (plan?.steps && Array.isArray(plan.steps)) {
+            const planSteps = plan.steps.map((step: Record<string, unknown>, index: number) => ({
+              id: (step.id as string) || `step-${index + 1}`,
+              title: (step.title as string) || `Step ${index + 1}`,
+              detail: step.detail as string | undefined,
+            }));
+            traceRecorder.emitPlan(planSteps, planSteps[0]?.id);
           }
 
           // Persist plan to DB - failure here is also fatal
@@ -391,11 +410,16 @@ export class AgentOrchestrator {
             // Audit failure is non-fatal but logged
             console.warn(`[AgentOrchestrator] Failed to write plan audit for job ${jobId}:`, auditError);
           }
+          
+          // S2.0.3: Planning stage completed
+          traceRecorder.emitStage('planning', 'completed', 'Planning phase completed');
         }
       }
 
       // Phase 5.D: Execution phase
       jobEventBus.emitJobEvent(jobId, { phase: 'creating', message: 'Executing agent...', ts: new Date().toISOString() });
+      // S2.0.3: Emit executing stage event
+      traceRecorder.emitStage('executing', 'started', 'Executing agent...');
       let executionResult: unknown;
       if (agent.executeWithTools && this.mcpTools) {
         // Use executeWithTools if available (preferred for complex agents)
@@ -421,7 +445,7 @@ export class AgentOrchestrator {
       // Phase 5.D + Phase 10: Tool-Augmented Reflection phase (if required)
       let finalResult = executionResult;
       let critique: Critique | undefined;
-      let reflectionCheckResults: Awaited<ReturnType<typeof this.checkRunner.runCriticalChecks>> | undefined;
+      let reflectionCheckResults: AllChecksResult | undefined;
       
       if (playbook.requiresReflection && activeAiService && agent.reflect) {
         try {
@@ -590,18 +614,36 @@ export class AgentOrchestrator {
 
       // Auto-complete on success - MUST happen even if flush/metrics failed
       jobEventBus.emitJobEvent(jobId, { phase: 'done', message: 'Job completed successfully', ts: new Date().toISOString() });
+      // S2.0.3: Emit completed stage event
+      traceRecorder.emitStage('completed', 'completed', 'Job completed successfully');
+      // S2.0.3: Cleanup TraceRecorder resources
+      traceRecorder.destroy();
       await this.completeJob(jobId, finalResult);
     } catch (error) {
       // S1.1: Record error in trace and flush before failing
+      const errorCode = error instanceof McpConnectionError ? error.code :
+                       error instanceof McpError ? error.code :
+                       error instanceof GitHubNotConnectedError ? error.code :
+                       error instanceof MissingDependencyError ? error.code :
+                       error instanceof MissingAIKeyError ? error.code :
+                       undefined;
+      const errorScope = error instanceof McpConnectionError || error instanceof McpError ? 'mcp' :
+                        error instanceof GitHubNotConnectedError ? 'github' :
+                        error instanceof MissingAIKeyError ? 'ai' : 'unknown';
+      
+      // S2.0.3: Emit error and failed stage events
+      traceRecorder.emitError(
+        error instanceof Error ? error.message : String(error),
+        errorScope as 'mcp' | 'github' | 'ai' | 'unknown',
+        true,
+        errorCode
+      );
+      traceRecorder.emitStage('failed', 'completed', error instanceof Error ? error.message : String(error));
+      
       try {
         traceRecorder.recordError(
           error instanceof Error ? error.message : String(error),
-          error instanceof McpConnectionError ? error.code :
-          error instanceof McpError ? error.code :
-          error instanceof GitHubNotConnectedError ? error.code :
-          error instanceof MissingDependencyError ? error.code :
-          error instanceof MissingAIKeyError ? error.code :
-          undefined
+          errorCode
         );
         await traceRecorder.flush();
       } catch (traceError) {
@@ -636,6 +678,8 @@ export class AgentOrchestrator {
       
       // Auto-fail on error (failJob handles its own errors)
       jobEventBus.emitJobEvent(jobId, { phase: 'error', message: error instanceof Error ? error.message : String(error), ts: new Date().toISOString() });
+      // S2.0.3: Cleanup TraceRecorder resources
+      traceRecorder.destroy();
       try {
         await this.failJob(jobId, error);
       } catch (failError) {

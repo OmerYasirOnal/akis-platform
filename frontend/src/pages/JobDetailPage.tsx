@@ -7,9 +7,11 @@ import { Pill } from '../components/ui/Pill';
 import { CodeBlock } from '../components/ui/CodeBlock';
 import { ErrorToast } from '../components/ui/ErrorToast';
 import { StepTimeline } from '../components/agents/StepTimeline';
+import { ThinkingIndicator } from '../components/agents/ThinkingIndicator';
 import { ArtifactPreview, PRMetadataCard, RunSummaryPanel, IssueReportModal } from '../components/jobs';
 import { PlanView } from '../components/jobs/PlanView';
 import { FeedbackTab } from '../components/jobs/FeedbackTab';
+import { useJobStream, type TraceStreamEvent, type ArtifactStreamEvent } from '../hooks/useJobStream';
 
 // ============================================================================
 // Types
@@ -223,6 +225,21 @@ export default function JobDetailPage() {
   // Issue report modal state
   const [showIssueModal, setShowIssueModal] = useState(false);
 
+  // S2.0.3: Real-time SSE streaming for RUNNING jobs
+  const isRunning = job?.state === 'running' || job?.state === 'pending';
+  const {
+    currentStage,
+    stageMessage,
+    planSteps,
+    traceEvents: streamTraces,
+    artifactEvents: streamArtifacts,
+    isConnected: streamConnected,
+    isEnded: streamEnded,
+  } = useJobStream(isRunning ? id ?? null : null, {
+    autoConnect: true,
+    includeHistory: false, // DB history will be loaded via API
+  });
+
   // Use refs for options to avoid closure issues
   const includePlanRef = useRef(includePlan);
   const includeAuditRef = useRef(includeAudit);
@@ -265,25 +282,103 @@ export default function JobDetailPage() {
   }, [loadJob, includePlan, includeAudit, includeTrace, includeArtifacts]);
 
   // Auto-refresh if job is not in terminal state
+  // S2.0.3: Reduced polling when SSE is active
   useEffect(() => {
     if (!job || job.state === 'completed' || job.state === 'failed' || job.state === 'awaiting_approval') {
       return;
     }
 
-    // Progressive backoff: 2s for first 30s, then 5s
+    // If SSE is connected, use longer polling interval (just for state sync)
+    // Otherwise use progressive backoff: 2s for first 30s, then 5s
     const elapsed = job.createdAt ? Date.now() - new Date(job.createdAt).getTime() : 0;
-    const pollInterval = elapsed > 30000 ? 5000 : 2000;
+    const pollInterval = streamConnected ? 10000 : (elapsed > 30000 ? 5000 : 2000);
 
     const interval = setInterval(() => {
       loadJob();
     }, pollInterval);
 
     return () => clearInterval(interval);
-  }, [job, loadJob]);
+  }, [job, loadJob, streamConnected]);
 
-  // Derived data
-  const traces = useMemo(() => (job?.trace as TraceEvent[] | undefined) || [], [job]);
-  const artifacts = useMemo(() => (job?.artifacts as Artifact[] | undefined) || [], [job]);
+  // S2.0.3: Reload job when stream ends (job completed/failed)
+  useEffect(() => {
+    if (streamEnded) {
+      // Give backend a moment to finalize, then reload
+      const timeout = setTimeout(() => {
+        loadJob();
+      }, 500);
+      return () => clearTimeout(timeout);
+    }
+  }, [streamEnded, loadJob]);
+
+  // Derived data - merge DB data with live stream data
+  const traces = useMemo(() => {
+    const dbTraces = (job?.trace as TraceEvent[] | undefined) || [];
+    
+    // If streaming is active, merge stream traces with DB traces
+    if (isRunning && streamTraces.length > 0) {
+      // Convert stream traces to TraceEvent format
+      const liveTraces: TraceEvent[] = streamTraces.map((st: TraceStreamEvent) => ({
+        id: `stream-${st.eventId}`,
+        eventType: st.eventType,
+        stepId: st.stepId,
+        title: st.title,
+        detail: st.detail,
+        durationMs: st.durationMs,
+        status: st.status,
+        correlationId: st.correlationId,
+        errorCode: undefined,
+        gatewayUrl: undefined,
+        timestamp: st.ts,
+        // Explainability fields
+        toolName: st.toolName,
+        inputSummary: st.inputSummary,
+        outputSummary: st.outputSummary,
+        reasoningSummary: st.reasoningSummary,
+        askedWhat: st.askedWhat,
+        didWhat: st.didWhat,
+        whyReason: st.whyReason,
+      }));
+      
+      // Combine and deduplicate (stream traces take precedence for recent events)
+      const dbTraceIds = new Set(dbTraces.map(t => t.id));
+      const uniqueLiveTraces = liveTraces.filter(t => !dbTraceIds.has(t.id));
+      
+      return [...dbTraces, ...uniqueLiveTraces];
+    }
+    
+    return dbTraces;
+  }, [job, isRunning, streamTraces]);
+  
+  const artifacts = useMemo(() => {
+    const dbArtifacts = (job?.artifacts as Artifact[] | undefined) || [];
+    
+    // If streaming is active, merge stream artifacts with DB artifacts
+    if (isRunning && streamArtifacts.length > 0) {
+      const liveArtifacts: Artifact[] = streamArtifacts.map((sa: ArtifactStreamEvent) => ({
+        id: `stream-${sa.eventId}`,
+        artifactType: sa.kind === 'doc_read' ? 'doc_read' : 
+                     sa.kind === 'file' ? (sa.operation === 'create' ? 'file_created' : 
+                                          sa.operation === 'modify' ? 'file_modified' : 
+                                          sa.operation === 'preview' ? 'file_preview' : 'file_created') : 
+                     sa.kind,
+        path: sa.path || sa.label,
+        operation: sa.operation || 'create',
+        sizeBytes: sa.sizeBytes,
+        preview: sa.preview,
+        metadata: {},
+        createdAt: sa.ts,
+      }));
+      
+      const dbArtifactPaths = new Set(dbArtifacts.map(a => a.path));
+      const uniqueLiveArtifacts = liveArtifacts.filter(a => !dbArtifactPaths.has(a.path));
+      
+      return [...dbArtifacts, ...uniqueLiveArtifacts];
+    }
+    
+    return dbArtifacts;
+  }, [job, isRunning, streamArtifacts]);
+  
   const documentsRead = useMemo(
     () => artifacts.filter((a) => a.artifactType === 'doc_read'),
     [artifacts]
@@ -297,6 +392,9 @@ export default function JobDetailPage() {
     [artifacts]
   );
   const isDryRun = Boolean((job?.payload as Record<string, unknown>)?.dryRun);
+  
+  // S2.0.3: Determine if we should show thinking indicator
+  const showThinkingIndicator = isRunning && (traces.length === 0 || currentStage !== null);
 
   // MCP status derived from traces
   const mcpStatus = useMemo(() => {
@@ -569,8 +667,51 @@ export default function JobDetailPage() {
         )}
 
         {/* Timeline Tab - S1.1: Explainability UI with Step Grouping */}
+        {/* S2.0.3: Live streaming with ThinkingIndicator */}
         {activeTab === 'timeline' && (
           <div data-testid="timeline-list">
+            {/* Show ThinkingIndicator for running jobs */}
+            {showThinkingIndicator && (
+              <div className="mb-6 p-6 bg-ak-surface-2 rounded-lg border border-ak-border">
+                <ThinkingIndicator
+                  stage={currentStage}
+                  message={stageMessage}
+                  size="md"
+                  isConnected={streamConnected}
+                />
+                {/* Show plan steps if available */}
+                {planSteps && planSteps.length > 0 && (
+                  <div className="mt-4 pt-4 border-t border-ak-border">
+                    <h4 className="text-sm font-medium text-ak-text-secondary mb-2">Plan Steps</h4>
+                    <div className="space-y-1">
+                      {planSteps.map((step, idx) => (
+                        <div
+                          key={step.id}
+                          className={`flex items-center gap-2 text-sm ${
+                            idx === 0 ? 'text-ak-primary font-medium' : 'text-ak-text-secondary'
+                          }`}
+                        >
+                          <span className={`w-5 h-5 rounded-full flex items-center justify-center text-xs ${
+                            idx === 0 
+                              ? 'bg-ak-primary/20 text-ak-primary' 
+                              : 'bg-ak-surface-3 text-ak-text-secondary'
+                          }`}>
+                            {idx + 1}
+                          </span>
+                          <span>{step.title}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {/* Live indicator */}
+                {streamConnected && (
+                  <div className="mt-3 text-xs text-ak-text-secondary text-center">
+                    Events streaming live • {traces.length} events received
+                  </div>
+                )}
+              </div>
+            )}
             <StepTimeline traces={traces as TraceEventType[]} />
           </div>
         )}
