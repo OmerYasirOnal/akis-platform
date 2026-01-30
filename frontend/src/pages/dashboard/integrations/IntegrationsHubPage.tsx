@@ -350,7 +350,7 @@ export default function IntegrationsHubPage() {
       )}
 
       {/* Atlassian OAuth Section */}
-      <div className="rounded-2xl border border-ak-border bg-ak-surface-2 p-6">
+      <div className="rounded-2xl bg-ak-surface-2 shadow-ak-elevation-1 p-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
             <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 text-white">
@@ -404,7 +404,7 @@ export default function IntegrationsHubPage() {
         
         {/* Products enabled by Atlassian OAuth */}
         {atlassianOAuthStatus.connected && (
-          <div className="mt-4 flex gap-4 border-t border-ak-border pt-4">
+          <div className="mt-4 flex gap-4 border-t border-ak-border/30 pt-4">
             <div className="flex items-center gap-2">
               <JiraIcon />
               <span className={`text-sm ${atlassianOAuthStatus.jiraAvailable ? 'text-green-400' : 'text-ak-text-secondary'}`}>
@@ -449,7 +449,7 @@ export default function IntegrationsHubPage() {
           return (
             <div
               key={integration.id}
-              className="flex flex-col rounded-2xl border border-ak-border bg-ak-surface-2 p-6 transition-all duration-base hover:shadow-ak-lg"
+              className="flex flex-col rounded-2xl bg-ak-surface-2 shadow-ak-elevation-1 p-6 transition-all duration-base hover:shadow-ak-elevation-2"
             >
               {/* Header */}
               <div className="flex items-start justify-between">
@@ -558,7 +558,7 @@ export default function IntegrationsHubPage() {
       </div>
 
       {/* Request Integration */}
-      <div className="rounded-2xl border border-dashed border-ak-border bg-ak-surface p-8 text-center">
+      <div className="rounded-2xl bg-ak-surface-2/30 p-8 text-center">
         <h3 className="text-lg font-bold text-ak-text-primary">
           Need a Different Integration?
         </h3>

@@ -2,7 +2,6 @@ import { NavLink } from 'react-router-dom';
 import { cn } from '../../utils/cn';
 import Logo from '../branding/Logo';
 
-// Icons as simple SVG components
 const HomeIcon = () => (
   <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
     <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />
@@ -63,7 +62,7 @@ const navGroups: NavGroup[] = [
     title: 'Main',
     items: [
       { to: '/dashboard', label: 'Overview', icon: <HomeIcon />, end: true },
-      { to: '/dashboard/agents', label: 'Agents', icon: <AgentsIcon /> },
+      { to: '/dashboard/agents', label: 'Agents Hub', icon: <AgentsIcon /> },
       { to: '/dashboard/jobs', label: 'Jobs', icon: <ListIcon /> },
       { to: '/dashboard/integrations', label: 'Integrations', icon: <LinkIcon /> },
     ],
@@ -79,13 +78,9 @@ const navGroups: NavGroup[] = [
 ];
 
 interface DashboardSidebarProps {
-  /** User email to display */
   userEmail?: string;
-  /** Workspace name */
   workspaceName?: string;
-  /** Whether sidebar is collapsed (mobile) */
   collapsed?: boolean;
-  /** Callback when nav item is clicked (for mobile close) */
   onNavClick?: () => void;
 }
 
@@ -102,11 +97,11 @@ export function DashboardSidebar({
       </div>
 
       {/* Workspace Info */}
-      <div className="border-b border-ak-border px-6 pb-4">
-        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-ak-text-secondary/70">
+      <div className="mx-4 mb-4 rounded-xl bg-ak-surface-2/60 px-4 py-3">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-ak-text-secondary/60">
           Workspace
         </p>
-        <p className="mt-1 truncate text-sm font-medium text-ak-text-primary">
+        <p className="mt-0.5 truncate text-sm font-medium text-ak-text-primary">
           {workspaceName}
         </p>
         {userEmail && (
@@ -115,13 +110,13 @@ export function DashboardSidebar({
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 overflow-y-auto px-4 py-4">
-        {navGroups.map((group) => (
-          <div key={group.title} className="mb-6">
-            <p className="mb-2 px-2 text-xs font-semibold uppercase tracking-[0.2em] text-ak-text-secondary/70">
+      <nav className="flex-1 overflow-y-auto px-4 py-2">
+        {navGroups.map((group, idx) => (
+          <div key={group.title} className={cn(idx > 0 && 'mt-6')}>
+            <p className="mb-2 px-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-ak-text-secondary/60">
               {group.title}
             </p>
-            <ul className="space-y-1">
+            <ul className="space-y-0.5">
               {group.items.map((item) => (
                 <li key={item.to}>
                   <NavLink
@@ -130,10 +125,10 @@ export function DashboardSidebar({
                     onClick={onNavClick}
                     className={({ isActive }) =>
                       cn(
-                        'flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-fast',
+                        'flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-150',
                         isActive
-                          ? 'bg-ak-surface-2 text-ak-text-primary shadow-ak-sm'
-                          : 'text-ak-text-secondary hover:bg-ak-surface hover:text-ak-text-primary'
+                          ? 'bg-ak-primary/10 text-ak-primary'
+                          : 'text-ak-text-secondary hover:bg-ak-surface-2 hover:text-ak-text-primary'
                       )
                     }
                   >
@@ -148,8 +143,8 @@ export function DashboardSidebar({
       </nav>
 
       {/* Footer */}
-      <div className="border-t border-ak-border p-4">
-        <p className="text-center text-xs text-ak-text-secondary/60">
+      <div className="p-4">
+        <p className="text-center text-[10px] text-ak-text-secondary/40">
           AKIS Platform v0.1
         </p>
       </div>

@@ -1,96 +1,174 @@
 import { BaseAgent } from '../../core/agents/BaseAgent.js';
 import type { AgentDependencies } from '../../core/agents/AgentFactory.js';
-import type { Plan } from '../../services/ai/AIService.js';
-import type { Critique } from '../../services/ai/AIService.js';
+import type { Plan, Critique, AIService } from '../../services/ai/AIService.js';
 import type { MCPTools } from '../../services/mcp/adapters/index.js';
 
-/**
- * ProtoAgent - Generates working MVP prototypes from requirements
- * Phase 5.C: Implements plan/reflect/execute with mock outputs
- * Extends BaseAgent; accepts injected tools (MCP adapters, AIService) via constructor
- * Complex agent: uses plan() → reflect() → execute() pattern
- */
+interface ProtoPayload {
+  requirements: string;
+  owner?: string;
+  repo?: string;
+  baseBranch?: string;
+  branchStrategy?: 'auto' | 'manual';
+  dryRun?: boolean;
+  stack?: string;
+}
+
 export class ProtoAgent extends BaseAgent {
   readonly type = 'proto';
-  private deps?: AgentDependencies;
+  private aiService?: AIService;
 
   constructor(deps?: AgentDependencies) {
     super();
-    this.deps = deps;
-    // Set playbook flags: ProtoAgent requires both planning and reflection
+    if (deps?.tools?.aiService) {
+      this.aiService = deps.tools.aiService as AIService;
+    }
     this.playbook.requiresPlanning = true;
     this.playbook.requiresReflection = true;
   }
 
-  /**
-   * Plan execution steps (mock implementation)
-   * @param planner - Planner instance injected by orchestrator
-   * @param context - Planning context (should contain goal)
-   */
   async plan(
     planner: { plan(input: { agent: string; goal: string; context?: unknown }): Promise<Plan> },
     context: unknown
   ): Promise<Plan> {
-    // Extract goal from context (assume context has goal field)
-    const goal = (context && typeof context === 'object' && 'goal' in context && typeof context.goal === 'string')
-      ? context.goal
-      : 'scaffold a demo plan';
-
-    // Call planner
-    return await planner.plan({
+    const payload = context as ProtoPayload;
+    const goal = payload?.requirements || 'scaffold a demo project';
+    return planner.plan({
       agent: this.type,
-      goal,
-      context,
+      goal: `Generate an MVP scaffold from these requirements:\n\n${goal}`,
+      context: { stack: payload?.stack },
     });
   }
 
-  /**
-   * Reflect on execution artifact (mock implementation)
-   * @param reflector - Reflector instance injected by orchestrator
-   * @param artifact - Execution artifact to critique
-   */
   async reflect(
     reflector: { critique(input: { artifact: unknown; context?: unknown }): Promise<Critique> },
     artifact: unknown
   ): Promise<Critique> {
-    // Call reflector
-    return await reflector.critique({
+    return reflector.critique({
       artifact,
       context: { agent: this.type },
     });
   }
 
-  /**
-   * Execute with tools and optional plan (mock implementation)
-   * @param tools - MCP tools injected by orchestrator
-   * @param plan - Optional plan from planning phase
-   * @param context - Execution context
-   */
-  async executeWithTools(_tools: MCPTools, plan?: Plan, _context?: unknown): Promise<unknown> {
-    // Mock execution: return deterministic result
+  async executeWithTools(tools: MCPTools, plan?: Plan, context?: unknown): Promise<unknown> {
+    const payload = context as ProtoPayload;
+    if (!payload?.requirements) {
+      throw new Error('ProtoAgent requires payload with "requirements" field');
+    }
+
+    const artifacts: Array<{ filePath: string; content: string }> = [];
+
+    if (this.aiService) {
+      const scaffoldResult = await this.aiService.generateWorkArtifact({
+        task: `Generate a working MVP project scaffold based on these requirements. For each file, output the file path and content. Requirements:\n\n${payload.requirements}${payload.stack ? `\n\nPreferred stack: ${payload.stack}` : ''}`,
+        context: { plan: plan?.steps.map(s => s.title) },
+      });
+
+      const parsed = this.parseScaffoldOutput(scaffoldResult.content);
+      artifacts.push(...parsed);
+    } else {
+      artifacts.push(
+        { filePath: 'README.md', content: `# MVP Scaffold\n\nGenerated from: ${payload.requirements.substring(0, 100)}...\n` },
+        { filePath: 'package.json', content: JSON.stringify({ name: 'mvp-scaffold', version: '0.1.0', scripts: { start: 'node index.js', test: 'echo "tests"' } }, null, 2) },
+        { filePath: 'index.js', content: `// MVP Entry Point\nconsole.log('Hello from Proto scaffold');\n` },
+      );
+    }
+
+    if (!payload.dryRun && payload.owner && payload.repo && tools.githubMCP) {
+      const github = tools.githubMCP;
+      const branchName = payload.branchStrategy === 'manual'
+        ? payload.baseBranch || 'main'
+        : `proto/scaffold-${Date.now()}`;
+
+      if (payload.branchStrategy !== 'manual') {
+        await github.createBranch(payload.owner, payload.repo, branchName, payload.baseBranch || 'main');
+      }
+
+      for (const artifact of artifacts) {
+        await github.commitFile(
+          payload.owner,
+          payload.repo,
+          branchName,
+          artifact.filePath,
+          artifact.content,
+          `proto: scaffold ${artifact.filePath}`
+        );
+      }
+
+      let prUrl: string | undefined;
+      try {
+        const prResult = await github.createPRDraft(
+          payload.owner,
+          payload.repo,
+          `[Proto] MVP scaffold`,
+          `Auto-generated by AKIS Proto agent.\n\n## Files\n${artifacts.map(a => `- \`${a.filePath}\``).join('\n')}`,
+          branchName,
+          payload.baseBranch || 'main'
+        );
+        prUrl = (prResult as { url?: string })?.url;
+      } catch {
+        // PR optional
+      }
+
+      return {
+        ok: true,
+        agent: 'proto',
+        artifacts: artifacts.map(a => ({ filePath: a.filePath })),
+        branch: branchName,
+        prUrl,
+        metadata: { filesCreated: artifacts.length, committed: true },
+      };
+    }
+
     return {
       ok: true,
       agent: 'proto',
-      message: 'MVP prototype mock execution completed',
-      planUsed: plan ? plan.steps.length : 0,
-      result: {
-        filesCreated: 3,
-        testsPassed: true,
-        mvpReady: true,
-      },
+      artifacts: artifacts.map(a => ({ filePath: a.filePath, content: a.content })),
+      metadata: { filesCreated: artifacts.length, committed: false },
     };
   }
 
-  /**
-   * Default execute (fallback, not used when executeWithTools is available)
-   */
-  async execute(_context: unknown): Promise<unknown> {
-    // Fallback implementation
+  async execute(context: unknown): Promise<unknown> {
+    const payload = context as ProtoPayload;
     return {
       ok: true,
       agent: 'proto',
-      message: 'MVP prototype stub (use executeWithTools for full flow)',
+      message: 'Proto scaffold generated (no tools available - use executeWithTools for full flow)',
+      artifacts: [
+        { filePath: 'README.md', content: `# MVP\n\n${payload?.requirements || 'No requirements provided'}` },
+      ],
     };
+  }
+
+  private parseScaffoldOutput(content: string): Array<{ filePath: string; content: string }> {
+    const artifacts: Array<{ filePath: string; content: string }> = [];
+    const fileBlocks = content.split(/```(?:\w+)?\s*\n/);
+
+    let currentPath = '';
+    for (let i = 0; i < fileBlocks.length; i++) {
+      const block = fileBlocks[i];
+
+      const pathMatch = block.match(/(?:file|path):\s*[`"]?([^\s`"]+)[`"]?\s*$/im);
+      if (pathMatch) {
+        currentPath = pathMatch[1];
+        continue;
+      }
+
+      if (i > 0 && block.includes('```')) {
+        const codeContent = block.split('```')[0].trim();
+        if (codeContent && currentPath) {
+          artifacts.push({ filePath: currentPath, content: codeContent });
+          currentPath = '';
+        }
+      }
+    }
+
+    if (artifacts.length === 0) {
+      artifacts.push({
+        filePath: 'scaffold-output.md',
+        content,
+      });
+    }
+
+    return artifacts;
   }
 }
-

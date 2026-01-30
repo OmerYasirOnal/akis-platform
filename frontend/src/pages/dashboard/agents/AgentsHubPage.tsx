@@ -1,13 +1,5 @@
-/**
- * Agents Hub Page - Cursor-like agent browser
- * 
- * Layout:
- * - Left panel: Agent list (built-in + user configs) with search
- * - Right panel: Selected agent details, quick actions, run console
- */
 import { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import Card from '../../../components/common/Card';
 import Button from '../../../components/common/Button';
 import SearchableSelect, { type SelectOption } from '../../../components/common/SearchableSelect';
 import { agentsApi, type AgentType, type JobDetail, type RunningJob } from '../../../services/api/agents';
@@ -15,8 +7,8 @@ import { agentConfigsApi, type ScribeConfig } from '../../../services/api/agent-
 import { githubDiscoveryApi, type GitHubRepo, type GitHubBranch } from '../../../services/api/github-discovery';
 import { integrationsApi } from '../../../services/api/integrations';
 import { getMultiProviderStatus, type AIKeyProvider } from '../../../services/api/ai-keys';
+import { cn } from '../../../utils/cn';
 
-// Agent definition for display
 interface AgentDefinition {
   id: AgentType;
   name: string;
@@ -24,18 +16,9 @@ interface AgentDefinition {
   icon: React.ReactNode;
   capabilities: string[];
   status: 'available' | 'coming_soon';
+  color: string;
 }
 
-// Quick action definition
-interface QuickAction {
-  id: string;
-  label: string;
-  description: string;
-  agentType: AgentType;
-  icon: React.ReactNode;
-}
-
-// Icons
 const ScribeIcon = () => (
   <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
     <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
@@ -66,25 +49,6 @@ const PlayIcon = () => (
   </svg>
 );
 
-const DocsIcon = () => (
-  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" />
-  </svg>
-);
-
-const TestIcon = () => (
-  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M9.75 3.104v5.714a2.25 2.25 0 01-.659 1.591L5 14.5M9.75 3.104c-.251.023-.501.05-.75.082m.75-.082a24.301 24.301 0 014.5 0m0 0v5.714c0 .597.237 1.17.659 1.591L19.8 15.3M14.25 3.104c.251.023.501.05.75.082M19.8 15.3l-1.57.393A9.065 9.065 0 0112 15a9.065 9.065 0 00-6.23.693L5 15.5m14.8-.2l-.893.893A9.056 9.056 0 0012 18.75a9.056 9.056 0 00-6.906-2.557L5 15.5" />
-  </svg>
-);
-
-const CodeIcon = () => (
-  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M14.25 9.75L16.5 12l-2.25 2.25m-4.5 0L7.5 12l2.25-2.25M6 20.25h12A2.25 2.25 0 0020.25 18V6A2.25 2.25 0 0018 3.75H6A2.25 2.25 0 003.75 6v12A2.25 2.25 0 006 20.25z" />
-  </svg>
-);
-
-// Built-in agents
 const builtInAgents: AgentDefinition[] = [
   {
     id: 'scribe',
@@ -98,11 +62,12 @@ const builtInAgents: AgentDefinition[] = [
       'Supports multiple doc targets',
     ],
     status: 'available',
+    color: 'ak-primary',
   },
   {
     id: 'trace',
     name: 'Trace',
-    description: 'Generate test plans and coverage matrices from Jira specs.',
+    description: 'Generate test plans and coverage matrices from specifications.',
     icon: <TraceIcon />,
     capabilities: [
       'Parses acceptance criteria',
@@ -110,7 +75,8 @@ const builtInAgents: AgentDefinition[] = [
       'Risk-based prioritization',
       'Coverage analysis',
     ],
-    status: 'coming_soon',
+    status: 'available',
+    color: 'blue-400',
   },
   {
     id: 'proto',
@@ -123,49 +89,16 @@ const builtInAgents: AgentDefinition[] = [
       'Deploy-ready configs',
       'Iterative refinement',
     ],
-    status: 'coming_soon',
-  },
-];
-
-// Quick actions
-const quickActions: QuickAction[] = [
-  {
-    id: 'improve-docs',
-    label: 'Improve Documentation',
-    description: 'Generate or update README, API docs, and guides',
-    agentType: 'scribe',
-    icon: <DocsIcon />,
-  },
-  {
-    id: 'generate-changelog',
-    label: 'Generate Changelog',
-    description: 'Create changelog from recent commits',
-    agentType: 'scribe',
-    icon: <ScribeIcon />,
-  },
-  {
-    id: 'security-audit',
-    label: 'Security Audit',
-    description: 'Analyze code for security vulnerabilities',
-    agentType: 'trace',
-    icon: <TestIcon />,
-  },
-  {
-    id: 'solve-todos',
-    label: 'Solve TODOs',
-    description: 'Find and implement TODO comments in code',
-    agentType: 'proto',
-    icon: <CodeIcon />,
+    status: 'available',
+    color: 'purple-400',
   },
 ];
 
 export default function AgentsHubPage() {
   const navigate = useNavigate();
-  
-  // Selection state
-  const [selectedAgent, setSelectedAgent] = useState<AgentDefinition | null>(builtInAgents[0]);
+  const [selectedAgent, setSelectedAgent] = useState<AgentDefinition>(builtInAgents[0]);
   const [searchQuery, setSearchQuery] = useState('');
-  
+
   // GitHub state
   const [githubConnected, setGithubConnected] = useState(false);
   const [githubUser, setGithubUser] = useState('');
@@ -175,23 +108,18 @@ export default function AgentsHubPage() {
   const [selectedBranch, setSelectedBranch] = useState('');
   const [loadingRepos, setLoadingRepos] = useState(false);
   const [loadingBranches, setLoadingBranches] = useState(false);
-  
-  // Branch strategy state
+
+  // Branch strategy
   const [branchStrategy, setBranchStrategy] = useState<'manual' | 'auto'>('auto');
   const [autoBranchPreview, setAutoBranchPreview] = useState('');
-  
+
   // Job state
   const [currentJob, setCurrentJob] = useState<JobDetail | null>(null);
   const [isRunning, setIsRunning] = useState(false);
   const [jobError, setJobError] = useState<string | null>(null);
-  
-  // Running jobs (for duplicate prevention)
   const [runningJobs, setRunningJobs] = useState<RunningJob[]>([]);
-  
-  // User configs
   const [userConfigs, setUserConfigs] = useState<ScribeConfig[]>([]);
 
-  // Check GitHub connection
   useEffect(() => {
     const checkGitHub = async () => {
       try {
@@ -207,20 +135,16 @@ export default function AgentsHubPage() {
     checkGitHub();
   }, []);
 
-  // Fetch running jobs for duplicate prevention and live progress
   useEffect(() => {
     const fetchRunningJobs = async () => {
       try {
         const result = await agentsApi.getRunningJobs();
         setRunningJobs(result.jobs);
-        
-        // If there's a running job for the current repo, set it as current
         if (selectedRepo && result.jobs.length > 0) {
           const matchingJob = result.jobs.find(
             (job) => job.payload?.owner === githubUser && job.payload?.repo === selectedRepo
           );
           if (matchingJob && !currentJob) {
-            // Fetch full job details
             const fullJob = await agentsApi.getJob(matchingJob.id, { include: ['trace'] });
             setCurrentJob(fullJob);
             if (fullJob.state === 'running' || fullJob.state === 'pending') {
@@ -228,112 +152,73 @@ export default function AgentsHubPage() {
             }
           }
         }
-      } catch {
-        // Silently ignore errors fetching running jobs
-      }
+      } catch { /* silent */ }
     };
 
-    // Initial fetch
-    if (githubConnected) {
-      fetchRunningJobs();
-    }
-
-    // Poll every 3 seconds while connected
+    if (githubConnected) fetchRunningJobs();
     const interval = setInterval(() => {
-      if (githubConnected) {
-        fetchRunningJobs();
-      }
+      if (githubConnected) fetchRunningJobs();
     }, 3000);
-
     return () => clearInterval(interval);
   }, [githubConnected, githubUser, selectedRepo, currentJob]);
 
-  // Load repos when GitHub is connected
   useEffect(() => {
     if (!githubConnected || !githubUser) return;
-    
     const loadRepos = async () => {
       setLoadingRepos(true);
       try {
         const result = await githubDiscoveryApi.getRepos(githubUser);
         setRepos(result.repos);
-        if (result.repos.length > 0) {
-          setSelectedRepo(result.repos[0].name);
-        }
-      } catch {
-        setRepos([]);
-      } finally {
-        setLoadingRepos(false);
-      }
+        if (result.repos.length > 0) setSelectedRepo(result.repos[0].name);
+      } catch { setRepos([]); }
+      finally { setLoadingRepos(false); }
     };
     loadRepos();
   }, [githubConnected, githubUser]);
 
-  // Load branches when repo changes
   useEffect(() => {
     if (!githubConnected || !githubUser || !selectedRepo) return;
-    
     const loadBranches = async () => {
       setLoadingBranches(true);
       try {
         const result = await githubDiscoveryApi.getBranches(githubUser, selectedRepo);
         setBranches(result.branches);
         setSelectedBranch(result.defaultBranch || 'main');
-      } catch {
-        setBranches([]);
-      } finally {
-        setLoadingBranches(false);
-      }
+      } catch { setBranches([]); }
+      finally { setLoadingBranches(false); }
     };
     loadBranches();
   }, [githubConnected, githubUser, selectedRepo]);
 
-  // Load user agent configs
   useEffect(() => {
     const loadConfigs = async () => {
       try {
         const response = await agentConfigsApi.listConfigs();
-        if (response.configs && response.configs.length > 0) {
-          setUserConfigs(response.configs);
-        }
-      } catch {
-        // No configs yet
-      }
+        if (response.configs?.length > 0) setUserConfigs(response.configs);
+      } catch { /* no configs */ }
     };
     loadConfigs();
   }, []);
 
-  // Generate auto branch preview
   useEffect(() => {
     const generatePreview = () => {
       const now = new Date();
-      const yyyy = now.getFullYear();
-      const mm = String(now.getMonth() + 1).padStart(2, '0');
-      const dd = String(now.getDate()).padStart(2, '0');
-      const HH = String(now.getHours()).padStart(2, '0');
-      const MM = String(now.getMinutes()).padStart(2, '0');
-      const SS = String(now.getSeconds()).padStart(2, '0');
-      setAutoBranchPreview(`scribe/docs-${yyyy}${mm}${dd}-${HH}${MM}${SS}`);
+      const ts = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}-${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}`;
+      setAutoBranchPreview(`${selectedAgent.id}/run-${ts}`);
     };
-    
     generatePreview();
-    // Regenerate preview every second when auto is selected
     const interval = setInterval(generatePreview, 1000);
     return () => clearInterval(interval);
-  }, []);
+  }, [selectedAgent.id]);
 
-  // Filtered agents based on search
   const filteredAgents = useMemo(() => {
     if (!searchQuery.trim()) return builtInAgents;
     const query = searchQuery.toLowerCase();
     return builtInAgents.filter(
-      (agent) =>
-        agent.name.toLowerCase().includes(query) ||
-        agent.description.toLowerCase().includes(query)
+      (agent) => agent.name.toLowerCase().includes(query) || agent.description.toLowerCase().includes(query)
     );
   }, [searchQuery]);
 
-  // Options for selects
   const repoOptions: SelectOption[] = repos.map((r) => ({
     value: r.name,
     label: r.name,
@@ -346,7 +231,6 @@ export default function AgentsHubPage() {
     description: b.isDefault ? 'Default' : undefined,
   }));
 
-  // Run agent
   const handleRunAgent = async () => {
     if (!selectedAgent || selectedAgent.status !== 'available') return;
     if (!githubConnected || !selectedRepo || !selectedBranch) return;
@@ -356,20 +240,13 @@ export default function AgentsHubPage() {
     setCurrentJob(null);
 
     try {
-      // Get AI provider
       let aiProvider: AIKeyProvider | undefined;
       try {
         const aiStatus = await getMultiProviderStatus();
-        if (aiStatus.activeProvider) {
-          aiProvider = aiStatus.activeProvider;
-        } else if (aiStatus.providers.openai.configured) {
-          aiProvider = 'openai';
-        } else if (aiStatus.providers.openrouter.configured) {
-          aiProvider = 'openrouter';
-        }
-      } catch {
-        // Continue without explicit provider
-      }
+        if (aiStatus.activeProvider) aiProvider = aiStatus.activeProvider;
+        else if (aiStatus.providers.openai.configured) aiProvider = 'openai';
+        else if (aiStatus.providers.openrouter.configured) aiProvider = 'openrouter';
+      } catch { /* continue */ }
 
       const response = await agentsApi.runAgent({
         type: selectedAgent.id,
@@ -377,37 +254,26 @@ export default function AgentsHubPage() {
           owner: githubUser,
           repo: selectedRepo,
           baseBranch: selectedBranch,
-          // If auto strategy, don't send featureBranch - backend will generate
-          // If manual, also don't send - backend will auto-generate unique name
           branchStrategy,
-          dryRun: true,
+          dryRun: false,
           ...(aiProvider && { aiProvider }),
         },
       });
 
-      // Poll for job status - faster polling (1s) while running
       const pollJob = async () => {
         try {
           const job = await agentsApi.getJob(response.jobId, { include: ['trace'] });
           setCurrentJob(job);
-          
           if (job.state === 'completed' || job.state === 'failed') {
             setIsRunning(false);
-            if (job.state === 'failed') {
-              setJobError(job.errorMessage || job.error?.toString() || 'Job failed');
-            }
+            if (job.state === 'failed') setJobError(job.errorMessage || job.error?.toString() || 'Job failed');
             return;
           }
-          
-          // Continue polling with 1 second interval for live updates
           setTimeout(pollJob, 1000);
-        } catch (pollError) {
-          console.error('Failed to poll job:', pollError);
-          // Retry after longer delay on error
+        } catch {
           setTimeout(pollJob, 3000);
         }
       };
-      
       pollJob();
     } catch (error) {
       setIsRunning(false);
@@ -415,30 +281,21 @@ export default function AgentsHubPage() {
     }
   };
 
-  // Handle quick action click
-  const handleQuickAction = (action: QuickAction) => {
-    const agent = builtInAgents.find((a) => a.id === action.agentType);
-    if (agent) {
-      setSelectedAgent(agent);
-    }
-  };
-
-  // Check if there's already a running job for the current repo
   const existingRunningJob = runningJobs.find(
     (job) => job.payload?.owner === githubUser && job.payload?.repo === selectedRepo
   );
-  
-  const canRun = selectedAgent?.status === 'available' && 
-                 githubConnected && 
-                 selectedRepo && 
-                 selectedBranch && 
-                 !isRunning && 
+
+  const canRun = selectedAgent?.status === 'available' &&
+                 githubConnected &&
+                 selectedRepo &&
+                 selectedBranch &&
+                 !isRunning &&
                  !existingRunningJob;
 
   return (
-    <div className="flex h-full gap-6">
+    <div className="flex h-[calc(100vh-7rem)] gap-6">
       {/* Left Panel - Agent List */}
-      <div className="w-80 flex-shrink-0 space-y-4">
+      <div className="w-72 flex-shrink-0 flex flex-col gap-4 overflow-y-auto">
         {/* Search */}
         <div className="relative">
           <input
@@ -446,43 +303,42 @@ export default function AgentsHubPage() {
             placeholder="Search agents..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full rounded-xl border border-ak-border bg-ak-surface-2 py-2.5 pl-10 pr-4 text-sm text-ak-text-primary placeholder:text-ak-text-secondary focus:border-ak-primary focus:outline-none focus:ring-1 focus:ring-ak-primary"
+            className="w-full rounded-xl bg-ak-surface-2 py-2.5 pl-10 pr-4 text-sm text-ak-text-primary placeholder:text-ak-text-secondary/50 focus:outline-none focus:ring-2 focus:ring-ak-primary/50"
           />
-          <div className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ak-text-secondary">
+          <div className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ak-text-secondary/50">
             <SearchIcon />
           </div>
         </div>
 
         {/* Built-in Agents */}
-        <div className="space-y-2">
-          <h3 className="px-2 text-xs font-semibold uppercase tracking-wider text-ak-text-secondary">
+        <div>
+          <p className="mb-2 px-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-ak-text-secondary/60">
             Built-in Agents
-          </h3>
+          </p>
           <div className="space-y-1">
             {filteredAgents.map((agent) => (
               <button
                 key={agent.id}
                 onClick={() => setSelectedAgent(agent)}
-                className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition-all ${
+                className={cn(
+                  'flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition-all duration-150',
                   selectedAgent?.id === agent.id
-                    ? 'bg-ak-surface-2 text-ak-text-primary shadow-ak-sm'
-                    : 'text-ak-text-secondary hover:bg-ak-surface hover:text-ak-text-primary'
-                }`}
+                    ? 'bg-ak-surface-2 text-ak-text-primary'
+                    : 'text-ak-text-secondary hover:bg-ak-surface-2/50 hover:text-ak-text-primary'
+                )}
               >
-                <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${
-                  selectedAgent?.id === agent.id ? 'bg-ak-primary/10 text-ak-primary' : 'bg-ak-surface-2 text-ak-text-secondary'
-                }`}>
+                <div className={cn(
+                  'flex h-10 w-10 items-center justify-center rounded-xl transition-colors',
+                  selectedAgent?.id === agent.id
+                    ? agent.id === 'scribe' ? 'bg-ak-primary/15 text-ak-primary' :
+                      agent.id === 'trace' ? 'bg-blue-500/15 text-blue-400' :
+                      'bg-purple-500/15 text-purple-400'
+                    : 'bg-ak-surface text-ak-text-secondary'
+                )}>
                   {agent.icon}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium">{agent.name}</span>
-                    {agent.status === 'coming_soon' && (
-                      <span className="rounded-full bg-ak-surface-2 px-2 py-0.5 text-[10px] font-medium text-ak-text-secondary">
-                        Soon
-                      </span>
-                    )}
-                  </div>
+                  <span className="font-medium text-sm">{agent.name}</span>
                   <p className="truncate text-xs text-ak-text-secondary">
                     {agent.description}
                   </p>
@@ -494,22 +350,22 @@ export default function AgentsHubPage() {
 
         {/* User Configs */}
         {userConfigs.length > 0 && (
-          <div className="space-y-2">
-            <h3 className="px-2 text-xs font-semibold uppercase tracking-wider text-ak-text-secondary">
+          <div>
+            <p className="mb-2 px-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-ak-text-secondary/60">
               Your Configurations
-            </h3>
+            </p>
             <div className="space-y-1">
               {userConfigs.map((config) => (
                 <button
                   key={config.id}
                   onClick={() => navigate('/dashboard/scribe')}
-                  className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-ak-text-secondary hover:bg-ak-surface hover:text-ak-text-primary transition-all"
+                  className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-ak-text-secondary hover:bg-ak-surface-2/50 hover:text-ak-text-primary transition-all"
                 >
-                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-ak-surface-2 text-ak-text-secondary">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-ak-surface text-ak-text-secondary">
                     <ScribeIcon />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <span className="font-medium">Scribe Config</span>
+                    <span className="font-medium text-sm">Scribe Config</span>
                     <p className="truncate text-xs text-ak-text-secondary">
                       {config.repositoryOwner}/{config.repositoryName}
                     </p>
@@ -521,316 +377,234 @@ export default function AgentsHubPage() {
         )}
       </div>
 
-      {/* Right Panel - Agent Details */}
-      <div className="flex-1 space-y-6">
-        {selectedAgent ? (
-          <>
-            {/* Agent Header */}
-            <Card className="bg-ak-surface p-6">
-              <div className="flex items-start justify-between">
-                <div className="flex items-center gap-4">
-                  <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-ak-primary/10 text-ak-primary">
-                    {selectedAgent.icon}
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <h1 className="text-2xl font-bold text-ak-text-primary">
-                        {selectedAgent.name}
-                      </h1>
-                      {selectedAgent.status === 'coming_soon' && (
-                        <span className="rounded-full bg-yellow-500/10 px-2.5 py-0.5 text-xs font-medium text-yellow-400">
-                          Coming Soon
-                        </span>
-                      )}
-                    </div>
-                    <p className="mt-1 text-ak-text-secondary">
-                      {selectedAgent.description}
-                    </p>
-                  </div>
+      {/* Right Panel - Agent Details & Run */}
+      <div className="flex-1 overflow-y-auto space-y-6">
+        {/* Agent Header */}
+        <div className="flex items-start justify-between">
+          <div className="flex items-center gap-4">
+            <div className={cn(
+              'flex h-14 w-14 items-center justify-center rounded-2xl',
+              selectedAgent.id === 'scribe' ? 'bg-ak-primary/10 text-ak-primary' :
+              selectedAgent.id === 'trace' ? 'bg-blue-500/10 text-blue-400' :
+              'bg-purple-500/10 text-purple-400'
+            )}>
+              {selectedAgent.icon}
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold text-ak-text-primary">
+                {selectedAgent.name}
+              </h1>
+              <p className="mt-0.5 text-sm text-ak-text-secondary">
+                {selectedAgent.description}
+              </p>
+            </div>
+          </div>
+          {selectedAgent.id === 'scribe' && (
+            <Link
+              to="/dashboard/scribe"
+              className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-ak-primary hover:bg-ak-primary/10 transition-colors"
+            >
+              Advanced Console
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+              </svg>
+            </Link>
+          )}
+        </div>
+
+        {/* Capabilities */}
+        <div className="rounded-2xl bg-ak-surface-2/50 p-5">
+          <h3 className="text-sm font-medium text-ak-text-primary mb-3">Capabilities</h3>
+          <div className="grid grid-cols-2 gap-2">
+            {selectedAgent.capabilities.map((cap) => (
+              <div key={cap} className="flex items-center gap-2 text-sm text-ak-text-secondary">
+                <svg className={cn(
+                  'h-4 w-4 flex-shrink-0',
+                  selectedAgent.id === 'scribe' ? 'text-ak-primary' :
+                  selectedAgent.id === 'trace' ? 'text-blue-400' : 'text-purple-400'
+                )} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                </svg>
+                {cap}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Run Console */}
+        <div className="rounded-2xl bg-ak-surface-2/50 p-5">
+          <h3 className="text-lg font-semibold text-ak-text-primary mb-4">Run Agent</h3>
+
+          {!githubConnected ? (
+            <div className="rounded-xl bg-yellow-500/5 p-4">
+              <p className="text-sm text-yellow-400">
+                Connect GitHub to run agents.{' '}
+                <Link to="/dashboard/integrations" className="font-medium underline">
+                  Go to Integrations
+                </Link>
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <SearchableSelect
+                  label="Repository"
+                  placeholder="Select repository"
+                  options={repoOptions}
+                  value={selectedRepo}
+                  onChange={setSelectedRepo}
+                  loading={loadingRepos}
+                  emptyMessage="No repositories"
+                  allowManualInput={false}
+                />
+                <SearchableSelect
+                  label="Base Branch"
+                  placeholder="Select base branch"
+                  options={branchOptions}
+                  value={selectedBranch}
+                  onChange={setSelectedBranch}
+                  loading={loadingBranches}
+                  emptyMessage="No branches"
+                  disabled={!selectedRepo}
+                  allowManualInput={false}
+                />
+              </div>
+
+              {/* Branch Strategy */}
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-ak-text-primary">
+                  Feature Branch
+                </label>
+                <div className="flex gap-4">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="branchStrategy"
+                      value="auto"
+                      checked={branchStrategy === 'auto'}
+                      onChange={() => setBranchStrategy('auto')}
+                      className="w-4 h-4 text-ak-primary focus:ring-ak-primary"
+                    />
+                    <span className="text-sm text-ak-text-primary">Auto-create</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="branchStrategy"
+                      value="manual"
+                      checked={branchStrategy === 'manual'}
+                      onChange={() => setBranchStrategy('manual')}
+                      className="w-4 h-4 text-ak-primary focus:ring-ak-primary"
+                    />
+                    <span className="text-sm text-ak-text-primary">Manual</span>
+                  </label>
                 </div>
-                {selectedAgent.id === 'scribe' && (
+
+                {branchStrategy === 'auto' && (
+                  <div className="mt-2 rounded-lg bg-ak-bg/50 px-3 py-2">
+                    <span className="text-xs text-ak-text-secondary">Preview: </span>
+                    <code className="text-sm font-mono text-ak-primary">{autoBranchPreview}</code>
+                  </div>
+                )}
+              </div>
+
+              {/* Running Job Warning */}
+              {existingRunningJob && (
+                <div className="rounded-xl bg-yellow-500/5 p-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="h-2 w-2 rounded-full bg-yellow-500 animate-pulse" />
+                      <span className="text-sm text-yellow-400">
+                        Agent is already running for this repository
+                      </span>
+                    </div>
+                    <Link
+                      to={`/dashboard/jobs/${existingRunningJob.id}`}
+                      className="text-sm font-medium text-ak-primary hover:underline"
+                    >
+                      View Run
+                    </Link>
+                  </div>
+                  {existingRunningJob.latestTrace && (
+                    <p className="mt-2 text-xs text-ak-text-secondary">
+                      Current step: {existingRunningJob.latestTrace.title}
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {/* Run Button */}
+              <div className="flex items-center gap-3 pt-2">
+                <Button
+                  onClick={handleRunAgent}
+                  disabled={!canRun}
+                  className="gap-2"
+                >
+                  <PlayIcon />
+                  {isRunning ? 'Running...' : existingRunningJob ? 'Agent Running' : `Run ${selectedAgent.name}`}
+                </Button>
+                {currentJob && (
                   <Link
-                    to="/dashboard/scribe"
+                    to={`/dashboard/jobs/${currentJob.id}`}
                     className="text-sm font-medium text-ak-primary hover:underline"
                   >
-                    Advanced Console →
+                    View Job Details
                   </Link>
                 )}
               </div>
 
-              {/* Capabilities */}
-              <div className="mt-6">
-                <h3 className="text-sm font-medium text-ak-text-primary mb-3">Capabilities</h3>
-                <div className="grid grid-cols-2 gap-2">
-                  {selectedAgent.capabilities.map((cap) => (
-                    <div key={cap} className="flex items-center gap-2 text-sm text-ak-text-secondary">
-                      <svg className="h-4 w-4 text-ak-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                      </svg>
-                      {cap}
+              {/* Job Status */}
+              {currentJob && (
+                <div className={cn(
+                  'rounded-xl p-4',
+                  currentJob.state === 'completed' ? 'bg-green-500/5' :
+                  currentJob.state === 'failed' ? 'bg-red-500/5' :
+                  'bg-ak-surface'
+                )}>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className={cn(
+                        'h-2 w-2 rounded-full',
+                        currentJob.state === 'completed' ? 'bg-green-400' :
+                        currentJob.state === 'failed' ? 'bg-red-400' :
+                        'bg-ak-primary animate-pulse'
+                      )} />
+                      <span className="text-sm font-medium text-ak-text-primary">
+                        {currentJob.state === 'completed' ? 'Completed' :
+                         currentJob.state === 'failed' ? 'Failed' :
+                         currentJob.state === 'running' ? 'Running' : 'Pending'}
+                      </span>
                     </div>
-                  ))}
-                </div>
-              </div>
-            </Card>
-
-            {/* Quick Actions */}
-            <div className="space-y-3">
-              <h3 className="text-sm font-medium text-ak-text-primary">Quick Actions</h3>
-              <div className="grid grid-cols-2 gap-3">
-                {quickActions
-                  .filter((action) => action.agentType === selectedAgent.id)
-                  .map((action) => (
-                    <button
-                      key={action.id}
-                      onClick={() => handleQuickAction(action)}
-                      disabled={selectedAgent.status !== 'available'}
-                      className="flex items-center gap-3 rounded-xl border border-ak-border bg-ak-surface p-4 text-left transition-all hover:border-ak-primary/50 hover:bg-ak-surface-2 disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-ak-primary/10 text-ak-primary">
-                        {action.icon}
-                      </div>
-                      <div>
-                        <span className="font-medium text-ak-text-primary">{action.label}</span>
-                        <p className="text-xs text-ak-text-secondary">{action.description}</p>
-                      </div>
-                    </button>
-                  ))}
-              </div>
-            </div>
-
-            {/* Run Console */}
-            {selectedAgent.status === 'available' && (
-              <Card className="bg-ak-surface p-6">
-                <h3 className="text-lg font-semibold text-ak-text-primary mb-4">Run Agent</h3>
-
-                {!githubConnected ? (
-                  <div className="rounded-xl border border-yellow-500/30 bg-yellow-500/10 p-4">
-                    <p className="text-sm text-yellow-400">
-                      Connect GitHub to run agents.{' '}
-                      <Link to="/dashboard/integrations" className="font-medium underline">
-                        Go to Integrations →
-                      </Link>
-                    </p>
+                    <span className="text-xs text-ak-text-secondary font-mono">
+                      {currentJob.id.substring(0, 8)}
+                    </span>
                   </div>
-                ) : (
-                  <div className="space-y-4">
-                    {/* Repo Selection */}
-                    <div className="w-full">
-                      <SearchableSelect
-                        label="Repository"
-                        placeholder="Select repository"
-                        options={repoOptions}
-                        value={selectedRepo}
-                        onChange={setSelectedRepo}
-                        loading={loadingRepos}
-                        emptyMessage="No repositories"
-                        allowManualInput={false}
-                      />
-                    </div>
 
-                    {/* Base Branch Selection */}
-                    <div className="w-full">
-                      <SearchableSelect
-                        label="Base Branch"
-                        placeholder="Select base branch"
-                        options={branchOptions}
-                        value={selectedBranch}
-                        onChange={setSelectedBranch}
-                        loading={loadingBranches}
-                        emptyMessage="No branches"
-                        disabled={!selectedRepo}
-                        allowManualInput={false}
-                        description="The branch to base your documentation update on"
-                      />
-                    </div>
-
-                    {/* Branch Strategy Selector */}
-                    <div className="space-y-2">
-                      <label className="block text-sm font-medium text-ak-text-primary">
-                        Feature Branch
-                      </label>
-                      <div className="flex gap-4">
-                        <label className="flex items-center gap-2 cursor-pointer">
-                          <input
-                            type="radio"
-                            name="branchStrategy"
-                            value="auto"
-                            checked={branchStrategy === 'auto'}
-                            onChange={() => setBranchStrategy('auto')}
-                            className="w-4 h-4 text-ak-primary border-ak-border focus:ring-ak-primary"
-                          />
-                          <span className="text-sm text-ak-text-primary">Auto-create</span>
-                        </label>
-                        <label className="flex items-center gap-2 cursor-pointer">
-                          <input
-                            type="radio"
-                            name="branchStrategy"
-                            value="manual"
-                            checked={branchStrategy === 'manual'}
-                            onChange={() => setBranchStrategy('manual')}
-                            className="w-4 h-4 text-ak-primary border-ak-border focus:ring-ak-primary"
-                          />
-                          <span className="text-sm text-ak-text-primary">Manual</span>
-                        </label>
-                      </div>
-                      
-                      {branchStrategy === 'auto' ? (
-                        <div className="mt-2 p-3 rounded-lg bg-ak-surface-2 border border-ak-border">
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <span className="text-xs text-ak-text-secondary">Preview:</span>
-                              <code className="ml-2 text-sm font-mono text-ak-primary">
-                                {autoBranchPreview}
-                              </code>
-                            </div>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const now = new Date();
-                                const yyyy = now.getFullYear();
-                                const mm = String(now.getMonth() + 1).padStart(2, '0');
-                                const dd = String(now.getDate()).padStart(2, '0');
-                                const HH = String(now.getHours()).padStart(2, '0');
-                                const MM = String(now.getMinutes()).padStart(2, '0');
-                                const SS = String(now.getSeconds()).padStart(2, '0');
-                                setAutoBranchPreview(`scribe/docs-${yyyy}${mm}${dd}-${HH}${MM}${SS}`);
-                              }}
-                              className="text-xs text-ak-primary hover:underline"
-                            >
-                              Refresh
-                            </button>
-                          </div>
-                          <p className="mt-1 text-xs text-ak-text-secondary">
-                            A unique branch will be created when you run the agent
-                          </p>
-                        </div>
-                      ) : (
-                        <p className="mt-1 text-xs text-ak-text-secondary">
-                          The agent will create a new branch from the selected base branch
-                        </p>
-                      )}
-                    </div>
-
-                    {/* Existing Running Job Warning */}
-                    {existingRunningJob && (
-                      <div className="rounded-xl border border-yellow-500/30 bg-yellow-500/10 p-4">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <div className="h-2 w-2 rounded-full bg-yellow-500 animate-pulse" />
-                            <span className="text-sm text-yellow-400">
-                              Agent is already running for this repository
-                            </span>
-                          </div>
-                          <Link
-                            to={`/dashboard/jobs/${existingRunningJob.id}`}
-                            className="text-sm font-medium text-ak-primary hover:underline"
-                          >
-                            View Run →
-                          </Link>
-                        </div>
-                        {existingRunningJob.latestTrace && (
-                          <p className="mt-2 text-xs text-ak-text-secondary">
-                            Current step: {existingRunningJob.latestTrace.title}
-                          </p>
-                        )}
-                      </div>
-                    )}
-
-                    {/* Run Button */}
-                    <div className="flex items-center gap-3">
-                      <Button
-                        onClick={handleRunAgent}
-                        disabled={!canRun}
-                        className="gap-2"
-                      >
-                        <PlayIcon />
-                        {isRunning ? 'Running...' : existingRunningJob ? 'Agent Running' : 'Run Agent'}
-                      </Button>
-                      {currentJob && (
-                        <Link
-                          to={`/dashboard/jobs/${currentJob.id}`}
-                          className="text-sm font-medium text-ak-primary hover:underline"
-                        >
-                          View Job Details →
-                        </Link>
-                      )}
-                    </div>
-
-                    {/* Status */}
-                    {currentJob && (
-                      <div className={`rounded-xl p-4 ${
-                        currentJob.state === 'completed' ? 'bg-green-500/10 border border-green-500/30' :
-                        currentJob.state === 'failed' ? 'bg-red-500/10 border border-red-500/30' :
-                        'bg-ak-surface-2 border border-ak-border'
-                      }`}>
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <div className={`h-2 w-2 rounded-full ${
-                              currentJob.state === 'completed' ? 'bg-green-500' :
-                              currentJob.state === 'failed' ? 'bg-red-500' :
-                              'bg-yellow-500 animate-pulse'
-                            }`} />
-                            <span className="text-sm font-medium text-ak-text-primary">
-                              {currentJob.state === 'completed' ? 'Completed' :
-                               currentJob.state === 'failed' ? 'Failed' :
-                               currentJob.state === 'running' ? 'Running' : 'Pending'}
-                            </span>
-                          </div>
-                          <span className="text-xs text-ak-text-secondary font-mono">
-                            {currentJob.id.substring(0, 8)}...
+                  {(currentJob.state === 'running' || currentJob.state === 'pending') && currentJob.trace && Array.isArray(currentJob.trace) && currentJob.trace.length > 0 && (
+                    <div className="mt-3 space-y-1">
+                      {(currentJob.trace as Array<{ title?: string; eventType?: string }>).slice(-5).reverse().map((trace, idx) => (
+                        <div key={idx} className="flex items-start gap-2 text-xs text-ak-text-secondary">
+                          <span>
+                            {trace.eventType === 'step_complete' ? '✓' :
+                             trace.eventType === 'error' ? '✕' : '▸'}
                           </span>
+                          <span className="truncate">{trace.title || trace.eventType}</span>
                         </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
 
-                        {/* Live Progress: Latest Trace Events */}
-                        {(currentJob.state === 'running' || currentJob.state === 'pending') && currentJob.trace && Array.isArray(currentJob.trace) && currentJob.trace.length > 0 && (
-                          <div className="mt-3 pt-3 border-t border-ak-border/50">
-                            <div className="flex items-center gap-2 mb-2">
-                              <svg className="h-4 w-4 text-ak-primary animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                              </svg>
-                              <span className="text-xs font-medium text-ak-primary">Live Progress</span>
-                            </div>
-                            <div className="space-y-1 max-h-32 overflow-y-auto">
-                              {(currentJob.trace as Array<{ title?: string; eventType?: string; timestamp?: string }>).slice(-5).reverse().map((trace, idx) => (
-                                <div key={idx} className="flex items-start gap-2 text-xs">
-                                  <span className="text-ak-text-secondary">
-                                    {trace.eventType === 'step_start' ? '▶' :
-                                     trace.eventType === 'step_complete' ? '✓' :
-                                     trace.eventType === 'ai_call' ? '🤖' :
-                                     trace.eventType === 'mcp_call' ? '⚡' :
-                                     trace.eventType === 'error' ? '❌' : '•'}
-                                  </span>
-                                  <span className="text-ak-text-secondary truncate flex-1">
-                                    {trace.title || trace.eventType}
-                                  </span>
-                                </div>
-                              ))}
-                            </div>
-                            <div className="mt-2 text-[10px] text-ak-text-secondary">
-                              Updated: {new Date().toLocaleTimeString()}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    {/* Error */}
-                    {jobError && (
-                      <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-4">
-                        <p className="text-sm text-red-400">{jobError}</p>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </Card>
-            )}
-          </>
-        ) : (
-          <div className="flex h-full items-center justify-center text-ak-text-secondary">
-            Select an agent from the list
-          </div>
-        )}
+              {/* Error */}
+              {jobError && (
+                <div className="rounded-xl bg-red-500/5 p-4">
+                  <p className="text-sm text-red-400">{jobError}</p>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

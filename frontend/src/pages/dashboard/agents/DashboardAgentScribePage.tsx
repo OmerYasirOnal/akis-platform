@@ -53,7 +53,7 @@ const DashboardAgentScribePage = () => {
   const [repo, setRepo] = useState('');
   const [baseBranch, setBaseBranch] = useState('');
   const [targetPath, setTargetPath] = useState('docs/');
-  const [dryRun, setDryRun] = useState(true);
+  const [dryRun, setDryRun] = useState(false);
 
   // Auto-branch name preview
   const [autoBranchName, setAutoBranchName] = useState<string>('');

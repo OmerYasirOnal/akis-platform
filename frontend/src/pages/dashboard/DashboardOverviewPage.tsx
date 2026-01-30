@@ -1,10 +1,8 @@
 import { Link } from 'react-router-dom';
-import Card from '../../components/common/Card';
 import Button from '../../components/common/Button';
 import { ChangelogWidget } from '../../components/dashboard/ChangelogWidget';
 import { UsageWidget } from '../../components/dashboard/UsageWidget';
 
-// Quick action icons
 const ScribeIcon = () => (
   <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
     <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
@@ -40,120 +38,88 @@ const DashboardOverviewPage = () => {
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
       {/* Main Content */}
       <div className="lg:col-span-8 space-y-6">
-        {/* Header */}
-        <header className="space-y-2">
-          <h1 className="text-2xl font-semibold text-ak-text-primary">Overview</h1>
+        <header className="space-y-1">
+          <h1 className="text-2xl font-semibold tracking-tight text-ak-text-primary">Overview</h1>
           <p className="text-sm text-ak-text-secondary">
             Your workspace at a glance. Jump into Agents Hub to run a documentation pass.
           </p>
         </header>
 
-        {/* Primary CTA - Agents Hub */}
-        <Card className="bg-ak-surface overflow-hidden">
-          <div className="relative p-6">
-            {/* Gradient accent */}
-            <div className="absolute inset-0 bg-gradient-to-br from-ak-primary/5 via-transparent to-transparent pointer-events-none" />
-            
-            <div className="relative flex flex-col gap-4">
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-ak-primary/10 text-ak-primary">
-                    <AgentsIcon />
-                  </div>
-                  <div>
-                    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-ak-text-secondary/70">
-                      Get Started
-                    </p>
-                    <h2 className="text-xl font-semibold text-ak-text-primary">
-                      Agents Hub
-                    </h2>
-                  </div>
+        {/* Primary CTA */}
+        <div className="relative overflow-hidden rounded-2xl bg-ak-surface-2 p-6">
+          <div className="absolute inset-0 bg-gradient-to-br from-ak-primary/5 via-transparent to-transparent pointer-events-none" />
+          <div className="relative flex flex-col gap-4">
+            <div className="space-y-2">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-ak-primary/10 text-ak-primary">
+                  <AgentsIcon />
                 </div>
-                <p className="text-sm text-ak-text-secondary max-w-md">
-                  Browse available agents, select your repository and branch, and start generating documentation with Scribe.
-                </p>
+                <div>
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-ak-text-secondary/60">
+                    Get Started
+                  </p>
+                  <h2 className="text-xl font-semibold text-ak-text-primary">
+                    Agents Hub
+                  </h2>
+                </div>
               </div>
-              <Button 
-                as={Link} 
-                to="/dashboard/agents" 
-                className="w-full justify-center sm:w-fit gap-2"
-              >
-                Open Agents Hub
-                <ArrowRightIcon />
-              </Button>
+              <p className="text-sm text-ak-text-secondary max-w-md">
+                Browse available agents, select your repository and branch, and start generating documentation with Scribe.
+              </p>
             </div>
+            <Button
+              as={Link}
+              to="/dashboard/agents"
+              className="w-full justify-center sm:w-fit gap-2"
+            >
+              Open Agents Hub
+              <ArrowRightIcon />
+            </Button>
           </div>
-        </Card>
+        </div>
 
         {/* Quick Actions */}
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <Link
-            to="/dashboard/agents"
-            className="flex flex-col items-center gap-2 rounded-xl border border-ak-border bg-ak-surface p-4 text-center transition-all hover:border-ak-primary/50 hover:bg-ak-surface-2 group"
-          >
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-ak-primary/10 text-ak-primary group-hover:bg-ak-primary/20 transition-colors">
-              <AgentsIcon />
-            </div>
-            <span className="text-sm font-medium text-ak-text-primary">Agents</span>
-          </Link>
-
-          <Link
-            to="/dashboard/scribe"
-            className="flex flex-col items-center gap-2 rounded-xl border border-ak-border bg-ak-surface p-4 text-center transition-all hover:border-ak-primary/50 hover:bg-ak-surface-2 group"
-          >
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-ak-primary/10 text-ak-primary group-hover:bg-ak-primary/20 transition-colors">
-              <ScribeIcon />
-            </div>
-            <span className="text-sm font-medium text-ak-text-primary">Scribe</span>
-          </Link>
-
-          <Link
-            to="/dashboard/jobs"
-            className="flex flex-col items-center gap-2 rounded-xl border border-ak-border bg-ak-surface p-4 text-center transition-all hover:border-ak-primary/50 hover:bg-ak-surface-2 group"
-          >
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-ak-primary/10 text-ak-primary group-hover:bg-ak-primary/20 transition-colors">
-              <JobsIcon />
-            </div>
-            <span className="text-sm font-medium text-ak-text-primary">Jobs</span>
-          </Link>
-
-          <Link
-            to="/dashboard/integrations"
-            className="flex flex-col items-center gap-2 rounded-xl border border-ak-border bg-ak-surface p-4 text-center transition-all hover:border-ak-primary/50 hover:bg-ak-surface-2 group"
-          >
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-ak-primary/10 text-ak-primary group-hover:bg-ak-primary/20 transition-colors">
-              <IntegrationsIcon />
-            </div>
-            <span className="text-sm font-medium text-ak-text-primary">Integrations</span>
-          </Link>
+          {[
+            { to: '/dashboard/agents', icon: <AgentsIcon />, label: 'Agents' },
+            { to: '/dashboard/scribe', icon: <ScribeIcon />, label: 'Scribe' },
+            { to: '/dashboard/jobs', icon: <JobsIcon />, label: 'Jobs' },
+            { to: '/dashboard/integrations', icon: <IntegrationsIcon />, label: 'Integrations' },
+          ].map((item) => (
+            <Link
+              key={item.to}
+              to={item.to}
+              className="flex flex-col items-center gap-2 rounded-xl bg-ak-surface-2/50 p-4 text-center transition-all hover:bg-ak-surface-2 group"
+            >
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-ak-primary/10 text-ak-primary group-hover:bg-ak-primary/15 transition-colors">
+                {item.icon}
+              </div>
+              <span className="text-sm font-medium text-ak-text-primary">{item.label}</span>
+            </Link>
+          ))}
         </div>
 
         {/* Activity Feed */}
-        <Card className="bg-ak-surface p-5">
-          <div className="space-y-3">
-            <h2 className="text-base font-semibold text-ak-text-primary">Activity Feed</h2>
-            <div className="rounded-xl border border-dashed border-ak-border bg-ak-surface-2/50 px-4 py-8 text-center">
-              <p className="text-sm text-ak-text-secondary">
-                No recent activity yet. Start a Scribe run to populate this feed.
-              </p>
-              <Link 
-                to="/dashboard/agents" 
-                className="mt-3 inline-flex items-center gap-1 text-sm font-medium text-ak-primary hover:underline"
-              >
-                Run your first agent
-                <ArrowRightIcon />
-              </Link>
-            </div>
+        <div className="rounded-2xl bg-ak-surface-2/50 p-5">
+          <h2 className="text-base font-semibold text-ak-text-primary mb-3">Activity Feed</h2>
+          <div className="rounded-xl bg-ak-bg/30 px-4 py-8 text-center">
+            <p className="text-sm text-ak-text-secondary">
+              No recent activity yet. Start a Scribe run to populate this feed.
+            </p>
+            <Link
+              to="/dashboard/agents"
+              className="mt-3 inline-flex items-center gap-1 text-sm font-medium text-ak-primary hover:underline"
+            >
+              Run your first agent
+              <ArrowRightIcon />
+            </Link>
           </div>
-        </Card>
+        </div>
       </div>
 
       {/* Sidebar */}
       <div className="lg:col-span-4 space-y-6">
-        {/* Usage Widget */}
         <UsageWidget />
-        
-        {/* Changelog */}
         <ChangelogWidget />
       </div>
     </div>

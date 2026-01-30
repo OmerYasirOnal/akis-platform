@@ -277,10 +277,10 @@ export default function DashboardSettingsAiKeysPage() {
           return (
             <div
               key={provider.id}
-              className={`rounded-2xl border p-6 transition-all duration-base ${
+              className={`rounded-2xl p-6 transition-all duration-base ${
                 isActive
-                  ? 'border-ak-primary bg-ak-surface-2 shadow-ak-glow-sm'
-                  : 'border-ak-border bg-ak-surface'
+                  ? 'bg-ak-surface-2 shadow-ak-elevation-2 ring-1 ring-ak-primary/30'
+                  : 'bg-ak-surface shadow-ak-elevation-1'
               }`}
             >
               {/* Provider Header */}
@@ -401,7 +401,7 @@ export default function DashboardSettingsAiKeysPage() {
       </div>
 
       {/* Usage Info */}
-      <div className="rounded-2xl border border-ak-border bg-ak-surface p-6">
+      <div className="rounded-2xl bg-ak-surface shadow-ak-elevation-1 p-6">
         <h3 className="text-lg font-bold text-ak-text-primary">How API Keys Are Used</h3>
         <ul className="mt-4 space-y-3 text-sm text-ak-text-secondary">
           <li className="flex items-start gap-2">

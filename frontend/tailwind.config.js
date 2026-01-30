@@ -26,6 +26,16 @@ export default {
         'ak-sm': '0 2px 8px rgba(0, 0, 0, 0.4)',
         'ak-md': '0 4px 16px rgba(0, 0, 0, 0.5)',
         'ak-lg': '0 8px 32px rgba(0, 0, 0, 0.6)',
+        'ak-elevation-1': 'var(--ak-elevation-1)',
+        'ak-elevation-2': 'var(--ak-elevation-2)',
+        'ak-elevation-3': 'var(--ak-elevation-3)',
+      },
+      borderRadius: {
+        'ak-card': 'var(--ak-card-radius)',
+      },
+      spacing: {
+        'ak-section': 'var(--ak-section-gap)',
+        'ak-card': 'var(--ak-card-padding)',
       },
       // Motion durations
       transitionDuration: {

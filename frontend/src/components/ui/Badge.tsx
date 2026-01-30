@@ -11,53 +11,46 @@ const stateStyles: Record<
   { container: string; dot: string; label: string }
 > = {
   pending: {
-    container:
-      "border border-dashed border-ak-border text-ak-text-secondary",
+    container: "bg-ak-surface text-ak-text-secondary",
     dot: "bg-ak-text-secondary",
     label: "Pending",
   },
   running: {
-    container: "border border-ak-primary/40 text-ak-primary",
-    dot: "bg-ak-primary",
+    container: "bg-ak-primary/10 text-ak-primary",
+    dot: "bg-ak-primary animate-pulse",
     label: "Running",
   },
   completed: {
-    container: "border border-ak-primary text-ak-primary",
-    dot: "bg-ak-primary",
+    container: "bg-green-500/10 text-green-400",
+    dot: "bg-green-400",
     label: "Completed",
   },
   failed: {
-    container: "border border-ak-border text-ak-text-primary",
-    dot: "bg-ak-text-primary",
+    container: "bg-red-500/10 text-red-400",
+    dot: "bg-red-400",
     label: "Failed",
   },
   awaiting_approval: {
-    container: "border border-yellow-500/40 text-yellow-600 dark:text-yellow-400",
+    container: "bg-yellow-500/10 text-yellow-400",
     dot: "bg-yellow-500",
     label: "Awaiting Approval",
   },
 };
 
-// Default fallback for unknown states to prevent crashes
 const defaultStyle = {
-  container: "border border-ak-border text-ak-text-secondary",
+  container: "bg-ak-surface text-ak-text-secondary",
   dot: "bg-ak-text-secondary",
   label: "Unknown",
 };
 
-/**
- * Job state badge with status indicator dot.
- * Gracefully handles unknown states with a fallback style.
- */
 export function Badge({ state }: BadgeProps) {
-  // Safe lookup with fallback to prevent crashes
   const theme = stateStyles[state] ?? defaultStyle;
   const displayLabel = theme.label || state || "Unknown";
 
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-2 rounded-full bg-ak-surface px-3 py-1 text-xs font-medium uppercase tracking-wide",
+        "inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-medium uppercase tracking-wide",
         theme.container
       )}
     >
@@ -67,9 +60,6 @@ export function Badge({ state }: BadgeProps) {
   );
 }
 
-/**
- * Variant type for StatusBadge flexible component
- */
 type StatusBadgeVariant = "success" | "warning" | "error" | "info" | "neutral";
 
 interface StatusBadgeProps {
@@ -79,26 +69,20 @@ interface StatusBadgeProps {
 }
 
 const variantStyles: Record<StatusBadgeVariant, string> = {
-  success: "bg-green-500/20 text-green-600 dark:text-green-400 border-green-500/30",
-  warning: "bg-yellow-500/20 text-yellow-600 dark:text-yellow-400 border-yellow-500/30",
-  error: "bg-red-500/20 text-red-600 dark:text-red-400 border-red-500/30",
-  info: "bg-blue-500/20 text-blue-600 dark:text-blue-400 border-blue-500/30",
-  neutral: "bg-ak-surface-2 text-ak-text-secondary border-ak-border",
+  success: "bg-green-500/10 text-green-400",
+  warning: "bg-yellow-500/10 text-yellow-400",
+  error: "bg-red-500/10 text-red-400",
+  info: "bg-blue-500/10 text-blue-400",
+  neutral: "bg-ak-surface-2 text-ak-text-secondary",
 };
 
-/**
- * Flexible status badge for custom content and variants.
- * Use this for mode indicators, custom labels, etc.
- * Falls back to neutral style for unknown variants.
- */
 export function StatusBadge({ variant = "neutral", className, children }: StatusBadgeProps) {
-  // Safe lookup with fallback to prevent crashes
   const variantStyle = variantStyles[variant] ?? variantStyles.neutral;
 
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium",
+        "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium",
         variantStyle,
         className
       )}
