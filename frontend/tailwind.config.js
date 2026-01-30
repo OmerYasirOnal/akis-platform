@@ -13,6 +13,7 @@ export default {
         'ak-primary-soft': 'var(--ak-primary-soft)',
         'ak-surface': 'var(--ak-surface)',
         'ak-surface-2': 'var(--ak-surface-2)',
+        'ak-surface-3': 'var(--ak-surface-3)',
         'ak-text-primary': 'var(--ak-text-primary)',
         'ak-text-secondary': 'var(--ak-text-secondary)',
         'ak-border': 'var(--ak-border)',

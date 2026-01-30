@@ -93,7 +93,7 @@ export function ProfileMenu() {
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full mt-2 w-56 rounded-xl border border-ak-border bg-ak-surface shadow-ak-elevation-2 z-50 overflow-hidden">
+        <div className="absolute right-0 top-full mt-2 w-56 rounded-xl border border-ak-border bg-ak-surface/90 backdrop-blur-xl shadow-ak-elevation-2 z-50 overflow-hidden">
           <div className="px-4 py-3 border-b border-ak-border">
             <p className="text-sm font-medium text-ak-text-primary truncate">
               {user?.name || 'User'}
