@@ -221,7 +221,7 @@ export const RunSummaryPanel = ({ job, traces }: RunSummaryPanelProps) => {
                 </div>
                 <div className="flex items-center gap-4 text-[11px] text-ak-text-secondary flex-shrink-0">
                   <span>{formatDuration(call.durationMs ?? null)}</span>
-                  <span>{formatTokens(call.usage?.totalTokens ?? (call.usage?.inputTokens ?? 0) + (call.usage?.outputTokens ?? 0) || null)}</span>
+                  <span>{formatTokens((call.usage?.totalTokens ?? ((call.usage?.inputTokens ?? 0) + (call.usage?.outputTokens ?? 0))) || null)}</span>
                   <span>{formatCost(call.estimatedCostUsd ?? null)}</span>
                 </div>
               </div>
