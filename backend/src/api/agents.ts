@@ -61,8 +61,41 @@ const protoPayloadSchema = z.object({
   }
 });
 
+const coderPayloadSchema = z.object({
+  task: z.string().min(1, 'task is required'),
+  language: z.string().optional(),
+  framework: z.string().optional(),
+  owner: z.string().optional(),
+  repo: z.string().optional(),
+  baseBranch: z.string().optional(),
+  branchStrategy: z.enum(['auto', 'manual']).optional(),
+  dryRun: z.boolean().optional(),
+  modelId: z.string().optional(),
+}).passthrough();
+
+const developerPayloadSchema = z.object({
+  goal: z.string().min(1, 'goal is required').optional(),
+  requirements: z.string().min(1).optional(),
+  constraints: z.array(z.string()).optional(),
+  owner: z.string().optional(),
+  repo: z.string().optional(),
+  baseBranch: z.string().optional(),
+  branchStrategy: z.enum(['auto', 'manual']).optional(),
+  dryRun: z.boolean().optional(),
+  modelId: z.string().optional(),
+  maxSteps: z.number().int().min(1).max(50).optional(),
+}).passthrough().superRefine((data, ctx) => {
+  if (!data.goal && !data.requirements) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Either "goal" or "requirements" must be provided',
+      path: ['goal'],
+    });
+  }
+});
+
 const submitJobSchema = z.object({
-  type: z.enum(['scribe', 'trace', 'proto']),
+  type: z.enum(['scribe', 'trace', 'proto', 'coder', 'developer']),
   payload: z.unknown().optional(),
   /** If true, the job will use a stronger model for final validation */
   requiresStrictValidation: z.boolean().optional().default(false),
@@ -126,6 +159,28 @@ const submitJobSchema = z.object({
           });
         });
       }
+    } else if (data.type === 'coder') {
+      const result = coderPayloadSchema.safeParse(data.payload);
+      if (!result.success) {
+        result.error.errors.forEach((err) => {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: `Coder payload validation: ${err.message}`,
+            path: ['payload', ...err.path],
+          });
+        });
+      }
+    } else if (data.type === 'developer') {
+      const result = developerPayloadSchema.safeParse(data.payload);
+      if (!result.success) {
+        result.error.errors.forEach((err) => {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: `Developer payload validation: ${err.message}`,
+            path: ['payload', ...err.path],
+          });
+        });
+      }
     }
   } else if (data.type === 'scribe' || data.type === 'trace') {
     // Scribe and Trace require payload
@@ -170,7 +225,7 @@ export async function agentsRoutes(fastify: FastifyInstance) {
           type: 'object',
           required: ['type'],
           properties: {
-            type: { type: 'string', enum: ['scribe', 'trace', 'proto'] },
+            type: { type: 'string', enum: ['scribe', 'trace', 'proto', 'coder', 'developer'] },
             payload: { type: 'object' },
             requiresStrictValidation: { type: 'boolean', default: false },
           },
@@ -796,7 +851,7 @@ export async function agentsRoutes(fastify: FastifyInstance) {
         querystring: {
           type: 'object',
           properties: {
-            type: { type: 'string', enum: ['scribe', 'trace', 'proto'] },
+            type: { type: 'string', enum: ['scribe', 'trace', 'proto', 'coder', 'developer'] },
             state: { type: 'string', enum: ['pending', 'running', 'completed', 'failed'] },
             limit: { type: 'number', minimum: 1, maximum: 100, default: 20 },
             cursor: { type: 'string', description: 'Base64-encoded cursor for pagination (format: base64(createdAt|id))' },
@@ -916,7 +971,7 @@ export async function agentsRoutes(fastify: FastifyInstance) {
                   type: 'object',
                   properties: {
                     id: { type: 'string', format: 'uuid' },
-                    type: { type: 'string', enum: ['scribe', 'trace', 'proto'] },
+                    type: { type: 'string', enum: ['scribe', 'trace', 'proto', 'coder', 'developer'] },
                     state: { type: 'string', enum: ['pending', 'running'] },
                     payload: { type: 'object' },
                     createdAt: { type: 'string', format: 'date-time' },
