@@ -36,43 +36,9 @@ type RunSummaryPanelProps = {
   traces: JobTraceEvent[];
 };
 
-/** Badge component for key source and fallback */
-const KeySourceBadge = ({ keySource, fallbackReason }: { keySource: string | null; fallbackReason: string | null }) => {
-  if (!keySource) return null;
-  
-  const isEnvFallback = keySource === 'env';
-  const badgeClass = isEnvFallback
-    ? 'bg-yellow-500/20 text-yellow-300 border-yellow-500/30'
-    : 'bg-green-500/20 text-green-300 border-green-500/30';
-  const label = isEnvFallback ? 'ENV Key' : 'User Key';
-  
-  return (
-    <span className={`inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded border ${badgeClass}`}>
-      {label}
-      {isEnvFallback && fallbackReason && (
-        <span className="text-yellow-400" title={fallbackReason}>⚠</span>
-      )}
-    </span>
-  );
-};
-
-/** Explain why this provider was selected */
-const formatFallbackReason = (reason: string | null): string => {
-  if (!reason) return '';
-  
-  const reasonMap: Record<string, string> = {
-    'PAYLOAD_PROVIDER': 'Explicitly set in job request',
-    'USER_ACTIVE_PROVIDER': 'Your active provider setting',
-    'ENV_DEFAULT_NO_USER_ACTIVE': 'System default (no active provider set)',
-    'ENV_DEFAULT_NO_USER_ID': 'System default (no user context)',
-    'USER_KEY_MISSING': 'Your key not found, using system key',
-    'USE_ENV_AI_FLAG': 'Forced by useEnvAI flag',
-    'NON_SCRIBE_JOB': 'Non-Scribe jobs use system config',
-    'NO_USER_ID': 'No user context available',
-  };
-  
-  return reasonMap[reason] || reason;
-};
+// ============================================================================
+// Helpers
+// ============================================================================
 
 const coerceNumber = (value: unknown): number | null => {
   if (value === null || value === undefined) return null;
@@ -85,7 +51,7 @@ const coerceNumber = (value: unknown): number | null => {
 };
 
 const formatDuration = (value: number | null): string => {
-  if (value === null) return 'N/A';
+  if (value === null) return '—';
   if (value < 1000) return `${value}ms`;
   const seconds = value / 1000;
   if (seconds < 60) return `${seconds.toFixed(1)}s`;
@@ -95,13 +61,13 @@ const formatDuration = (value: number | null): string => {
 };
 
 const formatTokens = (value: number | null): string => {
-  if (value === null) return 'N/A';
+  if (value === null) return '—';
   return value.toLocaleString();
 };
 
 const formatCost = (value: number | null): string => {
-  if (value === null) return 'N/A';
-  return `$${value.toFixed(6)}`;
+  if (value === null) return '—';
+  return `$${value.toFixed(4)}`;
 };
 
 const buildTotalsFromJob = (job: Job): RunSummaryTotals => ({
@@ -113,28 +79,16 @@ const buildTotalsFromJob = (job: Job): RunSummaryTotals => ({
 });
 
 const buildTotalsFromCalls = (calls: AiCallRow[]): RunSummaryTotals => {
-  let durationMs = 0;
-  let inputTokens = 0;
-  let outputTokens = 0;
-  let totalTokens = 0;
-  let estimatedCostUsd = 0;
+  let durationMs = 0, inputTokens = 0, outputTokens = 0, totalTokens = 0, estimatedCostUsd = 0;
   let hasCost = false;
-
   calls.forEach((call) => {
-    if (typeof call.durationMs === 'number') {
-      durationMs += call.durationMs;
-    }
+    if (typeof call.durationMs === 'number') durationMs += call.durationMs;
     if (call.usage?.inputTokens) inputTokens += call.usage.inputTokens;
     if (call.usage?.outputTokens) outputTokens += call.usage.outputTokens;
     if (call.usage?.totalTokens) totalTokens += call.usage.totalTokens;
-    if (typeof call.estimatedCostUsd === 'number') {
-      estimatedCostUsd += call.estimatedCostUsd;
-      hasCost = true;
-    }
+    if (typeof call.estimatedCostUsd === 'number') { estimatedCostUsd += call.estimatedCostUsd; hasCost = true; }
   });
-
   const normalizedTotals = totalTokens > 0 ? totalTokens : inputTokens + outputTokens;
-
   return {
     durationMs: calls.length > 0 ? durationMs : null,
     inputTokens: calls.length > 0 ? inputTokens || null : null,
@@ -144,35 +98,24 @@ const buildTotalsFromCalls = (calls: AiCallRow[]): RunSummaryTotals => {
   };
 };
 
-/**
- * Build call rows from job.ai.calls (preferred) or fallback to traces
- */
 const buildCallRows = (job: Job, traces: JobTraceEvent[]): AiCallRow[] => {
-  // Prefer job.ai.calls if available (new structured format)
   if (job.ai?.calls && job.ai.calls.length > 0) {
     return job.ai.calls.map((call: JobAiCall) => ({
       label: call.purpose || `AI Call ${call.callIndex + 1}`,
       provider: call.provider,
       model: call.model,
       durationMs: call.durationMs ?? undefined,
-      usage: {
-        inputTokens: call.inputTokens ?? undefined,
-        outputTokens: call.outputTokens ?? undefined,
-        totalTokens: call.totalTokens ?? undefined,
-      },
+      usage: { inputTokens: call.inputTokens ?? undefined, outputTokens: call.outputTokens ?? undefined, totalTokens: call.totalTokens ?? undefined },
       estimatedCostUsd: coerceNumber(call.estimatedCostUsd),
       success: call.success,
     }));
   }
-
-  // Fallback to traces for backward compatibility
   return traces
     .filter((trace) => trace.eventType === 'ai_call')
     .map((trace, index) => {
       const detail = (trace.detail ?? {}) as AiCallDetail;
-      const label = trace.title?.replace(/^AI:\s*/i, '') || `AI Call ${index + 1}`;
       return {
-        label,
+        label: trace.title?.replace(/^AI:\s*/i, '') || `AI Call ${index + 1}`,
         provider: detail.provider,
         model: detail.model,
         durationMs: trace.durationMs,
@@ -183,20 +126,29 @@ const buildCallRows = (job: Job, traces: JobTraceEvent[]): AiCallRow[] => {
     });
 };
 
-const formatUsage = (usage?: AiUsage): string => {
-  if (!usage) return 'N/A';
-  const input = usage.inputTokens ?? 0;
-  const output = usage.outputTokens ?? 0;
-  const total = usage.totalTokens ?? input + output;
-  return `${formatTokens(total)} (in ${formatTokens(input)} / out ${formatTokens(output)})`;
+/** Badge for key source */
+const KeySourceBadge = ({ keySource, fallbackReason }: { keySource: string | null; fallbackReason: string | null }) => {
+  if (!keySource) return null;
+  const isEnv = keySource === 'env';
+  return (
+    <span className={`inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-medium rounded-full border ${
+      isEnv ? 'bg-yellow-500/15 text-yellow-400 border-yellow-500/20' : 'bg-emerald-500/15 text-emerald-400 border-emerald-500/20'
+    }`}>
+      {isEnv ? 'ENV Key' : 'User Key'}
+      {isEnv && fallbackReason && <span className="text-yellow-400" title={fallbackReason}>!</span>}
+    </span>
+  );
 };
+
+// ============================================================================
+// Main Component
+// ============================================================================
 
 export const RunSummaryPanel = ({ job, traces }: RunSummaryPanelProps) => {
   const calls = buildCallRows(job, traces);
   const totalsFromJob = buildTotalsFromJob(job);
   const totalsFromCalls = buildTotalsFromCalls(calls);
 
-  // Use job.ai.summary if available, otherwise fallback to legacy fields
   const aiSummary = job.ai?.summary;
   const totals: RunSummaryTotals = {
     durationMs: coerceNumber(aiSummary?.totalDurationMs) ?? totalsFromJob.durationMs ?? totalsFromCalls.durationMs,
@@ -206,143 +158,100 @@ export const RunSummaryPanel = ({ job, traces }: RunSummaryPanelProps) => {
     estimatedCostUsd: coerceNumber(aiSummary?.estimatedCostUsd) ?? totalsFromJob.estimatedCostUsd ?? totalsFromCalls.estimatedCostUsd,
   };
 
-  // Resolved provider/model (preferred) vs requested (fallback)
   const resolvedProvider = job.ai?.resolved?.provider;
   const resolvedModel = job.ai?.resolved?.model;
   const requestedProvider = job.ai?.requested?.provider || job.aiProvider;
   const requestedModel = job.ai?.requested?.model || job.aiModel;
-  
-  // Display resolved if available, otherwise requested
-  const displayProvider = resolvedProvider || requestedProvider || calls.find((call) => call.provider)?.provider || 'N/A';
-  const displayModel = resolvedModel || requestedModel || calls.find((call) => call.model)?.model || 'N/A';
-  
-  // Key source and fallback info
+  const displayProvider = resolvedProvider || requestedProvider || calls.find(c => c.provider)?.provider || '—';
+  const displayModel = resolvedModel || requestedModel || calls.find(c => c.model)?.model || '—';
   const keySource = job.ai?.resolved?.keySource || null;
   const fallbackReason = job.ai?.resolved?.fallbackReason || null;
-  
-  // Show if requested differs from resolved
-  const showRequestedVsResolved = resolvedProvider && requestedProvider && resolvedProvider !== requestedProvider;
 
-  const hasTotals =
-    totals.durationMs !== null ||
-    totals.inputTokens !== null ||
-    totals.outputTokens !== null ||
-    totals.totalTokens !== null ||
-    totals.estimatedCostUsd !== null;
+  const hasTotals = totals.durationMs !== null || totals.totalTokens !== null || totals.estimatedCostUsd !== null;
+  if (calls.length === 0 && !hasTotals && !displayModel) return null;
 
-  if (calls.length === 0 && !hasTotals && !displayModel) {
-    return null;
-  }
+  const card = 'bg-white/[0.03] backdrop-blur-sm border border-white/[0.06]';
 
   return (
-    <div className="bg-ak-surface-2 shadow-ak-elevation-1 rounded-2xl p-6 mb-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+    <div className={`${card} rounded-2xl p-5 mb-6`}>
+      {/* Header */}
+      <div className="flex items-center justify-between mb-4">
         <div>
-          <h2 className="text-lg font-semibold text-ak-text-primary">Run Summary</h2>
-          <p className="text-xs text-ak-text-secondary">
-            AI usage metrics captured during this job (cost is an estimate).
-          </p>
+          <h2 className="text-base font-semibold text-ak-text-primary">Run Summary</h2>
+          <p className="text-[11px] text-ak-text-secondary mt-0.5">AI usage metrics (cost is estimated)</p>
         </div>
-        <div className="flex items-center gap-2 text-xs text-ak-text-secondary">
-          <span>Provider: <span className="text-ak-text-primary font-medium">{displayProvider}</span></span>
+        <div className="flex items-center gap-2">
+          <span className="text-[11px] text-ak-text-secondary">
+            {displayProvider} <span className="text-ak-text-primary font-medium">/ {displayModel}</span>
+          </span>
           <KeySourceBadge keySource={keySource} fallbackReason={fallbackReason} />
         </div>
       </div>
 
-      {/* Provider resolution explanation */}
-      {fallbackReason && (
-        <div className="mt-2 p-2 rounded bg-ak-surface border border-ak-border text-xs text-ak-text-secondary">
-          <span className="font-medium text-ak-text-primary">Why this provider?</span>{' '}
-          {formatFallbackReason(fallbackReason)}
-          {showRequestedVsResolved && (
-            <span className="ml-2 text-yellow-400">
-              (Requested: {requestedProvider} → Used: {resolvedProvider})
-            </span>
-          )}
-        </div>
-      )}
-
-      <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="rounded-lg border border-ak-border bg-ak-surface px-4 py-3">
-          <p className="text-xs uppercase tracking-wider text-ak-text-secondary">Model (Resolved)</p>
-          <p className="mt-1 text-sm font-semibold text-ak-text-primary">{displayModel}</p>
-          {requestedModel && requestedModel !== displayModel && (
-            <p className="mt-1 text-xs text-ak-text-secondary">Requested: {requestedModel}</p>
-          )}
-        </div>
-        <div className="rounded-lg border border-ak-border bg-ak-surface px-4 py-3">
-          <p className="text-xs uppercase tracking-wider text-ak-text-secondary">Total Duration</p>
-          <p className="mt-1 text-sm font-semibold text-ak-text-primary">
-            {formatDuration(totals.durationMs)}
-          </p>
-        </div>
-        <div className="rounded-lg border border-ak-border bg-ak-surface px-4 py-3">
-          <p className="text-xs uppercase tracking-wider text-ak-text-secondary">Total Tokens</p>
-          <p className="mt-1 text-sm font-semibold text-ak-text-primary">
-            {formatTokens(totals.totalTokens)}
-          </p>
-          <p className="mt-1 text-xs text-ak-text-secondary">
-            In {formatTokens(totals.inputTokens)} / Out {formatTokens(totals.outputTokens)}
-          </p>
-        </div>
-        <div className="rounded-lg border border-ak-border bg-ak-surface px-4 py-3">
-          <p className="text-xs uppercase tracking-wider text-ak-text-secondary">Estimated Cost</p>
-          <p className="mt-1 text-sm font-semibold text-ak-text-primary">
-            {formatCost(totals.estimatedCostUsd)}
-          </p>
-        </div>
+      {/* Metrics Grid */}
+      <div className="grid grid-cols-4 gap-3 mb-5">
+        {[
+          { label: 'Duration', value: formatDuration(totals.durationMs) },
+          { label: 'Input Tokens', value: formatTokens(totals.inputTokens) },
+          { label: 'Output Tokens', value: formatTokens(totals.outputTokens) },
+          { label: 'Est. Cost', value: formatCost(totals.estimatedCostUsd) },
+        ].map(m => (
+          <div key={m.label} className="bg-white/[0.02] rounded-xl px-3 py-2.5 border border-white/[0.04]">
+            <p className="text-[10px] uppercase tracking-wider text-ak-text-secondary">{m.label}</p>
+            <p className="mt-1 text-sm font-semibold text-ak-text-primary">{m.value}</p>
+          </div>
+        ))}
       </div>
 
-      <div className="mt-6">
-        <h3 className="text-sm font-semibold text-ak-text-primary">Per-Call Breakdown</h3>
-        {calls.length === 0 ? (
-          <p className="mt-2 text-xs text-ak-text-secondary">
-            No AI call traces recorded.
-          </p>
-        ) : (
-          <div className="mt-3 space-y-3">
-            {calls.map((call, index) => (
-              <div
-                key={`${call.label}-${index}`}
-                className="rounded-lg border border-ak-border bg-ak-surface px-4 py-3"
-              >
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div>
-                    <p className="text-sm font-medium text-ak-text-primary">
-                      {call.label}
-                    </p>
-                    <p className="text-xs text-ak-text-secondary">
-                      Model: {call.model || displayModel}
-                    </p>
-                  </div>
-                  <span
-                    className={`text-xs font-semibold ${
-                      call.success === false ? 'text-ak-danger' : 'text-green-400'
-                    }`}
-                  >
-                    {call.success === false ? 'Failed' : 'Success'}
-                  </span>
+      {/* Per-Call Breakdown */}
+      {calls.length > 0 && (
+        <div>
+          <h3 className="text-xs font-semibold text-ak-text-secondary uppercase tracking-wider mb-2">
+            AI Calls ({calls.length})
+          </h3>
+          <div className="space-y-2">
+            {calls.map((call, i) => (
+              <div key={`${call.label}-${i}`} className="flex items-center justify-between bg-white/[0.02] rounded-lg px-3 py-2 border border-white/[0.03]">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className={`h-1.5 w-1.5 rounded-full flex-shrink-0 ${call.success === false ? 'bg-red-400' : 'bg-emerald-400'}`} />
+                  <span className="text-xs text-ak-text-primary truncate">{call.label}</span>
+                  {call.model && call.model !== displayModel && (
+                    <span className="text-[10px] text-ak-text-secondary">{call.model}</span>
+                  )}
                 </div>
-                <div className="mt-2 grid gap-2 text-xs text-ak-text-secondary sm:grid-cols-3">
-                  <div>
-                    <span className="font-medium text-ak-text-primary">Duration:</span>{' '}
-                    {formatDuration(call.durationMs ?? null)}
-                  </div>
-                  <div>
-                    <span className="font-medium text-ak-text-primary">Tokens:</span>{' '}
-                    {formatUsage(call.usage)}
-                  </div>
-                  <div>
-                    <span className="font-medium text-ak-text-primary">Cost:</span>{' '}
-                    {formatCost(call.estimatedCostUsd ?? null)}
-                  </div>
+                <div className="flex items-center gap-4 text-[11px] text-ak-text-secondary flex-shrink-0">
+                  <span>{formatDuration(call.durationMs ?? null)}</span>
+                  <span>{formatTokens(call.usage?.totalTokens ?? (call.usage?.inputTokens ?? 0) + (call.usage?.outputTokens ?? 0) || null)}</span>
+                  <span>{formatCost(call.estimatedCostUsd ?? null)}</span>
                 </div>
               </div>
             ))}
           </div>
-        )}
-      </div>
+        </div>
+      )}
+
+      {/* Fallback reason */}
+      {fallbackReason && (
+        <div className="mt-3 text-[10px] text-ak-text-secondary bg-white/[0.02] rounded-lg px-3 py-2 border border-white/[0.03]">
+          <span className="font-medium text-ak-text-primary">Provider selection:</span>{' '}
+          {(() => {
+            const reasons: Record<string, string> = {
+              PAYLOAD_PROVIDER: 'Explicitly set in job request',
+              USER_ACTIVE_PROVIDER: 'Your active provider setting',
+              ENV_DEFAULT_NO_USER_ACTIVE: 'System default (no active provider set)',
+              ENV_DEFAULT_NO_USER_ID: 'System default (no user context)',
+              USER_KEY_MISSING: 'Your key not found, using system key',
+              USE_ENV_AI_FLAG: 'Forced by useEnvAI flag',
+              NON_SCRIBE_JOB: 'Non-Scribe jobs use system config',
+              NO_USER_ID: 'No user context available',
+            };
+            return reasons[fallbackReason] || fallbackReason;
+          })()}
+          {requestedModel && requestedModel !== displayModel && (
+            <span className="ml-2 text-yellow-400">(Requested: {requestedModel})</span>
+          )}
+        </div>
+      )}
     </div>
   );
 };
-
