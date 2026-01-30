@@ -579,3 +579,102 @@ export const agentConfigsRelations = relations(agentConfigs, ({ one }) => ({
     references: [users.id],
   }),
 }));
+
+// ============================================================================
+// Billing: Plans, Subscriptions, Usage Counters
+// ============================================================================
+
+export const planTierEnum = pgEnum('plan_tier', ['free', 'pro', 'pro_plus', 'team', 'enterprise']);
+export const subscriptionStatusEnum = pgEnum('subscription_status', ['active', 'past_due', 'canceled', 'trialing', 'incomplete']);
+
+/**
+ * Plans table - defines available subscription tiers and their limits
+ */
+export const plans = pgTable('plans', {
+  id: varchar('id', { length: 50 }).primaryKey(),  // e.g. 'free', 'pro', 'pro_plus'
+  tier: planTierEnum('tier').notNull(),
+  name: varchar('name', { length: 100 }).notNull(),
+  description: text('description'),
+
+  // Limits
+  jobsPerDay: integer('jobs_per_day').notNull().default(5),
+  maxTokenBudget: integer('max_token_budget').notNull().default(50000),
+  maxAgents: integer('max_agents').notNull().default(2),
+  depthModesAllowed: text('depth_modes_allowed').array().notNull(),  // ['lite','standard'] or ['lite','standard','deep']
+  maxOutputTokensPerJob: integer('max_output_tokens_per_job').notNull().default(16000),
+  passesAllowed: integer('passes_allowed').notNull().default(1),     // 1 or 2
+  priorityQueue: boolean('priority_queue').notNull().default(false),
+  backgroundJobHistory: integer('background_job_history_days').notNull().default(7),
+
+  // Pricing (cents USD, 0 = free)
+  priceMonthly: integer('price_monthly').notNull().default(0),
+  priceYearly: integer('price_yearly').notNull().default(0),
+
+  // Stripe mapping
+  stripePriceMonthly: varchar('stripe_price_monthly', { length: 255 }),
+  stripePriceYearly: varchar('stripe_price_yearly', { length: 255 }),
+
+  // Metadata
+  isActive: boolean('is_active').notNull().default(true),
+  sortOrder: integer('sort_order').notNull().default(0),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+export type Plan = typeof plans.$inferSelect;
+
+/**
+ * Subscriptions table - tracks user subscription state
+ */
+export const subscriptions = pgTable('subscriptions', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').notNull().references(() => users.id),
+  planId: varchar('plan_id', { length: 50 }).notNull().references(() => plans.id),
+  status: subscriptionStatusEnum('status').notNull().default('active'),
+
+  // Stripe
+  stripeCustomerId: varchar('stripe_customer_id', { length: 255 }),
+  stripeSubscriptionId: varchar('stripe_subscription_id', { length: 255 }),
+
+  // Billing period
+  currentPeriodStart: timestamp('current_period_start', { withTimezone: true }),
+  currentPeriodEnd: timestamp('current_period_end', { withTimezone: true }),
+  cancelAtPeriodEnd: boolean('cancel_at_period_end').notNull().default(false),
+
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  userIdIdx: index('idx_subscriptions_user_id').on(table.userId),
+  stripeCustomerIdx: index('idx_subscriptions_stripe_customer').on(table.stripeCustomerId),
+  stripeSubIdx: index('idx_subscriptions_stripe_sub').on(table.stripeSubscriptionId),
+}));
+
+export type Subscription = typeof subscriptions.$inferSelect;
+
+export const subscriptionsRelations = relations(subscriptions, ({ one }) => ({
+  user: one(users, { fields: [subscriptions.userId], references: [users.id] }),
+  plan: one(plans, { fields: [subscriptions.planId], references: [plans.id] }),
+}));
+
+/**
+ * Usage counters table - tracks per-user resource consumption per billing cycle
+ */
+export const usageCounters = pgTable('usage_counters', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').notNull().references(() => users.id),
+
+  // Period (YYYY-MM format for monthly, or YYYY-MM-DD for daily)
+  periodKey: varchar('period_key', { length: 10 }).notNull(),  // '2025-01' or '2025-01-30'
+  periodType: varchar('period_type', { length: 10 }).notNull().default('daily'),  // 'daily' | 'monthly'
+
+  // Counters
+  jobsUsed: integer('jobs_used').notNull().default(0),
+  tokensUsed: integer('tokens_used').notNull().default(0),
+
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  userPeriodUnique: uniqueIndex('idx_usage_user_period').on(table.userId, table.periodKey, table.periodType),
+  userIdIdx: index('idx_usage_counters_user_id').on(table.userId),
+}));
+
+export type UsageCounter = typeof usageCounters.$inferSelect;

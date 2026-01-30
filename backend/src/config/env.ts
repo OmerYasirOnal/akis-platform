@@ -124,6 +124,13 @@ const envSchema = z
     
     // GitHub private key (base64 encoded)
     GITHUB_PRIVATE_KEY_BASE64: z.string().optional(),
+
+    // Stripe billing
+    STRIPE_SECRET_KEY: z.string().optional(),
+    STRIPE_WEBHOOK_SECRET: z.string().optional(),
+    STRIPE_PRICE_PRO: z.string().optional(),        // price_xxx for Pro plan
+    STRIPE_PRICE_PRO_PLUS: z.string().optional(),   // price_xxx for Pro+ plan
+    STRIPE_PRICE_TEAM: z.string().optional(),        // price_xxx for Team plan
   })
   .superRefine((data, ctx) => {
     const isProduction = data.NODE_ENV === 'production';
