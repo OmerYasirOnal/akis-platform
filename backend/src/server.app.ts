@@ -110,9 +110,8 @@ export async function buildApp() {
 
   app.addHook('onResponse', async (request: FastifyRequest, reply: FastifyReply) => {
     const duration = reply.elapsedTime! / 1000;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const req = request as any;
-    const route: string = req.routeOptions?.url ?? request.url.split('?')[0];
+    const route: string = req.routeOptions?.url ?? req.routerPath ?? request.url.split('?')[0];
     metrics.httpDuration.observe(
       {
         method: request.method,
@@ -122,8 +121,7 @@ export async function buildApp() {
       duration
     );
 
-    const routePath = request.routerPath || request.url.split('?')[0];
-    if (app.log && !QUIET_ROUTES.has(routePath)) {
+    if (app.log && !QUIET_ROUTES.has(route)) {
       app.log.info({
         method: request.method,
         url: request.url,
