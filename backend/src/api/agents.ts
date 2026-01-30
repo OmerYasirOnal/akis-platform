@@ -35,11 +35,31 @@ const scribeConfigAwarePayloadSchema = z.object({
 
 const tracePayloadSchema = z.object({
   spec: z.string().min(1, 'spec field is required and must be a non-empty string'),
-});
+  owner: z.string().optional(),
+  repo: z.string().optional(),
+  baseBranch: z.string().optional(),
+  branchStrategy: z.enum(['auto', 'manual']).optional(),
+  dryRun: z.boolean().optional(),
+}).passthrough();
 
 const protoPayloadSchema = z.object({
-  goal: z.string().min(1, 'goal field is required and must be a non-empty string').optional(),
-}).passthrough(); // Allow additional fields
+  requirements: z.string().min(1, 'requirements field is required').optional(),
+  goal: z.string().min(1, 'goal field is required').optional(),
+  stack: z.string().optional(),
+  owner: z.string().optional(),
+  repo: z.string().optional(),
+  baseBranch: z.string().optional(),
+  branchStrategy: z.enum(['auto', 'manual']).optional(),
+  dryRun: z.boolean().optional(),
+}).passthrough().superRefine((data, ctx) => {
+  if (!data.requirements && !data.goal) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Either "requirements" or "goal" field must be provided',
+      path: ['requirements'],
+    });
+  }
+});
 
 const submitJobSchema = z.object({
   type: z.enum(['scribe', 'trace', 'proto']),
