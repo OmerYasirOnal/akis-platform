@@ -22,7 +22,6 @@ import { jobEventsRoutes } from './api/job-events.js';
 import { webhookRoutes, setWebhookOrchestrator } from './api/webhooks.js';
 import { triggersRoutes } from './api/triggers.js';
 import { registerPlaybookRoutes } from './api/playbooks.js';
-import { billingRoutes, stripeWebhookRoutes } from './api/billing.js';
 import { AgentOrchestrator } from './core/orchestrator/AgentOrchestrator.js';
 import { createAIService } from './services/ai/AIService.js';
 import type { MCPTools } from './services/mcp/adapters/index.js';
@@ -30,8 +29,6 @@ import { StaleJobWatchdog } from './core/watchdog/StaleJobWatchdog.js';
 
 const QUIET_ROUTES = new Set([
   '/api/agents/jobs/running',
-  '/api/agents/configs',
-  '/api/usage/current-month',
   '/health',
   '/ready',
 ]);
@@ -125,7 +122,8 @@ export async function buildApp() {
       duration
     );
 
-    if (app.log && !QUIET_ROUTES.has(route)) {
+    const routePath = request.routerPath || request.url.split('?')[0];
+    if (app.log && !QUIET_ROUTES.has(routePath)) {
       app.log.info({
         method: request.method,
         url: request.url,
@@ -177,8 +175,6 @@ export async function buildApp() {
   await app.register(webhookRoutes);
   await app.register(triggersRoutes);
   await app.register(registerPlaybookRoutes);
-  await app.register(billingRoutes);
-  await app.register(stripeWebhookRoutes);
   if (env.NODE_ENV !== 'production' && process.env.SCRIBE_DEV_GITHUB_BOOTSTRAP === 'true') {
     await app.register(testHelpersRoutes, { prefix: '/test' });
   }

@@ -104,7 +104,6 @@ export async function triggersRoutes(fastify: FastifyInstance) {
         },
       },
     },
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     async (request: any, reply: any) => {
       try {
         const user = await requireAuth(request);
@@ -134,7 +133,6 @@ export async function triggersRoutes(fastify: FastifyInstance) {
           .returning();
 
         return { trigger: updated };
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } catch (error: any) {
         const errorResponse = formatErrorResponse(request, error);
         const statusCode = getStatusCodeForError(errorResponse.error.code);
@@ -158,7 +156,6 @@ export async function triggersRoutes(fastify: FastifyInstance) {
         },
       },
     },
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     async (request: any, reply: any) => {
       try {
         const user = await requireAuth(request);
@@ -177,7 +174,6 @@ export async function triggersRoutes(fastify: FastifyInstance) {
         await db.delete(agentTriggers).where(eq(agentTriggers.id, params.id));
 
         return reply.code(200).send({ success: true, message: 'Trigger deleted' });
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } catch (error: any) {
         const errorResponse = formatErrorResponse(request, error);
         const statusCode = getStatusCodeForError(errorResponse.error.code);
