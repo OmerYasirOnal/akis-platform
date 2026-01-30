@@ -24,6 +24,12 @@ const scribePayloadSchema = z.object({
   taskDescription: z.string().optional(),
   // Maintain backward compatibility for legacy tests if needed, or remove 'doc'
   doc: z.string().optional(),
+  // Doc Pack Generator fields
+  docPack: z.enum(['readme', 'standard', 'full']).optional(),
+  docDepth: z.enum(['lite', 'standard', 'deep']).optional(),
+  outputTargets: z.array(z.string()).optional(),
+  maxOutputTokens: z.number().int().min(1000).max(64000).optional(),
+  passes: z.number().int().min(1).max(2).optional(),
 });
 
 // Config-aware payload schema (S0.4.6)

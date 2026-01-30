@@ -4,7 +4,7 @@ import { GitHubMCPService } from '../../services/mcp/adapters/GitHubMCPService.j
 import type { AIService, Plan, Planner } from '../../services/ai/AIService.js';
 import type { MCPTools } from '../../services/mcp/adapters/index.js';
 import type { TraceRecorder } from '../../core/tracing/TraceRecorder.js';
-import { getContractForPath, buildContractPrompt, detectDocFileType, type RepoContext } from './DocContract.js';
+import { getContractForPath, buildContractPrompt, detectDocFileType, type RepoContext, resolveDocPackConfig, targetToPath, type DocPack, type DocDepth, type DocTarget, type ResolvedDocPackConfig } from './DocContract.js';
 import { createPlanGenerator, type PlanContext, type GeneratedPlan } from '../../core/planning/PlanGenerator.js';
 import { db } from '../../db/client.js';
 import { jobPlans } from '../../db/schema.js';
@@ -33,6 +33,16 @@ export interface ScribeTaskContext {
   requiresApproval?: boolean;
   /** PR-1: Job ID for plan artifact storage */
   jobId?: string;
+  /** Doc Pack level: readme | standard | full */
+  docPack?: DocPack;
+  /** Doc Depth: lite | standard | deep */
+  docDepth?: DocDepth;
+  /** Explicit output targets (e.g. ["README", "ARCHITECTURE"]) */
+  outputTargets?: string[];
+  /** Max output tokens (server-enforced cap) */
+  maxOutputTokens?: number;
+  /** Number of generation passes (1 or 2) */
+  passes?: number;
 }
 
 /**
@@ -662,11 +672,22 @@ export class ScribeAgent extends BaseAgent {
     const task = context as ScribeTaskContext;
     const dryRun = task.dryRun === true;
 
+    // Resolve doc pack configuration with defaults
+    const docPackConfig: ResolvedDocPackConfig = resolveDocPackConfig({
+      docPack: task.docPack,
+      docDepth: task.docDepth,
+      outputTargets: task.outputTargets,
+      maxOutputTokens: task.maxOutputTokens,
+      passes: task.passes,
+    });
+
     // S1.1: Record initial reasoning
     this.traceRecorder?.recordReasoning({
       phase: 'initialization',
       summary: `Starting Scribe workflow for ${task.owner}/${task.repo}. ` +
                `Target: ${task.targetPath || 'README.md'}. ` +
+               `Doc Pack: ${docPackConfig.docPack}, Depth: ${docPackConfig.docDepth}, Passes: ${docPackConfig.passes}. ` +
+               `Targets: ${docPackConfig.outputTargets.join(', ')}. ` +
                `Mode: ${dryRun ? 'dry-run (no changes will be written)' : 'execute (changes will be written)'}.`,
     });
 
@@ -686,7 +707,7 @@ export class ScribeAgent extends BaseAgent {
       );
     }
 
-    const results: Record<string, unknown> = { plan };
+    const results: Record<string, unknown> = { plan, docPackConfig };
 
     // Step 1: Branch Management
     this.traceRecorder?.recordPlanStep({
@@ -783,8 +804,27 @@ export class ScribeAgent extends BaseAgent {
 
     // Discover file targets
     const fileTargets: DocFileTarget[] = [];
-    
-    if (isDirectory) {
+
+    // If docPack is configured, use pack targets instead of filesystem discovery
+    if (docPackConfig.outputTargets.length > 0 && task.docPack) {
+      this.traceRecorder?.recordDecision({
+        title: 'Doc Pack mode active',
+        decision: `Using doc pack "${docPackConfig.docPack}" with ${docPackConfig.outputTargets.length} target(s)`,
+        reasoning: `Pack configuration overrides filesystem discovery. Targets: ${docPackConfig.outputTargets.join(', ')}`,
+      });
+
+      for (const target of docPackConfig.outputTargets) {
+        const filePath = targetToPath(target);
+        const fileData = await this.githubMCP.getFileContentSafe(task.owner, task.repo, workingBranch, filePath);
+        const contract = getContractForPath(filePath);
+        fileTargets.push({
+          path: filePath,
+          existingContent: fileData?.content || '',
+          contract,
+          priority: docPackConfig.outputTargets.indexOf(target) + 1,
+        });
+      }
+    } else if (isDirectory) {
       // Multi-file mode: scan directory for doc files
       this.traceRecorder?.recordDecision({
         title: 'Multi-file documentation mode',
@@ -982,7 +1022,71 @@ export class ScribeAgent extends BaseAgent {
       reasoning: `All files generated successfully following their respective documentation contracts.`,
       status: 'completed',
     });
-    
+
+    // Step 3b: Pass-2 Review (only for multi-pass configurations)
+    if (docPackConfig.passes === 2 && updatedFiles.length > 1) {
+      this.traceRecorder?.recordPlanStep({
+        stepId: 'pass2-review',
+        title: 'Pass 2: Cross-Document Review',
+        description: `Reviewing ${updatedFiles.length} documents for gaps and cross-links`,
+        reasoning: 'Multi-pass mode reviews all generated docs together to ensure consistency, cross-links, and completeness.',
+        status: 'running',
+      });
+
+      const allDocsContext = updatedFiles
+        .map(f => `## ${f.path}\n${f.content.substring(0, 2000)}`)
+        .join('\n\n---\n\n');
+
+      const reviewPrompt = `You are reviewing a documentation pack for consistency and completeness.
+
+Documents generated:
+${allDocsContext}
+
+Review for:
+1. Missing cross-links between documents (e.g., README should link to docs/*)
+2. Inconsistent terminology or project descriptions
+3. Gaps in coverage (e.g., mentioned but not documented topics)
+4. Missing table of contents or navigation
+
+Output a JSON array of issues. Each issue: { "file": "path", "issue": "description", "severity": "low"|"medium"|"high" }
+If no issues, output: []`;
+
+      try {
+        const reviewResult = await this.aiService.generateWorkArtifact({
+          task: reviewPrompt,
+          context: { ...task, phase: 'pass2-review' },
+        });
+
+        this.traceRecorder?.recordReasoning({
+          phase: 'pass2-review',
+          summary: `Pass 2 review completed. Result preview: ${reviewResult.content.substring(0, 200)}`,
+        });
+      } catch (reviewError) {
+        this.traceRecorder?.recordInfo(
+          `Pass 2 review skipped due to error: ${reviewError instanceof Error ? reviewError.message : String(reviewError)}`
+        );
+      }
+
+      this.traceRecorder?.recordPlanStep({
+        stepId: 'pass2-review',
+        title: 'Pass 2: Cross-Document Review',
+        description: 'Review complete',
+        reasoning: 'Cross-document consistency check finished.',
+        status: 'completed',
+      });
+    }
+
+    // Enforce maxOutputTokens: truncate any file exceeding the per-file token budget
+    const perFileTokenBudget = Math.floor(docPackConfig.maxOutputTokens / Math.max(updatedFiles.length, 1));
+    for (const file of updatedFiles) {
+      // Rough approximation: 1 token ≈ 4 chars
+      const charLimit = perFileTokenBudget * 4;
+      if (file.content.length > charLimit) {
+        file.content = file.content.substring(0, charLimit) + '\n\n<!-- Content truncated: exceeded token budget -->';
+        this.traceRecorder?.recordInfo(`Truncated ${file.path} to ~${perFileTokenBudget} tokens (maxOutputTokens enforcement)`);
+      }
+    }
+
     // Step 4: Reflect (Critique before commit) - review all generated files
     this.traceRecorder?.recordPlanStep({
       stepId: 'reflect-critique',
