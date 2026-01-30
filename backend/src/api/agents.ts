@@ -506,6 +506,23 @@ export async function agentsRoutes(fastify: FastifyInstance) {
           }
         }
 
+        // For non-scribe agents, inject userId from auth session
+        if (body.type !== 'scribe') {
+          let userId: string | undefined;
+          try {
+            const user = await requireAuth(request);
+            userId = user.id;
+          } catch {
+            // Auth optional for non-scribe — orchestrator will fail-fast if GitHub needed
+          }
+
+          if (userId && enrichedPayload && typeof enrichedPayload === 'object') {
+            enrichedPayload = { ...(enrichedPayload as Record<string, unknown>), userId };
+          } else if (userId && !enrichedPayload) {
+            enrichedPayload = { userId };
+          }
+        }
+
         // Submit job (creates DB row with pending state)
         const jobId = await orchestrator.submitJob({
           type: body.type,
@@ -836,7 +853,7 @@ export async function agentsRoutes(fastify: FastifyInstance) {
   // Phase 7.D: GET /api/agents/jobs - List jobs with filtering and pagination
   // Cursor encoding: base64(createdAt|id) for deterministic pagination
   const jobsListQuerySchema = z.object({
-    type: z.enum(['scribe', 'trace', 'proto']).optional(),
+    type: z.enum(['scribe', 'trace', 'proto', 'coder', 'developer']).optional(),
     state: z.enum(['pending', 'running', 'completed', 'failed']).optional(),
     limit: z.coerce.number().int().min(1).max(100).default(20),
     cursor: z.string().optional(), // base64 encoded cursor

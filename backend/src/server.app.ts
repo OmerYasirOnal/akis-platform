@@ -29,6 +29,8 @@ import { StaleJobWatchdog } from './core/watchdog/StaleJobWatchdog.js';
 
 const QUIET_ROUTES = new Set([
   '/api/agents/jobs/running',
+  '/api/agents/configs',
+  '/api/usage/current-month',
   '/health',
   '/ready',
 ]);
@@ -82,7 +84,6 @@ export async function buildApp() {
       ? false
       : {
           level: process.env.LOG_LEVEL || 'info',
-          // Only use pino-pretty in development if available
           transport:
             process.env.NODE_ENV === 'development'
               ? {
@@ -93,6 +94,7 @@ export async function buildApp() {
                 }
               : undefined,
         },
+    disableRequestLogging: true,
     requestIdHeader: 'request-id',
     requestIdLogLabel: 'requestId',
     genReqId: (req: FastifyRequest) => {

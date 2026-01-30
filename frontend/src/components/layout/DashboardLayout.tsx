@@ -1,10 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
-import { Outlet, useNavigate } from 'react-router-dom';
+import { Outlet, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { cn } from '../../utils/cn';
 import Button from '../common/Button';
 import DashboardSidebar from './DashboardSidebar';
-import LiquidNeonBackground from '../backgrounds/LiquidNeonBackground';
 import Logo from '../branding/Logo';
 
 const MenuIcon = () => (
@@ -24,19 +23,7 @@ export function DashboardLayout() {
   const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
-  const [reducedMotion, setReducedMotion] = useState(false);
   const isMountedRef = useRef(true);
-
-  useEffect(() => {
-    const stored = localStorage.getItem('akis-reduced-motion');
-    if (stored !== null) {
-      setReducedMotion(stored === 'true');
-    } else {
-      setReducedMotion(
-        window.matchMedia('(prefers-reduced-motion: reduce)').matches
-      );
-    }
-  }, []);
 
   useEffect(() => {
     return () => {
@@ -64,14 +51,8 @@ export function DashboardLayout() {
 
   return (
     <div className="relative flex min-h-screen bg-ak-bg text-ak-text-primary">
-      <LiquidNeonBackground
-        enabled={!reducedMotion}
-        intensity="subtle"
-        respectReducedMotion={true}
-      />
-
-      {/* Desktop Sidebar - no border, use shadow for separation */}
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 bg-ak-surface/80 backdrop-blur-sm shadow-[1px_0_0_0_rgba(26,38,44,0.5)] lg:block">
+      {/* Desktop Sidebar */}
+      <aside className="fixed inset-y-0 left-0 z-30 hidden w-60 border-r border-ak-border bg-ak-surface lg:block">
         <DashboardSidebar
           userEmail={user?.email}
           workspaceName={user?.name || 'AKIS Workspace'}
@@ -81,7 +62,7 @@ export function DashboardLayout() {
       {/* Mobile Sidebar Overlay */}
       {mobileMenuOpen && (
         <div
-          className="fixed inset-0 z-40 bg-ak-bg/80 backdrop-blur-sm lg:hidden"
+          className="fixed inset-0 z-40 bg-ak-bg/80 lg:hidden"
           onClick={closeMobileMenu}
           aria-hidden="true"
         />
@@ -90,7 +71,7 @@ export function DashboardLayout() {
       {/* Mobile Sidebar Drawer */}
       <aside
         className={cn(
-          'fixed inset-y-0 left-0 z-50 w-64 transform bg-ak-surface shadow-ak-elevation-3 transition-transform duration-300 lg:hidden',
+          'fixed inset-y-0 left-0 z-50 w-60 transform border-r border-ak-border bg-ak-surface transition-transform duration-200 lg:hidden',
           mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
         )}
       >
@@ -109,9 +90,9 @@ export function DashboardLayout() {
       </aside>
 
       {/* Main Content Area */}
-      <div className="flex flex-1 flex-col lg:pl-64">
-        {/* Top Header - subtle, no heavy border */}
-        <header className="sticky top-0 z-20 bg-ak-bg/70 backdrop-blur-backdrop">
+      <div className="flex flex-1 flex-col lg:pl-60">
+        {/* Top Header — solid, stable, no transparency on scroll */}
+        <header className="sticky top-0 z-20 border-b border-ak-border bg-ak-bg">
           <div className="flex h-14 items-center justify-between px-4 sm:px-6 lg:px-8">
             {/* Mobile menu button + Logo */}
             <div className="flex items-center gap-4 lg:hidden">
@@ -125,10 +106,21 @@ export function DashboardLayout() {
               <Logo size="nav" />
             </div>
 
+            {/* Desktop: Dashboard breadcrumb placeholder */}
             <div className="hidden lg:block" />
 
-            {/* Right side: User actions */}
+            {/* Right side: Dashboard shortcut + User identity + Logout */}
             <div className="flex items-center gap-3">
+              <Link
+                to="/dashboard"
+                className="hidden items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium text-ak-text-secondary hover:bg-ak-surface hover:text-ak-text-primary transition-colors sm:flex"
+              >
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />
+                </svg>
+                Dashboard
+              </Link>
+
               <div className="hidden text-right sm:block">
                 <p className="text-sm font-medium text-ak-text-primary">
                   {user?.name || 'User'}
