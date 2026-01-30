@@ -1,8 +1,9 @@
-import { useState, useEffect, useRef } from 'react';
-import { Outlet, useNavigate, Link } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { Outlet, Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { cn } from '../../utils/cn';
 import DashboardSidebar from './DashboardSidebar';
+import { ProfileMenu } from './ProfileMenu';
 import Logo from '../branding/Logo';
 
 const MenuIcon = () => (
@@ -20,35 +21,17 @@ const CloseIcon = () => (
 export function DashboardLayout() {
   const { user } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [isLoggingOut, setIsLoggingOut] = useState(false);
-  const isMountedRef = useRef(true);
-
-  useEffect(() => {
-    return () => {
-      isMountedRef.current = false;
-    };
-  }, []);
 
   useEffect(() => {
     setMobileMenuOpen(false);
   }, []);
-
-  // Prevent background scroll when mobile menu is open
-  useEffect(() => {
-    if (mobileMenuOpen) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = '';
-    }
-    return () => { document.body.style.overflow = ''; };
-  }, [mobileMenuOpen]);
 
   const closeMobileMenu = () => setMobileMenuOpen(false);
 
   return (
     <div className="relative flex min-h-screen bg-ak-bg text-ak-text-primary">
       {/* Desktop Sidebar */}
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-60 border-r border-ak-border bg-ak-surface lg:block">
+      <aside className="fixed inset-y-0 left-0 z-30 hidden w-56 border-r border-ak-border bg-ak-surface lg:block">
         <DashboardSidebar
           workspaceName={user?.name || 'AKIS Workspace'}
         />
@@ -66,7 +49,7 @@ export function DashboardLayout() {
       {/* Mobile Sidebar Drawer */}
       <aside
         className={cn(
-          'fixed inset-y-0 left-0 z-50 w-60 transform border-r border-ak-border bg-ak-surface transition-transform duration-200 lg:hidden',
+          'fixed inset-y-0 left-0 z-50 w-56 transform border-r border-ak-border bg-ak-surface transition-transform duration-200 lg:hidden',
           mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
         )}
       >
@@ -84,11 +67,11 @@ export function DashboardLayout() {
       </aside>
 
       {/* Main Content Area */}
-      <div className="flex flex-1 flex-col lg:pl-60">
-        {/* Top Header — solid, stable, no transparency on scroll */}
+      <div className="flex flex-1 flex-col lg:pl-56">
+        {/* Top Header */}
         <header className="sticky top-0 z-20 border-b border-ak-border bg-ak-bg">
-          <div className="flex h-14 items-center justify-between px-4 sm:px-6 lg:px-8">
-            {/* Mobile menu button + Logo */}
+          <div className="flex h-12 items-center justify-between px-4 sm:px-6 lg:px-8">
+            {/* Mobile: menu + logo */}
             <div className="flex items-center gap-4 lg:hidden">
               <button
                 className="rounded-lg p-1.5 text-ak-text-secondary hover:bg-ak-surface hover:text-ak-text-primary"
@@ -100,33 +83,16 @@ export function DashboardLayout() {
               <Logo size="nav" />
             </div>
 
-            {/* Desktop: Dashboard breadcrumb placeholder */}
-            <div className="hidden lg:block" />
+            {/* Desktop: page context */}
+            <div className="hidden lg:block">
+              <span className="text-sm font-medium text-ak-text-secondary">Dashboard</span>
+            </div>
 
-            {/* Right side: Dashboard shortcut + User identity + Logout */}
+            {/* Right: Agents link + Profile */}
             <div className="flex items-center gap-3">
               <Link
-                to="/dashboard"
-                className="hidden items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium text-ak-text-secondary hover:bg-ak-surface hover:text-ak-text-primary transition-colors sm:flex"
-              >
-                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />
-                </svg>
-                Dashboard
-              </Link>
-
-              <div className="hidden text-right sm:block">
-                <p className="text-sm font-medium text-ak-text-primary">
-                  {user?.name || 'User'}
-                </p>
-                <p className="text-xs text-ak-text-secondary">{user?.email}</p>
-              </div>
-
-              <Button
-                variant="ghost"
-                size="md"
-                onClick={handleLogout}
-                disabled={isLoggingOut}
+                to="/agents"
+                className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm text-ak-text-secondary hover:bg-ak-surface hover:text-ak-text-primary transition-colors"
               >
                 <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456z" />

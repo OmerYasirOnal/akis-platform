@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import Button from '../../../components/common/Button';
 import SearchableSelect, { type SelectOption } from '../../../components/common/SearchableSelect';
 import { agentsApi, type AgentType, type JobDetail, type RunningJob } from '../../../services/api/agents';
@@ -162,7 +162,6 @@ function getAgentColor(id: string) {
 }
 
 export default function AgentsHubPage() {
-  const navigate = useNavigate();
   const [selectedAgent, setSelectedAgent] = useState<AgentDefinition>(builtInAgents[0]);
   const [searchQuery, setSearchQuery] = useState('');
   const chatEndRef = useRef<HTMLDivElement>(null);
@@ -493,7 +492,7 @@ export default function AgentsHubPage() {
   const agentColor = getAgentColor(selectedAgent.id);
 
   return (
-    <div className="flex h-[calc(100vh-4rem)]">
+    <div className="flex h-full">
       {/* Left Panel - Agent List */}
       <div className="w-56 flex-shrink-0 flex flex-col border-r border-ak-border bg-ak-surface">
         <div className="p-3">
@@ -550,9 +549,9 @@ export default function AgentsHubPage() {
               </p>
               <div className="space-y-0.5">
                 {userConfigs.map((config) => (
-                  <button
+                  <Link
                     key={config.id}
-                    onClick={() => navigate('/dashboard/scribe')}
+                    to="/dashboard/scribe"
                     className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-ak-text-secondary hover:bg-ak-surface-2/50 hover:text-ak-text-primary transition-all"
                   >
                     <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-ak-bg text-ak-text-secondary">
@@ -564,34 +563,13 @@ export default function AgentsHubPage() {
                         {config.repositoryOwner}/{config.repositoryName}
                       </p>
                     </div>
-                  </button>
+                  </Link>
                 ))}
               </div>
             </div>
           )}
         </div>
 
-        {/* Bottom nav links */}
-        <div className="border-t border-ak-border p-3 space-y-1">
-          <Link
-            to="/dashboard"
-            className="flex items-center gap-2 rounded-lg px-2.5 py-2 text-[13px] text-ak-text-secondary hover:bg-ak-surface-2/50 hover:text-ak-text-primary transition-all"
-          >
-            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />
-            </svg>
-            Dashboard
-          </Link>
-          <Link
-            to="/dashboard/jobs"
-            className="flex items-center gap-2 rounded-lg px-2.5 py-2 text-[13px] text-ak-text-secondary hover:bg-ak-surface-2/50 hover:text-ak-text-primary transition-all"
-          >
-            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 12h16.5m-16.5 3.75h16.5M3.75 19.5h16.5M5.625 4.5h12.75a1.875 1.875 0 010 3.75H5.625a1.875 1.875 0 010-3.75z" />
-            </svg>
-            All Jobs
-          </Link>
-        </div>
       </div>
 
       {/* Main Panel - Chat-like Run Experience */}

@@ -59,10 +59,10 @@ export function ProfileMenu() {
 
   const handleTheme = (opt: ThemeOption) => {
     if (opt === 'system') {
-      try { window.localStorage.removeItem(THEME_STORAGE_KEY); } catch { /* localStorage may be blocked */ }
+      try { window.localStorage.removeItem(THEME_STORAGE_KEY); } catch {}
       const sys = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
       setTheme(sys);
-      try { window.localStorage.removeItem(THEME_STORAGE_KEY); } catch { /* localStorage may be blocked */ }
+      try { window.localStorage.removeItem(THEME_STORAGE_KEY); } catch {}
     } else {
       setTheme(opt);
     }
@@ -93,7 +93,7 @@ export function ProfileMenu() {
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full mt-2 w-56 rounded-xl border border-ak-border bg-ak-surface/90 backdrop-blur-xl shadow-ak-elevation-2 z-50 overflow-hidden">
+        <div className="absolute right-0 top-full mt-2 w-56 rounded-xl border border-ak-border bg-ak-surface shadow-ak-elevation-2 z-50 overflow-hidden">
           <div className="px-4 py-3 border-b border-ak-border">
             <p className="text-sm font-medium text-ak-text-primary truncate">
               {user?.name || 'User'}
