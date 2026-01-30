@@ -148,8 +148,8 @@ export default function IntegrationsHubPage() {
         </div>
       )}
 
-      {/* === GitHub Card === */}
-      <div className={card + ' p-6'}>
+      {/* Atlassian OAuth Section */}
+      <div className="rounded-2xl bg-ak-surface-2 shadow-ak-elevation-1 p-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
             <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-white/[0.06] text-ak-text-primary">
@@ -173,19 +173,22 @@ export default function IntegrationsHubPage() {
             )}
           </div>
         </div>
-        {/* Features */}
-        <div className="mt-4 flex flex-wrap gap-3">
-          {['Repository discovery', 'Branch & commit analysis', 'Pull request creation', 'Webhook automation'].map(f => (
-            <span key={f} className="flex items-center gap-1.5 text-xs text-ak-text-secondary bg-white/[0.04] px-2.5 py-1 rounded-lg">
-              <CheckIcon /> {f}
-            </span>
-          ))}
-        </div>
-        {githubConnected && (
-          <div className="mt-4 pt-3 border-t border-white/[0.06]">
-            <Link to="/dashboard/agents" className="text-sm text-ak-primary hover:underline flex items-center gap-1">
-              Go to Agents <LinkIcon />
-            </Link>
+        
+        {/* Products enabled by Atlassian OAuth */}
+        {atlassianOAuthStatus.connected && (
+          <div className="mt-4 flex gap-4 border-t border-ak-border/30 pt-4">
+            <div className="flex items-center gap-2">
+              <JiraIcon />
+              <span className={`text-sm ${atlassianOAuthStatus.jiraAvailable ? 'text-green-400' : 'text-ak-text-secondary'}`}>
+                {atlassianOAuthStatus.jiraAvailable ? '✓ Jira Available' : 'Jira Not Available'}
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <ConfluenceIcon />
+              <span className={`text-sm ${atlassianOAuthStatus.confluenceAvailable ? 'text-green-400' : 'text-ak-text-secondary'}`}>
+                {atlassianOAuthStatus.confluenceAvailable ? '✓ Confluence Available' : 'Confluence Not Available'}
+              </span>
+            </div>
           </div>
         )}
       </div>
@@ -286,13 +289,132 @@ export default function IntegrationsHubPage() {
         </div>
       </div>
 
+      {/* Integration Cards */}
+      <div className="grid gap-6 lg:grid-cols-2 xl:grid-cols-3">
+        {integrations.map((integration) => {
+          const status = getStatus(integration.id);
+          const isAtlassianProduct = integration.id === 'jira' || integration.id === 'confluence';
+          const isConnectedViaOAuth = status === 'connected_via_oauth';
+          const atlassianInfo = integration.id === 'jira' ? jiraStatus : integration.id === 'confluence' ? confluenceStatus : null;
+
+          return (
+            <div
+              key={integration.id}
+              className="flex flex-col rounded-2xl bg-ak-surface-2 shadow-ak-elevation-1 p-6 transition-all duration-base hover:shadow-ak-elevation-2"
+            >
+              {/* Header */}
+              <div className="flex items-start justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-ak-surface text-ak-text-primary">
+                    {integration.icon}
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-ak-text-primary">
+                      {integration.name}
+                    </h3>
+                    <span
+                      className={`inline-block mt-1 rounded-full border px-2.5 py-0.5 text-xs font-medium ${
+                        statusStyles[status].badge
+                      }`}
+                    >
+                      {statusStyles[status].text}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Description */}
+              <p className="mt-4 flex-1 text-sm text-ak-text-secondary">
+                {integration.description}
+              </p>
+
+              {/* Connection Info */}
+              {(isConnectedViaOAuth && atlassianOAuthStatus.siteUrl) && (
+                <div className="mt-4 rounded-lg bg-blue-500/5 border border-blue-500/20 p-3 text-xs text-blue-400">
+                  <p className="font-medium">Connected via Atlassian OAuth</p>
+                  <p className="mt-1">Site: {atlassianOAuthStatus.siteUrl}</p>
+                </div>
+              )}
+
+              {/* Legacy connection info (for API token connections) */}
+              {!isConnectedViaOAuth && atlassianInfo?.connected && atlassianInfo.siteUrl && (
+                <div className="mt-4 rounded-lg bg-ak-surface p-3 text-xs text-ak-text-secondary">
+                  <p>Site: {atlassianInfo.siteUrl}</p>
+                  {atlassianInfo.userEmail && <p>User: {atlassianInfo.userEmail}</p>}
+                  {atlassianInfo.tokenLast4 && <p>Token: ••••{atlassianInfo.tokenLast4}</p>}
+                </div>
+              )}
+
+              {/* Error Info (for degraded status) */}
+              {atlassianInfo?.error && (
+                <div className="mt-4 rounded-lg bg-yellow-500/10 border border-yellow-500/20 p-3 text-xs text-yellow-400">
+                  <p className="font-medium">Connection check failed</p>
+                  <p className="mt-1 text-yellow-400/80">{atlassianInfo.error.message}</p>
+                </div>
+              )}
+
+              {/* Features */}
+              <ul className="mt-4 space-y-2">
+                {integration.features.map((feature) => (
+                  <li key={feature} className="flex items-center gap-2 text-sm text-ak-text-secondary">
+                    <CheckIcon />
+                    {feature}
+                  </li>
+                ))}
+              </ul>
+
+              {/* Actions */}
+              <div className="mt-6 flex items-center gap-3">
+                {status === 'connected' || status === 'connected_via_oauth' ? (
+                  <>
+                    <Button
+                      variant="outline"
+                      onClick={() => handleDisconnect(integration.id)}
+                      className="flex-1"
+                    >
+                      Disconnect
+                    </Button>
+                    {integration.id === 'github' && (
+                      <Link
+                        to="/dashboard/agents"
+                        className="flex items-center gap-1 text-sm font-medium text-ak-primary hover:underline"
+                      >
+                        Use <LinkIcon />
+                      </Link>
+                    )}
+                  </>
+                ) : (
+                  <Button
+                    variant="primary"
+                    onClick={() => handleConnect(integration.id)}
+                    className="flex-1"
+                    disabled={loading || (isAtlassianProduct && !atlassianOAuthStatus.configured)}
+                  >
+                    {loading ? 'Loading...' : isAtlassianProduct ? 'Connect with Atlassian' : 'Connect'}
+                  </Button>
+                )}
+
+                {integration.docsUrl && (
+                  <Link
+                    to={integration.docsUrl}
+                    className="flex items-center gap-1 text-sm text-ak-text-secondary hover:text-ak-primary"
+                  >
+                    Docs <LinkIcon />
+                  </Link>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
       {/* Request Integration */}
-      <div className="text-center py-6">
-        <p className="text-sm text-ak-text-secondary">
-          Need a different integration?{' '}
-          <a href="https://github.com/akis-platform/akis/discussions" target="_blank" rel="noopener noreferrer" className="text-ak-primary hover:underline">
-            Request one →
-          </a>
+      <div className="rounded-2xl bg-ak-surface-2/30 p-8 text-center">
+        <h3 className="text-lg font-bold text-ak-text-primary">
+          Need a Different Integration?
+        </h3>
+        <p className="mt-2 text-ak-text-secondary">
+          We&apos;re always adding new integrations. Let us know what tools you use.
         </p>
       </div>
     </div>

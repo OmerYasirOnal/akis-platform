@@ -6,12 +6,10 @@ interface PillStyle {
   label: string;
 }
 
-const typeStyles: Record<string, PillStyle> = {
+const typeStyles: Record<PillType, { bg: string; dot: string; label: string }> = {
   scribe: { bg: "bg-ak-primary/10", dot: "bg-ak-primary", label: "Scribe" },
   trace: { bg: "bg-blue-500/10", dot: "bg-blue-400", label: "Trace" },
   proto: { bg: "bg-purple-500/10", dot: "bg-purple-400", label: "Proto" },
-  coder: { bg: "bg-amber-500/10", dot: "bg-amber-400", label: "Coder" },
-  developer: { bg: "bg-emerald-500/10", dot: "bg-emerald-400", label: "Developer" },
 };
 
 const fallbackStyle: PillStyle = {
