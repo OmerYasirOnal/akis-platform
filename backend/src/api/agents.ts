@@ -69,39 +69,6 @@ const protoPayloadSchema = z.object({
   }
 });
 
-const coderPayloadSchema = z.object({
-  task: z.string().min(1, 'task is required'),
-  language: z.string().optional(),
-  framework: z.string().optional(),
-  owner: z.string().optional(),
-  repo: z.string().optional(),
-  baseBranch: z.string().optional(),
-  branchStrategy: z.enum(['auto', 'manual']).optional(),
-  dryRun: z.boolean().optional(),
-  modelId: z.string().optional(),
-}).passthrough();
-
-const developerPayloadSchema = z.object({
-  goal: z.string().min(1, 'goal is required').optional(),
-  requirements: z.string().min(1).optional(),
-  constraints: z.array(z.string()).optional(),
-  owner: z.string().optional(),
-  repo: z.string().optional(),
-  baseBranch: z.string().optional(),
-  branchStrategy: z.enum(['auto', 'manual']).optional(),
-  dryRun: z.boolean().optional(),
-  modelId: z.string().optional(),
-  maxSteps: z.number().int().min(1).max(50).optional(),
-}).passthrough().superRefine((data, ctx) => {
-  if (!data.goal && !data.requirements) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      message: 'Either "goal" or "requirements" must be provided',
-      path: ['goal'],
-    });
-  }
-});
-
 const submitJobSchema = z.object({
   type: z.enum(['scribe', 'trace', 'proto', 'coder', 'developer']),
   payload: z.unknown().optional(),

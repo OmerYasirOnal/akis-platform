@@ -4,7 +4,8 @@ import type { Plan, Critique, AIService } from '../../services/ai/AIService.js';
 import type { MCPTools } from '../../services/mcp/adapters/index.js';
 
 interface ProtoPayload {
-  requirements: string;
+  requirements?: string;
+  goal?: string;
   owner?: string;
   repo?: string;
   baseBranch?: string;
@@ -31,7 +32,7 @@ export class ProtoAgent extends BaseAgent {
     context: unknown
   ): Promise<Plan> {
     const payload = context as ProtoPayload;
-    const goal = payload?.requirements || 'scaffold a demo project';
+    const goal = payload?.requirements || payload?.goal || 'scaffold a demo project';
     return planner.plan({
       agent: this.type,
       goal: `Generate an MVP scaffold from these requirements:\n\n${goal}`,
@@ -51,15 +52,16 @@ export class ProtoAgent extends BaseAgent {
 
   async executeWithTools(tools: MCPTools, plan?: Plan, context?: unknown): Promise<unknown> {
     const payload = context as ProtoPayload;
-    if (!payload?.requirements) {
-      throw new Error('ProtoAgent requires payload with "requirements" field');
+    const requirements = payload?.requirements || payload?.goal;
+    if (!requirements) {
+      throw new Error('ProtoAgent requires payload with "requirements" or "goal" field');
     }
 
     const artifacts: Array<{ filePath: string; content: string }> = [];
 
     if (this.aiService) {
       const scaffoldResult = await this.aiService.generateWorkArtifact({
-        task: `Generate a working MVP project scaffold based on these requirements. For each file, output the file path and content. Requirements:\n\n${payload.requirements}${payload.stack ? `\n\nPreferred stack: ${payload.stack}` : ''}`,
+        task: `Generate a working MVP project scaffold based on these requirements. For each file, output the file path and content. Requirements:\n\n${requirements}${payload.stack ? `\n\nPreferred stack: ${payload.stack}` : ''}`,
         context: { plan: plan?.steps.map(s => s.title) },
       });
 
@@ -67,7 +69,7 @@ export class ProtoAgent extends BaseAgent {
       artifacts.push(...parsed);
     } else {
       artifacts.push(
-        { filePath: 'README.md', content: `# MVP Scaffold\n\nGenerated from: ${payload.requirements.substring(0, 100)}...\n` },
+        { filePath: 'README.md', content: `# MVP Scaffold\n\nGenerated from: ${requirements.substring(0, 100)}...\n` },
         { filePath: 'package.json', content: JSON.stringify({ name: 'mvp-scaffold', version: '0.1.0', scripts: { start: 'node index.js', test: 'echo "tests"' } }, null, 2) },
         { filePath: 'index.js', content: `// MVP Entry Point\nconsole.log('Hello from Proto scaffold');\n` },
       );
@@ -148,7 +150,7 @@ export class ProtoAgent extends BaseAgent {
       agent: 'proto',
       message: 'Proto scaffold generated (no tools available - use executeWithTools for full flow)',
       artifacts: [
-        { filePath: 'README.md', content: `# MVP\n\n${payload?.requirements || 'No requirements provided'}` },
+        { filePath: 'README.md', content: `# MVP\n\n${payload?.requirements || payload?.goal || 'No requirements provided'}` },
       ],
     };
   }

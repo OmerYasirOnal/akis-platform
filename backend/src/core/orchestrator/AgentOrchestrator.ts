@@ -217,7 +217,7 @@ export class AgentOrchestrator {
       throw new DatabaseError(`Failed to update job state: ${error instanceof Error ? error.message : String(error)}`, error);
     }
 
-    // Emit SSE event: job started (legacy)
+    // Emit SSE event: job started
     jobEventBus.emitJobEvent(jobId, { phase: 'thinking', message: 'Job started, resolving dependencies...', ts: new Date().toISOString() });
 
     // S1.1: Create TraceRecorder for explainability (outside try so it's available in catch)
@@ -359,9 +359,6 @@ export class AgentOrchestrator {
         // Call agent's plan method
         if (agent.plan) {
           jobEventBus.emitJobEvent(jobId, { phase: 'discovery', message: 'Planning phase started...', ts: new Date().toISOString() });
-          // S2.0.3: Emit planning stage event
-          traceRecorder.emitStage('planning', 'started', 'Planning phase started...');
-          
           try {
             plan = await agent.plan(activeAiService.planner, context);
           } catch (planError) {
@@ -418,8 +415,6 @@ export class AgentOrchestrator {
 
       // Phase 5.D: Execution phase
       jobEventBus.emitJobEvent(jobId, { phase: 'creating', message: 'Executing agent...', ts: new Date().toISOString() });
-      // S2.0.3: Emit executing stage event
-      traceRecorder.emitStage('executing', 'started', 'Executing agent...');
       let executionResult: unknown;
       if (agent.executeWithTools && this.mcpTools) {
         // Use executeWithTools if available (preferred for complex agents)
@@ -613,6 +608,7 @@ export class AgentOrchestrator {
       }
 
       // Auto-complete on success - MUST happen even if flush/metrics failed
+      jobEventBus.emitJobEvent(jobId, { phase: 'done', message: 'Job completed successfully', ts: new Date().toISOString() });
       await this.completeJob(jobId, finalResult);
     } catch (error) {
       // S1.1: Record error in trace and flush before failing
@@ -673,8 +669,6 @@ export class AgentOrchestrator {
       
       // Auto-fail on error (failJob handles its own errors)
       jobEventBus.emitJobEvent(jobId, { phase: 'error', message: error instanceof Error ? error.message : String(error), ts: new Date().toISOString() });
-      // S2.0.3: Cleanup TraceRecorder resources
-      traceRecorder.destroy();
       try {
         await this.failJob(jobId, error);
       } catch (failError) {
