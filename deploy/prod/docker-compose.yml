@@ -1,0 +1,169 @@
+# AKIS Platform - Production Docker Compose
+# =========================================================================
+#
+# Production deployment with TLS, health checks, and automatic DB migration.
+#
+# Usage:
+#   docker compose -f deploy/prod/docker-compose.yml up -d
+#   docker compose -f deploy/prod/docker-compose.yml logs -f
+#   docker compose -f deploy/prod/docker-compose.yml down
+#
+# Prerequisites:
+#   - Copy deploy/prod/.env.example to deploy/prod/.env and fill in values
+#   - Ensure domain DNS A record points to this server
+#   - Caddy will auto-obtain Let's Encrypt TLS certificate
+#
+# =========================================================================
+
+name: akis-prod
+
+services:
+  # =========================================================================
+  # Reverse Proxy - Caddy (auto TLS via Let's Encrypt)
+  # =========================================================================
+  caddy:
+    image: caddy:2-alpine
+    container_name: akis-prod-caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+      - frontend_build:/srv/frontend:ro
+    networks:
+      - akis-prod
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:80/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+  # =========================================================================
+  # Backend API - Fastify
+  # =========================================================================
+  backend:
+    image: ghcr.io/${GITHUB_REPOSITORY:-omeryasironal/akis-platform-devolopment}/akis-backend:${BACKEND_VERSION:-latest}
+    container_name: akis-prod-backend
+    restart: unless-stopped
+    expose:
+      - "3000"
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      DATABASE_URL: postgresql://${POSTGRES_USER:-akis}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-akis_prod}
+    networks:
+      - akis-prod
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 512M
+
+  # =========================================================================
+  # Frontend - Static build (built externally, mounted via volume)
+  # =========================================================================
+  frontend-builder:
+    image: node:20-alpine
+    container_name: akis-prod-frontend-build
+    working_dir: /app
+    volumes:
+      - ../../frontend:/app:ro
+      - frontend_build:/output
+    command: >
+      sh -c "
+        cp -r /app/dist/* /output/ 2>/dev/null ||
+        echo 'No dist found - run pnpm -C frontend build first and mount dist'
+      "
+    profiles:
+      - build
+
+  # =========================================================================
+  # Database - PostgreSQL 16
+  # =========================================================================
+  db:
+    image: postgres:16-alpine
+    container_name: akis-prod-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-akis}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-akis_prod}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - akis-prod
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-akis} -d ${POSTGRES_DB:-akis_prod}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 512M
+
+  # =========================================================================
+  # MCP Gateway (optional)
+  # =========================================================================
+  mcp-gateway:
+    image: ghcr.io/${GITHUB_REPOSITORY:-omeryasironal/akis-platform-devolopment}/akis-mcp-gateway:${MCP_VERSION:-latest}
+    container_name: akis-prod-mcp
+    restart: unless-stopped
+    profiles:
+      - mcp
+    expose:
+      - "4010"
+    environment:
+      PORT: "4010"
+      GITHUB_TOKEN: ${GITHUB_TOKEN:-}
+    networks:
+      - akis-prod
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:4010/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+networks:
+  akis-prod:
+    driver: bridge
+
+volumes:
+  pgdata:
+    name: akis-prod-pgdata
+  caddy_data:
+    name: akis-prod-caddy-data
+  caddy_config:
+    name: akis-prod-caddy-config
+  frontend_build:
+    name: akis-prod-frontend-build
