@@ -18,9 +18,20 @@ import { integrationsRoutes } from './api/integrations.js';
 import { testHelpersRoutes } from './api/test-helpers.js';
 import { settingsRoutes } from './api/settings/index.js';
 import { usageRoutes } from './api/usage.js';
+import { jobEventsRoutes } from './api/job-events.js';
+import { webhookRoutes, setWebhookOrchestrator } from './api/webhooks.js';
+import { triggersRoutes } from './api/triggers.js';
+import { registerPlaybookRoutes } from './api/playbooks.js';
 import { AgentOrchestrator } from './core/orchestrator/AgentOrchestrator.js';
 import { createAIService } from './services/ai/AIService.js';
 import type { MCPTools } from './services/mcp/adapters/index.js';
+import { StaleJobWatchdog } from './core/watchdog/StaleJobWatchdog.js';
+
+const QUIET_ROUTES = new Set([
+  '/api/agents/jobs/running',
+  '/health',
+  '/ready',
+]);
 
 /**
  * Build Fastify app instance (for testing and production)
@@ -58,6 +69,11 @@ export async function buildApp() {
   // Phase 5.D: Create orchestrator with DI
   const orchestrator = new AgentOrchestrator({}, aiService, mcpTools);
   setOrchestrator(orchestrator);
+  setWebhookOrchestrator(orchestrator);
+
+  // Start stale job watchdog
+  const watchdog = new StaleJobWatchdog();
+  watchdog.start();
 
   // Phase 7.A: Enable structured logging with request-id
   const isTest = process.env.NODE_ENV === 'test';
@@ -105,8 +121,8 @@ export async function buildApp() {
       duration
     );
 
-    // Log essential request fields
-    if (app.log) {
+    const routePath = request.routerPath || request.url.split('?')[0];
+    if (app.log && !QUIET_ROUTES.has(routePath)) {
       app.log.info({
         method: request.method,
         url: request.url,
@@ -154,6 +170,10 @@ export async function buildApp() {
   await app.register(integrationsRoutes);
   await app.register(settingsRoutes, { prefix: '/api' });
   await app.register(usageRoutes);
+  await app.register(jobEventsRoutes);
+  await app.register(webhookRoutes);
+  await app.register(triggersRoutes);
+  await app.register(registerPlaybookRoutes);
   if (env.NODE_ENV !== 'production' && process.env.SCRIBE_DEV_GITHUB_BOOTSTRAP === 'true') {
     await app.register(testHelpersRoutes, { prefix: '/test' });
   }
