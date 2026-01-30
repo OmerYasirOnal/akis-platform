@@ -217,4 +217,48 @@ describe('DashboardAgentScribePage', () => {
       expect(screen.getByText(/MCP-powered workflow/i)).toBeInTheDocument();
     });
   });
+
+  it('renders doc pack configuration controls', async () => {
+    renderWithRouter(<DashboardAgentScribePage />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/Documentation Pack/i)).toBeInTheDocument();
+    });
+
+    // Pack dropdown should be present with default "Standard Docs"
+    const packSelect = screen.getByDisplayValue('Standard Docs');
+    expect(packSelect).toBeInTheDocument();
+
+    // Depth buttons
+    expect(screen.getByRole('button', { name: /Lite/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Standard/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Deep/i })).toBeInTheDocument();
+
+    // Budget indicator
+    expect(screen.getByText(/~16K/)).toBeInTheDocument();
+    expect(screen.getByText(/tokens/i)).toBeInTheDocument();
+
+    // Output target checkboxes - default standard targets should be checked
+    expect(screen.getByText('README')).toBeInTheDocument();
+    expect(screen.getByText('ARCHITECTURE')).toBeInTheDocument();
+    expect(screen.getByText('API')).toBeInTheDocument();
+    expect(screen.getByText('DEVELOPMENT')).toBeInTheDocument();
+  });
+
+  it('updates output targets when doc pack changes', async () => {
+    renderWithRouter(<DashboardAgentScribePage />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/Documentation Pack/i)).toBeInTheDocument();
+    });
+
+    // Change to "Deep Doc Pack"
+    const packSelect = screen.getByDisplayValue('Standard Docs');
+    fireEvent.change(packSelect, { target: { value: 'full' } });
+
+    await waitFor(() => {
+      // Should show 2-pass badge
+      expect(screen.getByText(/2-pass/i)).toBeInTheDocument();
+    });
+  });
 });
