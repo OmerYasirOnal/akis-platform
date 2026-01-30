@@ -613,11 +613,6 @@ export class AgentOrchestrator {
       }
 
       // Auto-complete on success - MUST happen even if flush/metrics failed
-      jobEventBus.emitJobEvent(jobId, { phase: 'done', message: 'Job completed successfully', ts: new Date().toISOString() });
-      // S2.0.3: Emit completed stage event
-      traceRecorder.emitStage('completed', 'completed', 'Job completed successfully');
-      // S2.0.3: Cleanup TraceRecorder resources
-      traceRecorder.destroy();
       await this.completeJob(jobId, finalResult);
     } catch (error) {
       // S1.1: Record error in trace and flush before failing
