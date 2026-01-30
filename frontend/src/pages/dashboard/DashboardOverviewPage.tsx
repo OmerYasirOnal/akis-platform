@@ -33,7 +33,7 @@ function UsageTabContent() {
             No recent activity yet. Start an agent run to populate this feed.
           </p>
           <Link
-            to="/dashboard/agents"
+            to="/agents"
             className="mt-3 inline-flex items-center gap-1 text-sm font-medium text-ak-primary hover:underline"
           >
             Run your first agent <ArrowRightIcon />
@@ -141,7 +141,7 @@ const DashboardOverviewPage = () => {
         </div>
         <Button
           as={Link}
-          to="/dashboard/agents"
+          to="/agents"
           className="gap-2 w-full sm:w-auto justify-center"
         >
           <AgentsIcon />
@@ -152,7 +152,7 @@ const DashboardOverviewPage = () => {
       {/* Quick Actions */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {[
-          { to: '/dashboard/agents', label: 'Agents Hub', color: 'text-ak-primary' },
+          { to: '/agents', label: 'Agents Hub', color: 'text-ak-primary' },
           { to: '/dashboard/jobs', label: 'Jobs', color: 'text-ak-text-secondary' },
           { to: '/dashboard/integrations', label: 'Integrations', color: 'text-ak-text-secondary' },
           { to: '/dashboard/settings/profile', label: 'Settings', color: 'text-ak-text-secondary' },

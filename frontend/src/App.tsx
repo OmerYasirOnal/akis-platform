@@ -2,6 +2,7 @@ import { useEffect, lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import AppShell from './components/AppShell';
 import { DashboardLayout } from './components/layout';
+import { AgentsLayout } from './components/layout/AgentsLayout';
 import { ProtectedRoute, RequireRole } from './app/RouteGuards';
 import { AuthProvider } from './contexts/AuthContext';
 import { useI18n } from './i18n/useI18n';
@@ -27,12 +28,10 @@ import JobsListPage from './pages/JobsListPage';
 import JobDetailPage from './pages/JobDetailPage';
 import { ErrorBoundary } from './components/ErrorBoundary';
 
-// Lazy loaded public pages
 const PricingPage = lazy(() => import('./pages/public/PricingPage'));
 const BlogIndexPage = lazy(() => import('./pages/public/BlogIndexPage'));
 const LearnLandingPage = lazy(() => import('./pages/public/LearnLandingPage'));
 
-// Lazy loaded docs pages
 const DocsLayout = lazy(() => import('./components/docs/DocsLayout'));
 const DocsIndexPage = lazy(() => import('./pages/docs/DocsIndexPage'));
 const GettingStartedPage = lazy(() => import('./pages/docs/GettingStartedPage'));
@@ -52,12 +51,10 @@ const BestPracticesPage = lazy(() => import('./pages/docs/guides/BestPracticesPa
 const TroubleshootingPage = lazy(() => import('./pages/docs/guides/TroubleshootingPage'));
 const SelfHostingPage = lazy(() => import('./pages/docs/guides/SelfHostingPage'));
 
-// Lazy loaded dashboard pages
 const IntegrationsHubPage = lazy(() => import('./pages/dashboard/integrations/IntegrationsHubPage'));
 const DashboardSettingsAiKeysPage = lazy(() => import('./pages/dashboard/settings/DashboardSettingsAiKeysPage'));
 const AgentsHubPage = lazy(() => import('./pages/dashboard/agents/AgentsHubPage'));
 
-// Loading fallback for lazy loaded pages
 const PageLoader = () => (
   <div className="flex min-h-[200px] items-center justify-center">
     <div className="h-8 w-8 animate-spin rounded-full border-2 border-ak-primary border-t-transparent" />
@@ -75,43 +72,17 @@ function App() {
     <BrowserRouter>
       <AuthProvider>
         <Routes>
-          {/* Public Routes with AppShell */}
+          {/* Public Routes */}
           <Route element={<AppShell />}>
             <Route index element={<LandingPage />} />
             <Route path="about" element={<AboutAKIS />} />
-            
-            {/* New Public Pages */}
-            <Route
-              path="pricing"
-              element={
-                <Suspense fallback={<PageLoader />}>
-                  <PricingPage />
-                </Suspense>
-              }
-            />
-            <Route
-              path="blog"
-              element={
-                <Suspense fallback={<PageLoader />}>
-                  <BlogIndexPage />
-                </Suspense>
-              }
-            />
-            <Route
-              path="learn"
-              element={
-                <Suspense fallback={<PageLoader />}>
-                  <LearnLandingPage />
-                </Suspense>
-              }
-            />
-            
+            <Route path="pricing" element={<Suspense fallback={<PageLoader />}><PricingPage /></Suspense>} />
+            <Route path="blog" element={<Suspense fallback={<PageLoader />}><BlogIndexPage /></Suspense>} />
+            <Route path="learn" element={<Suspense fallback={<PageLoader />}><LearnLandingPage /></Suspense>} />
             <Route path="legal">
               <Route path="terms" element={<LegalTermsPage />} />
               <Route path="privacy" element={<LegalPrivacyPage />} />
             </Route>
-
-            {/* Auth Routes - Multi-Step Flow (UNCHANGED) */}
             <Route path="login">
               <Route index element={<LoginEmail />} />
               <Route path="password" element={<LoginPassword />} />
@@ -127,7 +98,26 @@ function App() {
             </Route>
           </Route>
 
-          {/* Dashboard Routes with DashboardLayout */}
+          {/* Agents — top-level route */}
+          <Route
+            path="/agents"
+            element={
+              <ProtectedRoute>
+                <AgentsLayout />
+              </ProtectedRoute>
+            }
+          >
+            <Route
+              index
+              element={
+                <Suspense fallback={<PageLoader />}>
+                  <AgentsHubPage />
+                </Suspense>
+              }
+            />
+          </Route>
+
+          {/* Dashboard Routes */}
           <Route
             path="/dashboard"
             element={
@@ -150,19 +140,9 @@ function App() {
                 }
               />
             </Route>
-            <Route path="agents">
-              <Route
-                index
-                element={
-                  <Suspense fallback={<PageLoader />}>
-                    <AgentsHubPage />
-                  </Suspense>
-                }
-              />
-              <Route path="scribe" element={<Navigate to="/dashboard/scribe" replace />} />
-            </Route>
-            
-            {/* Integrations Hub (New) */}
+            {/* Legacy redirect: /dashboard/agents -> /agents */}
+            <Route path="agents" element={<Navigate to="/agents" replace />} />
+            <Route path="agents/*" element={<Navigate to="/agents" replace />} />
             <Route
               path="integrations"
               element={
@@ -171,14 +151,11 @@ function App() {
                 </Suspense>
               }
             />
-            
-            {/* Settings Routes */}
             <Route path="settings">
               <Route index element={<Navigate to="profile" replace />} />
               <Route path="profile" element={<DashboardSettingsProfilePage />} />
               <Route path="workspace" element={<DashboardSettingsWorkspacePage />} />
               <Route path="api-keys" element={<DashboardSettingsApiKeysPage />} />
-              {/* New AI Keys Page */}
               <Route
                 path="ai-keys"
                 element={
@@ -195,41 +172,29 @@ function App() {
                   </RequireRole>
                 }
               />
-              <Route
-                path="notifications"
-                element={<DashboardSettingsNotificationsPage />}
-              />
+              <Route path="notifications" element={<DashboardSettingsNotificationsPage />} />
             </Route>
           </Route>
 
-          {/* Docs Routes with DocsLayout (separate from AppShell) */}
+          {/* Docs */}
           <Route
             path="/docs"
-            element={
-              <Suspense fallback={<PageLoader />}>
-                <DocsLayout />
-              </Suspense>
-            }
+            element={<Suspense fallback={<PageLoader />}><DocsLayout /></Suspense>}
           >
             <Route index element={<Suspense fallback={<PageLoader />}><DocsIndexPage /></Suspense>} />
             <Route path="getting-started" element={<Suspense fallback={<PageLoader />}><GettingStartedPage /></Suspense>} />
-            {/* Agents */}
             <Route path="agents/scribe" element={<Suspense fallback={<PageLoader />}><ScribeDocsPage /></Suspense>} />
             <Route path="agents/trace" element={<Suspense fallback={<PageLoader />}><TraceDocsPage /></Suspense>} />
             <Route path="agents/proto" element={<Suspense fallback={<PageLoader />}><ProtoDocsPage /></Suspense>} />
-            {/* Integrations */}
             <Route path="integrations/github" element={<Suspense fallback={<PageLoader />}><GitHubDocsPage /></Suspense>} />
             <Route path="integrations/mcp" element={<Suspense fallback={<PageLoader />}><MCPDocsPage /></Suspense>} />
             <Route path="integrations/atlassian" element={<Suspense fallback={<PageLoader />}><AtlassianDocsPage /></Suspense>} />
-            {/* Security */}
             <Route path="security/api-keys" element={<Suspense fallback={<PageLoader />}><ApiKeysDocsPage /></Suspense>} />
             <Route path="security/oauth" element={<Suspense fallback={<PageLoader />}><OAuthDocsPage /></Suspense>} />
             <Route path="security/privacy" element={<Suspense fallback={<PageLoader />}><PrivacyDocsPage /></Suspense>} />
-            {/* API */}
             <Route path="api/rest" element={<Suspense fallback={<PageLoader />}><RestApiDocsPage /></Suspense>} />
             <Route path="api/auth" element={<Suspense fallback={<PageLoader />}><AuthDocsPage /></Suspense>} />
             <Route path="api/webhooks" element={<Suspense fallback={<PageLoader />}><WebhooksDocsPage /></Suspense>} />
-            {/* Guides */}
             <Route path="guides/best-practices" element={<Suspense fallback={<PageLoader />}><BestPracticesPage /></Suspense>} />
             <Route path="guides/troubleshooting" element={<Suspense fallback={<PageLoader />}><TroubleshootingPage /></Suspense>} />
             <Route path="guides/self-hosting" element={<Suspense fallback={<PageLoader />}><SelfHostingPage /></Suspense>} />
