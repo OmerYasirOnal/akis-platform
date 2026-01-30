@@ -56,6 +56,7 @@ const navGroups: NavGroup[] = [
     title: 'Main',
     items: [
       { to: '/dashboard', label: 'Overview', icon: <HomeIcon />, end: true },
+      { to: '/dashboard/agents', label: 'Agents Hub', icon: <AgentsIcon /> },
       { to: '/dashboard/jobs', label: 'Jobs', icon: <ListIcon /> },
       { to: '/dashboard/integrations', label: 'Integrations', icon: <LinkIcon /> },
     ],
@@ -71,7 +72,9 @@ const navGroups: NavGroup[] = [
 ];
 
 interface DashboardSidebarProps {
+  userEmail?: string;
   workspaceName?: string;
+  collapsed?: boolean;
   onNavClick?: () => void;
 }
 
@@ -85,8 +88,9 @@ export function DashboardSidebar({
         <Logo size="nav" />
       </div>
 
-      <div className="mx-3 mb-3 rounded-lg bg-ak-surface-2/50 px-3 py-2">
-        <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-ak-text-secondary/50">
+      {/* Workspace Info */}
+      <div className="mx-4 mb-4 rounded-xl bg-ak-surface-2/60 px-4 py-3">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-ak-text-secondary/60">
           Workspace
         </p>
         <p className="mt-0.5 truncate text-sm font-medium text-ak-text-primary">
@@ -94,10 +98,11 @@ export function DashboardSidebar({
         </p>
       </div>
 
-      <nav className="flex-1 overflow-y-auto px-3 py-1">
+      {/* Navigation */}
+      <nav className="flex-1 overflow-y-auto px-4 py-2">
         {navGroups.map((group, idx) => (
-          <div key={group.title} className={cn(idx > 0 && 'mt-5')}>
-            <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-[0.15em] text-ak-text-secondary/50">
+          <div key={group.title} className={cn(idx > 0 && 'mt-6')}>
+            <p className="mb-2 px-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-ak-text-secondary/60">
               {group.title}
             </p>
             <ul className="space-y-0.5">
@@ -109,7 +114,7 @@ export function DashboardSidebar({
                     onClick={onNavClick}
                     className={({ isActive }) =>
                       cn(
-                        'flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] font-medium transition-colors',
+                        'flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-150',
                         isActive
                           ? 'bg-ak-primary/10 text-ak-primary'
                           : 'text-ak-text-secondary hover:bg-ak-surface-2 hover:text-ak-text-primary'
@@ -126,9 +131,10 @@ export function DashboardSidebar({
         ))}
       </nav>
 
-      <div className="p-3">
-        <p className="text-center text-[10px] text-ak-text-secondary/30">
-          AKIS v0.1
+      {/* Footer */}
+      <div className="p-4">
+        <p className="text-center text-[10px] text-ak-text-secondary/40">
+          AKIS Platform v0.1
         </p>
       </div>
     </div>
