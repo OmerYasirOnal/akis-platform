@@ -645,28 +645,46 @@ export class TraceRecorder {
    * Flush all pending traces and artifacts to the database
    */
   async flush(): Promise<void> {
-    try {
-      // Insert traces
-      if (this.pendingTraces.length > 0) {
+    const errors: Array<{ stage: string; error: unknown }> = [];
+
+    // Insert traces
+    if (this.pendingTraces.length > 0) {
+      try {
         await db.insert(jobTraces).values(this.pendingTraces);
         this.pendingTraces = [];
+      } catch (error) {
+        errors.push({ stage: 'traces', error });
+        console.error(`[TraceRecorder] Failed to flush ${this.pendingTraces.length} traces for job ${this.jobId}:`, error);
       }
-      
-      // Insert artifacts
-      if (this.pendingArtifacts.length > 0) {
+    }
+
+    // Insert artifacts
+    if (this.pendingArtifacts.length > 0) {
+      try {
         await db.insert(jobArtifacts).values(this.pendingArtifacts);
         this.pendingArtifacts = [];
+      } catch (error) {
+        errors.push({ stage: 'artifacts', error });
+        console.error(`[TraceRecorder] Failed to flush ${this.pendingArtifacts.length} artifacts for job ${this.jobId}:`, error);
       }
+    }
 
-      // Insert AI call metrics (per-call breakdown)
-      if (this.pendingAiCalls.length > 0) {
+    // Insert AI call metrics (per-call breakdown)
+    if (this.pendingAiCalls.length > 0) {
+      try {
         await db.insert(jobAiCalls).values(this.pendingAiCalls);
         console.log(`[TraceRecorder] Flushed ${this.pendingAiCalls.length} AI call records for job ${this.jobId}`);
         this.pendingAiCalls = [];
+      } catch (error) {
+        errors.push({ stage: 'aiCalls', error });
+        console.error(`[TraceRecorder] Failed to flush ${this.pendingAiCalls.length} AI calls for job ${this.jobId}:`, error);
       }
-    } catch (error) {
-      console.error('Failed to flush traces/artifacts/ai-calls:', error);
-      // Don't throw - tracing should not break job execution
+    }
+
+    // Propagate if any stage failed (caller decides whether to ignore)
+    if (errors.length > 0) {
+      const stages = errors.map(e => e.stage).join(', ');
+      throw new Error(`TraceRecorder flush failed for stages: ${stages}`);
     }
   }
 

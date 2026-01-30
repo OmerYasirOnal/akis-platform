@@ -217,8 +217,8 @@ export class ScribeAgent extends BaseAgent {
     maxFiles: 50,
     // Maximum bytes per file (truncate larger files)
     maxBytesPerFile: 20000,
-    // Preview length for AI prompt injection
-    previewLength: 3000,
+    // Preview length for AI prompt injection (increased for richer context)
+    previewLength: 4000,
   };
 
   /**
@@ -457,17 +457,29 @@ export class ScribeAgent extends BaseAgent {
       // Read files based on project type
       if (projectType === 'node-express' || projectType === 'node-generic') {
         // Check for routes/public directories
-        if (rootDirs.has('routes')) {
-          const routesListing = await this.listDirectorySafe(owner, repo, branch, 'routes');
-          if (routesListing) {
-            for (const file of routesListing.filter(f => f.type === 'file').slice(0, 3)) {
-              filesToRead.push(`routes/${file.name}`);
+        const backendDirs = ['routes', 'controllers', 'api', 'lib', 'models', 'middleware'];
+        for (const dir of backendDirs) {
+          if (rootDirs.has(dir)) {
+            const listing = await this.listDirectorySafe(owner, repo, branch, dir);
+            if (listing) {
+              for (const file of listing.filter(f => f.type === 'file').slice(0, 3)) {
+                filesToRead.push(`${dir}/${file.name}`);
+              }
             }
           }
         }
         if (rootDirs.has('public')) {
-          // Only list, don't read binary files
           this.traceRecorder?.recordInfo('Found public/ directory');
+        }
+      }
+
+      // Scan docs/ directory for existing documentation
+      if (rootDirs.has('docs')) {
+        const docsListing = await this.listDirectorySafe(owner, repo, branch, 'docs');
+        if (docsListing) {
+          for (const file of docsListing.filter(f => f.type === 'file' && /\.(md|txt|rst)$/i.test(f.name)).slice(0, 5)) {
+            filesToRead.push(`docs/${file.name}`);
+          }
         }
       }
       

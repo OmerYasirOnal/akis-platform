@@ -235,7 +235,7 @@ export const RunSummaryPanel = ({ job, traces }: RunSummaryPanelProps) => {
   }
 
   return (
-    <div className="bg-ak-surface-2 shadow rounded-lg p-6 mb-6 border border-ak-border">
+    <div className="bg-ak-surface-2 shadow-ak-elevation-1 rounded-2xl p-6 mb-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-lg font-semibold text-ak-text-primary">Run Summary</h2>

@@ -549,31 +549,40 @@ export class AgentOrchestrator {
         }
       }
 
-      // S1.1: Flush trace recorder before completing
-      await traceRecorder.flush();
+      // S1.1: Flush trace recorder before completing (best-effort - don't block completion)
+      try {
+        await traceRecorder.flush();
+      } catch (flushError) {
+        console.error(`[Orchestrator] Trace flush failed for job ${jobId}, continuing to completion:`, flushError);
+      }
 
+      // Persist AI metrics (best-effort)
       if (aiMetrics) {
-        const aiTotals = aiMetrics.getTotals();
-        const hasAiMetrics =
-          aiTotals.totalDurationMs > 0 ||
-          aiTotals.totalTokens > 0 ||
-          aiTotals.estimatedCostUsd !== null;
+        try {
+          const aiTotals = aiMetrics.getTotals();
+          const hasAiMetrics =
+            aiTotals.totalDurationMs > 0 ||
+            aiTotals.totalTokens > 0 ||
+            aiTotals.estimatedCostUsd !== null;
 
-        if (hasAiMetrics) {
-          await db
-            .update(jobs)
-            .set({
-              aiTotalDurationMs: aiTotals.totalDurationMs,
-              aiInputTokens: aiTotals.totalInputTokens,
-              aiOutputTokens: aiTotals.totalOutputTokens,
-              aiTotalTokens: aiTotals.totalTokens,
-              aiEstimatedCostUsd: aiTotals.estimatedCostUsd !== null && aiTotals.estimatedCostUsd !== undefined ? String(aiTotals.estimatedCostUsd) : null,
-            })
-            .where(eq(jobs.id, jobId));
+          if (hasAiMetrics) {
+            await db
+              .update(jobs)
+              .set({
+                aiTotalDurationMs: aiTotals.totalDurationMs,
+                aiInputTokens: aiTotals.totalInputTokens,
+                aiOutputTokens: aiTotals.totalOutputTokens,
+                aiTotalTokens: aiTotals.totalTokens,
+                aiEstimatedCostUsd: aiTotals.estimatedCostUsd !== null && aiTotals.estimatedCostUsd !== undefined ? String(aiTotals.estimatedCostUsd) : null,
+              })
+              .where(eq(jobs.id, jobId));
+          }
+        } catch (metricsError) {
+          console.warn(`[Orchestrator] Failed to persist AI metrics for job ${jobId}:`, metricsError);
         }
       }
-      
-      // Auto-complete on success
+
+      // Auto-complete on success - MUST happen even if flush/metrics failed
       await this.completeJob(jobId, finalResult);
     } catch (error) {
       // S1.1: Record error in trace and flush before failing

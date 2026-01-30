@@ -238,7 +238,7 @@ export function PRMetadataCard({ result, payload, isDryRun, jobState }: PRMetada
 
   return (
     <div 
-      className="bg-ak-surface-2 border border-ak-border rounded-lg overflow-hidden"
+      className="bg-ak-surface-2 shadow-ak-elevation-1 rounded-2xl overflow-hidden"
       data-testid="pr-metadata-card"
     >
       {/* Header */}

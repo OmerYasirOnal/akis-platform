@@ -266,13 +266,17 @@ export default function JobDetailPage() {
 
   // Auto-refresh if job is not in terminal state
   useEffect(() => {
-    if (!job || job.state === 'completed' || job.state === 'failed') {
+    if (!job || job.state === 'completed' || job.state === 'failed' || job.state === 'awaiting_approval') {
       return;
     }
 
+    // Progressive backoff: 2s for first 30s, then 5s
+    const elapsed = job.createdAt ? Date.now() - new Date(job.createdAt).getTime() : 0;
+    const pollInterval = elapsed > 30000 ? 5000 : 2000;
+
     const interval = setInterval(() => {
       loadJob();
-    }, 2000);
+    }, pollInterval);
 
     return () => clearInterval(interval);
   }, [job, loadJob]);
