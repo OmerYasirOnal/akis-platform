@@ -34,6 +34,7 @@ export type AIErrorCode =
   | 'AI_NETWORK_ERROR'
   | 'AI_AUTH_ERROR'
   | 'AI_KEY_MISSING'
+  | 'AI_MODEL_NOT_FOUND'
   | 'MODEL_NOT_ALLOWED';
 
 /**

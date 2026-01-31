@@ -293,49 +293,122 @@ export interface AIConfig {
 }
 
 /**
- * Get resolved AI configuration with legacy variable fallbacks.
- * Priority: AI_* variables take precedence over legacy OPENROUTER_* or OPENAI_* variables.
+ * Detect provider from model ID pattern.
+ * OpenRouter: contains '/', ':free', ':nitro'
+ * OpenAI: starts with 'gpt-', 'o1', 'o3', 'text-', 'davinci'
+ */
+function detectProviderFromModel(model: string): 'openai' | 'openrouter' | null {
+  if (model.startsWith('gpt-') || model.startsWith('o1') || 
+      model.startsWith('o3') || model.startsWith('text-') || 
+      model.startsWith('davinci')) {
+    return 'openai';
+  }
+  if (model.includes('/') || model.includes(':free') || model.includes(':nitro')) {
+    return 'openrouter';
+  }
+  return null;
+}
+
+/**
+ * Detect provider from API key prefix.
+ * OpenRouter keys start with 'sk-or-'
+ * OpenAI keys start with 'sk-' (but not 'sk-or-')
+ */
+function detectProviderFromKey(key: string): 'openai' | 'openrouter' | null {
+  if (key.startsWith('sk-or-')) return 'openrouter';
+  if (key.startsWith('sk-')) return 'openai';
+  return null;
+}
+
+/**
+ * Get resolved AI configuration with strict provider consistency.
+ * 
+ * CRITICAL: The provider value is AUTHORITATIVE. Base URL and models
+ * are determined by provider, not by env overrides that might conflict.
+ * 
+ * If env has AI_PROVIDER=openai but AI_BASE_URL=openrouter.ai, we use
+ * the OpenAI base URL (api.openai.com) because provider is authoritative.
+ * 
+ * Priority for provider detection:
+ * 1. AI_PROVIDER env var (if set and not 'mock')
+ * 2. Auto-detect from API key prefix
+ * 3. Auto-detect from model names
+ * 4. Default to 'mock'
  */
 export function getAIConfig(env: Env): AIConfig {
-  const provider = env.AI_PROVIDER;
+  // Provider-specific defaults
+  const OPENAI_DEFAULTS = {
+    baseUrl: 'https://api.openai.com/v1',
+    model: 'gpt-4o-mini',
+  };
   
-  // Resolve API key based on provider
-  let apiKey: string | undefined;
-  if (provider === 'openrouter') {
-    apiKey = env.AI_API_KEY || env.OPENROUTER_API_KEY;
-  } else if (provider === 'openai') {
-    apiKey = env.AI_API_KEY || env.OPENAI_API_KEY;
-  } else {
-    apiKey = env.AI_API_KEY;
+  const OPENROUTER_DEFAULTS = {
+    baseUrl: 'https://openrouter.ai/api/v1',
+    model: 'anthropic/claude-sonnet-4',
+  };
+  
+  // Step 1: Resolve API key (needed for provider detection)
+  const apiKey = env.AI_API_KEY || env.OPENROUTER_API_KEY || env.OPENAI_API_KEY;
+  
+  // Step 2: Determine provider with validation
+  let provider: 'openrouter' | 'openai' | 'mock' = env.AI_PROVIDER;
+  
+  // Auto-detect provider if set to mock but we have a real key
+  if (provider === 'mock' && apiKey) {
+    const keyProvider = detectProviderFromKey(apiKey);
+    if (keyProvider) {
+      provider = keyProvider;
+      console.log(`[getAIConfig] Auto-detected provider from API key: ${provider}`);
+    }
   }
   
-  // Resolve base URL based on provider
+  // Warn if provider doesn't match API key pattern
+  if (apiKey && provider !== 'mock') {
+    const keyProvider = detectProviderFromKey(apiKey);
+    if (keyProvider && keyProvider !== provider) {
+      console.warn(`[getAIConfig] WARNING: AI_PROVIDER=${provider} but API key looks like ${keyProvider} key. Using ${provider} anyway.`);
+    }
+  }
+  
+  // Step 3: Resolve base URL STRICTLY based on provider (ignore conflicting overrides)
   let baseUrl: string;
   if (provider === 'openrouter') {
-    baseUrl = env.AI_BASE_URL || env.OPENROUTER_BASE_URL || 'https://openrouter.ai/api/v1';
+    // Only use env override if it's an OpenRouter URL
+    const envUrl = env.AI_BASE_URL || env.OPENROUTER_BASE_URL;
+    baseUrl = (envUrl && envUrl.includes('openrouter.ai')) ? envUrl : OPENROUTER_DEFAULTS.baseUrl;
   } else if (provider === 'openai') {
-    baseUrl = env.AI_BASE_URL || env.OPENAI_BASE_URL || 'https://api.openai.com/v1';
+    // Only use env override if it's NOT an OpenRouter URL
+    const envUrl = env.AI_BASE_URL || env.OPENAI_BASE_URL;
+    baseUrl = (envUrl && !envUrl.includes('openrouter.ai')) ? envUrl : OPENAI_DEFAULTS.baseUrl;
   } else {
-    baseUrl = env.AI_BASE_URL || 'https://openrouter.ai/api/v1';
+    baseUrl = 'mock://localhost';
   }
   
-  // Resolve models with legacy fallbacks
-  // Default model for worker/generation tasks
-  const legacyModel = provider === 'openrouter' 
-    ? env.OPENROUTER_MODEL 
-    : provider === 'openai' 
-      ? env.OPENAI_MODEL 
-      : undefined;
+  // Step 4: Resolve models with provider validation
+  const getValidatedModel = (envModel: string | undefined, defaultModel: string): string => {
+    if (!envModel) return defaultModel;
+    
+    const modelProvider = detectProviderFromModel(envModel);
+    
+    // If model clearly belongs to wrong provider, use default
+    if (modelProvider && modelProvider !== provider) {
+      console.warn(`[getAIConfig] Model "${envModel}" is for ${modelProvider}, but provider is ${provider}. Using default: ${defaultModel}`);
+      return defaultModel;
+    }
+    
+    return envModel;
+  };
   
-  const defaultModel = provider === 'openrouter'
-    ? 'meta-llama/llama-3.3-70b-instruct:free'
-    : provider === 'openai'
-      ? 'gpt-4o-mini'
-      : 'mock-model';
+  const providerDefault = provider === 'openai' ? OPENAI_DEFAULTS.model : 
+                          provider === 'openrouter' ? OPENROUTER_DEFAULTS.model : 
+                          'mock-model';
   
-  const modelDefault = env.AI_MODEL_DEFAULT || legacyModel || defaultModel;
-  const modelPlanner = env.AI_MODEL_PLANNER || legacyModel || defaultModel;
-  const modelValidation = env.AI_MODEL_VALIDATION || legacyModel || defaultModel;
+  const modelDefault = getValidatedModel(
+    env.AI_MODEL_DEFAULT || (provider === 'openrouter' ? env.OPENROUTER_MODEL : env.OPENAI_MODEL),
+    providerDefault
+  );
+  const modelPlanner = getValidatedModel(env.AI_MODEL_PLANNER, providerDefault);
+  const modelValidation = getValidatedModel(env.AI_MODEL_VALIDATION, providerDefault);
   
   // OpenRouter optional headers
   const siteUrl = env.OPENROUTER_SITE_URL;
