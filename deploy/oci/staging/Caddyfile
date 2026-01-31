@@ -74,9 +74,9 @@ staging.akisflow.com {
     }
 
     # =======================================================================
-    # OpenAPI documentation → Backend
+    # OpenAPI / Swagger UI → Backend (at /api/docs)
     # =======================================================================
-    handle /docs* {
+    handle /api/docs* {
         reverse_proxy backend:3000
     }
 

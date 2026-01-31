@@ -13,6 +13,14 @@
 		reverse_proxy backend:3000
 	}
 
+	# OpenAPI / Swagger UI → Backend
+	handle /api/docs* {
+		reverse_proxy backend:3000
+	}
+	handle /openapi.json {
+		reverse_proxy backend:3000
+	}
+
 	# Frontend SPA
 	handle {
 		root * /srv/frontend
