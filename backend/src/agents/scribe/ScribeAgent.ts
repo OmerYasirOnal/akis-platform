@@ -43,6 +43,8 @@ export interface ScribeTaskContext {
   maxOutputTokens?: number;
   /** Number of generation passes (1 or 2) */
   passes?: number;
+  /** Analyze last N commits/PRs for context (optional) */
+  analyzeLastNCommits?: number;
 }
 
 /**
