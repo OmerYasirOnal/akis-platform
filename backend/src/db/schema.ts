@@ -309,6 +309,7 @@ export const userStatusEnum = pgEnum('user_status', [
  * AI Provider enum for user settings
  */
 export const aiProviderEnum = pgEnum('ai_provider', ['openai', 'openrouter']);
+export const userRoleEnum = pgEnum('user_role', ['admin', 'member']);
 
 /**
  * Users table - stores user accounts for authentication
@@ -324,6 +325,8 @@ export const users = pgTable('users', {
   hasSeenBetaWelcome: boolean('has_seen_beta_welcome').default(false).notNull(),
   /** User's active AI provider for Scribe and other AI features */
   activeAiProvider: aiProviderEnum('active_ai_provider').default('openrouter'),
+  /** User role for access control */
+  role: userRoleEnum('role').notNull().default('member'),
   createdAt: timestamp('created_at', { withTimezone: false }).defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: false }).defaultNow(),
 }, (table) => ({
@@ -678,3 +681,51 @@ export const usageCounters = pgTable('usage_counters', {
 }));
 
 export type UsageCounter = typeof usageCounters.$inferSelect;
+
+// ============================================================================
+// Billing Admin
+// ============================================================================
+
+/**
+ * Workspace-level billing settings (singleton — one row)
+ */
+export const workspaceBillingSettings = pgTable('workspace_billing_settings', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  monthlyBudgetUsd: numeric('monthly_budget_usd', { precision: 10, scale: 2 }),
+  softThresholdPct: numeric('soft_threshold_pct', { precision: 3, scale: 2 }).notNull().default('0.80'),
+  hardStopEnabled: boolean('hard_stop_enabled').notNull().default(true),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+export type WorkspaceBillingSettings = typeof workspaceBillingSettings.$inferSelect;
+
+/**
+ * Per-user billing overrides (admin can set per-user budgets or unlimited)
+ */
+export const userBillingOverrides = pgTable('user_billing_overrides', {
+  userId: uuid('user_id').primaryKey().references(() => users.id),
+  monthlyBudgetUsd: numeric('monthly_budget_usd', { precision: 10, scale: 2 }),
+  isUnlimited: boolean('is_unlimited').notNull().default(false),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+export type UserBillingOverride = typeof userBillingOverrides.$inferSelect;
+
+/**
+ * Billing notifications (threshold warnings, limit reached, etc.)
+ */
+export const billingNotifications = pgTable('billing_notifications', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').references(() => users.id),
+  type: varchar('type', { length: 50 }).notNull(),
+  payload: jsonb('payload').notNull().default({}),
+  readAt: timestamp('read_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  userIdx: index('idx_billing_notifications_user').on(table.userId),
+  typeDateIdx: index('idx_billing_notifications_type_date').on(table.type, table.createdAt),
+}));
+
+export type BillingNotification = typeof billingNotifications.$inferSelect;
