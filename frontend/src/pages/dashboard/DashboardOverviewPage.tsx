@@ -152,15 +152,19 @@ const DashboardOverviewPage = () => {
       {/* Quick Actions */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {[
-          { to: '/agents', label: 'Agents Hub', color: 'text-ak-primary' },
-          { to: '/dashboard/jobs', label: 'Jobs', color: 'text-ak-text-secondary' },
-          { to: '/dashboard/integrations', label: 'Integrations', color: 'text-ak-text-secondary' },
-          { to: '/dashboard/settings/profile', label: 'Settings', color: 'text-ak-text-secondary' },
+          { to: '/agents', label: 'Agents Hub', primary: true },
+          { to: '/dashboard/jobs', label: 'Jobs', primary: false },
+          { to: '/dashboard/integrations', label: 'Integrations', primary: false },
+          { to: '/dashboard/settings/profile', label: 'Settings', primary: false },
         ].map((item) => (
           <Link
             key={item.to}
             to={item.to}
-            className="flex items-center justify-center gap-2 rounded-xl border border-ak-border bg-ak-surface px-4 py-3 text-sm font-medium text-ak-text-primary transition-colors hover:bg-ak-surface-2"
+            className={`flex items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-medium transition-colors ${
+              item.primary
+                ? 'bg-ak-primary text-ak-bg hover:bg-ak-primary/90'
+                : 'border border-ak-border bg-ak-surface text-ak-text-primary hover:bg-ak-surface-2'
+            }`}
           >
             {item.label}
           </Link>

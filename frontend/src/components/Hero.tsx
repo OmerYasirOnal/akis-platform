@@ -1,7 +1,6 @@
 import { Link } from 'react-router-dom';
 import { useI18n } from '../i18n/useI18n';
 import Button from './common/Button';
-import GlassBackdrop from './GlassBackdrop';
 import Logo from './branding/Logo';
 
 /**
@@ -13,23 +12,20 @@ export default function Hero() {
 
   return (
     <section className="relative flex min-h-[90vh] flex-col items-center justify-center overflow-hidden px-4 py-24 sm:px-6 lg:px-8">
-      {/* Glass backdrop effect */}
-      <GlassBackdrop />
-
       {/* Content */}
-      <div className="relative z-10 mx-auto max-w-5xl text-center">
+      <div className="relative mx-auto max-w-5xl text-center">
         {/* Hero Logo */}
         <div className="mb-8 flex justify-center">
           <Logo size="hero" linkToHome={false} />
         </div>
 
         {/* Main Headline */}
-        <h1 className="mb-6 text-balance text-[clamp(40px,8vw,72px)] font-semibold leading-[1.1] tracking-tight text-[var(--text)]">
+        <h1 className="mb-6 text-balance text-[clamp(40px,8vw,72px)] font-semibold leading-[1.1] tracking-tight text-ak-text-primary">
           {t('hero.title')}
         </h1>
 
         {/* Subtitle */}
-        <p className="mx-auto mb-12 max-w-2xl text-balance text-[clamp(16px,2vw,20px)] leading-relaxed text-[var(--muted)]">
+        <p className="mx-auto mb-12 max-w-2xl text-balance text-[clamp(16px,2vw,20px)] leading-relaxed text-ak-text-secondary">
           {t('hero.sub')}
         </p>
 
@@ -45,14 +41,14 @@ export default function Hero() {
 
         {/* Trust signals */}
         <div className="mt-20 text-center">
-          <p className="mb-6 text-xs font-medium uppercase tracking-[0.2em] text-[var(--muted)]/60">
+          <p className="mb-6 text-xs font-medium uppercase tracking-[0.2em] text-ak-text-secondary">
             Trusted by development teams
           </p>
-          <div className="flex flex-wrap items-center justify-center gap-8 opacity-40 grayscale transition-opacity hover:opacity-60">
-            <span className="text-sm font-medium text-[var(--muted)]">TechCorp</span>
-            <span className="text-sm font-medium text-[var(--muted)]">DevTeam Inc</span>
-            <span className="text-sm font-medium text-[var(--muted)]">BuildFast</span>
-            <span className="text-sm font-medium text-[var(--muted)]">CodeLabs</span>
+          <div className="flex flex-wrap items-center justify-center gap-8 opacity-60 transition-opacity hover:opacity-80">
+            <span className="text-sm font-medium text-ak-text-secondary">TechCorp</span>
+            <span className="text-sm font-medium text-ak-text-secondary">DevTeam Inc</span>
+            <span className="text-sm font-medium text-ak-text-secondary">BuildFast</span>
+            <span className="text-sm font-medium text-ak-text-secondary">CodeLabs</span>
           </div>
         </div>
       </div>
