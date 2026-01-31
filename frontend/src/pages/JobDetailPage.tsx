@@ -81,13 +81,14 @@ function getErrorHint(errorCode?: string | null): ErrorHintInfo | null {
     '429': { hint: 'Rate limit exceeded.', action: 'Too many requests, please retry later' },
     '500': { hint: 'Internal server error.', action: 'An unexpected error occurred' },
     '502': { hint: 'Bad gateway.', action: 'MCP gateway or upstream service is unavailable' },
-    'AI_KEY_MISSING': { hint: 'AI API key is missing.', action: 'Add one in Settings → AI Keys', link: '/dashboard/settings/ai-keys' },
-    'MODEL_NOT_ALLOWED': { hint: 'Selected model is not allowlisted.', action: 'Choose a supported model', link: '/dashboard/settings/ai-keys' },
-    'AI_PROVIDER_ERROR': { hint: 'AI provider returned an error.', action: 'Check model configuration in Settings → AI Keys', link: '/dashboard/settings/ai-keys' },
-    'AI_RATE_LIMITED': { hint: 'AI provider rate limit reached.', action: 'Wait a few minutes or upgrade your plan' },
-    'AI_INVALID_REQUEST': { hint: 'Invalid request to AI provider.', action: 'Check model name and parameters' },
-    'AI_MODEL_NOT_FOUND': { hint: 'Requested AI model not found.', action: 'Select a supported model in Settings', link: '/dashboard/settings/ai-keys' },
-    'AI_CONTEXT_LENGTH': { hint: 'Context too long for model.', action: 'Reduce scope or use a model with larger context' },
+    'AI_KEY_MISSING': { hint: 'AI API key is missing.', action: 'Add an API key for your chosen provider in Settings → AI Keys', link: '/dashboard/settings/ai-keys' },
+    'MODEL_NOT_ALLOWED': { hint: 'Selected model is not in the allowlist.', action: 'Choose a supported model from the dropdown or update AI_SCRIBE_MODEL_ALLOWLIST', link: '/dashboard/settings/ai-keys' },
+    'AI_PROVIDER_ERROR': { hint: 'AI provider returned an error. This usually means the model is not available or the API key is invalid.', action: '1) Verify your API key is valid. 2) Select a supported model. 3) Check provider status.', link: '/dashboard/settings/ai-keys' },
+    'AI_RATE_LIMITED': { hint: 'AI provider rate limit reached.', action: 'Wait a few minutes before retrying, or upgrade your API plan' },
+    'AI_INVALID_REQUEST': { hint: 'Invalid request to AI provider.', action: 'The model name or parameters may be incorrect. Try a different model.' },
+    'AI_MODEL_NOT_FOUND': { hint: 'Requested AI model not found on the provider.', action: 'The model may be deprecated or renamed. Select a supported model.', link: '/dashboard/settings/ai-keys' },
+    'AI_CONTEXT_LENGTH': { hint: 'Input too long for the selected model.', action: 'Reduce the scope of your request or use a model with a larger context window' },
+    'AI_AUTH_ERROR': { hint: 'Authentication failed with AI provider.', action: 'Your API key may be invalid or expired. Update it in Settings.', link: '/dashboard/settings/ai-keys' },
   };
   const code = String(errorCode);
   const hintInfo = hints[code] || hints[code.toUpperCase()];
