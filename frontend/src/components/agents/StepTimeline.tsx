@@ -548,7 +548,7 @@ export function StepTimeline({ traces }: StepTimelineProps) {
   if (traces.length === 0) {
     return (
       <div className="text-center py-12" data-testid="timeline-empty">
-        <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-ak-surface-2 border border-ak-border mb-4">
+        <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-ak-surface-2 shadow-ak-elevation-1 mb-4">
           <span className="text-3xl">📋</span>
         </div>
         <h3 className="text-lg font-medium text-ak-text-primary mb-2">No Execution Trace Yet</h3>

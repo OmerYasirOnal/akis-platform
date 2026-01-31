@@ -13,6 +13,7 @@ export interface AuthenticatedUser {
   id: string;
   email: string;
   name: string;
+  role: 'admin' | 'member';
 }
 
 /**
@@ -44,10 +45,20 @@ export async function requireAuth(request: FastifyRequest): Promise<Authenticate
       id: user.id,
       email: user.email,
       name: user.name,
+      role: (user as { role?: string }).role === 'admin' ? 'admin' : 'member',
     };
   } catch {
     throw new Error('UNAUTHORIZED');
   }
 }
 
-
+/**
+ * Require admin role. Throws Error('FORBIDDEN') if not admin.
+ */
+export async function requireAdmin(request: FastifyRequest): Promise<AuthenticatedUser> {
+  const user = await requireAuth(request);
+  if (user.role !== 'admin') {
+    throw new Error('FORBIDDEN');
+  }
+  return user;
+}

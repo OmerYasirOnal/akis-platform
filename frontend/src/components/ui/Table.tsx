@@ -4,8 +4,8 @@ interface TableProps {
 
 export function Table({ children }: TableProps) {
   return (
-    <div className="overflow-x-auto">
-      <table className="min-w-full divide-y divide-ak-border">{children}</table>
+    <div className="overflow-x-auto rounded-xl bg-ak-surface-2">
+      <table className="min-w-full">{children}</table>
     </div>
   );
 }
@@ -15,7 +15,7 @@ interface TableHeaderProps {
 }
 
 export function TableHeader({ children }: TableHeaderProps) {
-  return <thead className="bg-ak-surface">{children}</thead>;
+  return <thead className="bg-ak-surface/50">{children}</thead>;
 }
 
 interface TableRowProps {
@@ -24,7 +24,7 @@ interface TableRowProps {
 }
 
 export function TableRow({ children, className = '' }: TableRowProps) {
-  return <tr className={className}>{children}</tr>;
+  return <tr className={`border-b border-ak-border/30 last:border-0 ${className}`}>{children}</tr>;
 }
 
 interface TableHeadProps {
@@ -44,7 +44,7 @@ interface TableBodyProps {
 }
 
 export function TableBody({ children }: TableBodyProps) {
-  return <tbody className="bg-ak-surface-2 divide-y divide-ak-border">{children}</tbody>;
+  return <tbody>{children}</tbody>;
 }
 
 interface TableCellProps {

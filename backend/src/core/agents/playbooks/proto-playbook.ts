@@ -1,0 +1,107 @@
+import { AgentPlaybook } from './types.js';
+
+export const protoPlaybook: AgentPlaybook = {
+  agentType: 'proto',
+  displayName: 'Proto Agent',
+  description: 'Generates MVP project scaffolds from requirements.',
+  phases: [
+    {
+      id: 'thinking',
+      label: 'Thinking',
+      description: 'Understanding requirements and planning architecture',
+      icon: '🧠',
+      estimatedDurationMs: 5000,
+    },
+    {
+      id: 'discovery',
+      label: 'Discovery',
+      description: 'Designing project structure and file layout',
+      icon: '🔍',
+      estimatedDurationMs: 8000,
+    },
+    {
+      id: 'creating',
+      label: 'Creating',
+      description: 'Generating project scaffold with AI',
+      icon: '✍️',
+      estimatedDurationMs: 30000,
+    },
+    {
+      id: 'reviewing',
+      label: 'Reviewing',
+      description: 'AI reviewing scaffold for completeness',
+      icon: '🔎',
+      estimatedDurationMs: 15000,
+    },
+    {
+      id: 'publishing',
+      label: 'Publishing',
+      description: 'Committing scaffold to repository',
+      icon: '🚀',
+      estimatedDurationMs: 8000,
+    },
+    {
+      id: 'done',
+      label: 'Done',
+      description: 'MVP scaffold generation complete',
+      icon: '✅',
+    },
+  ],
+  requiredFields: [
+    {
+      name: 'requirements',
+      type: 'string',
+      label: 'Requirements',
+      required: true,
+      placeholder: 'Describe what you want to build...',
+    },
+    {
+      name: 'stack',
+      type: 'string',
+      label: 'Tech Stack',
+      required: false,
+      placeholder: 'e.g. React + Node.js + PostgreSQL',
+    },
+    {
+      name: 'owner',
+      type: 'string',
+      label: 'Repository Owner',
+      required: false,
+      placeholder: 'e.g. octocat',
+    },
+    {
+      name: 'repo',
+      type: 'string',
+      label: 'Repository Name',
+      required: false,
+      placeholder: 'e.g. my-project',
+    },
+    {
+      name: 'baseBranch',
+      type: 'string',
+      label: 'Base Branch',
+      required: false,
+      placeholder: 'e.g. main',
+      defaultValue: 'main',
+    },
+    {
+      name: 'dryRun',
+      type: 'boolean',
+      label: 'Dry Run',
+      required: false,
+      defaultValue: false,
+    },
+  ],
+  capabilities: [
+    'AI-powered scaffold generation',
+    'Multi-file output',
+    'Stack-aware templates',
+    'GitHub PR creation',
+    'Iterative refinement',
+  ],
+  outputArtifacts: [
+    'project-scaffold',
+    'pull-request',
+    'readme',
+  ],
+};

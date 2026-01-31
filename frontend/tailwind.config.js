@@ -13,6 +13,7 @@ export default {
         'ak-primary-soft': 'var(--ak-primary-soft)',
         'ak-surface': 'var(--ak-surface)',
         'ak-surface-2': 'var(--ak-surface-2)',
+        'ak-surface-3': 'var(--ak-surface-3)',
         'ak-text-primary': 'var(--ak-text-primary)',
         'ak-text-secondary': 'var(--ak-text-secondary)',
         'ak-border': 'var(--ak-border)',
@@ -26,6 +27,16 @@ export default {
         'ak-sm': '0 2px 8px rgba(0, 0, 0, 0.4)',
         'ak-md': '0 4px 16px rgba(0, 0, 0, 0.5)',
         'ak-lg': '0 8px 32px rgba(0, 0, 0, 0.6)',
+        'ak-elevation-1': 'var(--ak-elevation-1)',
+        'ak-elevation-2': 'var(--ak-elevation-2)',
+        'ak-elevation-3': 'var(--ak-elevation-3)',
+      },
+      borderRadius: {
+        'ak-card': 'var(--ak-card-radius)',
+      },
+      spacing: {
+        'ak-section': 'var(--ak-section-gap)',
+        'ak-card': 'var(--ak-card-padding)',
       },
       // Motion durations
       transitionDuration: {

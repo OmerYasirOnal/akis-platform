@@ -40,7 +40,7 @@ export default function JobsListPage() {
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<{ message: string; code?: string; requestId?: string } | null>(null);
-  const [filterType, setFilterType] = useState<'scribe' | 'trace' | 'proto' | ''>('');
+  const [filterType, setFilterType] = useState<'scribe' | 'trace' | 'proto' | 'coder' | 'developer' | ''>('');
   const [filterState, setFilterState] = useState<'pending' | 'running' | 'completed' | 'failed' | ''>('');
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -152,6 +152,8 @@ export default function JobsListPage() {
             <option value="scribe">Scribe</option>
             <option value="trace">Trace</option>
             <option value="proto">Proto</option>
+            <option value="coder">Coder</option>
+            <option value="developer">Developer</option>
           </select>
 
           {/* State Filter */}
@@ -191,7 +193,7 @@ export default function JobsListPage() {
             </p>
             {!searchQuery && !filterType && !filterState && (
               <Link
-                to="/dashboard/agents"
+                to="/agents"
                 className="mt-4 inline-flex items-center gap-2 rounded-lg bg-ak-primary px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-ak-primary/90"
               >
                 Go to Agents

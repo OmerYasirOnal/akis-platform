@@ -1,7 +1,7 @@
 import { cn } from '../../utils/cn';
 
 type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'ghost';
-type ButtonSize = 'md' | 'lg';
+type ButtonSize = 'sm' | 'md' | 'lg';
 
 type ButtonOwnProps<C extends React.ElementType> = {
   as?: C;
@@ -26,6 +26,7 @@ const variantClasses: Record<ButtonVariant, string> = {
 };
 
 const sizeClasses: Record<ButtonSize, string> = {
+  sm: 'px-4 py-1.5 text-xs',
   md: 'px-6 py-2.5 text-sm',
   lg: 'px-8 py-3 text-base',
 };
