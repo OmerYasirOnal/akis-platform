@@ -2,10 +2,8 @@ import { FastifyInstance } from 'fastify';
 import { createHmac, timingSafeEqual } from 'crypto';
 import { db } from '../db/client.js';
 import { agentTriggers, webhookDeliveries } from '../db/triggers-schema.js';
-import { jobs } from '../db/schema.js';
 import { eq, and } from 'drizzle-orm';
 import { AgentOrchestrator } from '../core/orchestrator/AgentOrchestrator.js';
-import { randomUUID } from 'crypto';
 
 let orchestrator: AgentOrchestrator;
 
