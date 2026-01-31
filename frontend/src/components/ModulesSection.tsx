@@ -10,10 +10,10 @@ export default function ModulesSection() {
       <div className="mx-auto max-w-6xl">
         {/* Section header */}
         <div className="mb-16 text-center">
-          <h2 className="mb-4 text-[clamp(28px,4vw,40px)] font-bold text-[var(--text)]">
+          <h2 className="mb-4 text-[clamp(28px,4vw,40px)] font-bold text-ak-text-primary">
             Meet the AKIS Agents
           </h2>
-          <p className="mx-auto max-w-2xl text-lg text-[var(--muted)]">
+          <p className="mx-auto max-w-2xl text-lg text-ak-text-secondary">
             Three powerful agents that automate documentation, testing, and
             prototyping workflows.
           </p>
