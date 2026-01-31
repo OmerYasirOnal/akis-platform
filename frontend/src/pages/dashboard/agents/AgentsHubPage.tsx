@@ -851,10 +851,10 @@ export default function AgentsHubPage() {
               <Button
                 onClick={() => handleRunAgent(userInput.trim() || undefined)}
                 disabled={!canRun}
-                className="gap-1.5 whitespace-nowrap h-[40px]"
-                size="sm"
+                className="gap-1.5 whitespace-nowrap"
+                size="md"
               >
-                Run
+                Run {selectedAgent.name}
               </Button>
             )}
           </div>

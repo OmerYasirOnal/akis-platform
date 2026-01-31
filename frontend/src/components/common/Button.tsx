@@ -16,7 +16,7 @@ export type ButtonProps<C extends React.ElementType> = ButtonOwnProps<C> &
 
 const variantClasses: Record<ButtonVariant, string> = {
   primary:
-    'bg-ak-primary text-ak-bg hover:bg-ak-primary/90',
+    'bg-ak-primary text-ak-bg shadow-ak-elevation-1 hover:bg-ak-primary/90 hover:shadow-ak-elevation-2',
   secondary:
     'bg-ak-surface-2 text-ak-text-primary hover:bg-ak-surface',
   outline:
