@@ -1,6 +1,7 @@
 import { Link, useSearchParams } from 'react-router-dom';
 import Button from '../../components/common/Button';
 import { UsageWidget } from '../../components/dashboard/UsageWidget';
+import { QualityReliabilityCard } from '../../components/dashboard/QualityReliabilityCard';
 
 const AgentsIcon = () => (
   <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
@@ -25,7 +26,10 @@ const TABS: { id: DashboardTab; label: string }[] = [
 function UsageTabContent() {
   return (
     <div className="space-y-6">
-      <UsageWidget />
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <UsageWidget />
+        <QualityReliabilityCard />
+      </div>
       <div className="rounded-xl border border-ak-border bg-ak-surface p-5">
         <h3 className="text-sm font-semibold text-ak-text-primary mb-3">Recent Activity</h3>
         <div className="rounded-lg bg-ak-bg px-4 py-8 text-center">

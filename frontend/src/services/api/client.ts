@@ -1,5 +1,5 @@
 import { HttpClient } from './HttpClient';
-import type { Job, JobsListResponse, CreateJobRequest, CreateJobResponse } from './types';
+import type { Job, JobsListResponse, CreateJobRequest, CreateJobResponse, DashboardMetrics } from './types';
 
 const httpClient = new HttpClient();
 
@@ -75,5 +75,10 @@ export const api = {
   // GET /version
   getVersion: async (): Promise<{ version: string }> => {
     return httpClient.get('/version');
+  },
+
+  // GET /api/dashboard/metrics
+  getDashboardMetrics: async (period: '7d' | '30d' = '7d'): Promise<DashboardMetrics> => {
+    return httpClient.get<DashboardMetrics>(`/api/dashboard/metrics?period=${period}`);
   },
 };
