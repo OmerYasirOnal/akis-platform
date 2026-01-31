@@ -77,6 +77,9 @@ const DashboardAgentScribePage = () => {
   const [docDepth, setDocDepth] = useState<DocDepth>('standard');
   const [outputTargets, setOutputTargets] = useState<DocTarget[]>(['README', 'ARCHITECTURE', 'API', 'DEVELOPMENT']);
 
+  // Commit/PR analysis
+  const [analyzeCommits, setAnalyzeCommits] = useState<number | null>(null);
+
   // Advanced section
   const [showAdvanced, setShowAdvanced] = useState(false);
 
@@ -377,6 +380,7 @@ const DashboardAgentScribePage = () => {
         docPack,
         docDepth,
         outputTargets,
+        ...(analyzeCommits ? { analyzeLastNCommits: analyzeCommits } : {}),
       };
       
       // Always include aiProvider for deterministic backend resolution
@@ -397,6 +401,11 @@ const DashboardAgentScribePage = () => {
       const job = await agentsApi.getJob(response.jobId);
       setCurrentJob(job);
       setIsPolling(true);
+
+      // Notify global RunBar
+      window.dispatchEvent(new CustomEvent('akis-job-started', {
+        detail: { id: job.id, type: job.type, state: job.state, createdAt: job.createdAt, updatedAt: job.updatedAt },
+      }));
 
       const submittedLog: LogEntry = {
         id: `submitted-${Date.now()}`,
@@ -666,6 +675,22 @@ const DashboardAgentScribePage = () => {
                     disabled={isRunning || false}
                     className="w-full rounded-lg border border-ak-border bg-ak-surface-2 px-3 py-2 text-sm text-ak-text-primary placeholder-ak-text-secondary/50 focus:border-ak-primary focus:outline-none focus:ring-1 focus:ring-ak-primary disabled:opacity-50"
                     placeholder="docs/"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-ak-text-primary">
+                    Analyze Last N Commits (optional)
+                  </label>
+                  <input
+                    type="number"
+                    min={0}
+                    max={100}
+                    value={analyzeCommits ?? ''}
+                    onChange={(e) => setAnalyzeCommits(e.target.value ? Number(e.target.value) : null)}
+                    disabled={isRunning || false}
+                    className="w-full rounded-lg border border-ak-border bg-ak-surface-2 px-3 py-2 text-sm text-ak-text-primary placeholder-ak-text-secondary/50 focus:border-ak-primary focus:outline-none focus:ring-1 focus:ring-ak-primary disabled:opacity-50"
+                    placeholder="Leave empty to skip"
                   />
                 </div>
 

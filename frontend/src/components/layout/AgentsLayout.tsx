@@ -1,6 +1,7 @@
 import { Outlet, Link } from 'react-router-dom';
 import Logo from '../branding/Logo';
 import { ProfileMenu } from './ProfileMenu';
+import { RunBar } from './RunBar';
 
 export function AgentsLayout() {
   return (
@@ -23,9 +24,10 @@ export function AgentsLayout() {
           <ProfileMenu />
         </div>
       </header>
-      <div className="flex-1 overflow-hidden">
+      <div className="flex-1 overflow-hidden pb-12">
         <Outlet />
       </div>
+      <RunBar />
     </div>
   );
 }
