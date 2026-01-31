@@ -28,7 +28,7 @@ EXCEPTION
  WHEN duplicate_object THEN null;
 END $$;
 --> statement-breakpoint
-ALTER TYPE "oauth_provider" ADD VALUE 'atlassian';--> statement-breakpoint
+ALTER TYPE "oauth_provider" ADD VALUE IF NOT EXISTS 'atlassian';--> statement-breakpoint
 CREATE TABLE IF NOT EXISTS "billing_notifications" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"user_id" uuid,
@@ -136,20 +136,20 @@ CREATE TABLE IF NOT EXISTS "workspace_billing_settings" (
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-ALTER TABLE "jobs" ADD COLUMN "ai_provider_resolved" varchar(50);--> statement-breakpoint
-ALTER TABLE "jobs" ADD COLUMN "ai_model_resolved" varchar(255);--> statement-breakpoint
-ALTER TABLE "jobs" ADD COLUMN "ai_key_source" varchar(20);--> statement-breakpoint
-ALTER TABLE "jobs" ADD COLUMN "ai_fallback_reason" varchar(100);--> statement-breakpoint
-ALTER TABLE "jobs" ADD COLUMN "quality_score" integer;--> statement-breakpoint
-ALTER TABLE "jobs" ADD COLUMN "quality_breakdown" jsonb;--> statement-breakpoint
-ALTER TABLE "jobs" ADD COLUMN "quality_version" varchar(20);--> statement-breakpoint
-ALTER TABLE "jobs" ADD COLUMN "quality_computed_at" timestamp;--> statement-breakpoint
-ALTER TABLE "oauth_accounts" ADD COLUMN "cloud_id" varchar(255);--> statement-breakpoint
-ALTER TABLE "oauth_accounts" ADD COLUMN "site_url" varchar(500);--> statement-breakpoint
-ALTER TABLE "oauth_accounts" ADD COLUMN "scopes" text;--> statement-breakpoint
-ALTER TABLE "oauth_accounts" ADD COLUMN "refresh_token_rotated_at" timestamp with time zone;--> statement-breakpoint
-ALTER TABLE "users" ADD COLUMN "active_ai_provider" "ai_provider" DEFAULT 'openrouter';--> statement-breakpoint
-ALTER TABLE "users" ADD COLUMN "role" "user_role" DEFAULT 'member' NOT NULL;--> statement-breakpoint
+ALTER TABLE "jobs" ADD COLUMN IF NOT EXISTS "ai_provider_resolved" varchar(50);--> statement-breakpoint
+ALTER TABLE "jobs" ADD COLUMN IF NOT EXISTS "ai_model_resolved" varchar(255);--> statement-breakpoint
+ALTER TABLE "jobs" ADD COLUMN IF NOT EXISTS "ai_key_source" varchar(20);--> statement-breakpoint
+ALTER TABLE "jobs" ADD COLUMN IF NOT EXISTS "ai_fallback_reason" varchar(100);--> statement-breakpoint
+ALTER TABLE "jobs" ADD COLUMN IF NOT EXISTS "quality_score" integer;--> statement-breakpoint
+ALTER TABLE "jobs" ADD COLUMN IF NOT EXISTS "quality_breakdown" jsonb;--> statement-breakpoint
+ALTER TABLE "jobs" ADD COLUMN IF NOT EXISTS "quality_version" varchar(20);--> statement-breakpoint
+ALTER TABLE "jobs" ADD COLUMN IF NOT EXISTS "quality_computed_at" timestamp;--> statement-breakpoint
+ALTER TABLE "oauth_accounts" ADD COLUMN IF NOT EXISTS "cloud_id" varchar(255);--> statement-breakpoint
+ALTER TABLE "oauth_accounts" ADD COLUMN IF NOT EXISTS "site_url" varchar(500);--> statement-breakpoint
+ALTER TABLE "oauth_accounts" ADD COLUMN IF NOT EXISTS "scopes" text;--> statement-breakpoint
+ALTER TABLE "oauth_accounts" ADD COLUMN IF NOT EXISTS "refresh_token_rotated_at" timestamp with time zone;--> statement-breakpoint
+ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "active_ai_provider" "ai_provider" DEFAULT 'openrouter';--> statement-breakpoint
+ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "role" "user_role" DEFAULT 'member' NOT NULL;--> statement-breakpoint
 DO $$ BEGIN
  ALTER TABLE "billing_notifications" ADD CONSTRAINT "billing_notifications_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;
 EXCEPTION
