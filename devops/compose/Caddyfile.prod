@@ -51,8 +51,8 @@ akis.dev {
         reverse_proxy backend:3000
     }
 
-    # OpenAPI docs → Backend (consider removing in production)
-    handle /docs* {
+    # OpenAPI / Swagger UI → Backend (at /api/docs)
+    handle /api/docs* {
         reverse_proxy backend:3000
     }
 

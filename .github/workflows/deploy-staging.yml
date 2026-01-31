@@ -22,8 +22,6 @@ concurrency:
 
 env:
   REGISTRY: ghcr.io
-  BACKEND_IMAGE: ghcr.io/${{ github.repository }}/akis-backend
-  FRONTEND_IMAGE: ghcr.io/${{ github.repository }}/akis-frontend
   NODE_VERSION: '22.12.0'
 
 jobs:
@@ -127,7 +125,16 @@ jobs:
       contents: read
       packages: write
 
+    outputs:
+      backend_image: ${{ steps.meta.outputs.backend_image }}
+
     steps:
+      - name: Compute lowercase image names
+        id: meta
+        run: |
+          REPO_LC=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
+          echo "backend_image=ghcr.io/${REPO_LC}/akis-backend" >> $GITHUB_OUTPUT
+
       - name: Checkout code
         uses: actions/checkout@v4
 
@@ -154,8 +161,8 @@ jobs:
           file: ./backend/Dockerfile
           push: true
           tags: |
-            ${{ env.BACKEND_IMAGE }}:staging
-            ${{ env.BACKEND_IMAGE }}:${{ needs.build.outputs.commit }}
+            ${{ steps.meta.outputs.backend_image }}:staging
+            ${{ steps.meta.outputs.backend_image }}:${{ needs.build.outputs.commit }}
           build-args: |
             BUILD_COMMIT=${{ needs.build.outputs.commit }}
             BUILD_TIME=${{ github.event.head_commit.timestamp }}
