@@ -36,8 +36,8 @@ interface ChatMessage {
 
 // Fallback models if API call fails
 const FALLBACK_MODEL_OPTIONS = [
+  { id: 'anthropic/claude-sonnet-4', label: 'Anthropic Claude Sonnet 4 (Recommended)', tier: 'standard' },
   { id: 'gpt-4o-mini', label: 'GPT-4o Mini (Budget)', tier: 'budget' },
-  { id: 'gpt-4o', label: 'GPT-4o (Standard)', tier: 'standard' },
 ];
 
 interface SupportedModel {
@@ -203,13 +203,22 @@ export default function AgentsHubPage() {
     }]);
   }, []);
 
-  // Load supported models from API
+  // Load supported models from API (provider-aware)
   useEffect(() => {
     const loadSupportedModels = async () => {
       try {
-        const response = await fetch('/api/ai/supported-models');
+        // Detect user's active provider first
+        let providerParam = '';
+        try {
+          const aiStatus = await getMultiProviderStatus();
+          if (aiStatus.activeProvider) {
+            providerParam = `?provider=${aiStatus.activeProvider}`;
+          }
+        } catch { /* use server default */ }
+
+        const response = await fetch(`/api/ai/supported-models${providerParam}`);
         if (response.ok) {
-          const data = await response.json() as { models: SupportedModel[] };
+          const data = await response.json() as { provider?: string; models: SupportedModel[] };
           const options = data.models.map((m) => ({
             id: m.id,
             label: m.name + (m.recommended ? ' (Recommended)' : ''),
@@ -217,7 +226,6 @@ export default function AgentsHubPage() {
           }));
           if (options.length > 0) {
             setModelOptions(options);
-            // Set default to recommended model or first one
             const recommended = data.models.find(m => m.recommended);
             setSelectedModel(recommended?.id || options[0].id);
           }
