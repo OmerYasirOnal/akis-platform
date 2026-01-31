@@ -21,6 +21,9 @@ const CRITICAL_COLUMNS: ColumnCheck[] = [
   { table: 'jobs', column: 'error_code', required: false },
   { table: 'jobs', column: 'error_message', required: false },
   { table: 'jobs', column: 'requires_approval', required: false },
+  // Quality scoring columns (Sprint-3.1)
+  { table: 'jobs', column: 'quality_score', required: false },
+  { table: 'jobs', column: 'quality_breakdown', required: false },
 ];
 
 /**
