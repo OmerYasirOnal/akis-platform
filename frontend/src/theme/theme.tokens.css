@@ -3,9 +3,10 @@
   --ak-color-bg-dark: #111418;
   --ak-color-surface-dark: #181C21;
   --ak-color-surface-2-dark: #1F242A;
+  --ak-color-surface-3-dark: #262C33;
   --ak-color-text-primary-dark: #E8ECEF;
   --ak-color-text-secondary-dark: #8B949E;
-  --ak-color-border-dark: #262C33;
+  --ak-color-border-dark: #2D343D;
 
   /* Light palette */
   --ak-color-bg-light: #F4F7F9;
