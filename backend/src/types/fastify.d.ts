@@ -13,7 +13,7 @@ declare module 'fastify' {
     headers: Record<string, unknown>;
     method: string;
     url: string;
-    routerPath?: string;
+    routeOptions?: { url?: string };
     cookies?: Record<string, string>;
     authSessionId?: string | null;
   }

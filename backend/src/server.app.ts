@@ -114,7 +114,7 @@ export async function buildApp() {
   app.addHook('onResponse', async (request: FastifyRequest, reply: FastifyReply) => {
     const duration = reply.elapsedTime! / 1000;
     const req = request as any;
-    const route: string = req.routeOptions?.url ?? req.routerPath ?? request.url.split('?')[0];
+    const route: string = req.routeOptions?.url ?? request.url.split('?')[0];
     metrics.httpDuration.observe(
       {
         method: request.method,

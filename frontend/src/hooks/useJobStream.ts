@@ -85,7 +85,21 @@ export interface UseJobStreamResult {
   clearEvents: () => void;
 }
 
-const API_BASE = import.meta.env.VITE_API_URL || '/api';
+/**
+ * Resolve SSE base URL.
+ * For EventSource we need a URL the browser can reach directly.
+ * In dev, the Vite proxy handles /api/* → backend, so we use a relative path.
+ * In production, requests go through the reverse proxy at the same origin.
+ */
+function getSSEBase(): string {
+  // If an explicit backend URL is set (absolute), use it with /api suffix
+  const backendUrl = import.meta.env.VITE_BACKEND_URL;
+  if (backendUrl && backendUrl.startsWith('http')) {
+    return backendUrl.replace(/\/$/, '');
+  }
+  // Otherwise use relative path (works with Vite proxy and production reverse proxy)
+  return '';
+}
 
 export function useJobStream(
   jobId: string | null,
@@ -112,6 +126,7 @@ export function useJobStream(
   const eventSourceRef = useRef<EventSource | null>(null);
   const reconnectAttemptsRef = useRef(0);
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isEndedRef = useRef(false);
 
   // Derived state
   const currentStage = events
@@ -141,6 +156,7 @@ export function useJobStream(
   const clearEvents = useCallback(() => {
     setEvents([]);
     setLastEventId(0);
+    isEndedRef.current = false;
     setIsEnded(false);
   }, []);
 
@@ -178,7 +194,8 @@ export function useJobStream(
       params.set('includeHistory', 'false');
     }
     
-    const url = `${API_BASE}/agents/jobs/${jobId}/trace-stream${params.toString() ? `?${params}` : ''}`;
+    const sseBase = getSSEBase();
+    const url = `${sseBase}/api/agents/jobs/${jobId}/trace-stream${params.toString() ? `?${params}` : ''}`;
     
     try {
       const eventSource = new EventSource(url, { withCredentials: true });
@@ -190,31 +207,46 @@ export function useJobStream(
         onConnectionChange?.(true);
       };
 
-      // Handle different event types
+      // Track parse errors to log only once per connection
+      let parseErrorLogged = false;
+
+      // Handle different event types with robust parsing
       const handleEvent = (event: MessageEvent) => {
+        const raw = event.data;
+        // Ignore empty frames, undefined, and SSE comments
+        if (!raw || raw === 'undefined' || raw === 'null' || raw.startsWith(':')) {
+          return;
+        }
+
+        let data: StreamEvent;
         try {
-          const data = JSON.parse(event.data) as StreamEvent;
-          
-          // Update last event ID
-          if (data.eventId) {
-            setLastEventId(data.eventId);
+          data = JSON.parse(raw) as StreamEvent;
+        } catch {
+          if (!parseErrorLogged) {
+            console.warn('[useJobStream] Ignoring non-JSON SSE frame:', raw.slice(0, 120));
+            parseErrorLogged = true;
           }
-          
-          // Add event to state
-          setEvents(prev => [...prev, data]);
-          
-          // Call onEvent callback
-          onEvent?.(data);
-          
-          // Check for terminal stages
-          if (data.type === 'stage' && 
-              (data.stage === 'completed' || data.stage === 'failed') && 
-              data.status === 'completed') {
-            setIsEnded(true);
-            disconnect();
-          }
-        } catch (err) {
-          console.error('[useJobStream] Failed to parse event:', err, event.data);
+          return;
+        }
+
+        // Update last event ID
+        if (data.eventId) {
+          setLastEventId(data.eventId);
+        }
+
+        // Add event to state
+        setEvents(prev => [...prev, data]);
+
+        // Call onEvent callback
+        onEvent?.(data);
+
+        // Check for terminal stages — stop reconnection
+        if (data.type === 'stage' &&
+            (data.stage === 'completed' || data.stage === 'failed') &&
+            data.status === 'completed') {
+          isEndedRef.current = true;
+          setIsEnded(true);
+          disconnect();
         }
       };
 
@@ -236,8 +268,8 @@ export function useJobStream(
         setIsConnected(false);
         onConnectionChange?.(false);
         
-        // Attempt reconnection if not ended
-        if (!isEnded && reconnectAttemptsRef.current < maxReconnectAttempts) {
+        // Attempt reconnection if not ended (use ref for latest value)
+        if (!isEndedRef.current && reconnectAttemptsRef.current < maxReconnectAttempts) {
           reconnectAttemptsRef.current++;
           const delay = reconnectDelayMs * Math.pow(reconnectBackoffMultiplier, reconnectAttemptsRef.current - 1);
           
@@ -260,7 +292,6 @@ export function useJobStream(
     lastEventId,
     includeHistory,
     disconnect,
-    isEnded,
     maxReconnectAttempts,
     reconnectDelayMs,
     reconnectBackoffMultiplier,
