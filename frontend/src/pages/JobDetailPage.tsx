@@ -265,7 +265,7 @@ function computeScribeQuality(
   };
 }
 
-function QualitySection({ quality }: { quality: QualityBreakdown }) {
+function QualitySection({ quality, suggestions }: { quality: QualityBreakdown; suggestions?: string[] }) {
   const card = 'bg-white/[0.03] backdrop-blur-sm border border-white/[0.06]';
 
   return (
@@ -296,6 +296,21 @@ function QualitySection({ quality }: { quality: QualityBreakdown }) {
           ))}
         </div>
       </div>
+
+      {/* Suggestions */}
+      {suggestions && suggestions.length > 0 && (
+        <div className={`${card} rounded-2xl p-5`}>
+          <h3 className="text-sm font-semibold text-ak-text-primary mb-3">💡 Suggestions to Improve</h3>
+          <ul className="space-y-2">
+            {suggestions.map((suggestion, idx) => (
+              <li key={idx} className="flex items-start gap-2 text-sm text-ak-text-secondary">
+                <span className="text-ak-primary">•</span>
+                <span>{suggestion}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {/* Config Summary */}
       <div className={`${card} rounded-2xl p-5`}>
@@ -820,7 +835,7 @@ export default function JobDetailPage() {
 
         {/* Quality (Scribe-only) */}
         {activeSection === 'quality' && isScribe && scribeQuality && (
-          <QualitySection quality={scribeQuality} />
+          <QualitySection quality={scribeQuality} suggestions={job?.qualitySuggestions || undefined} />
         )}
       </div>
 
