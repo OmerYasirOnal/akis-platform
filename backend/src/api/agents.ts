@@ -13,6 +13,7 @@ import { getScribeModelAllowlist, isModelAllowed } from '../services/ai/modelAll
 import { getEnv, getAIConfig } from '../config/env.js';
 import { generateScribeBranchName } from '../utils/branchNaming.js';
 import { incrementUsage } from '../services/billing/BillingService.js';
+import { generateQualitySuggestions, type QualityResult, type QualityInput } from '../services/quality/index.js';
 
 // Request validation schemas
 // Legacy payload schema (backward compatible)
@@ -840,6 +841,33 @@ export async function agentsRoutes(fastify: FastifyInstance) {
           // New structured AI object
           ai: aiResponse,
           correlationId,
+          // Quality fields (persisted)
+          qualityScore: job.qualityScore,
+          qualityBreakdown: job.qualityBreakdown,
+          qualityVersion: job.qualityVersion,
+          qualityComputedAt: job.qualityComputedAt,
+          // Quality suggestions (computed on-the-fly if quality exists)
+          qualitySuggestions: job.qualityBreakdown && job.qualityScore !== null
+            ? generateQualitySuggestions(
+                {
+                  score: job.qualityScore,
+                  breakdown: job.qualityBreakdown as { label: string; value: string; points: number }[],
+                  version: job.qualityVersion || 'v1.0',
+                  computedAt: job.qualityComputedAt || new Date(),
+                } as QualityResult,
+                {
+                  jobType: job.type,
+                  state: job.state === 'completed' ? 'completed' : 'failed',
+                  errorCode: job.errorCode,
+                  targetsConfigured: ((job.payload as Record<string, unknown>)?.outputTargets as string[]) || [],
+                  targetsProduced: [],
+                  documentsRead: 0,
+                  filesProduced: 0,
+                  docDepth: ((job.payload as Record<string, unknown>)?.docDepth as 'lite' | 'standard' | 'deep') || 'standard',
+                  multiPass: ((job.payload as Record<string, unknown>)?.multiPass as boolean) || false,
+                } as QualityInput
+              )
+            : [],
           createdAt: job.createdAt,
           updatedAt: job.updatedAt,
         };

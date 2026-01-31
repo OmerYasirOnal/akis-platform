@@ -34,11 +34,18 @@ interface ChatMessage {
   artifact?: { path: string; type: string };
 }
 
-const MODEL_OPTIONS = [
+// Fallback models if API call fails
+const FALLBACK_MODEL_OPTIONS = [
   { id: 'gpt-4o-mini', label: 'GPT-4o Mini (Budget)', tier: 'budget' },
-  { id: 'gpt-5-mini', label: 'GPT-5 Mini (Standard)', tier: 'standard' },
-  { id: 'gpt-5.2', label: 'GPT-5.2 (Premium)', tier: 'premium' },
+  { id: 'gpt-4o', label: 'GPT-4o (Standard)', tier: 'standard' },
 ];
+
+interface SupportedModel {
+  id: string;
+  name: string;
+  provider: string;
+  recommended: boolean;
+}
 
 const ScribeIcon = () => (
   <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
@@ -175,7 +182,8 @@ export default function AgentsHubPage() {
   const [loadingRepos, setLoadingRepos] = useState(false);
   const [loadingBranches, setLoadingBranches] = useState(false);
   const [branchStrategy, setBranchStrategy] = useState<'manual' | 'auto'>('auto');
-  const [selectedModel, setSelectedModel] = useState('gpt-5-mini');
+  const [selectedModel, setSelectedModel] = useState('gpt-4o-mini');
+  const [modelOptions, setModelOptions] = useState(FALLBACK_MODEL_OPTIONS);
 
   const [currentJob, setCurrentJob] = useState<JobDetail | null>(null);
   const [isRunning, setIsRunning] = useState(false);
@@ -193,6 +201,32 @@ export default function AgentsHubPage() {
       id: `msg-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
       timestamp: new Date(),
     }]);
+  }, []);
+
+  // Load supported models from API
+  useEffect(() => {
+    const loadSupportedModels = async () => {
+      try {
+        const response = await fetch('/api/ai/supported-models');
+        if (response.ok) {
+          const data = await response.json() as { models: SupportedModel[] };
+          const options = data.models.map((m) => ({
+            id: m.id,
+            label: m.name + (m.recommended ? ' (Recommended)' : ''),
+            tier: m.recommended ? 'standard' : 'budget',
+          }));
+          if (options.length > 0) {
+            setModelOptions(options);
+            // Set default to recommended model or first one
+            const recommended = data.models.find(m => m.recommended);
+            setSelectedModel(recommended?.id || options[0].id);
+          }
+        }
+      } catch (err) {
+        console.warn('Failed to load supported models, using fallback:', err);
+      }
+    };
+    loadSupportedModels();
   }, []);
 
   useEffect(() => {
@@ -595,7 +629,7 @@ export default function AgentsHubPage() {
               onChange={(e) => setSelectedModel(e.target.value)}
               className="rounded-lg border border-ak-border bg-ak-surface px-2.5 py-1.5 text-xs text-ak-text-primary focus:outline-none focus:ring-1 focus:ring-ak-primary/40"
             >
-              {MODEL_OPTIONS.map((m) => (
+              {modelOptions.map((m) => (
                 <option key={m.id} value={m.id}>{m.label}</option>
               ))}
             </select>
