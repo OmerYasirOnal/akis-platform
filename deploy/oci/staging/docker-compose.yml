@@ -84,9 +84,9 @@ services:
       AUTH_COOKIE_MAXAGE: ${AUTH_COOKIE_MAXAGE:-604800}
       
       # URLs
-      BACKEND_URL: ${BACKEND_URL:-https://staging.akisflow.com}
-      FRONTEND_URL: ${FRONTEND_URL:-https://staging.akisflow.com}
-      CORS_ORIGINS: ${CORS_ORIGINS:-https://staging.akisflow.com}
+      BACKEND_URL: ${BACKEND_URL:-https://staging.akis.dev}
+      FRONTEND_URL: ${FRONTEND_URL:-https://staging.akis.dev}
+      CORS_ORIGINS: ${CORS_ORIGINS:-https://staging.akis.dev}
       
       # Rate limiting
       RATE_LIMIT_MAX: ${RATE_LIMIT_MAX:-200}
