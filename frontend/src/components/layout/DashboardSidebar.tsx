@@ -127,8 +127,8 @@ export function DashboardSidebar({
       </nav>
 
       <div className="p-3">
-        <p className="text-center text-[10px] text-ak-text-secondary/30">
-          AKIS v0.1
+        <p className="text-center text-[10px] text-ak-text-secondary/30" title={`Build: ${__BUILD_TIME__}`}>
+          AKIS {__APP_VERSION__} • {__GIT_SHA__}
         </p>
       </div>
     </div>

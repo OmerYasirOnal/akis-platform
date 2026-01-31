@@ -1,9 +1,24 @@
 import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
+import { execSync } from 'child_process';
+
+// Get git commit SHA for version stamp
+const getGitSha = () => {
+  try {
+    return execSync('git rev-parse --short HEAD').toString().trim();
+  } catch {
+    return 'dev';
+  }
+};
 
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
+  define: {
+    __BUILD_TIME__: JSON.stringify(new Date().toISOString()),
+    __GIT_SHA__: JSON.stringify(getGitSha()),
+    __APP_VERSION__: JSON.stringify('0.1.0'),
+  },
   server: {
     // Bind to 127.0.0.1 explicitly to avoid IPv6 ECONNREFUSED issues
     host: '127.0.0.1',
