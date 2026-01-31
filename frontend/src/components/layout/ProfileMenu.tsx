@@ -59,10 +59,10 @@ export function ProfileMenu() {
 
   const handleTheme = (opt: ThemeOption) => {
     if (opt === 'system') {
-      try { window.localStorage.removeItem(THEME_STORAGE_KEY); } catch {}
+      try { window.localStorage.removeItem(THEME_STORAGE_KEY); } catch { /* localStorage may be blocked */ }
       const sys = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
       setTheme(sys);
-      try { window.localStorage.removeItem(THEME_STORAGE_KEY); } catch {}
+      try { window.localStorage.removeItem(THEME_STORAGE_KEY); } catch { /* localStorage may be blocked */ }
     } else {
       setTheme(opt);
     }

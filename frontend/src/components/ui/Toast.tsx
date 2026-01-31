@@ -18,6 +18,7 @@ const variantStyles: Record<ToastVariant, string> = {
 
 let addToastGlobal: ((message: string, variant?: ToastVariant) => void) | null = null;
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function toast(message: string, variant: ToastVariant = 'info') {
   addToastGlobal?.(message, variant);
 }
