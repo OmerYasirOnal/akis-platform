@@ -23,8 +23,15 @@
   --ak-text-secondary: var(--ak-color-text-secondary-light);
   --ak-border: var(--ak-color-border-light);
   --ak-primary: var(--ak-color-primary);
-  --ak-primary-soft: rgba(7, 209, 175, 0.1);
+  --ak-primary-soft: rgba(7, 209, 175, 0.12);
   --ak-danger: var(--ak-color-danger);
+  /* Softer elevations for light mode */
+  --ak-elevation-1: var(--ak-elevation-1-light);
+  --ak-elevation-2: var(--ak-elevation-2-light);
+  --ak-elevation-3: var(--ak-elevation-3-light);
+  /* Glow effects for light mode (subtler) */
+  --ak-glow-accent: 0 0 20px rgba(7, 209, 175, 0.15);
+  --ak-glow-subtle: 0 0 12px rgba(7, 209, 175, 0.08);
 }
 
 html,
@@ -43,6 +50,14 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   transition: background-color var(--transition-base, 200ms), color var(--transition-base, 200ms);
+}
+
+/* Light mode subtle gradient adjustment */
+[data-theme='light'] body {
+  background-image: 
+    radial-gradient(ellipse 80% 50% at 50% -10%, rgba(7, 209, 175, 0.04), transparent 70%),
+    radial-gradient(ellipse 60% 40% at 100% 100%, rgba(7, 209, 175, 0.03), transparent 50%),
+    linear-gradient(180deg, transparent 0%, rgba(7, 209, 175, 0.01) 100%);
 }
 
 h1, h2, h3, h4, h5, h6 {

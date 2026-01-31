@@ -8,14 +8,19 @@
   --ak-color-text-secondary-dark: #8B949E;
   --ak-color-border-dark: #2D343D;
 
-  /* Light palette */
-  --ak-color-bg-light: #F4F7F9;
-  --ak-color-surface-light: #F9FBFC;
-  --ak-color-surface-2-light: #E6EEF2;
-  --ak-color-surface-3-light: #DAE3E8;
-  --ak-color-text-primary-light: #112026;
-  --ak-color-text-secondary-light: #4A5A62;
-  --ak-color-border-light: #CBD7DD;
+  /* Light palette — softer off-white backgrounds for reduced eye strain */
+  --ak-color-bg-light: #F7F8FA;
+  --ak-color-surface-light: #FFFFFF;
+  --ak-color-surface-2-light: #F3F5F7;
+  --ak-color-surface-3-light: #E8ECEF;
+  --ak-color-text-primary-light: #1A2328;
+  --ak-color-text-secondary-light: #5C6B73;
+  --ak-color-border-light: #D8DFE4;
+  
+  /* Light mode specific elevation (softer shadows) */
+  --ak-elevation-1-light: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04);
+  --ak-elevation-2-light: 0 4px 12px rgba(0, 0, 0, 0.06), 0 1px 4px rgba(0, 0, 0, 0.04);
+  --ak-elevation-3-light: 0 8px 24px rgba(0, 0, 0, 0.08), 0 2px 8px rgba(0, 0, 0, 0.04);
 
   /* Shared accents */
   --ak-color-primary: #07D1AF;
