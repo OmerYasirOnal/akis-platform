@@ -4,7 +4,7 @@ import { GitHubMCPService } from '../../services/mcp/adapters/GitHubMCPService.j
 import type { AIService, Plan, Planner } from '../../services/ai/AIService.js';
 import type { MCPTools } from '../../services/mcp/adapters/index.js';
 import type { TraceRecorder } from '../../core/tracing/TraceRecorder.js';
-import { getContractForPath, buildContractPrompt, detectDocFileType, type RepoContext, resolveDocPackConfig, targetToPath, type DocPack, type DocDepth, type DocTarget, type ResolvedDocPackConfig } from './DocContract.js';
+import { getContractForPath, buildContractPrompt, detectDocFileType, type RepoContext, resolveDocPackConfig, targetToPath, type DocPack, type DocDepth, type ResolvedDocPackConfig } from './DocContract.js';
 import { createPlanGenerator, type PlanContext, type GeneratedPlan } from '../../core/planning/PlanGenerator.js';
 import { db } from '../../db/client.js';
 import { jobPlans } from '../../db/schema.js';

@@ -1,6 +1,6 @@
 import { db } from '../../db/client.js';
 import { jobs } from '../../db/schema.js';
-import { eq, and, lt, sql } from 'drizzle-orm';
+import { eq, and, lt } from 'drizzle-orm';
 
 const CHECK_INTERVAL_MS = 60_000;
 const STALE_THRESHOLD_MINUTES = 15;

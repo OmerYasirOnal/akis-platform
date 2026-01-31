@@ -75,6 +75,7 @@ export class DeveloperAgent extends BaseAgent {
     const payload = (context || {}) as DeveloperPayload;
     const goal = payload.goal || payload.requirements || 'No goal specified';
     const maxSteps = payload.maxSteps ?? 10;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const aiService = this.deps.tools?.aiService as any;
 
     this.trace?.recordInfo('Initializing developer workflow...');
@@ -113,6 +114,7 @@ export class DeveloperAgent extends BaseAgent {
     }
 
     if (payload.owner && payload.repo && !payload.dryRun) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const githubMCP = this.deps.tools?.githubMCP as any;
       if (githubMCP) {
         this.trace?.recordInfo('Creating branch and committing changes...');

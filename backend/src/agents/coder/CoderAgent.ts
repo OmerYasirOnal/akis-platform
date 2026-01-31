@@ -63,6 +63,7 @@ export class CoderAgent extends BaseAgent {
   async executeWithTools(tools: MCPTools, plan?: Plan, context?: unknown): Promise<unknown> {
     const payload = (context || {}) as CoderPayload;
     const task = payload.task || 'No task specified';
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const aiService = this.deps.tools?.aiService as any;
 
     this.trace?.recordInfo('Analyzing task requirements...');
@@ -88,6 +89,7 @@ export class CoderAgent extends BaseAgent {
     }
 
     if (payload.owner && payload.repo && !payload.dryRun) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const githubMCP = this.deps.tools?.githubMCP as any;
       if (githubMCP) {
         this.trace?.recordInfo('Creating branch and committing code...');

@@ -261,6 +261,7 @@ export async function jobEventsRoutes(fastify: FastifyInstance) {
   fastify.get(
     '/api/agents/jobs/:id/trace-stream',
     { schema: traceStreamSchema },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     async (request, reply) => handleTraceStream(fastify, request as any, reply),
   );
 
@@ -270,6 +271,7 @@ export async function jobEventsRoutes(fastify: FastifyInstance) {
   fastify.get(
     '/api/jobs/:id/trace-stream',
     { schema: { ...traceStreamSchema, description: 'SSE trace stream (alias)' } },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     async (request, reply) => handleTraceStream(fastify, request as any, reply),
   );
 
@@ -280,6 +282,7 @@ export async function jobEventsRoutes(fastify: FastifyInstance) {
   fastify.get(
     '/agents/jobs/:id/trace-stream',
     { schema: { ...traceStreamSchema, description: 'SSE trace stream (legacy alias)' } },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     async (request, reply) => handleTraceStream(fastify, request as any, reply),
   );
 }

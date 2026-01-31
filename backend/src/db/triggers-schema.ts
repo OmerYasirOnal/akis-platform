@@ -1,6 +1,6 @@
 import { pgTable, uuid, text, boolean, timestamp, index, uniqueIndex } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
-import { users, jobs } from './schema.js';
+import { users } from './schema.js';
 
 export const agentTriggers = pgTable('agent_triggers', {
   id: uuid('id').primaryKey().defaultRandom(),
