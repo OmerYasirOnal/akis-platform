@@ -195,7 +195,7 @@ export function useJobStream(
     }
     
     const sseBase = getSSEBase();
-    const url = `${sseBase}/api/agents/jobs/${jobId}/trace-stream${params.toString() ? `?${params}` : ''}`;
+    const url = `${sseBase}/api/agents/jobs/${jobId}/stream${params.toString() ? `?${params}` : ''}`;
     
     try {
       const eventSource = new EventSource(url, { withCredentials: true });
