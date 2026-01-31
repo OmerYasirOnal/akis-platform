@@ -134,7 +134,7 @@ MIT License — see [LICENSE](LICENSE)
 | Phase | Status | Description |
 |-------|--------|-------------|
 | 0.1–0.4 | ✅ Complete | Foundations, Web Shell |
-| 0.5 | 🔄 In Progress | GitHub Integration |
-| 1.0 | 📋 Planned | Scribe • Trace • Proto MVP |
+| 0.5 | ✅ Complete | GitHub Integration |
+| 1.0 | 🔄 In Progress | Scribe MVP, Quality Scoring, AI Provider UX |
 
-**Current milestone:** Phase 1 Functional Complete
+**Current milestone:** Sprint 3 — Scribe MVP with quality persistence and multi-model support
