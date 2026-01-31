@@ -88,6 +88,14 @@ export const jobs = pgTable('jobs', {
   parentJobId: uuid('parent_job_id'),
   /** User instruction for revision (what to change) */
   revisionNote: text('revision_note'),
+  /** Quality score (0-100) computed from job results */
+  qualityScore: integer('quality_score'),
+  /** Quality breakdown details (JSON: {label, value, points}[]) */
+  qualityBreakdown: jsonb('quality_breakdown'),
+  /** Quality algorithm version for future migrations */
+  qualityVersion: varchar('quality_version', { length: 20 }),
+  /** When quality was computed */
+  qualityComputedAt: timestamp('quality_computed_at'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 }, (table) => ({
