@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { agentsApi } from '../../services/api/agents';
 
 interface RunningJob {
@@ -53,12 +53,23 @@ export function RunBar() {
       }));
 
       setJobs(prev => {
-        // Merge: running jobs from API + recently completed from local (keep last 5)
         const runningIds = new Set(running.map(j => j.id));
+
+        // Jobs that were running/pending locally but are no longer in the API
+        // response have likely completed — mark them as completed so they
+        // remain visible in the bar instead of vanishing.
+        const transitioned = prev
+          .filter(j => (j.state === 'running' || j.state === 'pending') && !runningIds.has(j.id))
+          .map(j => ({ ...j, state: 'completed' as const, updatedAt: new Date().toISOString() }));
+
+        // Keep recently completed/failed jobs from local state
         const kept = prev
           .filter(j => !runningIds.has(j.id) && (j.state === 'completed' || j.state === 'failed'))
           .slice(0, 3);
-        const merged = [...running, ...kept].slice(0, 5);
+
+        const merged = [...running, ...transitioned, ...kept]
+          .filter((j, i, arr) => arr.findIndex(x => x.id === j.id) === i)
+          .slice(0, 5);
         storeJobs(merged);
         return merged;
       });
@@ -91,6 +102,10 @@ export function RunBar() {
     return () => window.removeEventListener('akis-job-started', handler);
   }, [reconcile]);
 
+  const location = useLocation();
+  // Only offset for dashboard sidebar (not agents or other full-width layouts)
+  const hasSidebar = location.pathname.startsWith('/dashboard');
+
   if (jobs.length === 0) return null;
 
   const primary = jobs.find(j => j.state === 'running' || j.state === 'pending') || jobs[0];
@@ -98,7 +113,7 @@ export function RunBar() {
   const hasMultiple = jobs.length > 1;
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-30 lg:left-56">
+    <div className={`fixed bottom-0 left-0 right-0 z-30 ${hasSidebar ? 'lg:left-56' : ''}`}>
       {/* Expanded drawer */}
       {expanded && hasMultiple && (
         <div className="border-t border-ak-border bg-ak-surface px-4 py-2 space-y-1 max-h-48 overflow-y-auto">
