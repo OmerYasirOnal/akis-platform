@@ -5,12 +5,10 @@ export interface CardProps
   extends React.HTMLAttributes<HTMLDivElement> {
   as?: React.ElementType;
   noHoverLift?: boolean;
-  /** Use border instead of shadow for elevation */
-  bordered?: boolean;
 }
 
 const Card = React.forwardRef<HTMLDivElement, CardProps>(
-  ({ as: Component = 'div', className, children, noHoverLift, bordered: _, ...rest }, ref) => {
+  ({ as: Component = 'div', className, children, noHoverLift, ...rest }, ref) => {
     const mergedClassName = cn(
       'rounded-2xl bg-ak-surface-2 p-5 text-ak-text-primary',
       'border border-ak-border shadow-ak-elevation-1',
