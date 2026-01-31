@@ -56,35 +56,47 @@ type SectionId = 'overview' | 'activity' | 'outputs' | 'quality';
 // Helper Functions
 // ============================================================================
 
-function getErrorHint(errorCode?: string | null): string | null {
+interface ErrorHintInfo {
+  hint: string;
+  action?: string;
+  link?: string;
+}
+
+function getErrorHint(errorCode?: string | null): ErrorHintInfo | null {
   if (!errorCode) return null;
-  const hints: Record<string, string> = {
-    'MCP_UNREACHABLE': 'MCP Gateway is not running or unreachable. Run: ./scripts/mcp-doctor.sh',
-    'MCP_TIMEOUT': 'Connection to MCP Gateway timed out. Check if gateway is healthy.',
-    'MCP_DNS_FAILED': 'Cannot resolve MCP Gateway hostname. Check GITHUB_MCP_BASE_URL in backend/.env',
-    'MCP_UNAUTHORIZED': 'Invalid or missing GitHub token. Check GITHUB_TOKEN in .env.mcp.local',
-    'MCP_FORBIDDEN': 'GitHub token lacks required scopes. Ensure token has: repo, read:org',
-    'MCP_RATE_LIMITED': 'GitHub API rate limit exceeded. Wait a few minutes and try again.',
-    'MCP_SERVER_ERROR': 'MCP Gateway server error. Check logs: docker compose -f docker-compose.mcp.yml logs',
-    'MCP_CONFIG_MISSING': 'MCP configuration is missing. Set GITHUB_MCP_BASE_URL in backend/.env',
-    '-32601': 'MCP tool not found - the requested operation may not be supported by the GitHub MCP server',
-    '-32602': 'Invalid MCP parameters - check the request payload format',
-    '-32603': 'Internal JSON-RPC error - unexpected response format',
-    '401': 'Unauthorized - check your GitHub token or authentication',
-    '403': 'Forbidden - insufficient permissions or API rate limit exceeded',
-    '429': 'Rate limit exceeded - too many requests, please retry later',
-    '500': 'Internal server error - an unexpected error occurred',
-    '502': 'Bad gateway - MCP gateway or upstream service is unavailable',
-    'AI_KEY_MISSING': 'OpenAI API key is missing. Add one in Settings > API Keys before running Scribe.',
-    'MODEL_NOT_ALLOWED': 'Selected model is not allowlisted. Choose a model from the allowlist.',
+  const hints: Record<string, ErrorHintInfo> = {
+    'MCP_UNREACHABLE': { hint: 'MCP Gateway is not running or unreachable.', action: 'Run: ./scripts/mcp-doctor.sh' },
+    'MCP_TIMEOUT': { hint: 'Connection to MCP Gateway timed out.', action: 'Check if gateway is healthy' },
+    'MCP_DNS_FAILED': { hint: 'Cannot resolve MCP Gateway hostname.', action: 'Check GITHUB_MCP_BASE_URL in backend/.env' },
+    'MCP_UNAUTHORIZED': { hint: 'Invalid or missing GitHub token.', action: 'Check GITHUB_TOKEN in .env.mcp.local' },
+    'MCP_FORBIDDEN': { hint: 'GitHub token lacks required scopes.', action: 'Ensure token has: repo, read:org' },
+    'MCP_RATE_LIMITED': { hint: 'GitHub API rate limit exceeded.', action: 'Wait a few minutes and try again' },
+    'MCP_SERVER_ERROR': { hint: 'MCP Gateway server error.', action: 'Check logs: docker compose -f docker-compose.mcp.yml logs' },
+    'MCP_CONFIG_MISSING': { hint: 'MCP configuration is missing.', action: 'Set GITHUB_MCP_BASE_URL in backend/.env' },
+    '-32601': { hint: 'MCP tool not found.', action: 'The requested operation may not be supported' },
+    '-32602': { hint: 'Invalid MCP parameters.', action: 'Check the request payload format' },
+    '-32603': { hint: 'Internal JSON-RPC error.', action: 'Unexpected response format' },
+    '401': { hint: 'Unauthorized.', action: 'Check your GitHub token or authentication' },
+    '403': { hint: 'Forbidden.', action: 'Insufficient permissions or API rate limit exceeded' },
+    '429': { hint: 'Rate limit exceeded.', action: 'Too many requests, please retry later' },
+    '500': { hint: 'Internal server error.', action: 'An unexpected error occurred' },
+    '502': { hint: 'Bad gateway.', action: 'MCP gateway or upstream service is unavailable' },
+    'AI_KEY_MISSING': { hint: 'AI API key is missing.', action: 'Add one in Settings → AI Keys', link: '/dashboard/settings/ai-keys' },
+    'MODEL_NOT_ALLOWED': { hint: 'Selected model is not allowlisted.', action: 'Choose a supported model', link: '/dashboard/settings/ai-keys' },
+    'AI_PROVIDER_ERROR': { hint: 'AI provider returned an error.', action: 'Check model configuration in Settings → AI Keys', link: '/dashboard/settings/ai-keys' },
+    'AI_RATE_LIMITED': { hint: 'AI provider rate limit reached.', action: 'Wait a few minutes or upgrade your plan' },
+    'AI_INVALID_REQUEST': { hint: 'Invalid request to AI provider.', action: 'Check model name and parameters' },
+    'AI_MODEL_NOT_FOUND': { hint: 'Requested AI model not found.', action: 'Select a supported model in Settings', link: '/dashboard/settings/ai-keys' },
+    'AI_CONTEXT_LENGTH': { hint: 'Context too long for model.', action: 'Reduce scope or use a model with larger context' },
   };
   const code = String(errorCode);
-  const hint = hints[code] || hints[code.toUpperCase()];
-  if (!hint) {
-    if (code.startsWith('MCP_')) return 'MCP Gateway issue detected. Run ./scripts/mcp-doctor.sh to diagnose.';
-    if (code.startsWith('5')) return 'Server error - please contact support with the correlation ID';
+  const hintInfo = hints[code] || hints[code.toUpperCase()];
+  if (!hintInfo) {
+    if (code.startsWith('MCP_')) return { hint: 'MCP Gateway issue detected.', action: 'Run ./scripts/mcp-doctor.sh to diagnose' };
+    if (code.startsWith('AI_')) return { hint: 'AI provider issue.', action: 'Check AI configuration in Settings', link: '/dashboard/settings/ai-keys' };
+    if (code.startsWith('5')) return { hint: 'Server error.', action: 'Please contact support with the correlation ID' };
   }
-  return hint || null;
+  return hintInfo || null;
 }
 
 function redactSecrets(text: string): string {
@@ -658,18 +670,38 @@ export default function JobDetailPage() {
               )}
             </div>
             {job.errorMessage && <p className="text-ak-danger">{job.errorMessage}</p>}
-            {getErrorHint(job.errorCode) && (
-              <div className="rounded bg-blue-400/10 px-3 py-2 border-l-4 border-blue-400">
-                <span className="text-sm font-medium text-blue-400">Hint:</span>
-                <p className="mt-1 text-sm text-ak-text-primary">{getErrorHint(job.errorCode)}</p>
-                {job.errorCode?.startsWith('MCP') && (
-                  <div className="mt-2 flex items-center gap-2">
-                    <code className="text-xs bg-ak-surface-3 px-2 py-1 rounded">./scripts/mcp-doctor.sh</code>
-                    <CopyButton text="./scripts/mcp-doctor.sh" label="Copy command" />
+            {(() => {
+              const errorHint = getErrorHint(job.errorCode);
+              if (!errorHint) return null;
+              return (
+                <div className="rounded bg-blue-400/10 px-3 py-2 border-l-4 border-blue-400 space-y-2">
+                  <div>
+                    <span className="text-sm font-medium text-blue-400">Why: </span>
+                    <span className="text-sm text-ak-text-primary">{errorHint.hint}</span>
                   </div>
-                )}
-              </div>
-            )}
+                  {errorHint.action && (
+                    <div>
+                      <span className="text-sm font-medium text-blue-400">Action: </span>
+                      <span className="text-sm text-ak-text-primary">{errorHint.action}</span>
+                    </div>
+                  )}
+                  {errorHint.link && (
+                    <a
+                      href={errorHint.link}
+                      className="inline-flex items-center gap-1 text-sm font-medium text-ak-primary hover:underline mt-1"
+                    >
+                      Go to Settings →
+                    </a>
+                  )}
+                  {job.errorCode?.startsWith('MCP') && (
+                    <div className="flex items-center gap-2 mt-1">
+                      <code className="text-xs bg-ak-surface-3 px-2 py-1 rounded">./scripts/mcp-doctor.sh</code>
+                      <CopyButton text="./scripts/mcp-doctor.sh" label="Copy command" />
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
           </div>
         </div>
       )}
