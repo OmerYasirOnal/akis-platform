@@ -22,7 +22,6 @@ import { jobEventsRoutes } from './api/job-events.js';
 import { webhookRoutes, setWebhookOrchestrator } from './api/webhooks.js';
 import { triggersRoutes } from './api/triggers.js';
 import { registerPlaybookRoutes } from './api/playbooks.js';
-import { billingRoutes, stripeWebhookRoutes } from './api/billing.js';
 import { AgentOrchestrator } from './core/orchestrator/AgentOrchestrator.js';
 import { createAIService } from './services/ai/AIService.js';
 import type { MCPTools } from './services/mcp/adapters/index.js';
@@ -115,7 +114,7 @@ export async function buildApp() {
     const duration = reply.elapsedTime! / 1000;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const req = request as any;
-    const route: string = req.routeOptions?.url ?? request.url.split('?')[0];
+    const route: string = req.routeOptions?.url ?? req.routerPath ?? request.url.split('?')[0];
     metrics.httpDuration.observe(
       {
         method: request.method,
@@ -177,8 +176,6 @@ export async function buildApp() {
   await app.register(webhookRoutes);
   await app.register(triggersRoutes);
   await app.register(registerPlaybookRoutes);
-  await app.register(billingRoutes);
-  await app.register(stripeWebhookRoutes);
   if (env.NODE_ENV !== 'production' && process.env.SCRIBE_DEV_GITHUB_BOOTSTRAP === 'true') {
     await app.register(testHelpersRoutes, { prefix: '/test' });
   }

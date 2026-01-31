@@ -12,7 +12,7 @@ import { getUserAiKeyStatus } from '../services/ai/user-ai-keys.js';
 import { getScribeModelAllowlist, isModelAllowed } from '../services/ai/modelAllowlist.js';
 import { getEnv, getAIConfig } from '../config/env.js';
 import { generateScribeBranchName } from '../utils/branchNaming.js';
-import { checkUsageLimits, incrementUsage } from '../services/billing/BillingService.js';
+import { incrementUsage } from '../services/billing/BillingService.js';
 
 // Request validation schemas
 // Legacy payload schema (backward compatible)
@@ -514,9 +514,11 @@ export async function agentsRoutes(fastify: FastifyInstance) {
           }
         }
 
+        // Track userId for billing (extracted outside if block for scope)
+        let userId: string | undefined;
+        
         // For non-scribe agents, inject userId from auth session
         if (body.type !== 'scribe') {
-          let userId: string | undefined;
           try {
             const user = await requireAuth(request);
             userId = user.id;
@@ -528,30 +530,6 @@ export async function agentsRoutes(fastify: FastifyInstance) {
             enrichedPayload = { ...(enrichedPayload as Record<string, unknown>), userId };
           } else if (userId && !enrichedPayload) {
             enrichedPayload = { userId };
-          }
-        }
-
-        // Usage limit check (best-effort — if no userId in payload, skip)
-        const payloadUserId = enrichedPayload && typeof enrichedPayload === 'object'
-          ? (enrichedPayload as Record<string, unknown>).userId as string | undefined
-          : undefined;
-        if (payloadUserId) {
-          try {
-            const limitCheck = await checkUsageLimits(payloadUserId);
-            if (!limitCheck.allowed) {
-              return reply.code(429).send({
-                error: {
-                  code: 'USAGE_LIMIT_EXCEEDED',
-                  message: limitCheck.reason || 'Usage limit exceeded. Please upgrade your plan.',
-                  upgradeRequired: limitCheck.upgradeRequired,
-                  currentUsage: limitCheck.currentUsage,
-                  limits: limitCheck.limits,
-                },
-              });
-            }
-          } catch (limitError) {
-            // Non-blocking: if billing check fails, allow the job to proceed
-            console.warn('[Billing] Usage limit check failed, allowing job:', limitError);
           }
         }
 
@@ -579,9 +557,9 @@ export async function agentsRoutes(fastify: FastifyInstance) {
             if (finalState === 'completed') {
               metrics.jobsCompleted.inc({ type: body.type });
               // Increment usage counter on success
-              if (payloadUserId) {
+              if (userId) {
                 const tokensUsed = job.aiTotalTokens ?? 0;
-                incrementUsage(payloadUserId, tokensUsed).catch(err =>
+                incrementUsage(userId, tokensUsed).catch(err =>
                   console.warn('[Billing] Failed to increment usage:', err)
                 );
               }
