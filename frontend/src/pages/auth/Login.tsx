@@ -27,7 +27,7 @@ export default function Login() {
 
   return (
     <main className="min-h-screen bg-ak-bg text-ak-text-primary flex items-center justify-center px-4">
-      <div className="w-full max-w-md bg-ak-surface-2 border border-ak-border rounded-2xl p-8 shadow-ak-md">
+      <div className="w-full max-w-md bg-ak-surface border border-ak-border rounded-2xl p-8 shadow-ak-elevation-2">
         <div className="mb-6 flex justify-center">
           <Logo size="sm" linkToHome={false} />
         </div>
@@ -40,7 +40,7 @@ export default function Login() {
             </label>
             <input
               id="email"
-              className="w-full border border-ak-border bg-ak-surface text-ak-text-primary px-4 py-3 rounded-xl focus:border-ak-primary focus:ring-2 focus:ring-ak-primary/70 outline-none"
+              className="w-full border border-ak-border bg-ak-surface-2 text-ak-text-primary px-4 py-3 rounded-xl focus:border-ak-primary focus:ring-2 focus:ring-ak-primary/40 focus:ring-offset-1 focus:ring-offset-ak-bg outline-none transition-colors"
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -54,7 +54,7 @@ export default function Login() {
             </label>
             <input
               id="password"
-              className="w-full border border-ak-border bg-ak-surface text-ak-text-primary px-4 py-3 rounded-xl focus:border-ak-primary focus:ring-2 focus:ring-ak-primary/70 outline-none"
+              className="w-full border border-ak-border bg-ak-surface-2 text-ak-text-primary px-4 py-3 rounded-xl focus:border-ak-primary focus:ring-2 focus:ring-ak-primary/40 focus:ring-offset-1 focus:ring-offset-ak-bg outline-none transition-colors"
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}

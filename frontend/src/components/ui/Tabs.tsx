@@ -24,8 +24,8 @@ export function Tabs({ tabs, activeTab, onChange, className }: TabsProps) {
           className={cn(
             'flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-all duration-150',
             activeTab === tab.id
-              ? 'bg-ak-surface-2 text-ak-text-primary shadow-ak-elevation-1'
-              : 'text-ak-text-secondary hover:text-ak-text-primary'
+              ? 'bg-ak-surface-2 text-ak-text-primary shadow-ak-elevation-1 border-b-2 border-ak-primary'
+              : 'text-ak-text-secondary hover:text-ak-text-primary hover:bg-ak-surface-2/50'
           )}
         >
           {tab.icon}

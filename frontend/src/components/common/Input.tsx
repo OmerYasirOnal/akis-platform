@@ -39,7 +39,7 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
             ref={ref}
             id={inputId}
             className={cn(
-              'w-full rounded-xl border border-ak-border bg-ak-surface px-4 py-3 text-base text-ak-text-primary placeholder:text-ak-text-secondary/70 transition-colors duration-150 focus:border-ak-primary focus:outline-none focus:ring-2 focus:ring-ak-primary/70',
+              'w-full rounded-xl border border-ak-border bg-ak-surface-2 px-4 py-3 text-base text-ak-text-primary placeholder:text-ak-text-secondary/70 transition-colors duration-150 focus:border-ak-primary focus:outline-none focus:ring-2 focus:ring-ak-primary/40 focus:ring-offset-1 focus:ring-offset-ak-bg',
               rightElement && 'pr-14',
               hasError &&
                 'border-ak-danger focus:border-ak-danger focus:ring-ak-danger/70',
