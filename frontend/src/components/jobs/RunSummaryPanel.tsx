@@ -173,8 +173,9 @@ export const RunSummaryPanel = ({ job, traces }: RunSummaryPanelProps) => {
   const card = 'bg-white/[0.03] backdrop-blur-sm border border-white/[0.06]';
 
   return (
-    <div className="bg-ak-surface-2 shadow-ak-elevation-1 rounded-2xl p-6 mb-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+    <div className={`${card} rounded-2xl p-5 mb-6`}>
+      {/* Header */}
+      <div className="flex items-center justify-between mb-4">
         <div>
           <h2 className="text-base font-semibold text-ak-text-primary">Run Summary</h2>
           <p className="text-[11px] text-ak-text-secondary mt-0.5">AI usage metrics (cost is estimated)</p>
