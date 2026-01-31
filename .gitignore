@@ -71,8 +71,8 @@ cookies.txt
 *.cookie
 
 # Nested Lockfiles (Monorepo Rule)
+# NOTE: backend/pnpm-lock.yaml is NOT ignored — required for Docker builds
 frontend/pnpm-lock.yaml
-backend/pnpm-lock.yaml
 backend/package-lock.json
 mcp-gateway/pnpm-lock.yaml
 
