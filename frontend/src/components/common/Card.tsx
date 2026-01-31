@@ -4,18 +4,19 @@ import { cn } from '../../utils/cn';
 export interface CardProps
   extends React.HTMLAttributes<HTMLDivElement> {
   as?: React.ElementType;
-  /** Disable hover lift animation */
   noHoverLift?: boolean;
+  /** Use border instead of shadow for elevation */
+  bordered?: boolean;
 }
 
 const Card = React.forwardRef<HTMLDivElement, CardProps>(
-  ({ as: Component = 'div', className, children, noHoverLift, ...rest }, ref) => {
+  ({ as: Component = 'div', className, children, noHoverLift, bordered, ...rest }, ref) => {
     const mergedClassName = cn(
-      // Base styles
-      'rounded-2xl border border-ak-border bg-ak-surface-2 p-6 text-ak-text-primary shadow-lg',
-      // Motion styles with prefers-reduced-motion support
-      !noHoverLift && 'transition-transform duration-200 hover:-translate-y-1 hover:shadow-xl motion-reduce:transition-none motion-reduce:hover:transform-none',
-      // Focus styles for accessibility
+      'rounded-2xl bg-ak-surface-2 p-5 text-ak-text-primary',
+      bordered
+        ? 'border border-ak-border'
+        : 'shadow-ak-elevation-1',
+      !noHoverLift && 'transition-all duration-200 hover:-translate-y-0.5 hover:shadow-ak-elevation-2 motion-reduce:transition-none motion-reduce:hover:transform-none',
       'focus-visible:outline focus-visible:outline-2 focus-visible:outline-ak-primary focus-visible:outline-offset-2',
       className
     );
@@ -31,4 +32,3 @@ const Card = React.forwardRef<HTMLDivElement, CardProps>(
 Card.displayName = 'Card';
 
 export default Card;
-

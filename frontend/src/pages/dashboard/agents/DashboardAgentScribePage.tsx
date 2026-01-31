@@ -21,6 +21,7 @@ import {
 import { agentsApi, type JobDetail } from '../../../services/api/agents';
 import { integrationsApi } from '../../../services/api/integrations';
 import { getMultiProviderStatus, type AIKeyProvider } from '../../../services/api/ai-keys';
+import type { DocPack, DocDepth, DocTarget } from '../../../services/api/types';
 
 type ActiveTab = 'logs' | 'preview' | 'diff';
 
@@ -53,7 +54,7 @@ const DashboardAgentScribePage = () => {
   const [repo, setRepo] = useState('');
   const [baseBranch, setBaseBranch] = useState('');
   const [targetPath, setTargetPath] = useState('docs/');
-  const [dryRun, setDryRun] = useState(true);
+  const [dryRun, setDryRun] = useState(false);
 
   // Auto-branch name preview
   const [autoBranchName, setAutoBranchName] = useState<string>('');
@@ -70,6 +71,14 @@ const DashboardAgentScribePage = () => {
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [isPolling, setIsPolling] = useState(false);
   const pollingIntervalRef = useRef<number | null>(null);
+
+  // Doc Pack Generator state
+  const [docPack, setDocPack] = useState<DocPack>('standard');
+  const [docDepth, setDocDepth] = useState<DocDepth>('standard');
+  const [outputTargets, setOutputTargets] = useState<DocTarget[]>(['README', 'ARCHITECTURE', 'API', 'DEVELOPMENT']);
+
+  // Commit/PR analysis
+  const [analyzeCommits, setAnalyzeCommits] = useState<number | null>(null);
 
   // Advanced section
   const [showAdvanced, setShowAdvanced] = useState(false);
@@ -368,6 +377,10 @@ const DashboardAgentScribePage = () => {
         baseBranch,
         targetPath,
         dryRun,
+        docPack,
+        docDepth,
+        outputTargets,
+        ...(analyzeCommits ? { analyzeLastNCommits: analyzeCommits } : {}),
       };
       
       // Always include aiProvider for deterministic backend resolution
@@ -388,6 +401,11 @@ const DashboardAgentScribePage = () => {
       const job = await agentsApi.getJob(response.jobId);
       setCurrentJob(job);
       setIsPolling(true);
+
+      // Notify global RunBar
+      window.dispatchEvent(new CustomEvent('akis-job-started', {
+        detail: { id: job.id, type: job.type, state: job.state, createdAt: job.createdAt, updatedAt: job.updatedAt },
+      }));
 
       const submittedLog: LogEntry = {
         id: `submitted-${Date.now()}`,
@@ -535,6 +553,104 @@ const DashboardAgentScribePage = () => {
             </div>
           )}
 
+          {/* Doc Pack Configuration */}
+          <div className="border-t border-ak-border pt-4">
+            <h3 className="mb-3 text-sm font-semibold text-ak-text-primary">Documentation Pack</h3>
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+              {/* Doc Pack Selector */}
+              <div className="space-y-2">
+                <label className="block text-xs font-medium text-ak-text-secondary">Pack</label>
+                <select
+                  value={docPack}
+                  onChange={(e) => {
+                    const pack = e.target.value as DocPack;
+                    setDocPack(pack);
+                    const defaultTargets: Record<DocPack, DocTarget[]> = {
+                      readme: ['README'],
+                      standard: ['README', 'ARCHITECTURE', 'API', 'DEVELOPMENT'],
+                      full: ['README', 'ARCHITECTURE', 'API', 'DEVELOPMENT', 'DEPLOYMENT', 'CONTRIBUTING', 'FAQ', 'CHANGELOG'],
+                    };
+                    setOutputTargets(defaultTargets[pack]);
+                  }}
+                  disabled={!!isRunning}
+                  className="w-full rounded-lg border border-ak-border bg-ak-surface-2 px-3 py-2 text-sm text-ak-text-primary focus:border-ak-primary focus:outline-none focus:ring-1 focus:ring-ak-primary disabled:opacity-50"
+                >
+                  <option value="readme">Quick README</option>
+                  <option value="standard">Standard Docs</option>
+                  <option value="full">Deep Doc Pack</option>
+                </select>
+              </div>
+
+              {/* Depth Selector */}
+              <div className="space-y-2">
+                <label className="block text-xs font-medium text-ak-text-secondary">Depth</label>
+                <div className="flex gap-2">
+                  {(['lite', 'standard', 'deep'] as DocDepth[]).map((d) => (
+                    <button
+                      key={d}
+                      type="button"
+                      onClick={() => setDocDepth(d)}
+                      disabled={!!isRunning}
+                      className={`flex-1 rounded-lg border px-3 py-2 text-xs font-medium transition-colors ${
+                        docDepth === d
+                          ? 'border-ak-primary bg-ak-primary/10 text-ak-primary'
+                          : 'border-ak-border bg-ak-surface-2 text-ak-text-secondary hover:text-ak-text-primary'
+                      } disabled:opacity-50`}
+                    >
+                      {d.charAt(0).toUpperCase() + d.slice(1)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Budget Indicator */}
+              <div className="space-y-2">
+                <label className="block text-xs font-medium text-ak-text-secondary">Budget</label>
+                <div className="rounded-lg border border-ak-border bg-ak-surface-2 px-3 py-2 text-sm text-ak-text-primary">
+                  <span className="font-mono">
+                    {docDepth === 'lite' ? '~4K' : docDepth === 'standard' ? '~16K' : '~64K'}
+                  </span>
+                  <span className="ml-1 text-xs text-ak-text-secondary">tokens</span>
+                  {(docPack === 'full' || docDepth === 'deep') && (
+                    <span className="ml-2 rounded bg-ak-primary/20 px-1.5 py-0.5 text-xs text-ak-primary">2-pass</span>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Output Targets Checklist */}
+            <div className="mt-4 space-y-2">
+              <label className="block text-xs font-medium text-ak-text-secondary">Output Targets</label>
+              <div className="flex flex-wrap gap-2">
+                {(['README', 'ARCHITECTURE', 'API', 'DEVELOPMENT', 'DEPLOYMENT', 'CONTRIBUTING', 'FAQ', 'CHANGELOG'] as DocTarget[]).map((target) => (
+                  <label
+                    key={target}
+                    className={`flex cursor-pointer items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors ${
+                      outputTargets.includes(target)
+                        ? 'border-ak-primary/50 bg-ak-primary/10 text-ak-primary'
+                        : 'border-ak-border bg-ak-surface-2 text-ak-text-secondary hover:text-ak-text-primary'
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={outputTargets.includes(target)}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setOutputTargets([...outputTargets, target]);
+                        } else {
+                          setOutputTargets(outputTargets.filter(t => t !== target));
+                        }
+                      }}
+                      disabled={!!isRunning}
+                      className="sr-only"
+                    />
+                    {target}
+                  </label>
+                ))}
+              </div>
+            </div>
+          </div>
+
           {/* Advanced Options */}
           <div className="border-t border-ak-border pt-4">
             <button
@@ -559,6 +675,22 @@ const DashboardAgentScribePage = () => {
                     disabled={isRunning || false}
                     className="w-full rounded-lg border border-ak-border bg-ak-surface-2 px-3 py-2 text-sm text-ak-text-primary placeholder-ak-text-secondary/50 focus:border-ak-primary focus:outline-none focus:ring-1 focus:ring-ak-primary disabled:opacity-50"
                     placeholder="docs/"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-ak-text-primary">
+                    Analyze Last N Commits (optional)
+                  </label>
+                  <input
+                    type="number"
+                    min={0}
+                    max={100}
+                    value={analyzeCommits ?? ''}
+                    onChange={(e) => setAnalyzeCommits(e.target.value ? Number(e.target.value) : null)}
+                    disabled={isRunning || false}
+                    className="w-full rounded-lg border border-ak-border bg-ak-surface-2 px-3 py-2 text-sm text-ak-text-primary placeholder-ak-text-secondary/50 focus:border-ak-primary focus:outline-none focus:ring-1 focus:ring-ak-primary disabled:opacity-50"
+                    placeholder="Leave empty to skip"
                   />
                 </div>
 

@@ -1,16 +1,18 @@
 :root {
-  /* Dark palette */
-  --ak-color-bg-dark: #0A1215;
-  --ak-color-surface-dark: #0D171B;
-  --ak-color-surface-2-dark: #122027;
-  --ak-color-text-primary-dark: #E9F1F3;
-  --ak-color-text-secondary-dark: #A9B6BB;
-  --ak-color-border-dark: #1A262C;
+  /* Dark palette — deep charcoal, not pure black */
+  --ak-color-bg-dark: #111418;
+  --ak-color-surface-dark: #181C21;
+  --ak-color-surface-2-dark: #1F242A;
+  --ak-color-surface-3-dark: #272D35;
+  --ak-color-text-primary-dark: #E8ECEF;
+  --ak-color-text-secondary-dark: #8B949E;
+  --ak-color-border-dark: #262C33;
 
   /* Light palette */
   --ak-color-bg-light: #F4F7F9;
-  --ak-color-surface-light: #FFFFFF;
+  --ak-color-surface-light: #F9FBFC;
   --ak-color-surface-2-light: #E6EEF2;
+  --ak-color-surface-3-light: #DAE3E8;
   --ak-color-text-primary-light: #112026;
   --ak-color-text-secondary-light: #4A5A62;
   --ak-color-border-light: #CBD7DD;
@@ -45,5 +47,15 @@
   --ak-blob-opacity-primary: 0.15;
   --ak-blob-opacity-secondary: 0.12;
   --ak-blob-opacity-ambient: 0.08;
+
+  /* Surface elevation system (replaces heavy borders) */
+  --ak-elevation-1: 0 1px 3px rgba(0, 0, 0, 0.3), 0 1px 2px rgba(0, 0, 0, 0.2);
+  --ak-elevation-2: 0 4px 12px rgba(0, 0, 0, 0.3), 0 1px 4px rgba(0, 0, 0, 0.15);
+  --ak-elevation-3: 0 8px 24px rgba(0, 0, 0, 0.35), 0 2px 8px rgba(0, 0, 0, 0.2);
+
+  /* Spacing rhythm */
+  --ak-section-gap: 24px;
+  --ak-card-padding: 20px;
+  --ak-card-radius: 16px;
 }
 

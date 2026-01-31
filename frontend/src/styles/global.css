@@ -4,6 +4,7 @@
   --ak-bg: var(--ak-color-bg-dark);
   --ak-surface: var(--ak-color-surface-dark);
   --ak-surface-2: var(--ak-color-surface-2-dark);
+  --ak-surface-3: var(--ak-color-surface-3-dark);
   --ak-text-primary: var(--ak-color-text-primary-dark);
   --ak-text-secondary: var(--ak-color-text-secondary-dark);
   --ak-border: var(--ak-color-border-dark);
@@ -17,6 +18,7 @@
   --ak-bg: var(--ak-color-bg-light);
   --ak-surface: var(--ak-color-surface-light);
   --ak-surface-2: var(--ak-color-surface-2-light);
+  --ak-surface-3: var(--ak-color-surface-3-light);
   --ak-text-primary: var(--ak-color-text-primary-light);
   --ak-text-secondary: var(--ak-color-text-secondary-light);
   --ak-border: var(--ak-color-border-light);

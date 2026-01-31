@@ -2,6 +2,15 @@
 // For now, we define basic types manually
 
 export type JobType = 'scribe' | 'trace' | 'proto';
+
+/** Documentation pack level */
+export type DocPack = 'readme' | 'standard' | 'full';
+
+/** Documentation depth level */
+export type DocDepth = 'lite' | 'standard' | 'deep';
+
+/** Possible doc output targets */
+export type DocTarget = 'README' | 'ARCHITECTURE' | 'API' | 'DEVELOPMENT' | 'DEPLOYMENT' | 'CONTRIBUTING' | 'FAQ' | 'CHANGELOG';
 export type JobState = 'pending' | 'running' | 'completed' | 'failed' | 'awaiting_approval';
 
 /** Per-call AI metrics */
@@ -234,3 +243,160 @@ export interface ErrorResponse {
   };
   requestId?: string;
 }
+
+// ============================================================================
+// S2.0.3: Real-time Stream Event Types
+// ============================================================================
+
+/**
+ * Stage event - Job execution phase changes
+ */
+export interface StageStreamEvent {
+  type: 'stage';
+  eventId: number;
+  ts: string;
+  jobId: string;
+  stage: 'init' | 'planning' | 'executing' | 'reflecting' | 'validating' | 'publishing' | 'completed' | 'failed';
+  status: 'started' | 'progress' | 'completed';
+  message?: string;
+}
+
+/**
+ * Plan event - When planner produces a plan
+ */
+export interface PlanStreamEvent {
+  type: 'plan';
+  eventId: number;
+  ts: string;
+  jobId: string;
+  steps: Array<{
+    id: string;
+    title: string;
+    detail?: string;
+  }>;
+  currentStepId?: string;
+  planMarkdown?: string;
+}
+
+/**
+ * Tool event - MCP/GitHub/external tool calls
+ */
+export interface ToolStreamEvent {
+  type: 'tool';
+  eventId: number;
+  ts: string;
+  jobId: string;
+  toolName: string;
+  provider: 'mcp' | 'github' | 'ai' | 'internal';
+  inputSummary?: string;
+  durationMs?: number | null;
+  ok: boolean;
+  errorSummary?: string;
+  correlationId?: string;
+  asked?: string;
+  did?: string;
+  why?: string;
+}
+
+/**
+ * Artifact event - File/PR/link produced
+ */
+export interface ArtifactStreamEvent {
+  type: 'artifact';
+  eventId: number;
+  ts: string;
+  jobId: string;
+  kind: 'file' | 'commit' | 'pr' | 'link' | 'doc_read';
+  label: string;
+  path?: string;
+  url?: string;
+  summary?: string;
+  preview?: string;
+  operation?: 'read' | 'create' | 'modify' | 'delete' | 'preview';
+  sizeBytes?: number;
+}
+
+/**
+ * Log event - Informational messages
+ */
+export interface LogStreamEvent {
+  type: 'log';
+  eventId: number;
+  ts: string;
+  jobId: string;
+  level: 'info' | 'warn';
+  message: string;
+  detail?: Record<string, unknown>;
+}
+
+/**
+ * Error event - Error occurred
+ */
+export interface ErrorStreamEvent {
+  type: 'error';
+  eventId: number;
+  ts: string;
+  jobId: string;
+  message: string;
+  code?: string;
+  scope: 'planning' | 'execution' | 'reflection' | 'validation' | 'mcp' | 'ai' | 'github' | 'unknown';
+  fatal: boolean;
+}
+
+/**
+ * Trace event - Individual trace timeline entry
+ */
+export interface TraceStreamEvent {
+  type: 'trace';
+  eventId: number;
+  ts: string;
+  jobId: string;
+  eventType: string;
+  stepId?: string;
+  title: string;
+  detail?: Record<string, unknown>;
+  durationMs?: number;
+  status?: 'success' | 'failed' | 'warning' | 'info';
+  correlationId?: string;
+  toolName?: string;
+  inputSummary?: string;
+  outputSummary?: string;
+  reasoningSummary?: string;
+  askedWhat?: string;
+  didWhat?: string;
+  whyReason?: string;
+}
+
+/**
+ * AI Call event - LLM invocation details
+ */
+export interface AiCallStreamEvent {
+  type: 'ai_call';
+  eventId: number;
+  ts: string;
+  jobId: string;
+  purpose: string;
+  provider: string;
+  model: string;
+  durationMs?: number;
+  tokens?: {
+    input?: number;
+    output?: number;
+    total?: number;
+  };
+  ok: boolean;
+  errorCode?: string;
+}
+
+/**
+ * Union type for all stream events
+ */
+export type StreamEvent =
+  | StageStreamEvent
+  | PlanStreamEvent
+  | ToolStreamEvent
+  | ArtifactStreamEvent
+  | LogStreamEvent
+  | ErrorStreamEvent
+  | TraceStreamEvent
+  | AiCallStreamEvent;

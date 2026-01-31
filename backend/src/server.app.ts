@@ -18,9 +18,23 @@ import { integrationsRoutes } from './api/integrations.js';
 import { testHelpersRoutes } from './api/test-helpers.js';
 import { settingsRoutes } from './api/settings/index.js';
 import { usageRoutes } from './api/usage.js';
+import { jobEventsRoutes } from './api/job-events.js';
+import { webhookRoutes, setWebhookOrchestrator } from './api/webhooks.js';
+import { triggersRoutes } from './api/triggers.js';
+import { registerPlaybookRoutes } from './api/playbooks.js';
+import { billingRoutes, stripeWebhookRoutes } from './api/billing.js';
 import { AgentOrchestrator } from './core/orchestrator/AgentOrchestrator.js';
 import { createAIService } from './services/ai/AIService.js';
 import type { MCPTools } from './services/mcp/adapters/index.js';
+import { StaleJobWatchdog } from './core/watchdog/StaleJobWatchdog.js';
+
+const QUIET_ROUTES = new Set([
+  '/api/agents/jobs/running',
+  '/api/agents/configs',
+  '/api/usage/current-month',
+  '/health',
+  '/ready',
+]);
 
 /**
  * Build Fastify app instance (for testing and production)
@@ -58,6 +72,11 @@ export async function buildApp() {
   // Phase 5.D: Create orchestrator with DI
   const orchestrator = new AgentOrchestrator({}, aiService, mcpTools);
   setOrchestrator(orchestrator);
+  setWebhookOrchestrator(orchestrator);
+
+  // Start stale job watchdog
+  const watchdog = new StaleJobWatchdog();
+  watchdog.start();
 
   // Phase 7.A: Enable structured logging with request-id
   const isTest = process.env.NODE_ENV === 'test';
@@ -66,7 +85,6 @@ export async function buildApp() {
       ? false
       : {
           level: process.env.LOG_LEVEL || 'info',
-          // Only use pino-pretty in development if available
           transport:
             process.env.NODE_ENV === 'development'
               ? {
@@ -77,6 +95,7 @@ export async function buildApp() {
                 }
               : undefined,
         },
+    disableRequestLogging: true,
     requestIdHeader: 'request-id',
     requestIdLogLabel: 'requestId',
     genReqId: (req: FastifyRequest) => {
@@ -93,9 +112,10 @@ export async function buildApp() {
   });
 
   app.addHook('onResponse', async (request: FastifyRequest, reply: FastifyReply) => {
-    // Phase 7.B: Record HTTP duration metric
-    const duration = reply.elapsedTime! / 1000; // Convert to seconds
-    const route = request.routerPath || request.url.split('?')[0];
+    const duration = reply.elapsedTime! / 1000;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const req = request as any;
+    const route: string = req.routeOptions?.url ?? request.url.split('?')[0];
     metrics.httpDuration.observe(
       {
         method: request.method,
@@ -105,8 +125,7 @@ export async function buildApp() {
       duration
     );
 
-    // Log essential request fields
-    if (app.log) {
+    if (app.log && !QUIET_ROUTES.has(route)) {
       app.log.info({
         method: request.method,
         url: request.url,
@@ -154,6 +173,12 @@ export async function buildApp() {
   await app.register(integrationsRoutes);
   await app.register(settingsRoutes, { prefix: '/api' });
   await app.register(usageRoutes);
+  await app.register(jobEventsRoutes);
+  await app.register(webhookRoutes);
+  await app.register(triggersRoutes);
+  await app.register(registerPlaybookRoutes);
+  await app.register(billingRoutes);
+  await app.register(stripeWebhookRoutes);
   if (env.NODE_ENV !== 'production' && process.env.SCRIBE_DEV_GITHUB_BOOTSTRAP === 'true') {
     await app.register(testHelpersRoutes, { prefix: '/test' });
   }

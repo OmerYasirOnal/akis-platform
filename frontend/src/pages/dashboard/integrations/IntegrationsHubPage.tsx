@@ -3,193 +3,67 @@ import { Link, useSearchParams } from 'react-router-dom';
 import Button from '../../../components/common/Button';
 import { integrationsApi, type AtlassianStatus, type AtlassianOAuthStatus } from '../../../services/api/integrations';
 
-// GitHub icon
+// ============================================================================
+// Icons
+// ============================================================================
+
 const GitHubIcon = () => (
   <svg className="h-8 w-8" fill="currentColor" viewBox="0 0 24 24">
     <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
   </svg>
 );
 
-// Atlassian icon (combined)
 const AtlassianIcon = () => (
   <svg className="h-8 w-8" viewBox="0 0 24 24" fill="currentColor">
     <path d="M7.12 11.08a.74.74 0 00-1.2.18L.62 21.9a.72.72 0 00.65 1.05h7.55a.72.72 0 00.65-.42c1.48-3.12.57-7.85-2.35-11.45zM11.55.17a15.06 15.06 0 00-1.1 15.08l3.77 7.61a.72.72 0 00.65.42h7.55a.72.72 0 00.65-1.05L12.75.35a.74.74 0 00-1.2-.18z"/>
   </svg>
 );
 
-// Jira icon
-const JiraIcon = () => (
-  <svg className="h-8 w-8" viewBox="0 0 24 24" fill="currentColor">
-    <path d="M11.571 11.513H0a5.218 5.218 0 005.232 5.215h2.13v2.057A5.215 5.215 0 0012.575 24V12.486a.972.972 0 00-1.003-.973zM5.275 5.28H16.86a5.218 5.218 0 00-5.232-5.215H9.498V0A5.218 5.218 0 004.272 5.28h.003zm6.296 6.233H24a5.218 5.218 0 00-5.232-5.215h-2.13V4.24a5.218 5.218 0 00-5.213 5.215v11.514a.972.972 0 001.003.973z"/>
-  </svg>
-);
-
-// Confluence icon
-const ConfluenceIcon = () => (
-  <svg className="h-8 w-8" viewBox="0 0 24 24" fill="currentColor">
-    <path d="M.87 18.257c-.248.382-.53.875-.763 1.245a.764.764 0 00.255 1.04l4.965 3.054a.764.764 0 001.058-.26c.199-.332.454-.763.733-1.221 1.967-3.247 3.945-2.853 7.508-1.146l4.957 2.377a.764.764 0 001.028-.382l2.36-5.156a.763.763 0 00-.382-1.007c-1.326-.637-3.94-1.902-6.294-3.03-6.194-2.965-11.205-1.878-15.425 4.486zM23.131 5.743c.248-.382.53-.875.762-1.245a.764.764 0 00-.255-1.04L18.673.404a.764.764 0 00-1.058.26c-.199.332-.454.763-.733 1.221-1.967 3.247-3.945 2.853-7.508 1.146L4.417.654a.764.764 0 00-1.028.382L1.03 6.192a.763.763 0 00.382 1.007c1.326.637 3.94 1.902 6.294 3.03 6.194 2.965 11.205 1.878 15.425-4.486z"/>
-  </svg>
-);
-
-// Link icon
-const LinkIcon = () => (
-  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
-  </svg>
-);
-
-// Check icon
 const CheckIcon = () => (
-  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
     <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
   </svg>
 );
 
-type IntegrationStatus = 'connected' | 'not_connected' | 'connected_via_oauth';
+const LinkIcon = () => (
+  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
+  </svg>
+);
 
-interface Integration {
-  id: 'github' | 'jira' | 'confluence';
-  name: string;
-  description: string;
-  icon: React.ReactNode;
-  features: string[];
-  docsUrl?: string;
-}
-
-const integrations: Integration[] = [
-  {
-    id: 'github',
-    name: 'GitHub',
-    description: 'Connect your GitHub repositories to enable Scribe to analyze commits, generate documentation, and create pull requests.',
-    icon: <GitHubIcon />,
-    features: [
-      'Repository discovery',
-      'Branch & commit analysis',
-      'Pull request creation',
-      'Webhook automation',
-    ],
-    docsUrl: '/docs/integrations/github',
-  },
-  {
-    id: 'jira',
-    name: 'Jira',
-    description: 'Connect Jira to link agent jobs with issues, auto-update ticket status, and sync changelog entries.',
-    icon: <JiraIcon />,
-    features: [
-      'Issue linking',
-      'Status synchronization',
-      'Changelog integration',
-      'Sprint automation',
-    ],
-    docsUrl: '/docs/integrations/atlassian',
-  },
-  {
-    id: 'confluence',
-    name: 'Confluence',
-    description: 'Publish generated documentation directly to Confluence spaces and keep technical docs in sync.',
-    icon: <ConfluenceIcon />,
-    features: [
-      'Documentation publishing',
-      'Space management',
-      'Page version control',
-      'Template integration',
-    ],
-    docsUrl: '/docs/integrations/atlassian',
-  },
-];
-
-const statusStyles = {
-  connected: {
-    badge: 'bg-green-500/10 text-green-400 border-green-500/20',
-    text: 'Connected',
-  },
-  connected_via_oauth: {
-    badge: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
-    text: 'Connected via Atlassian',
-  },
-  not_connected: {
-    badge: 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20',
-    text: 'Not Connected',
-  },
-};
+// ============================================================================
+// Component
+// ============================================================================
 
 export default function IntegrationsHubPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
-  // Integration statuses
-  const [githubStatus, setGithubStatus] = useState<IntegrationStatus>('not_connected');
-  const [atlassianOAuthStatus, setAtlassianOAuthStatus] = useState<AtlassianOAuthStatus>({
-    connected: false,
-    configured: false,
-    jiraAvailable: false,
-    confluenceAvailable: false,
+  // Statuses
+  const [githubConnected, setGithubConnected] = useState(false);
+  const [atlassianOAuth, setAtlassianOAuth] = useState<AtlassianOAuthStatus>({
+    connected: false, configured: false, jiraAvailable: false, confluenceAvailable: false,
   });
   const [jiraStatus, setJiraStatus] = useState<AtlassianStatus>({ connected: false });
   const [confluenceStatus, setConfluenceStatus] = useState<AtlassianStatus>({ connected: false });
 
-  // Load all integration statuses
   const loadAllStatuses = useCallback(async () => {
-    // Load each status independently to prevent one failure from blocking others
-    const loadGitHub = async () => {
-      try {
-        const github = await integrationsApi.getGitHubStatus();
-        setGithubStatus(github.connected ? 'connected' : 'not_connected');
-      } catch (err) {
-        console.error('Failed to load GitHub status:', err);
-        setGithubStatus('not_connected');
-      }
-    };
-
-    const loadAtlassian = async () => {
-      try {
-        const atlassian = await integrationsApi.getAtlassianStatus();
-        setAtlassianOAuthStatus(atlassian);
-      } catch (err) {
-        console.error('Failed to load Atlassian status:', err);
-        setAtlassianOAuthStatus({
-          connected: false,
-          configured: false,
-          jiraAvailable: false,
-          confluenceAvailable: false,
-        });
-      }
-    };
-
-    const loadJira = async () => {
-      try {
-        const jira = await integrationsApi.getJiraStatus();
-        setJiraStatus(jira);
-      } catch (err) {
-        console.error('Failed to load Jira status:', err);
-        setJiraStatus({ 
-          connected: false, 
-          error: { code: 'LOAD_FAILED', message: 'Could not load Jira status' }
-        });
-      }
-    };
-
-    const loadConfluence = async () => {
-      try {
-        const confluence = await integrationsApi.getConfluenceStatus();
-        setConfluenceStatus(confluence);
-      } catch (err) {
-        console.error('Failed to load Confluence status:', err);
-        setConfluenceStatus({ 
-          connected: false, 
-          error: { code: 'LOAD_FAILED', message: 'Could not load Confluence status' }
-        });
-      }
-    };
-
-    await Promise.all([loadGitHub(), loadAtlassian(), loadJira(), loadConfluence()]);
+    const [gh, atl, jira, conf] = await Promise.allSettled([
+      integrationsApi.getGitHubStatus(),
+      integrationsApi.getAtlassianStatus(),
+      integrationsApi.getJiraStatus(),
+      integrationsApi.getConfluenceStatus(),
+    ]);
+    if (gh.status === 'fulfilled') setGithubConnected(gh.value.connected);
+    if (atl.status === 'fulfilled') setAtlassianOAuth(atl.value);
+    if (jira.status === 'fulfilled') setJiraStatus(jira.value);
+    if (conf.status === 'fulfilled') setConfluenceStatus(conf.value);
     setLoading(false);
   }, []);
 
-  // Handle OAuth callback params
+  // OAuth callback handling
   useEffect(() => {
-    // GitHub OAuth callback
     const githubParam = searchParams.get('github');
     if (githubParam === 'connected') {
       setMessage({ type: 'success', text: 'GitHub connected successfully!' });
@@ -197,382 +71,229 @@ export default function IntegrationsHubPage() {
       setSearchParams(searchParams, { replace: true });
       loadAllStatuses();
     } else if (githubParam === 'error') {
-      const reason = searchParams.get('reason') || 'unknown';
-      setMessage({ type: 'error', text: `GitHub connection failed: ${reason}` });
-      searchParams.delete('github');
-      searchParams.delete('reason');
+      setMessage({ type: 'error', text: `GitHub connection failed: ${searchParams.get('reason') || 'unknown'}` });
+      searchParams.delete('github'); searchParams.delete('reason');
       setSearchParams(searchParams, { replace: true });
     }
 
-    // Atlassian OAuth callback
     const atlassianParam = searchParams.get('atlassian');
     if (atlassianParam === 'connected') {
-      setMessage({ type: 'success', text: 'Atlassian connected successfully! Both Jira and Confluence are now available.' });
+      setMessage({ type: 'success', text: 'Atlassian connected! Jira and Confluence are now available.' });
       searchParams.delete('atlassian');
       setSearchParams(searchParams, { replace: true });
       loadAllStatuses();
     } else if (atlassianParam === 'error') {
       const reason = searchParams.get('reason') || 'unknown';
-      let errorMessage = 'Atlassian connection failed';
-      if (reason === 'state_mismatch') {
-        errorMessage = 'Atlassian connection failed: Security verification failed. Please try again.';
-      } else if (reason === 'no_accessible_resources') {
-        errorMessage = 'Atlassian connection failed: No accessible Atlassian sites found.';
-      } else if (reason === 'missing_code') {
-        errorMessage = 'Atlassian connection failed: Authorization was cancelled or denied.';
-      } else {
-        errorMessage = `Atlassian connection failed: ${reason}`;
-      }
-      setMessage({ type: 'error', text: errorMessage });
-      searchParams.delete('atlassian');
-      searchParams.delete('reason');
+      const msgs: Record<string, string> = {
+        state_mismatch: 'Security verification failed. Please try again.',
+        no_accessible_resources: 'No accessible Atlassian sites found.',
+        missing_code: 'Authorization was cancelled or denied.',
+      };
+      setMessage({ type: 'error', text: `Atlassian connection failed: ${msgs[reason] || reason}` });
+      searchParams.delete('atlassian'); searchParams.delete('reason');
       setSearchParams(searchParams, { replace: true });
     }
   }, [searchParams, setSearchParams, loadAllStatuses]);
 
-  // Clear message after 5 seconds
   useEffect(() => {
-    if (message) {
-      const timer = setTimeout(() => setMessage(null), 5000);
-      return () => clearTimeout(timer);
-    }
+    if (message) { const t = setTimeout(() => setMessage(null), 5000); return () => clearTimeout(t); }
   }, [message]);
 
-  // Load statuses on mount
-  useEffect(() => {
-    loadAllStatuses();
-  }, [loadAllStatuses]);
+  useEffect(() => { loadAllStatuses(); }, [loadAllStatuses]);
 
-  // Get status for an integration
-  const getStatus = (id: Integration['id']): IntegrationStatus => {
-    switch (id) {
-      case 'github':
-        return githubStatus;
-      case 'jira':
-        if (jiraStatus.viaOAuth || (atlassianOAuthStatus.connected && atlassianOAuthStatus.jiraAvailable)) {
-          return 'connected_via_oauth';
-        }
-        return jiraStatus.connected ? 'connected' : 'not_connected';
-      case 'confluence':
-        if (confluenceStatus.viaOAuth || (atlassianOAuthStatus.connected && atlassianOAuthStatus.confluenceAvailable)) {
-          return 'connected_via_oauth';
-        }
-        return confluenceStatus.connected ? 'connected' : 'not_connected';
-      default:
-        return 'not_connected';
-    }
-  };
+  // Derived
+  const jiraConnected = jiraStatus.viaOAuth || (atlassianOAuth.connected && atlassianOAuth.jiraAvailable) || jiraStatus.connected;
+  const confluenceConnected = confluenceStatus.viaOAuth || (atlassianOAuth.connected && atlassianOAuth.confluenceAvailable) || confluenceStatus.connected;
 
   // Handlers
-  const handleGitHubConnect = () => {
-    integrationsApi.startGitHubOAuth();
-  };
-
+  const handleGitHubConnect = () => integrationsApi.startGitHubOAuth();
   const handleGitHubDisconnect = async () => {
-    try {
-      await integrationsApi.disconnectGitHub();
-      setGithubStatus('not_connected');
-      setMessage({ type: 'success', text: 'GitHub disconnected successfully.' });
-    } catch (error) {
-      console.error('Failed to disconnect GitHub:', error);
-      setMessage({ type: 'error', text: 'Failed to disconnect GitHub. Please try again.' });
-    }
+    try { await integrationsApi.disconnectGitHub(); setGithubConnected(false); setMessage({ type: 'success', text: 'GitHub disconnected.' }); }
+    catch { setMessage({ type: 'error', text: 'Failed to disconnect GitHub.' }); }
   };
-
-  const handleAtlassianOAuthConnect = () => {
-    integrationsApi.startAtlassianOAuth();
-  };
-
-  const handleAtlassianOAuthDisconnect = async () => {
+  const handleAtlassianConnect = () => integrationsApi.startAtlassianOAuth();
+  const handleAtlassianDisconnect = async () => {
     try {
       await integrationsApi.disconnectAtlassian();
-      setAtlassianOAuthStatus({
-        connected: false,
-        configured: atlassianOAuthStatus.configured,
-        jiraAvailable: false,
-        confluenceAvailable: false,
-      });
-      setJiraStatus({ connected: false });
-      setConfluenceStatus({ connected: false });
-      setMessage({ type: 'success', text: 'Atlassian disconnected. Both Jira and Confluence are now disconnected.' });
-    } catch (error) {
-      console.error('Failed to disconnect Atlassian:', error);
-      setMessage({ type: 'error', text: 'Failed to disconnect Atlassian. Please try again.' });
-    }
+      setAtlassianOAuth({ connected: false, configured: atlassianOAuth.configured, jiraAvailable: false, confluenceAvailable: false });
+      setJiraStatus({ connected: false }); setConfluenceStatus({ connected: false });
+      setMessage({ type: 'success', text: 'Atlassian disconnected.' });
+    } catch { setMessage({ type: 'error', text: 'Failed to disconnect Atlassian.' }); }
   };
 
-  const handleConnect = (id: Integration['id']) => {
-    if (id === 'github') {
-      handleGitHubConnect();
-    } else {
-      // For Jira/Confluence, use Atlassian OAuth
-      handleAtlassianOAuthConnect();
-    }
-  };
-
-  const handleDisconnect = (id: Integration['id']) => {
-    if (id === 'github') {
-      handleGitHubDisconnect();
-    } else {
-      // For Jira/Confluence connected via OAuth, disconnect the Atlassian OAuth
-      handleAtlassianOAuthDisconnect();
-    }
-  };
+  // Frosted glass card
+  const card = 'bg-white/[0.03] backdrop-blur-sm border border-white/[0.06] rounded-2xl';
+  const badge = (connected: boolean) => connected
+    ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/20'
+    : 'bg-yellow-500/15 text-yellow-400 border border-yellow-500/20';
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 max-w-5xl mx-auto">
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-ak-text-primary">Integrations</h1>
-        <p className="mt-2 text-ak-text-secondary">
+        <p className="mt-2 text-sm text-ak-text-secondary">
           Connect AKIS to your development tools. All integrations use{' '}
-          <Link
-            to="/docs/integrations/mcp"
-            className="text-ak-primary hover:underline"
-          >
-            MCP (Model Context Protocol)
-          </Link>{' '}
-          for secure, credential-free communication.
+          <Link to="/docs/integrations/mcp" className="text-ak-primary hover:underline">MCP</Link>{' '}
+          for secure communication.
         </p>
       </div>
 
-      {/* Status Message */}
+      {/* Status Banner */}
       {message && (
-        <div
-          className={`rounded-xl border p-4 ${
-            message.type === 'success'
-              ? 'border-green-500/20 bg-green-500/10 text-green-400'
-              : 'border-red-500/20 bg-red-500/10 text-red-400'
-          }`}
-        >
-          <p className="text-sm font-medium">{message.text}</p>
+        <div className={`rounded-xl border p-4 text-sm font-medium ${
+          message.type === 'success' ? 'border-emerald-500/20 bg-emerald-500/10 text-emerald-400' : 'border-red-500/20 bg-red-500/10 text-red-400'
+        }`}>
+          {message.text}
         </div>
       )}
 
-      {/* Atlassian OAuth Section */}
-      <div className="rounded-2xl border border-ak-border bg-ak-surface-2 p-6">
+      {/* === GitHub Card === */}
+      <div className={card + ' p-6'}>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 text-white">
-              <AtlassianIcon />
+            <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-white/[0.06] text-ak-text-primary">
+              <GitHubIcon />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-ak-text-primary">Atlassian Integration</h2>
-              <p className="text-sm text-ak-text-secondary">
-                Connect once to enable both Jira and Confluence
-              </p>
+              <h2 className="text-lg font-bold text-ak-text-primary">GitHub</h2>
+              <p className="text-sm text-ak-text-secondary mt-0.5">Repository analysis, PR creation, webhook automation</p>
             </div>
           </div>
-          <div className="flex items-center gap-4">
-            {atlassianOAuthStatus.connected ? (
-              <>
-                <div className="text-right">
-                  <span className="inline-block rounded-full border border-green-500/20 bg-green-500/10 px-3 py-1 text-sm font-medium text-green-400">
-                    Connected
-                  </span>
-                  {atlassianOAuthStatus.siteUrl && (
-                    <p className="mt-1 text-xs text-ak-text-secondary">{atlassianOAuthStatus.siteUrl}</p>
-                  )}
-                </div>
-                <Button
-                  variant="outline"
-                  onClick={handleAtlassianOAuthDisconnect}
-                >
-                  Disconnect
-                </Button>
-              </>
-            ) : atlassianOAuthStatus.configured ? (
-              <Button
-                variant="primary"
-                onClick={handleAtlassianOAuthConnect}
-                disabled={loading}
-              >
-                {loading ? 'Loading...' : 'Connect with Atlassian'}
-              </Button>
+          <div className="flex items-center gap-3">
+            <span className={`px-3 py-1 text-xs font-medium rounded-full ${badge(githubConnected)}`}>
+              {githubConnected ? 'Connected' : 'Not Connected'}
+            </span>
+            {githubConnected ? (
+              <Button variant="outline" onClick={handleGitHubDisconnect} disabled={loading}>Disconnect</Button>
             ) : (
-              <div className="text-right">
-                <span className="inline-block rounded-full border border-yellow-500/20 bg-yellow-500/10 px-3 py-1 text-sm font-medium text-yellow-400">
-                  Not Configured
-                </span>
-                <p className="mt-1 text-xs text-ak-text-secondary">
-                  Set ATLASSIAN_OAUTH_* env vars
-                </p>
-              </div>
+              <Button variant="primary" onClick={handleGitHubConnect} disabled={loading}>
+                {loading ? 'Loading...' : 'Connect'}
+              </Button>
             )}
           </div>
         </div>
-        
-        {/* Products enabled by Atlassian OAuth */}
-        {atlassianOAuthStatus.connected && (
-          <div className="mt-4 flex gap-4 border-t border-ak-border pt-4">
-            <div className="flex items-center gap-2">
-              <JiraIcon />
-              <span className={`text-sm ${atlassianOAuthStatus.jiraAvailable ? 'text-green-400' : 'text-ak-text-secondary'}`}>
-                {atlassianOAuthStatus.jiraAvailable ? '✓ Jira Available' : 'Jira Not Available'}
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              <ConfluenceIcon />
-              <span className={`text-sm ${atlassianOAuthStatus.confluenceAvailable ? 'text-green-400' : 'text-ak-text-secondary'}`}>
-                {atlassianOAuthStatus.confluenceAvailable ? '✓ Confluence Available' : 'Confluence Not Available'}
-              </span>
-            </div>
+        {/* Features */}
+        <div className="mt-4 flex flex-wrap gap-3">
+          {['Repository discovery', 'Branch & commit analysis', 'Pull request creation', 'Webhook automation'].map(f => (
+            <span key={f} className="flex items-center gap-1.5 text-xs text-ak-text-secondary bg-white/[0.04] px-2.5 py-1 rounded-lg">
+              <CheckIcon /> {f}
+            </span>
+          ))}
+        </div>
+        {githubConnected && (
+          <div className="mt-4 pt-3 border-t border-white/[0.06]">
+            <Link to="/dashboard/agents" className="text-sm text-ak-primary hover:underline flex items-center gap-1">
+              Go to Agents <LinkIcon />
+            </Link>
           </div>
         )}
       </div>
 
-      {/* Info Callout */}
-      <div className="rounded-xl border border-ak-primary/20 bg-ak-primary/5 p-4">
-        <div className="flex gap-3">
-          <div className="flex-shrink-0">
-            <svg className="h-5 w-5 text-ak-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" />
-            </svg>
+      {/* === Unified Atlassian Card === */}
+      <div className={card + ' p-6'}>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500/20 to-blue-600/20 text-blue-400">
+              <AtlassianIcon />
+            </div>
+            <div>
+              <h2 className="text-lg font-bold text-ak-text-primary">Atlassian</h2>
+              <p className="text-sm text-ak-text-secondary mt-0.5">
+                Connect once to enable both Jira and Confluence
+              </p>
+            </div>
           </div>
+          <div className="flex items-center gap-3">
+            <span className={`px-3 py-1 text-xs font-medium rounded-full ${badge(atlassianOAuth.connected)}`}>
+              {atlassianOAuth.connected ? 'Connected' : atlassianOAuth.configured ? 'Not Connected' : 'Not Configured'}
+            </span>
+            {atlassianOAuth.connected ? (
+              <Button variant="outline" onClick={handleAtlassianDisconnect} disabled={loading}>Disconnect</Button>
+            ) : atlassianOAuth.configured ? (
+              <Button variant="primary" onClick={handleAtlassianConnect} disabled={loading}>
+                {loading ? 'Loading...' : 'Connect with Atlassian'}
+              </Button>
+            ) : (
+              <span className="text-xs text-ak-text-secondary">Set ATLASSIAN_OAUTH_* env vars</span>
+            )}
+          </div>
+        </div>
+
+        {/* Site info */}
+        {atlassianOAuth.connected && atlassianOAuth.siteUrl && (
+          <div className="mt-3 text-xs text-ak-text-secondary">
+            Site: <span className="text-ak-text-primary">{atlassianOAuth.siteUrl}</span>
+          </div>
+        )}
+
+        {/* Products grid */}
+        <div className="mt-5 grid grid-cols-2 gap-4">
+          {/* Jira */}
+          <div className={`rounded-xl p-4 ${jiraConnected ? 'bg-emerald-500/5 border border-emerald-500/10' : 'bg-white/[0.02] border border-white/[0.04]'}`}>
+            <div className="flex items-center justify-between mb-3">
+              <span className="font-semibold text-ak-text-primary text-sm">Jira</span>
+              <span className={`px-2 py-0.5 text-[10px] font-medium rounded-full ${jiraConnected ? 'bg-emerald-500/15 text-emerald-400' : 'text-ak-text-secondary bg-white/[0.04]'}`}>
+                {jiraConnected ? 'Available' : 'Unavailable'}
+              </span>
+            </div>
+            <ul className="space-y-1.5">
+              {['Issue linking', 'Status sync', 'Changelog integration', 'Sprint automation'].map(f => (
+                <li key={f} className="flex items-center gap-1.5 text-xs text-ak-text-secondary">
+                  <CheckIcon /> {f}
+                </li>
+              ))}
+            </ul>
+            {jiraStatus.error && (
+              <p className="mt-2 text-[10px] text-yellow-400">{jiraStatus.error.message}</p>
+            )}
+          </div>
+
+          {/* Confluence */}
+          <div className={`rounded-xl p-4 ${confluenceConnected ? 'bg-emerald-500/5 border border-emerald-500/10' : 'bg-white/[0.02] border border-white/[0.04]'}`}>
+            <div className="flex items-center justify-between mb-3">
+              <span className="font-semibold text-ak-text-primary text-sm">Confluence</span>
+              <span className={`px-2 py-0.5 text-[10px] font-medium rounded-full ${confluenceConnected ? 'bg-emerald-500/15 text-emerald-400' : 'text-ak-text-secondary bg-white/[0.04]'}`}>
+                {confluenceConnected ? 'Available' : 'Unavailable'}
+              </span>
+            </div>
+            <ul className="space-y-1.5">
+              {['Documentation publishing', 'Space management', 'Page version control', 'Template integration'].map(f => (
+                <li key={f} className="flex items-center gap-1.5 text-xs text-ak-text-secondary">
+                  <CheckIcon /> {f}
+                </li>
+              ))}
+            </ul>
+            {confluenceStatus.error && (
+              <p className="mt-2 text-[10px] text-yellow-400">{confluenceStatus.error.message}</p>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Security Callout */}
+      <div className={card + ' p-4'}>
+        <div className="flex gap-3">
+          <svg className="h-5 w-5 text-ak-primary flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" />
+          </svg>
           <div>
-            <h3 className="font-medium text-ak-primary">Secure OAuth Connection</h3>
-            <p className="mt-1 text-sm text-ak-text-secondary">
-              Connecting with Atlassian uses OAuth 2.0 - your credentials are never stored. Tokens are encrypted using AES-256-GCM and automatically refreshed.
+            <h3 className="font-medium text-ak-text-primary text-sm">Secure OAuth 2.0</h3>
+            <p className="mt-1 text-xs text-ak-text-secondary">
+              Credentials are never stored. Tokens are encrypted with AES-256-GCM and automatically refreshed.
             </p>
           </div>
         </div>
       </div>
 
-      {/* Integration Cards */}
-      <div className="grid gap-6 lg:grid-cols-2 xl:grid-cols-3">
-        {integrations.map((integration) => {
-          const status = getStatus(integration.id);
-          const isAtlassianProduct = integration.id === 'jira' || integration.id === 'confluence';
-          const isConnectedViaOAuth = status === 'connected_via_oauth';
-          const atlassianInfo = integration.id === 'jira' ? jiraStatus : integration.id === 'confluence' ? confluenceStatus : null;
-
-          return (
-            <div
-              key={integration.id}
-              className="flex flex-col rounded-2xl border border-ak-border bg-ak-surface-2 p-6 transition-all duration-base hover:shadow-ak-lg"
-            >
-              {/* Header */}
-              <div className="flex items-start justify-between">
-                <div className="flex items-center gap-4">
-                  <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-ak-surface text-ak-text-primary">
-                    {integration.icon}
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-bold text-ak-text-primary">
-                      {integration.name}
-                    </h3>
-                    <span
-                      className={`inline-block mt-1 rounded-full border px-2.5 py-0.5 text-xs font-medium ${
-                        statusStyles[status].badge
-                      }`}
-                    >
-                      {statusStyles[status].text}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Description */}
-              <p className="mt-4 flex-1 text-sm text-ak-text-secondary">
-                {integration.description}
-              </p>
-
-              {/* Connection Info */}
-              {(isConnectedViaOAuth && atlassianOAuthStatus.siteUrl) && (
-                <div className="mt-4 rounded-lg bg-blue-500/5 border border-blue-500/20 p-3 text-xs text-blue-400">
-                  <p className="font-medium">Connected via Atlassian OAuth</p>
-                  <p className="mt-1">Site: {atlassianOAuthStatus.siteUrl}</p>
-                </div>
-              )}
-
-              {/* Legacy connection info (for API token connections) */}
-              {!isConnectedViaOAuth && atlassianInfo?.connected && atlassianInfo.siteUrl && (
-                <div className="mt-4 rounded-lg bg-ak-surface p-3 text-xs text-ak-text-secondary">
-                  <p>Site: {atlassianInfo.siteUrl}</p>
-                  {atlassianInfo.userEmail && <p>User: {atlassianInfo.userEmail}</p>}
-                  {atlassianInfo.tokenLast4 && <p>Token: ••••{atlassianInfo.tokenLast4}</p>}
-                </div>
-              )}
-
-              {/* Error Info (for degraded status) */}
-              {atlassianInfo?.error && (
-                <div className="mt-4 rounded-lg bg-yellow-500/10 border border-yellow-500/20 p-3 text-xs text-yellow-400">
-                  <p className="font-medium">Connection check failed</p>
-                  <p className="mt-1 text-yellow-400/80">{atlassianInfo.error.message}</p>
-                </div>
-              )}
-
-              {/* Features */}
-              <ul className="mt-4 space-y-2">
-                {integration.features.map((feature) => (
-                  <li key={feature} className="flex items-center gap-2 text-sm text-ak-text-secondary">
-                    <CheckIcon />
-                    {feature}
-                  </li>
-                ))}
-              </ul>
-
-              {/* Actions */}
-              <div className="mt-6 flex items-center gap-3">
-                {status === 'connected' || status === 'connected_via_oauth' ? (
-                  <>
-                    <Button
-                      variant="outline"
-                      onClick={() => handleDisconnect(integration.id)}
-                      className="flex-1"
-                    >
-                      Disconnect
-                    </Button>
-                    {integration.id === 'github' && (
-                      <Link
-                        to="/dashboard/agents"
-                        className="flex items-center gap-1 text-sm font-medium text-ak-primary hover:underline"
-                      >
-                        Use <LinkIcon />
-                      </Link>
-                    )}
-                  </>
-                ) : (
-                  <Button
-                    variant="primary"
-                    onClick={() => handleConnect(integration.id)}
-                    className="flex-1"
-                    disabled={loading || (isAtlassianProduct && !atlassianOAuthStatus.configured)}
-                  >
-                    {loading ? 'Loading...' : isAtlassianProduct ? 'Connect with Atlassian' : 'Connect'}
-                  </Button>
-                )}
-
-                {integration.docsUrl && (
-                  <Link
-                    to={integration.docsUrl}
-                    className="flex items-center gap-1 text-sm text-ak-text-secondary hover:text-ak-primary"
-                  >
-                    Docs <LinkIcon />
-                  </Link>
-                )}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
       {/* Request Integration */}
-      <div className="rounded-2xl border border-dashed border-ak-border bg-ak-surface p-8 text-center">
-        <h3 className="text-lg font-bold text-ak-text-primary">
-          Need a Different Integration?
-        </h3>
-        <p className="mt-2 text-ak-text-secondary">
-          We&apos;re always adding new integrations. Let us know what tools you use.
+      <div className="text-center py-6">
+        <p className="text-sm text-ak-text-secondary">
+          Need a different integration?{' '}
+          <a href="https://github.com/akis-platform/akis/discussions" target="_blank" rel="noopener noreferrer" className="text-ak-primary hover:underline">
+            Request one →
+          </a>
         </p>
-        <a
-          href="https://github.com/akis-platform/akis/discussions"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="mt-4 inline-block text-ak-primary hover:underline"
-        >
-          Request an Integration →
-        </a>
       </div>
     </div>
   );

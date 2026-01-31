@@ -1,0 +1,108 @@
+import { AgentPlaybook } from './types.js';
+
+export const scribePlaybook: AgentPlaybook = {
+  agentType: 'scribe',
+  displayName: 'Scribe Agent',
+  description: 'Generates comprehensive documentation from repository source code and structure.',
+  phases: [
+    {
+      id: 'thinking',
+      label: 'Thinking',
+      description: 'Analyzing repository and documentation requirements',
+      icon: '🧠',
+      estimatedDurationMs: 3000,
+    },
+    {
+      id: 'discovery',
+      label: 'Discovery',
+      description: 'Scanning repository structure and key files',
+      icon: '🔍',
+      estimatedDurationMs: 5000,
+    },
+    {
+      id: 'reading',
+      label: 'Reading',
+      description: 'Reading source files for documentation evidence',
+      icon: '📖',
+      estimatedDurationMs: 10000,
+    },
+    {
+      id: 'creating',
+      label: 'Creating',
+      description: 'Generating documentation with AI',
+      icon: '✍️',
+      estimatedDurationMs: 30000,
+    },
+    {
+      id: 'reviewing',
+      label: 'Reviewing',
+      description: 'AI reviewing generated documentation for quality',
+      icon: '🔎',
+      estimatedDurationMs: 15000,
+    },
+    {
+      id: 'publishing',
+      label: 'Publishing',
+      description: 'Committing files and creating pull request',
+      icon: '🚀',
+      estimatedDurationMs: 8000,
+    },
+    {
+      id: 'done',
+      label: 'Done',
+      description: 'Documentation generation complete',
+      icon: '✅',
+    },
+  ],
+  requiredFields: [
+    {
+      name: 'owner',
+      type: 'string',
+      label: 'Repository Owner',
+      required: true,
+      placeholder: 'e.g. octocat',
+    },
+    {
+      name: 'repo',
+      type: 'string',
+      label: 'Repository Name',
+      required: true,
+      placeholder: 'e.g. my-project',
+    },
+    {
+      name: 'baseBranch',
+      type: 'string',
+      label: 'Base Branch',
+      required: true,
+      placeholder: 'e.g. main',
+      defaultValue: 'main',
+    },
+    {
+      name: 'targetPath',
+      type: 'string',
+      label: 'Target Path',
+      required: false,
+      placeholder: 'e.g. docs/',
+      defaultValue: 'docs/',
+    },
+    {
+      name: 'dryRun',
+      type: 'boolean',
+      label: 'Dry Run',
+      required: false,
+      defaultValue: false,
+    },
+  ],
+  capabilities: [
+    'Multi-file documentation',
+    'Contract-driven structure',
+    'Repository-grounded content',
+    'AI quality review',
+    'GitHub PR creation',
+  ],
+  outputArtifacts: [
+    'markdown-docs',
+    'pull-request',
+    'coverage-report',
+  ],
+};

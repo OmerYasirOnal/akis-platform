@@ -366,6 +366,182 @@ export const QUALITY_RUBRIC = {
  * - Quality review rubric included
  * - Produces PR-ready markdown diffs
  */
+// ============================================================================
+// Doc Pack Generator Configuration
+// ============================================================================
+
+/** Documentation pack level */
+export type DocPack = 'readme' | 'standard' | 'full';
+
+/** Documentation depth level */
+export type DocDepth = 'lite' | 'standard' | 'deep';
+
+/** All possible output target identifiers */
+export type DocTarget =
+  | 'README'
+  | 'ARCHITECTURE'
+  | 'API'
+  | 'DEVELOPMENT'
+  | 'DEPLOYMENT'
+  | 'CONTRIBUTING'
+  | 'FAQ'
+  | 'CHANGELOG';
+
+/** Default targets per doc pack level */
+export const DOC_PACK_TARGETS: Record<DocPack, DocTarget[]> = {
+  readme: ['README'],
+  standard: ['README', 'ARCHITECTURE', 'API', 'DEVELOPMENT'],
+  full: ['README', 'ARCHITECTURE', 'API', 'DEVELOPMENT', 'DEPLOYMENT', 'CONTRIBUTING', 'FAQ', 'CHANGELOG'],
+};
+
+/** Max output tokens per depth level */
+export const DOC_DEPTH_LIMITS: Record<DocDepth, number> = {
+  lite: 4_000,
+  standard: 16_000,
+  deep: 64_000,
+};
+
+/** Hard ceiling - never exceed regardless of user input */
+const MAX_OUTPUT_TOKENS_CAP = 64_000;
+
+/** Input for doc pack resolution */
+export interface DocPackInput {
+  docPack?: DocPack;
+  docDepth?: DocDepth;
+  outputTargets?: string[];
+  maxOutputTokens?: number;
+  passes?: number;
+}
+
+/** Resolved (normalized) doc pack configuration */
+export interface ResolvedDocPackConfig {
+  docPack: DocPack;
+  docDepth: DocDepth;
+  outputTargets: DocTarget[];
+  maxOutputTokens: number;
+  passes: 1 | 2;
+}
+
+/**
+ * Resolve doc pack configuration with defaults and constraints.
+ * Applies the rules from the spec:
+ * - Default: docPack=standard, docDepth=standard, passes=1
+ * - If docPack=full OR docDepth=deep → passes=2, all targets
+ * - maxOutputTokens capped at MAX_OUTPUT_TOKENS_CAP
+ */
+export function resolveDocPackConfig(input: DocPackInput = {}): ResolvedDocPackConfig {
+  const docPack: DocPack = input.docPack ?? 'standard';
+  const docDepth: DocDepth = input.docDepth ?? 'standard';
+
+  const needsMultiPass = docPack === 'full' || docDepth === 'deep';
+  const passes: 1 | 2 = needsMultiPass ? 2 : ((input.passes === 2 ? 2 : 1) as 1 | 2);
+
+  // Resolve targets: user override > pack defaults; full/deep expands to all
+  let outputTargets: DocTarget[];
+  if (input.outputTargets && input.outputTargets.length > 0 && !needsMultiPass) {
+    outputTargets = input.outputTargets.filter(
+      (t): t is DocTarget => DOC_PACK_TARGETS.full.includes(t as DocTarget)
+    );
+    if (outputTargets.length === 0) outputTargets = DOC_PACK_TARGETS[docPack];
+  } else if (needsMultiPass) {
+    // full/deep always includes all targets (user can still narrow via outputTargets)
+    outputTargets = input.outputTargets && input.outputTargets.length > 0
+      ? input.outputTargets.filter((t): t is DocTarget => DOC_PACK_TARGETS.full.includes(t as DocTarget))
+      : DOC_PACK_TARGETS.full;
+    if (outputTargets.length === 0) outputTargets = DOC_PACK_TARGETS.full;
+  } else {
+    outputTargets = DOC_PACK_TARGETS[docPack];
+  }
+
+  const depthLimit = DOC_DEPTH_LIMITS[docDepth];
+  const maxOutputTokens = Math.min(
+    input.maxOutputTokens ?? depthLimit,
+    MAX_OUTPUT_TOKENS_CAP
+  );
+
+  return { docPack, docDepth, outputTargets, maxOutputTokens, passes };
+}
+
+/** Map DocTarget to file path */
+export function targetToPath(target: DocTarget): string {
+  switch (target) {
+    case 'README': return 'README.md';
+    case 'ARCHITECTURE': return 'docs/ARCHITECTURE.md';
+    case 'API': return 'docs/API.md';
+    case 'DEVELOPMENT': return 'docs/DEVELOPMENT.md';
+    case 'DEPLOYMENT': return 'docs/DEPLOYMENT.md';
+    case 'CONTRIBUTING': return 'docs/CONTRIBUTING.md';
+    case 'FAQ': return 'docs/FAQ.md';
+    case 'CHANGELOG': return 'docs/CHANGELOG.md';
+  }
+}
+
+// ============================================================================
+// Architecture contract (new)
+// ============================================================================
+
+export const ARCHITECTURE_CONTRACT: DocTypeContract = {
+  fileType: 'guide',
+  patterns: ['docs/ARCHITECTURE.md'],
+  sections: [
+    { name: 'Overview', required: true, description: 'High-level system design and component diagram' },
+    { name: 'Components', required: true, description: 'Major components/services with responsibilities' },
+    { name: 'Data Flow', required: true, description: 'How data moves through the system' },
+    { name: 'Technology Stack', required: false, description: 'Languages, frameworks, infrastructure' },
+    { name: 'Diagrams', required: false, description: 'Mermaid or other diagrams', hints: ['Use mermaid fenced blocks'] },
+  ],
+  qualityRules: { minLength: 800, requireCodeExamples: false, tone: 'technical' },
+};
+
+// ============================================================================
+// Deployment contract (new)
+// ============================================================================
+
+export const DEPLOYMENT_CONTRACT: DocTypeContract = {
+  fileType: 'guide',
+  patterns: ['docs/DEPLOYMENT.md'],
+  sections: [
+    { name: 'Prerequisites', required: true, description: 'Infrastructure requirements' },
+    { name: 'Environment Variables', required: true, description: 'Required env vars with descriptions' },
+    { name: 'Build & Deploy', required: true, description: 'Step-by-step deployment process' },
+    { name: 'Monitoring', required: false, description: 'Health checks, logging, alerting' },
+    { name: 'Rollback', required: false, description: 'How to rollback a bad deploy' },
+  ],
+  qualityRules: { minLength: 500, requireCodeExamples: true, tone: 'technical' },
+};
+
+// ============================================================================
+// Development contract (new)
+// ============================================================================
+
+export const DEVELOPMENT_CONTRACT: DocTypeContract = {
+  fileType: 'setup',
+  patterns: ['docs/DEVELOPMENT.md'],
+  sections: [
+    { name: 'Prerequisites', required: true, description: 'Required tools and versions' },
+    { name: 'Local Setup', required: true, description: 'Steps to get running locally' },
+    { name: 'Commands', required: true, description: 'Dev, build, test, lint commands' },
+    { name: 'Environment Variables', required: true, description: 'Required env vars' },
+    { name: 'Troubleshooting', required: false, description: 'Common issues and fixes' },
+  ],
+  qualityRules: { minLength: 500, requireCodeExamples: true, tone: 'technical' },
+};
+
+// ============================================================================
+// FAQ contract (new)
+// ============================================================================
+
+export const FAQ_CONTRACT: DocTypeContract = {
+  fileType: 'guide',
+  patterns: ['docs/FAQ.md'],
+  sections: [
+    { name: 'General', required: true, description: 'Common questions about the project' },
+    { name: 'Setup Issues', required: false, description: 'Installation and setup problems' },
+    { name: 'Usage', required: false, description: 'How-to questions' },
+  ],
+  qualityRules: { minLength: 300, tone: 'friendly' },
+};
+
 export function buildContractPrompt(
   contract: DocTypeContract,
   existingContent: string,
