@@ -15,6 +15,11 @@ export const DEFAULT_OPENROUTER_MODELS = [
   'deepseek/deepseek-chat-v3-0324',
 ];
 
+export const RECOMMENDED_MODELS: Record<AIKeyProvider, string> = {
+  openai: 'gpt-4o-mini',
+  openrouter: 'anthropic/claude-sonnet-4',
+};
+
 /** @deprecated Use getScribeModelAllowlistByProvider instead */
 export const DEFAULT_SCRIBE_MODELS = DEFAULT_OPENAI_MODELS;
 
@@ -47,6 +52,48 @@ export function getScribeModelAllowlistByProvider(provider?: AIKeyProvider): str
   return DEFAULT_OPENAI_MODELS;
 }
 
+export function getRecommendedModel(provider: AIKeyProvider): string {
+  return RECOMMENDED_MODELS[provider];
+}
+
 export function isModelAllowed(model: string, allowlist: string[]): boolean {
   return allowlist.includes(model);
+}
+
+/**
+ * Check if a model ID looks like it belongs to a specific provider.
+ * OpenRouter models typically have "org/model" format or ":free"/":nitro" suffix.
+ * OpenAI models start with "gpt-", "o1", "text-", "davinci", etc.
+ */
+export function detectProviderFromModel(model: string): AIKeyProvider | null {
+  if (model.startsWith('gpt-') || model.startsWith('o1') || 
+      model.startsWith('o3') || model.startsWith('text-') || 
+      model.startsWith('davinci')) {
+    return 'openai';
+  }
+  if (model.includes('/') || model.includes(':free') || model.includes(':nitro')) {
+    return 'openrouter';
+  }
+  return null;
+}
+
+/**
+ * Validate that a model is compatible with a provider.
+ * Returns true if model can be used with the provider.
+ */
+export function isModelCompatibleWithProvider(model: string, provider: AIKeyProvider): boolean {
+  const modelProvider = detectProviderFromModel(model);
+  
+  // Unknown model format - allow it (could be a new model)
+  if (modelProvider === null) {
+    return true;
+  }
+  
+  // OpenRouter can proxy OpenAI models
+  if (provider === 'openrouter') {
+    return true;
+  }
+  
+  // OpenAI can only use OpenAI models
+  return modelProvider === provider;
 }
