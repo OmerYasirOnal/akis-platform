@@ -37,18 +37,23 @@ const formatElapsed = (start: string, end?: string): string => {
   }
 };
 
-const getErrorHint = (errorCode?: string | null): string | null => {
+type ErrorHint = { hint: string; action?: string; link?: string };
+
+const getErrorHint = (errorCode?: string | null): ErrorHint | null => {
   if (!errorCode) return null;
-  
-  const hints: Record<string, string> = {
-    'MCP_UNREACHABLE': 'MCP Gateway is not running. Run: ./scripts/mcp-doctor.sh',
-    'MCP_TIMEOUT': 'Gateway connection timed out. Check if gateway is healthy.',
-    'MCP_UNAUTHORIZED': 'Invalid or missing GitHub token.',
-    'MCP_FORBIDDEN': 'Token lacks required scopes (repo, read:org).',
-    '-32601': 'MCP tool not found. Check gateway compatibility.',
-    '429': 'Rate limit exceeded. Please wait and retry.',
+
+  const hints: Record<string, ErrorHint> = {
+    'AI_KEY_MISSING': { hint: 'AI API key is missing.', action: 'Add an API key in Settings → AI Keys.', link: '/dashboard/settings/ai-keys' },
+    'AI_PROVIDER_ERROR': { hint: 'AI provider returned an error.', action: 'Verify your API key and selected model.', link: '/dashboard/settings/ai-keys' },
+    'AI_AUTH_ERROR': { hint: 'Authentication failed with AI provider.', action: 'Your API key may be invalid or expired.', link: '/dashboard/settings/ai-keys' },
+    'MCP_UNREACHABLE': { hint: 'MCP Gateway is not running. Run: ./scripts/mcp-doctor.sh' },
+    'MCP_TIMEOUT': { hint: 'Gateway connection timed out. Check if gateway is healthy.' },
+    'MCP_UNAUTHORIZED': { hint: 'Invalid or missing GitHub token.' },
+    'MCP_FORBIDDEN': { hint: 'Token lacks required scopes (repo, read:org).' },
+    '-32601': { hint: 'MCP tool not found. Check gateway compatibility.' },
+    '429': { hint: 'Rate limit exceeded. Please wait and retry.' },
   };
-  
+
   return hints[String(errorCode)] || null;
 };
 
@@ -142,11 +147,20 @@ export const JobStatus = ({ job, isPolling }: JobStatusProps) => {
             {job.errorMessage != null && (
               <p className="text-sm text-ak-danger">{job.errorMessage}</p>
             )}
-            {getErrorHint(job.errorCode) != null && (
-              <p className="mt-2 text-xs text-ak-text-secondary border-t border-ak-danger/20 pt-2">
-                💡 {getErrorHint(job.errorCode)}
-              </p>
-            )}
+            {getErrorHint(job.errorCode) != null && (() => {
+              const eh = getErrorHint(job.errorCode)!;
+              return (
+                <div className="mt-2 text-xs text-ak-text-secondary border-t border-ak-danger/20 pt-2 space-y-1">
+                  <p>💡 {eh.hint}</p>
+                  {eh.action && <p className="text-ak-text-primary">{eh.action}</p>}
+                  {eh.link && (
+                    <Link to={eh.link} className="inline-flex items-center gap-1 text-ak-primary hover:underline">
+                      Go to Settings →
+                    </Link>
+                  )}
+                </div>
+              );
+            })()}
           </div>
         </div>
       )}

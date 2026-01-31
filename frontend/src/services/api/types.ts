@@ -117,6 +117,17 @@ export interface Job {
   parentJobId?: string | null;
   /** Revision instruction */
   revisionNote?: string | null;
+  // Sprint-3: Quality fields
+  /** Quality score (0-100) */
+  qualityScore?: number | null;
+  /** Quality breakdown details */
+  qualityBreakdown?: QualityBreakdownItem[] | null;
+  /** Quality algorithm version */
+  qualityVersion?: string | null;
+  /** When quality was computed */
+  qualityComputedAt?: string | null;
+  /** Quality improvement suggestions */
+  qualitySuggestions?: string[] | null;
 }
 
 export interface JobTraceEvent {
@@ -400,3 +411,26 @@ export type StreamEvent =
   | ErrorStreamEvent
   | TraceStreamEvent
   | AiCallStreamEvent;
+
+/**
+ * Dashboard quality/reliability metrics
+ */
+export interface DashboardMetrics {
+  period: '7d' | '30d';
+  avgQualityScore: number | null;
+  successRate: number;
+  totalJobs: number;
+  completedJobs: number;
+  failedJobs: number;
+  topFailureReason: string | null;
+  topFailureCount: number;
+}
+
+/**
+ * Quality breakdown item
+ */
+export interface QualityBreakdownItem {
+  label: string;
+  value: string;
+  points: number;
+}

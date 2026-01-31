@@ -16,6 +16,7 @@ import { GitHubMCPService, McpError, McpConnectionError } from '../../services/m
 import { StaticCheckRunner, type AllChecksResult } from '../../services/checks/index.js';
 import { createTraceRecorder, type TraceRecorder } from '../tracing/TraceRecorder.js';
 import { jobEventBus } from '../events/JobEventBus.js';
+import { computeQualityScore, type QualityInput } from '../../services/quality/QualityScoring.js';
 
 export const DEV_GITHUB_BOOTSTRAP_TOKEN_PLACEHOLDER = '__DEV_GITHUB_BOOTSTRAP__';
 
@@ -936,7 +937,41 @@ export class AgentOrchestrator {
       throw new InvalidStateTransitionError(jobId, currentState, 'complete');
     }
 
-    // Update database with result
+    // Compute quality score before updating database
+    let qualityData: { qualityScore: number; qualityBreakdown: unknown; qualityVersion: string; qualityComputedAt: Date } | null = null;
+    try {
+      // Fetch job to get payload for quality metrics
+      const [job] = await db.select().from(jobs).where(eq(jobs.id, jobId)).limit(1);
+      if (job) {
+        const payload = job.payload as Record<string, unknown> | null;
+        const resultObj = result as Record<string, unknown> | null;
+        
+        const qualityInput: QualityInput = {
+          jobType: job.type,
+          state: 'completed',
+          targetsConfigured: (payload?.outputTargets as string[]) || [],
+          targetsProduced: (resultObj?.targetsProduced as string[]) || [],
+          documentsRead: (resultObj?.documentsRead as number) || 0,
+          filesProduced: (resultObj?.filesProduced as number) || 0,
+          docDepth: (payload?.docDepth as 'lite' | 'standard' | 'deep') || 'standard',
+          multiPass: (payload?.multiPass as boolean) || false,
+          totalTokens: (resultObj?.totalTokens as number) || null,
+        };
+        
+        const quality = computeQualityScore(qualityInput);
+        qualityData = {
+          qualityScore: quality.score,
+          qualityBreakdown: quality.breakdown,
+          qualityVersion: quality.version,
+          qualityComputedAt: quality.computedAt,
+        };
+      }
+    } catch (qualityError) {
+      // Log but don't fail job completion due to quality computation error
+      console.warn('[AgentOrchestrator] Quality score computation failed:', qualityError);
+    }
+
+    // Update database with result and quality
     try {
       await db
         .update(jobs)
@@ -944,6 +979,12 @@ export class AgentOrchestrator {
           state: 'completed',
           result: result as Record<string, unknown>,
           updatedAt: new Date(),
+          ...(qualityData && {
+            qualityScore: qualityData.qualityScore,
+            qualityBreakdown: qualityData.qualityBreakdown,
+            qualityVersion: qualityData.qualityVersion,
+            qualityComputedAt: qualityData.qualityComputedAt,
+          }),
         })
         .where(eq(jobs.id, jobId));
     } catch (error) {
