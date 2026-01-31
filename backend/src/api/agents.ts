@@ -29,6 +29,7 @@ const scribePayloadSchema = z.object({
   docPack: z.enum(['readme', 'standard', 'full']).optional(),
   docDepth: z.enum(['lite', 'standard', 'deep']).optional(),
   outputTargets: z.array(z.string()).optional(),
+  analyzeLastNCommits: z.number().int().min(1).max(100).optional(),
   maxOutputTokens: z.number().int().min(1000).max(64000).optional(),
   passes: z.number().int().min(1).max(2).optional(),
 });
