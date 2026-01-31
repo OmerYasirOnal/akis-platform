@@ -95,3 +95,10 @@ docs/~$*.docx
 # Allow academic archive (graduation documents)
 !docs/academic/**/*.pdf
 !docs/academic/**/*.docx
+
+# Dev process artifacts
+.backend.pid
+.frontend.pid
+.pnpm-store/
+AKIS_PRODUCT_VISION.md
+AKIS_UI_Audit_Report.docx

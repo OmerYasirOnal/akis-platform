@@ -16,6 +16,12 @@ export default defineConfig({
   testDir: './tests/e2e',
   fullyParallel: false,
   timeout: 240_000,
+  webServer: {
+    command: 'pnpm dev',
+    url: baseURL,
+    reuseExistingServer: true,
+    timeout: 30_000,
+  },
   expect: {
     timeout: 5_000,
   },

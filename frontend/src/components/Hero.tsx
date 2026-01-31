@@ -42,13 +42,26 @@ export default function Hero() {
         {/* Trust signals */}
         <div className="mt-20 text-center">
           <p className="mb-6 text-xs font-medium uppercase tracking-[0.2em] text-ak-text-secondary">
-            Trusted by development teams
+            {t('hero.trusted')}
           </p>
-          <div className="flex flex-wrap items-center justify-center gap-8 opacity-60 transition-opacity hover:opacity-80">
-            <span className="text-sm font-medium text-ak-text-secondary">TechCorp</span>
-            <span className="text-sm font-medium text-ak-text-secondary">DevTeam Inc</span>
-            <span className="text-sm font-medium text-ak-text-secondary">BuildFast</span>
-            <span className="text-sm font-medium text-ak-text-secondary">CodeLabs</span>
+          <div className="flex flex-wrap items-center justify-center gap-x-12 gap-y-4 opacity-50 transition-opacity hover:opacity-70">
+            {/* Company logos as stylized placeholders */}
+            <div className="flex items-center gap-2">
+              <div className="h-8 w-8 rounded-lg bg-ak-surface-2" />
+              <span className="text-base font-semibold text-ak-text-secondary">TechCorp</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="h-8 w-8 rounded-lg bg-ak-surface-2" />
+              <span className="text-base font-semibold text-ak-text-secondary">BuildFast</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="h-8 w-8 rounded-lg bg-ak-surface-2" />
+              <span className="text-base font-semibold text-ak-text-secondary">CodeLabs</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="h-8 w-8 rounded-lg bg-ak-surface-2" />
+              <span className="text-base font-semibold text-ak-text-secondary">AgileFlow</span>
+            </div>
           </div>
         </div>
       </div>
