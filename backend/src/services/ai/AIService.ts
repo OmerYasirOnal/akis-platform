@@ -383,11 +383,24 @@ class RealAIService implements AIService {
         if (!response.ok) {
           const errorText = await response.text().catch(() => 'Unknown error');
           
-          // Auth errors (401, 403)
+          // Auth errors (401, 403) - provide clear, actionable message
           if (response.status === 401 || response.status === 403) {
+            const providerLabel = this.config.provider === 'openai' ? 'OpenAI' : 'OpenRouter';
+            
+            // Create user-friendly error message (don't expose raw API errors like "cookie auth")
+            let friendlyMessage: string;
+            if (response.status === 401) {
+              friendlyMessage = `${providerLabel} API key is invalid or expired. Please check your API key in Settings > AI Keys.`;
+            } else {
+              friendlyMessage = `${providerLabel} API access denied. Your API key may lack required permissions.`;
+            }
+            
+            // Log raw error for debugging but don't expose to user
+            console.error(`[AIService] Auth error from ${this.config.provider}: ${errorText.substring(0, 300)}`);
+            
             const authError = new AIProviderError(
               'AI_AUTH_ERROR',
-              `AI API authentication failed (${response.status}): ${errorText.substring(0, 200)}`,
+              friendlyMessage,
               this.config.provider,
               response.status
             );
@@ -402,6 +415,27 @@ class RealAIService implements AIService {
             throw authError;
           }
           
+          // Model not found errors (404) - provide actionable message
+          if (response.status === 404) {
+            const providerLabel = this.config.provider === 'openai' ? 'OpenAI' : 'OpenRouter';
+            const modelNotFoundError = new AIProviderError(
+              'AI_MODEL_NOT_FOUND',
+              `Model "${model}" is not available on ${providerLabel}. Please select a different model in the agent configuration.`,
+              this.config.provider,
+              response.status
+            );
+            console.error(`[AIService] Model not found on ${this.config.provider}: ${model}. Raw error: ${errorText.substring(0, 200)}`);
+            this.observer?.onAiCall({
+              purpose,
+              provider: this.config.provider,
+              model,
+              durationMs,
+              success: false,
+              errorCode: modelNotFoundError.code,
+            });
+            throw modelNotFoundError;
+          }
+          
           // Server errors (5xx) - retry
           if (response.status >= 500 && attempt < this.maxRetries) {
             console.warn(
@@ -412,9 +446,22 @@ class RealAIService implements AIService {
             continue;
           }
           
+          // Generic error - provide friendly message
+          const providerLabel = this.config.provider === 'openai' ? 'OpenAI' : 'OpenRouter';
+          let friendlyMessage = `${providerLabel} returned an error (${response.status}).`;
+          
+          // Add context based on error content
+          if (errorText.toLowerCase().includes('rate') || errorText.toLowerCase().includes('limit')) {
+            friendlyMessage = `${providerLabel} rate limit exceeded. Please try again in a few moments.`;
+          } else if (errorText.toLowerCase().includes('model') || errorText.toLowerCase().includes('route')) {
+            friendlyMessage = `Model "${model}" may not be available on ${providerLabel}. Please try a different model.`;
+          }
+          
+          console.error(`[AIService] Provider error from ${this.config.provider}: ${errorText.substring(0, 300)}`);
+          
           const providerError = new AIProviderError(
             'AI_PROVIDER_ERROR',
-            `AI API error (${response.status}): ${errorText.substring(0, 500)}`,
+            friendlyMessage,
             this.config.provider,
             response.status
           );
