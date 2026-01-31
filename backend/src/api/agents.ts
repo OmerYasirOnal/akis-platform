@@ -9,7 +9,7 @@ import { metrics } from './metrics.js';
 import { formatErrorResponse, getStatusCodeForError } from '../utils/errorHandler.js';
 import { requireAuth } from '../utils/auth.js';
 import { getUserAiKeyStatus } from '../services/ai/user-ai-keys.js';
-import { getScribeModelAllowlist, isModelAllowed } from '../services/ai/modelAllowlist.js';
+import { getScribeModelAllowlist } from '../services/ai/modelAllowlist.js';
 import { getEnv, getAIConfig } from '../config/env.js';
 import { generateScribeBranchName } from '../utils/branchNaming.js';
 import { incrementUsage } from '../services/billing/BillingService.js';
@@ -348,25 +348,42 @@ export async function agentsRoutes(fastify: FastifyInstance) {
           // ========================================================================
           // PROVIDER/MODEL CONSISTENCY VALIDATION
           // Prevent sending OpenRouter models to OpenAI provider (and vice versa)
+          // Read model from multiple possible field names (frontend sends modelId)
           // ========================================================================
-          const frontendModel = payloadObj?.model as string | undefined || 
+          const frontendModel = payloadObj?.modelId as string | undefined ||
+                               payloadObj?.model as string | undefined || 
                                payloadObj?.llmModelOverride as string | undefined;
           
-          if (frontendProvider && frontendModel) {
-            const isOpenRouterModel = frontendModel.includes('/') || 
-                                      frontendModel.startsWith('meta-') ||
-                                      frontendModel.includes(':free');
-            const isOpenAIModel = frontendModel.startsWith('gpt-') || 
-                                  frontendModel.startsWith('o1') ||
-                                  frontendModel.startsWith('text-') ||
-                                  frontendModel.startsWith('davinci');
-            
-            if (frontendProvider === 'openai' && isOpenRouterModel && !isOpenAIModel) {
-              throw new Error(`Model "${frontendModel}" is not compatible with OpenAI provider. Please select an OpenAI model (e.g., gpt-4o-mini).`);
+          console.log(`[agents.ts] Frontend sent model: ${frontendModel || 'none'} (checked modelId, model, llmModelOverride)`);
+          
+          // Helper to detect provider from model ID
+          const detectModelProvider = (model: string): 'openai' | 'openrouter' | 'unknown' => {
+            if (model.startsWith('gpt-') || model.startsWith('o1') || 
+                model.startsWith('text-') || model.startsWith('davinci') ||
+                model.startsWith('o3')) {
+              return 'openai';
             }
-            if (frontendProvider === 'openrouter' && isOpenAIModel && !isOpenRouterModel) {
-              // OpenRouter can actually use OpenAI models, so just log a warning
-              console.log(`[agents.ts] Warning: Using OpenAI model "${frontendModel}" with OpenRouter provider`);
+            if (model.includes('/') || model.includes(':free') || model.includes(':nitro')) {
+              return 'openrouter';
+            }
+            return 'unknown';
+          };
+          
+          if (frontendModel) {
+            const detectedModelProvider = detectModelProvider(frontendModel);
+            
+            // If no explicit provider from frontend, infer from model
+            if (!frontendProvider && detectedModelProvider !== 'unknown') {
+              console.log(`[agents.ts] Inferring provider from model: ${detectedModelProvider}`);
+            }
+            
+            // Validate provider-model compatibility
+            if (frontendProvider && detectedModelProvider !== 'unknown' && detectedModelProvider !== frontendProvider) {
+              if (frontendProvider === 'openai' && detectedModelProvider === 'openrouter') {
+                throw new Error(`Model "${frontendModel}" is an OpenRouter model and cannot be used with OpenAI provider. Please select an OpenAI model (e.g., gpt-4o-mini) or switch to OpenRouter provider.`);
+              }
+              // OpenRouter can proxy OpenAI models, so just log
+              console.log(`[agents.ts] Note: Using ${detectedModelProvider} model "${frontendModel}" with ${frontendProvider} provider`);
             }
           }
 
@@ -378,7 +395,15 @@ export async function agentsRoutes(fastify: FastifyInstance) {
               payload.mode === 'run' || 
               typeof payload.config_id === 'string';
 
+            // Get model override from payload - check multiple field names
             let modelOverride: string | null = null;
+            if (typeof payloadObj?.modelId === 'string') {
+              modelOverride = payloadObj.modelId;
+            } else if (typeof payloadObj?.model === 'string') {
+              modelOverride = payloadObj.model;
+            } else if (typeof payloadObj?.llmModelOverride === 'string') {
+              modelOverride = payloadObj.llmModelOverride;
+            }
 
             if (isConfigAware) {
               // Load config from DB
@@ -465,41 +490,70 @@ export async function agentsRoutes(fastify: FastifyInstance) {
             // ========================================================================
             // AI MODEL + PROVIDER RESOLUTION
             // CRITICAL: Frontend provider selection takes absolute priority
+            // Model must be compatible with selected provider
             // ========================================================================
             
-            // Determine the effective provider (frontend > env > undefined for orchestrator)
+            // Provider-specific default models
+            const PROVIDER_DEFAULTS = {
+              openai: 'gpt-4o-mini',
+              openrouter: 'anthropic/claude-sonnet-4',
+            };
+            
+            // Helper to get provider-safe model
+            const getProviderSafeModel = (provider: 'openai' | 'openrouter', requestedModel: string | null): string => {
+              if (!requestedModel) {
+                return PROVIDER_DEFAULTS[provider];
+              }
+              
+              const modelProvider = detectModelProvider(requestedModel);
+              
+              // If model is compatible with provider, use it
+              if (modelProvider === 'unknown' || modelProvider === provider) {
+                return requestedModel;
+              }
+              
+              // Model is incompatible - use provider's default and log
+              console.log(`[agents.ts] Model "${requestedModel}" (${modelProvider}) incompatible with ${provider}, using default: ${PROVIDER_DEFAULTS[provider]}`);
+              return PROVIDER_DEFAULTS[provider];
+            };
+            
+            // Determine the effective provider
             if (frontendProvider) {
               // Frontend explicitly selected a provider - respect it completely
               aiProvider = frontendProvider;
               
-              // Select provider-appropriate model default
-              if (frontendProvider === 'openai') {
-                aiModel = modelOverride || 'gpt-4o-mini';
-              } else {
-                aiModel = modelOverride || 'meta-llama/llama-3.3-70b-instruct:free';
-              }
+              // Ensure model is compatible with provider
+              aiModel = getProviderSafeModel(frontendProvider, modelOverride);
               
               console.log(`[agents.ts] Using frontend provider: ${aiProvider}, model: ${aiModel}`);
             } else if (useEnvAI) {
               // No frontend provider, use env-based AI configuration
-              aiProvider = aiConfig.provider;
-              aiModel = modelOverride || aiConfig.modelDefault;
+              const envProvider = aiConfig.provider === 'openai' || aiConfig.provider === 'openrouter' 
+                ? aiConfig.provider 
+                : 'openrouter';
+              aiProvider = envProvider;
+              aiModel = getProviderSafeModel(envProvider, modelOverride || aiConfig.modelDefault);
               console.log(`[agents.ts] Using ENV provider: ${aiProvider}, model: ${aiModel}`);
             } else {
-              // No frontend provider, no env - let orchestrator resolve from user settings
-              // Orchestrator will use getUserActiveProvider() -> user key -> fail
-              aiProvider = undefined;
-              
-              // For model, use allowlist or default
-              if (modelOverride && !isModelAllowed(modelOverride, allowlist)) {
-                throw new ModelNotAllowedError('openai', modelOverride, allowlist);
+              // No frontend provider, no env - infer from model if possible
+              if (modelOverride) {
+                const inferredProvider = detectModelProvider(modelOverride);
+                if (inferredProvider !== 'unknown') {
+                  aiProvider = inferredProvider;
+                  aiModel = modelOverride;
+                  console.log(`[agents.ts] Inferred provider from model: ${aiProvider}, model: ${aiModel}`);
+                } else {
+                  // Can't infer - let orchestrator resolve
+                  aiProvider = undefined;
+                  aiModel = modelOverride;
+                  console.log(`[agents.ts] Deferring to orchestrator, model: ${aiModel}`);
+                }
+              } else {
+                // No model override - let orchestrator resolve
+                aiProvider = undefined;
+                aiModel = allowlist[0] || 'gpt-4o-mini';
+                console.log(`[agents.ts] Deferring to orchestrator, model: ${aiModel}`);
               }
-              const modelToUse = modelOverride || allowlist[0] || 'gpt-4o-mini';
-              if (modelOverride && !isModelAllowed(modelToUse, allowlist)) {
-                throw new ModelNotAllowedError('openai', modelToUse, allowlist);
-              }
-              aiModel = modelToUse;
-              console.log(`[agents.ts] Deferring to orchestrator, model: ${aiModel}`);
             }
             
             // Add aiProvider to payload - orchestrator will see this as payloadProvider

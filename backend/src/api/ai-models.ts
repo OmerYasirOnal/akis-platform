@@ -1,5 +1,5 @@
 import { FastifyInstance } from 'fastify';
-import { getScribeModelAllowlistByProvider } from '../services/ai/modelAllowlist.js';
+import { getScribeModelAllowlistByProvider, getRecommendedModel } from '../services/ai/modelAllowlist.js';
 import { requireAuth } from '../utils/auth.js';
 import { getUserActiveProvider, type AIKeyProvider } from '../services/ai/user-ai-keys.js';
 
@@ -65,17 +65,13 @@ export async function aiModelsRoutes(fastify: FastifyInstance) {
       }
 
       const allowlist = getScribeModelAllowlistByProvider(provider);
-
-      const recommendedModels: Record<AIKeyProvider, string> = {
-        openai: 'gpt-4o-mini',
-        openrouter: 'anthropic/claude-sonnet-4',
-      };
+      const recommendedModel = getRecommendedModel(provider);
 
       const models = allowlist.map((modelId) => ({
         id: modelId,
         name: formatModelName(modelId),
         provider,
-        recommended: modelId === recommendedModels[provider],
+        recommended: modelId === recommendedModel,
       }));
 
       return { provider, models };
