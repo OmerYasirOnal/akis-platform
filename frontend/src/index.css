@@ -1,6 +1,12 @@
-@import "tailwindcss";
-@config "../tailwind.config.js";
-
+/* CSS @import statements must come first */
 @import "./theme/theme.tokens.css";
 @import "./styles/tokens.css";
 @import "./styles/global.css";
+
+/* Tailwind v4 - config directive loads custom theme extensions */
+@import "tailwindcss";
+@config "../tailwind.config.js";
+
+/* Source directive tells Tailwind where to scan for classes */
+@source "../index.html";
+@source "./**/*.{js,ts,jsx,tsx}";
