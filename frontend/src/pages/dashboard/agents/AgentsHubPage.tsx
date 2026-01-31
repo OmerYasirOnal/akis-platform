@@ -34,11 +34,22 @@ interface ChatMessage {
   artifact?: { path: string; type: string };
 }
 
-// Fallback models if API call fails
-const FALLBACK_MODEL_OPTIONS = [
-  { id: 'anthropic/claude-sonnet-4', label: 'Anthropic Claude Sonnet 4 (Recommended)', tier: 'standard' },
-  { id: 'gpt-4o-mini', label: 'GPT-4o Mini (Budget)', tier: 'budget' },
-];
+// Provider-specific fallback models
+const FALLBACK_MODELS = {
+  openrouter: [
+    { id: 'anthropic/claude-sonnet-4', label: 'Anthropic Claude Sonnet 4 (Recommended)', tier: 'standard' },
+    { id: 'anthropic/claude-3.5-haiku', label: 'Anthropic Claude 3.5 Haiku', tier: 'budget' },
+    { id: 'meta-llama/llama-4-maverick', label: 'Meta Llama 4 Maverick', tier: 'budget' },
+  ],
+  openai: [
+    { id: 'gpt-4o-mini', label: 'GPT-4o Mini (Recommended)', tier: 'standard' },
+    { id: 'gpt-4o', label: 'GPT-4o', tier: 'standard' },
+    { id: 'gpt-4.1-mini', label: 'GPT-4.1 Mini', tier: 'budget' },
+  ],
+};
+
+// Default fallback for unknown provider
+const FALLBACK_MODEL_OPTIONS = FALLBACK_MODELS.openrouter;
 
 interface SupportedModel {
   id: string;
@@ -182,8 +193,10 @@ export default function AgentsHubPage() {
   const [loadingRepos, setLoadingRepos] = useState(false);
   const [loadingBranches, setLoadingBranches] = useState(false);
   const [branchStrategy, setBranchStrategy] = useState<'manual' | 'auto'>('auto');
-  const [selectedModel, setSelectedModel] = useState('gpt-4o-mini');
+  const [activeProvider, setActiveProvider] = useState<AIKeyProvider | null>(null);
+  const [selectedModel, setSelectedModel] = useState('anthropic/claude-sonnet-4');
   const [modelOptions, setModelOptions] = useState(FALLBACK_MODEL_OPTIONS);
+  const [modelsLoading, setModelsLoading] = useState(false);
 
   const [currentJob, setCurrentJob] = useState<JobDetail | null>(null);
   const [isRunning, setIsRunning] = useState(false);
@@ -203,38 +216,71 @@ export default function AgentsHubPage() {
     }]);
   }, []);
 
-  // Load supported models from API (provider-aware)
+  // Load active provider and supported models (provider-aware)
+  // Re-runs when provider changes
   useEffect(() => {
-    const loadSupportedModels = async () => {
+    const loadProviderAndModels = async () => {
+      setModelsLoading(true);
       try {
-        // Detect user's active provider first
-        let providerParam = '';
+        // 1. Get user's active provider
+        let currentProvider: AIKeyProvider | null = null;
         try {
           const aiStatus = await getMultiProviderStatus();
-          if (aiStatus.activeProvider) {
-            providerParam = `?provider=${aiStatus.activeProvider}`;
-          }
-        } catch { /* use server default */ }
+          currentProvider = aiStatus.activeProvider;
+          setActiveProvider(currentProvider);
+        } catch {
+          // Use default if not authenticated
+          currentProvider = 'openrouter';
+          setActiveProvider(currentProvider);
+        }
 
+        // 2. Fetch models for that provider
+        const providerParam = currentProvider ? `?provider=${currentProvider}` : '';
         const response = await fetch(`/api/ai/supported-models${providerParam}`);
+        
         if (response.ok) {
           const data = await response.json() as { provider?: string; models: SupportedModel[] };
+          const responseProvider = data.provider as AIKeyProvider | undefined;
+          
           const options = data.models.map((m) => ({
             id: m.id,
             label: m.name + (m.recommended ? ' (Recommended)' : ''),
             tier: m.recommended ? 'standard' : 'budget',
           }));
+          
           if (options.length > 0) {
             setModelOptions(options);
+            // Select recommended model or first in list
             const recommended = data.models.find(m => m.recommended);
             setSelectedModel(recommended?.id || options[0].id);
+            
+            // Update activeProvider from response if different
+            if (responseProvider && responseProvider !== currentProvider) {
+              setActiveProvider(responseProvider);
+            }
           }
+        } else {
+          // API failed - use fallback based on provider
+          const fallback = currentProvider && FALLBACK_MODELS[currentProvider] 
+            ? FALLBACK_MODELS[currentProvider] 
+            : FALLBACK_MODEL_OPTIONS;
+          setModelOptions(fallback);
+          setSelectedModel(fallback[0].id);
         }
       } catch (err) {
         console.warn('Failed to load supported models, using fallback:', err);
+        // Use provider-specific fallback
+        const fallback = activeProvider && FALLBACK_MODELS[activeProvider]
+          ? FALLBACK_MODELS[activeProvider]
+          : FALLBACK_MODEL_OPTIONS;
+        setModelOptions(fallback);
+        setSelectedModel(fallback[0].id);
+      } finally {
+        setModelsLoading(false);
       }
     };
-    loadSupportedModels();
+    
+    loadProviderAndModels();
   }, []);
 
   useEffect(() => {
@@ -376,13 +422,19 @@ export default function AgentsHubPage() {
     });
 
     try {
-      let aiProvider: AIKeyProvider | undefined;
-      try {
-        const aiStatus = await getMultiProviderStatus();
-        if (aiStatus.activeProvider) aiProvider = aiStatus.activeProvider;
-        else if (aiStatus.providers.openai.configured) aiProvider = 'openai';
-        else if (aiStatus.providers.openrouter.configured) aiProvider = 'openrouter';
-      } catch { /* continue */ }
+      // Use the tracked activeProvider state instead of re-fetching
+      // This ensures consistency between displayed models and submitted provider
+      let aiProvider: AIKeyProvider | undefined = activeProvider || undefined;
+      
+      // Fallback: if no active provider cached, try to fetch
+      if (!aiProvider) {
+        try {
+          const aiStatus = await getMultiProviderStatus();
+          if (aiStatus.activeProvider) aiProvider = aiStatus.activeProvider;
+          else if (aiStatus.providers.openai.configured) aiProvider = 'openai';
+          else if (aiStatus.providers.openrouter.configured) aiProvider = 'openrouter';
+        } catch { /* continue */ }
+      }
 
       const payload: Record<string, unknown> = {
         owner: githubUser,
@@ -390,9 +442,11 @@ export default function AgentsHubPage() {
         baseBranch: selectedBranch,
         branchStrategy,
         dryRun: false,
-        modelId: selectedModel,
+        modelId: selectedModel, // This is now provider-specific
         ...(aiProvider && { aiProvider }),
       };
+      
+      console.log('[AgentsHubPage] Submitting job with:', { aiProvider, modelId: selectedModel });
 
       if (selectedAgent.id === 'trace' && extraInput) {
         payload.spec = extraInput.trim();
@@ -631,16 +685,32 @@ export default function AgentsHubPage() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            {/* Model Selector */}
-            <select
-              value={selectedModel}
-              onChange={(e) => setSelectedModel(e.target.value)}
-              className="rounded-lg border border-ak-border bg-ak-surface px-2.5 py-1.5 text-xs text-ak-text-primary focus:outline-none focus:ring-1 focus:ring-ak-primary/40"
-            >
-              {modelOptions.map((m) => (
-                <option key={m.id} value={m.id}>{m.label}</option>
-              ))}
-            </select>
+            {/* Provider Badge + Model Selector */}
+            <div className="flex items-center gap-2">
+              {activeProvider && (
+                <span className={cn(
+                  'px-2 py-1 rounded text-[10px] font-medium uppercase tracking-wide',
+                  activeProvider === 'openai' 
+                    ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                    : 'bg-purple-500/10 text-purple-400 border border-purple-500/20'
+                )}>
+                  {activeProvider}
+                </span>
+              )}
+              <select
+                value={selectedModel}
+                onChange={(e) => setSelectedModel(e.target.value)}
+                disabled={modelsLoading}
+                className={cn(
+                  'rounded-lg border border-ak-border bg-ak-surface px-2.5 py-1.5 text-xs text-ak-text-primary focus:outline-none focus:ring-1 focus:ring-ak-primary/40',
+                  modelsLoading && 'opacity-50 cursor-wait'
+                )}
+              >
+                {modelOptions.map((m) => (
+                  <option key={m.id} value={m.id}>{m.label}</option>
+                ))}
+              </select>
+            </div>
 
             {selectedAgent.id === 'scribe' && (
               <Link
