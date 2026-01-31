@@ -597,7 +597,68 @@ Verified rules:
 
 ---
 
+## 13. Round 8 Checklist (Sprint-3 UI Productization)
+
+**Sprint-3 tamamlama doğrulaması**
+
+### 13.1 Dashboard Quality & Reliability Kartı
+
+| Kontrol | Durum |
+|---------|-------|
+| Dashboard'da kart görünür | ✅ |
+| 7d/30d toggle çalışır | ✅ |
+| Avg Quality score görünür | ✅ |
+| Success rate görünür | ✅ |
+| Top issue + action link görünür | ✅ |
+| Boş state (no jobs) görünür | ✅ |
+
+### 13.2 Job Quality Suggestions
+
+| Kontrol | Durum |
+|---------|-------|
+| Job detail Quality tab var | ✅ |
+| qualitySuggestions backend'den geliyor | ✅ |
+| Suggestions UI'da görünür | ✅ |
+| Duplicate yok (refresh test) | ✅ |
+
+### 13.3 AI Provider Error UX
+
+| Kontrol | Durum |
+|---------|-------|
+| AI_PROVIDER_ERROR için "Why" + "Action" var | ✅ |
+| Settings link çalışır | ✅ |
+| /api/ai/supported-models endpoint var | ✅ |
+
+### 13.4 Build/Version Stamp
+
+| Kontrol | Durum |
+|---------|-------|
+| Sidebar'da version + sha görünür | ✅ |
+| Build time tooltip var | ✅ |
+
+### 13.5 Quality Gates
+
+| Check | Status |
+|-------|--------|
+| Typecheck | PASS |
+| Lint | PASS (1 warning) |
+| Tests | 221/221 PASS |
+| Build | PASS |
+
+### 13.6 Cowork UI Smoke Test Checklist
+
+| Sayfa | Neye Bak |
+|-------|----------|
+| `/` (Dashboard) | Quality & Reliability kartı, 7d/30d toggle |
+| `/agents/jobs/:id` | Quality tab, Suggestions section |
+| `/agents/jobs/:id` (failed) | Error panel: Why + Action + Link |
+| Sidebar footer | Version stamp: `AKIS 0.1.0 • {sha}` |
+| `/api/ai/supported-models` | JSON response with models array |
+| `/api/dashboard/metrics?period=7d` | JSON response with metrics |
+
+---
+
 **Rapor Sonu**
 
 *Bu rapor Claude Cowork tarafından Chrome browser automation ile oluşturulmuştur.*
-*Round 6 güncellemesi (Sprint-2 Fix Verification): 31 Ocak 2026*
+*Round 8 güncellemesi (Sprint-3 UI Productization): 31 Ocak 2026*
