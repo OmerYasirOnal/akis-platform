@@ -1142,7 +1142,7 @@ export class AgentOrchestrator {
       case 'AI_RATE_LIMITED':
         return 'AI provider is temporarily rate-limited. Please try again later or configure your own API key.';
       case 'AI_AUTH_ERROR':
-        return 'AI provider authentication failed. Please check your API key configuration.';
+        return `AI provider authentication failed (${error.provider || 'unknown'}). Please verify your API key in Settings → AI Keys.`;
       case 'AI_PROVIDER_ERROR':
         return 'AI provider returned an error. Please try again later.';
       case 'AI_NETWORK_ERROR':
