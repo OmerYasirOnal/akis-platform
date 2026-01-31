@@ -956,6 +956,7 @@ export async function agentsRoutes(fastify: FastifyInstance) {
             state: jobs.state,
             errorCode: jobs.errorCode,
             errorMessage: jobs.errorMessage,
+            qualityScore: jobs.qualityScore,
             createdAt: jobs.createdAt,
             updatedAt: jobs.updatedAt,
           })
