@@ -400,3 +400,26 @@ export type StreamEvent =
   | ErrorStreamEvent
   | TraceStreamEvent
   | AiCallStreamEvent;
+
+/**
+ * Dashboard quality/reliability metrics
+ */
+export interface DashboardMetrics {
+  period: '7d' | '30d';
+  avgQualityScore: number | null;
+  successRate: number;
+  totalJobs: number;
+  completedJobs: number;
+  failedJobs: number;
+  topFailureReason: string | null;
+  topFailureCount: number;
+}
+
+/**
+ * Quality breakdown item
+ */
+export interface QualityBreakdownItem {
+  label: string;
+  value: string;
+  points: number;
+}
