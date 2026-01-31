@@ -74,10 +74,10 @@ function HowItWorksSection() {
       <div className="mx-auto max-w-6xl">
         {/* Section header */}
         <div className="mb-20 text-center">
-          <h2 className="mb-4 text-[clamp(28px,4vw,40px)] font-bold text-[var(--text)]">
+          <h2 className="mb-4 text-[clamp(28px,4vw,40px)] font-bold text-ak-text-primary">
             Three Steps to Autonomous Workflow
           </h2>
-          <p className="mx-auto max-w-2xl text-lg text-[var(--muted)]">
+          <p className="mx-auto max-w-2xl text-lg text-ak-text-secondary">
             Get started in minutes. No complex setup required.
           </p>
         </div>
@@ -85,7 +85,7 @@ function HowItWorksSection() {
         {/* Steps with connected timeline */}
         <div className="relative">
           {/* Horizontal connector line (desktop only) */}
-          <div className="absolute left-0 right-0 top-[60px] hidden h-[2px] bg-gradient-to-r from-transparent via-[var(--accent)]/30 to-transparent md:block" />
+          <div className="absolute left-0 right-0 top-[60px] hidden h-[2px] bg-gradient-to-r from-transparent via-ak-primary/30 to-transparent md:block" />
 
           <div className="grid gap-8 md:grid-cols-3 md:gap-12">
             {steps.map((item, index) => (
@@ -100,10 +100,10 @@ function HowItWorksSection() {
                 )}
               >
                 {/* Card */}
-                <div className="relative rounded-[var(--radius-lg)] border border-[var(--glass-bdr)] bg-gradient-to-b from-[var(--glass-top)] to-[var(--glass-mid)] p-8 backdrop-blur-[var(--blur-card)] transition-all duration-300 hover:-translate-y-1 hover:border-[var(--accent)]/40 hover:shadow-[0_0_24px_var(--edge-glow)]">
+                <div className="relative rounded-2xl border border-ak-border bg-ak-surface-2 p-8 shadow-ak-elevation-1 transition-all duration-300 hover:-translate-y-1 hover:border-ak-primary/40 hover:shadow-ak-elevation-2">
                   {/* Step number badge - positioned at top center */}
                   <div className="absolute -top-5 left-1/2 -translate-x-1/2">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-[var(--accent)] bg-[var(--bg)] text-sm font-bold text-[var(--accent)] shadow-[0_0_16px_var(--edge-glow)]">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-ak-primary bg-ak-bg text-sm font-bold text-ak-primary shadow-ak-glow-sm">
                       {item.step}
                     </div>
                   </div>
@@ -111,17 +111,17 @@ function HowItWorksSection() {
                   {/* Content */}
                   <div className="pt-4 text-center">
                     {/* Icon */}
-                    <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-[var(--accent)]/10 text-[var(--accent)] transition-all duration-300 group-hover:scale-110 group-hover:bg-[var(--accent)]/20">
+                    <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-ak-primary/10 text-ak-primary transition-all duration-300 group-hover:scale-110 group-hover:bg-ak-primary/20">
                       {item.icon}
                     </div>
 
                     {/* Title */}
-                    <h3 className="mb-3 text-xl font-semibold text-[var(--text)]">
+                    <h3 className="mb-3 text-xl font-semibold text-ak-text-primary">
                       {item.title}
                     </h3>
 
                     {/* Description */}
-                    <p className="text-sm leading-relaxed text-[var(--muted)]">
+                    <p className="text-sm leading-relaxed text-ak-text-secondary">
                       {item.description}
                     </p>
                   </div>
@@ -129,7 +129,7 @@ function HowItWorksSection() {
 
                 {/* Vertical connector (mobile only) */}
                 {index < steps.length - 1 && (
-                  <div className="mx-auto h-8 w-[2px] bg-gradient-to-b from-[var(--accent)]/30 to-transparent md:hidden" />
+                  <div className="mx-auto h-8 w-[2px] bg-gradient-to-b from-ak-primary/30 to-transparent md:hidden" />
                 )}
               </div>
             ))}
@@ -147,17 +147,12 @@ function HowItWorksSection() {
 function FinalCTASection() {
   return (
     <section className="relative px-4 py-16 sm:px-6 lg:px-8 lg:py-24">
-      {/* Background subtle pattern */}
-      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[var(--glass-top)] to-transparent" />
-
       <div className="relative mx-auto max-w-3xl text-center">
-        {/* Decorative glow */}
-        <div className="absolute -inset-4 -z-10 rounded-3xl bg-[var(--accent)]/5 blur-3xl" />
 
-        <h2 className="mb-6 text-[clamp(28px,4vw,40px)] font-bold text-[var(--text)]">
+        <h2 className="mb-6 text-[clamp(28px,4vw,40px)] font-bold text-ak-text-primary">
           Stop Losing Time to Busywork. Start Building.
         </h2>
-        <p className="mb-10 text-lg text-[var(--muted)]">
+        <p className="mb-10 text-lg text-ak-text-secondary">
           Join development teams saving 20+ hours per week with AKIS agents.
         </p>
 
