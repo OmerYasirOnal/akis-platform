@@ -183,6 +183,46 @@ jobs:
       url: https://staging.akis.dev
 
     steps:
+      - name: Validate required secrets
+        run: |
+          MISSING=""
+          # Check each required secret
+          if [ -z "${{ secrets.STAGING_HOST }}" ]; then
+            MISSING="$MISSING STAGING_HOST"
+          fi
+          if [ -z "${{ secrets.STAGING_USER }}" ]; then
+            MISSING="$MISSING STAGING_USER"
+          fi
+          if [ -z "${{ secrets.STAGING_SSH_KEY }}" ]; then
+            MISSING="$MISSING STAGING_SSH_KEY"
+          fi
+
+          if [ -n "$MISSING" ]; then
+            echo "::error::❌ Missing required GitHub Secrets:$MISSING"
+            echo ""
+            echo "============================================================"
+            echo "DEPLOYMENT BLOCKED: Required secrets are not configured"
+            echo "============================================================"
+            echo ""
+            echo "To fix this, add the following secrets in GitHub:"
+            echo "  Repository → Settings → Secrets and variables → Actions → New repository secret"
+            echo ""
+            echo "Required secrets:"
+            echo "  STAGING_HOST     - Staging server IP or hostname (e.g., 192.168.1.100 or staging.akis.dev)"
+            echo "  STAGING_USER     - SSH username on the server (e.g., ubuntu, opc, akis)"
+            echo "  STAGING_SSH_KEY  - Private SSH key in PEM format (ed25519 or RSA)"
+            echo ""
+            echo "For detailed setup instructions, see: docs/ops/STAGING_DEPLOYMENT.md"
+            echo ""
+            echo "Quick SSH key generation:"
+            echo "  ssh-keygen -t ed25519 -C 'github-actions@akis' -f ~/.ssh/akis_deploy -N ''"
+            echo "  # Add public key to server: cat ~/.ssh/akis_deploy.pub >> ~/.ssh/authorized_keys"
+            echo "  # Add private key to GitHub Secrets as STAGING_SSH_KEY"
+            echo ""
+            exit 1
+          fi
+          echo "✅ All required deployment secrets are configured"
+
       - name: Checkout code
         uses: actions/checkout@v4
 
@@ -215,10 +255,46 @@ jobs:
             docker exec akis-staging-db pg_dump -U akis akis_staging > /opt/akis/backups/staging-pre-deploy-$(date +%Y%m%d-%H%M%S).sql 2>/dev/null || true
           EOF
 
+      - name: Verify server prerequisites
+        run: |
+          echo "Checking server prerequisites..."
+          ssh -i ~/.ssh/deploy_key ${{ secrets.STAGING_USER }}@${{ secrets.STAGING_HOST }} << 'EOF'
+            echo "=== Server Architecture ==="
+            uname -m
+
+            echo ""
+            echo "=== Docker Version ==="
+            docker --version || { echo "ERROR: Docker not installed"; exit 1; }
+
+            echo ""
+            echo "=== Docker Compose Version ==="
+            docker compose version || docker-compose --version || { echo "ERROR: Docker Compose not available"; exit 1; }
+
+            echo ""
+            echo "=== Disk Space ==="
+            df -h /opt/akis 2>/dev/null || df -h /
+
+            echo ""
+            echo "=== AKIS Directory ==="
+            ls -la /opt/akis/ 2>/dev/null || echo "Directory /opt/akis does not exist (will be created)"
+          EOF
+
+      - name: Setup GHCR authentication on server
+        run: |
+          # Login to GHCR on the staging server for pulling private images
+          # Uses GITHUB_TOKEN which has packages:read permission
+          ssh -i ~/.ssh/deploy_key ${{ secrets.STAGING_USER }}@${{ secrets.STAGING_HOST }} << EOF
+            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+          EOF
+          echo "✅ GHCR authentication configured on staging server"
+
       - name: Deploy to staging server
         env:
           BACKEND_VERSION: ${{ needs.build.outputs.commit }}
         run: |
+          # Compute lowercase repo for image references
+          REPO_LC=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
+
           # Copy compose files and Caddyfile
           scp -i ~/.ssh/deploy_key devops/compose/docker-compose.staging.yml \
             ${{ secrets.STAGING_USER }}@${{ secrets.STAGING_HOST }}:/opt/akis/docker-compose.yml
@@ -229,21 +305,38 @@ jobs:
           scp -r -i ~/.ssh/deploy_key frontend/dist/* \
             ${{ secrets.STAGING_USER }}@${{ secrets.STAGING_HOST }}:/opt/akis/frontend/
           
-          # Deploy
+          # Write .env with deterministic image references (survives reboots)
           ssh -i ~/.ssh/deploy_key ${{ secrets.STAGING_USER }}@${{ secrets.STAGING_HOST }} << EOF
+            set -e
             cd /opt/akis
-            
-            # Pull new images
-            export BACKEND_VERSION=${{ needs.build.outputs.commit }}
-            docker compose pull
-            
-            # Run migrations
-            docker compose run --rm backend pnpm db:migrate || true
-            
-            # Deploy with rolling update
+
+            echo "=== Writing image references to .env ==="
+            # Persist GITHUB_REPOSITORY and BACKEND_VERSION so compose
+            # resolves the correct image on restarts/reboots too
+            touch .env
+            sed -i '/^GITHUB_REPOSITORY=/d; /^BACKEND_VERSION=/d' .env
+            echo "GITHUB_REPOSITORY=${REPO_LC}" >> .env
+            echo "BACKEND_VERSION=${{ needs.build.outputs.commit }}" >> .env
+            echo "Image: ghcr.io/${REPO_LC}/akis-backend:${{ needs.build.outputs.commit }}"
+
+            echo ""
+            echo "=== Pulling new images ==="
+            docker compose pull || { echo "ERROR: Failed to pull images"; docker compose logs; exit 1; }
+
+            echo ""
+            echo "=== Running database migrations ==="
+            docker compose run --rm backend pnpm db:migrate || echo "WARN: Migration failed or no migrations to run"
+
+            echo ""
+            echo "=== Deploying services ==="
             docker compose up -d --remove-orphans
-            
-            # Cleanup old images
+
+            echo ""
+            echo "=== Container status ==="
+            docker compose ps
+
+            echo ""
+            echo "=== Cleanup old images ==="
             docker image prune -f
           EOF
 

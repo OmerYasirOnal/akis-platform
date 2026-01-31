@@ -14,8 +14,8 @@ export const LOGO_ALT = "AKIS";
 
 export const LOGO_SIZES = {
   hero: 112,
-  nav: 24,
-  sm: 20,
+  nav: 32,   // Increased from 24 for better visibility in navigation
+  sm: 24,    // Increased from 20 for better legibility
 } as const;
 
 export type LogoSize = keyof typeof LOGO_SIZES;
