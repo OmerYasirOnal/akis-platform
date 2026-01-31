@@ -79,9 +79,9 @@ Content-Type: application/json
       <h2>OpenAPI Spec</h2>
       <p>
         The full OpenAPI specification is available at{' '}
-        <a href="http://localhost:3000/openapi.json" target="_blank" rel="noopener noreferrer">/openapi.json</a>.
-        Interactive documentation is at{' '}
-        <a href="http://localhost:3000/docs" target="_blank" rel="noopener noreferrer">/docs</a>.
+        <a href="/openapi.json" target="_blank" rel="noopener noreferrer">/openapi.json</a>.
+        Interactive Swagger UI is at{' '}
+        <a href="/api/docs" target="_blank" rel="noopener noreferrer">/api/docs</a>.
       </p>
 
       <h2>Related</h2>
