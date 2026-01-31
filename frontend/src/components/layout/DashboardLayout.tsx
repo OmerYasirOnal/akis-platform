@@ -4,6 +4,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { cn } from '../../utils/cn';
 import DashboardSidebar from './DashboardSidebar';
 import { ProfileMenu } from './ProfileMenu';
+import { RunBar } from './RunBar';
 import Logo from '../branding/Logo';
 
 const MenuIcon = () => (
@@ -26,6 +27,16 @@ export function DashboardLayout() {
     setMobileMenuOpen(false);
   }, []);
 
+  // Prevent background scroll when mobile menu is open
+  useEffect(() => {
+    if (mobileMenuOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => { document.body.style.overflow = ''; };
+  }, [mobileMenuOpen]);
+
   const closeMobileMenu = () => setMobileMenuOpen(false);
 
   return (
@@ -38,13 +49,14 @@ export function DashboardLayout() {
       </aside>
 
       {/* Mobile Sidebar Overlay */}
-      {mobileMenuOpen && (
-        <div
-          className="fixed inset-0 z-40 bg-ak-bg/80 lg:hidden"
-          onClick={closeMobileMenu}
-          aria-hidden="true"
-        />
-      )}
+      <div
+        className={cn(
+          'fixed inset-0 z-40 bg-black/60 backdrop-blur-sm transition-opacity duration-200 lg:hidden',
+          mobileMenuOpen ? 'opacity-100' : 'pointer-events-none opacity-0'
+        )}
+        onClick={closeMobileMenu}
+        aria-hidden="true"
+      />
 
       {/* Mobile Sidebar Drawer */}
       <aside
@@ -105,10 +117,12 @@ export function DashboardLayout() {
         </header>
 
         {/* Page Content */}
-        <main className="flex-1 p-4 sm:p-6 lg:p-8">
+        <main className="flex-1 p-4 pb-16 sm:p-6 sm:pb-16 lg:p-8 lg:pb-16">
           <Outlet />
         </main>
       </div>
+
+      <RunBar />
     </div>
   );
 }
