@@ -102,8 +102,9 @@ jobs:
 
       - name: Build frontend
         working-directory: frontend
-        env:
-          VITE_API_URL: /api
+        # NOTE: Do NOT set VITE_API_URL here. The frontend code uses getApiBaseUrl()
+        # which returns window.location.origin at runtime. Setting VITE_API_URL=/api
+        # caused /api/api double prefix issues (see fix/api-base-url-normalization).
         run: npm run build
 
       - name: Upload frontend build
@@ -580,6 +581,48 @@ jobs:
             echo "   Body: $OAUTH_BODY"
             # Don't fail - OAuth not being configured is acceptable for staging
           fi
+
+      - name: API endpoint smoke check (prevent /api/api issues)
+        if: steps.health.outputs.health_status == 'success'
+        run: |
+          echo "=== API endpoint smoke check ==="
+          echo "Verifying no /api/api double prefix issues..."
+
+          # Test critical API endpoints - should return non-404
+          # 401 (unauthorized) or 200 is acceptable, 404 indicates routing issue
+          ENDPOINTS=(
+            "/api/agents/jobs/running"
+            "/api/settings/ai-keys/status"
+            "/api/integrations"
+          )
+
+          FAILED=0
+          for endpoint in "${ENDPOINTS[@]}"; do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" "https://staging.akisflow.com${endpoint}" || echo "000")
+            if [ "$STATUS" = "404" ]; then
+              echo "❌ $endpoint returned 404 - possible /api/api issue or missing route"
+              FAILED=1
+            elif [ "$STATUS" = "000" ]; then
+              echo "❌ $endpoint - connection failed"
+              FAILED=1
+            else
+              echo "✅ $endpoint returned $STATUS (non-404)"
+            fi
+          done
+
+          if [ "$FAILED" = "1" ]; then
+            echo ""
+            echo "ERROR: Some API endpoints returned 404. This may indicate:"
+            echo "  1. /api/api double prefix issue in frontend"
+            echo "  2. Missing backend routes"
+            echo "  3. Edge proxy misconfiguration"
+            echo ""
+            echo "See docs/ops/API_BASE_URL.md for troubleshooting."
+            exit 1
+          fi
+
+          echo ""
+          echo "✅ All API endpoints responding correctly (no 404s)"
 
       - name: Rollback on failure
         if: failure() && steps.previous.outputs.previous_image != 'none'

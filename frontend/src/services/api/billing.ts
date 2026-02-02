@@ -1,10 +1,11 @@
 /**
  * Billing API client
  */
-const apiBaseURL =
-  import.meta.env.VITE_API_URL ||
-  import.meta.env.VITE_BACKEND_URL ||
-  'http://localhost:3000';
+import { getApiBaseUrl } from './config';
+
+// Use centralized config to prevent /api/api double prefix
+// Note: This file uses direct fetch, so we call getApiBaseUrl() in each method
+// to ensure window is available at runtime
 
 const withCredentials: RequestInit = { credentials: 'include' };
 
@@ -73,25 +74,25 @@ export interface UserOverride {
 
 export const billingApi = {
   async getCurrentPlan(): Promise<{ plan: PlanInfo; usage: UsageInfo; unlimited: boolean; role: string }> {
-    const res = await fetch(`${apiBaseURL}/api/billing/plan`, withCredentials);
+    const res = await fetch(`${getApiBaseUrl()}/api/billing/plan`, withCredentials);
     if (!res.ok) throw new Error(`Failed to fetch plan: ${res.status}`);
     return res.json();
   },
 
   async getAvailablePlans(): Promise<{ plans: AvailablePlan[] }> {
-    const res = await fetch(`${apiBaseURL}/api/billing/plans`, withCredentials);
+    const res = await fetch(`${getApiBaseUrl()}/api/billing/plans`, withCredentials);
     if (!res.ok) throw new Error(`Failed to fetch plans: ${res.status}`);
     return res.json();
   },
 
   async getSettings(): Promise<BillingSettings> {
-    const res = await fetch(`${apiBaseURL}/api/billing/settings`, withCredentials);
+    const res = await fetch(`${getApiBaseUrl()}/api/billing/settings`, withCredentials);
     if (!res.ok) throw new Error(`Failed to fetch settings: ${res.status}`);
     return res.json();
   },
 
   async updateSettings(settings: Partial<BillingSettings>): Promise<BillingSettings> {
-    const res = await fetch(`${apiBaseURL}/api/billing/settings`, {
+    const res = await fetch(`${getApiBaseUrl()}/api/billing/settings`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(settings),
@@ -102,13 +103,13 @@ export const billingApi = {
   },
 
   async getNotifications(): Promise<{ notifications: BillingNotification[] }> {
-    const res = await fetch(`${apiBaseURL}/api/billing/notifications`, withCredentials);
+    const res = await fetch(`${getApiBaseUrl()}/api/billing/notifications`, withCredentials);
     if (!res.ok) throw new Error(`Failed to fetch notifications: ${res.status}`);
     return res.json();
   },
 
   async setUserOverride(userId: string, override: { monthlyBudgetUsd?: number | null; isUnlimited?: boolean }): Promise<{ override: UserOverride }> {
-    const res = await fetch(`${apiBaseURL}/api/billing/user-override`, {
+    const res = await fetch(`${getApiBaseUrl()}/api/billing/user-override`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ userId, ...override }),
@@ -119,7 +120,7 @@ export const billingApi = {
   },
 
   async createCheckout(planId: string, priceId: string): Promise<{ sessionId: string; url: string }> {
-    const res = await fetch(`${apiBaseURL}/api/billing/checkout`, {
+    const res = await fetch(`${getApiBaseUrl()}/api/billing/checkout`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ planId, priceId }),
@@ -130,7 +131,7 @@ export const billingApi = {
   },
 
   async createPortalSession(): Promise<{ url: string }> {
-    const res = await fetch(`${apiBaseURL}/api/billing/portal`, {
+    const res = await fetch(`${getApiBaseUrl()}/api/billing/portal`, {
       method: 'POST',
       ...withCredentials,
     });
