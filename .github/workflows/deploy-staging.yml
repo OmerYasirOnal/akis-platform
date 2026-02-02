@@ -14,18 +14,23 @@ on:
       - 'docs/**'
       - '*.md'
       - '.cursor/**'
-  # Manual trigger for retrying failed deployments
+  # Manual trigger - use when:
+  # 1. Retrying a failed deployment
+  # 2. Force-deploying without code changes (e.g., server config update)
+  # 3. Testing deployment pipeline changes
+  # Run via: gh workflow run deploy-staging.yml -f reason="Your reason"
   workflow_dispatch:
     inputs:
       reason:
         description: 'Reason for manual trigger'
         required: false
-        default: 'Manual deploy retry'
+        default: 'Manual deploy'
 
-# Prevent concurrent deployments
+# Prevent concurrent deployments - cancel older runs when new push arrives
+# This is safe for staging as we always want the latest code deployed
 concurrency:
   group: deploy-staging
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 env:
   REGISTRY: ghcr.io
@@ -186,6 +191,7 @@ jobs:
     name: Deploy to Staging
     runs-on: ubuntu-latest
     needs: [build, docker]
+    timeout-minutes: 30
     environment:
       name: staging
       url: https://staging.akisflow.com
