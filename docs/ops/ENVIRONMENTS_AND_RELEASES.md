@@ -26,8 +26,8 @@ AKIS Platform operates across three environments: Local Development, Staging, an
 | Environment | Domain | Database | AI Provider | GitHub MCP | Auto-Deploy |
 |-------------|--------|----------|-------------|------------|-------------|
 | **Local Dev** | localhost:5173 (frontend), localhost:3000 (backend) | Docker postgres:5433 | mock | Optional | N/A |
-| **Staging** | staging.akis.dev | akis_staging (containerized) | mock or user-key | Required | main branch push |
-| **Production** | akis.dev | akis_prod (containerized) | openrouter or user-key | Required | semver tag + manual approval |
+| **Staging** | staging.akisflow.com | akis_staging (containerized) | mock or user-key | Required | main branch push |
+| **Production** | akisflow.com | akis_prod (containerized) | openrouter or user-key | Required | semver tag + manual approval |
 
 ### 2.2 Local Development
 
@@ -67,7 +67,7 @@ AI_KEY_ENCRYPTION_KEY=<base64-32-bytes>
 
 **Purpose:** Pre-production testing, QA verification, and demo environment.
 
-**URL:** https://staging.akis.dev
+**URL:** https://staging.akisflow.com
 
 **Infrastructure:**
 - OCI Free Tier VM (4 OCPU, 24GB RAM ARM)
@@ -86,9 +86,9 @@ AUTH_COOKIE_NAME=akis_sid
 AUTH_COOKIE_SECURE=false  # staging uses different auth handling
 AUTH_COOKIE_SAMESITE=lax
 
-BACKEND_URL=https://staging.akis.dev/api
-FRONTEND_URL=https://staging.akis.dev
-CORS_ORIGINS=https://staging.akis.dev
+BACKEND_URL=https://staging.akisflow.com/api
+FRONTEND_URL=https://staging.akisflow.com
+CORS_ORIGINS=https://staging.akisflow.com
 
 GITHUB_MCP_BASE_URL=http://mcp-gateway:4010/mcp
 AI_PROVIDER=mock  # or user-managed keys
@@ -107,7 +107,7 @@ POSTGRES_DB=akis_staging
 
 **Purpose:** Live customer-facing environment.
 
-**URL:** https://akis.dev
+**URL:** https://akisflow.com
 
 **Infrastructure:**
 - OCI Free Tier VM (4 OCPU, 24GB RAM ARM)
@@ -129,11 +129,11 @@ AUTH_JWT_SECRET=${AUTH_JWT_SECRET}
 AUTH_COOKIE_NAME=akis_sid
 AUTH_COOKIE_SECURE=true  # MANDATORY in production
 AUTH_COOKIE_SAMESITE=lax
-AUTH_COOKIE_DOMAIN=.akis.dev  # Enable cross-subdomain sessions
+AUTH_COOKIE_DOMAIN=.akisflow.com  # Enable cross-subdomain sessions
 
-BACKEND_URL=https://akis.dev/api
-FRONTEND_URL=https://akis.dev
-CORS_ORIGINS=https://akis.dev
+BACKEND_URL=https://akisflow.com/api
+FRONTEND_URL=https://akisflow.com
+CORS_ORIGINS=https://akisflow.com
 
 GITHUB_MCP_BASE_URL=http://mcp-gateway:4010/mcp
 AI_PROVIDER=openrouter
@@ -216,8 +216,8 @@ git push origin v0.5.0
 7. Smoke tests run
 
 **Step 4: Verify Release**
-- Check https://akis.dev/health
-- Check https://akis.dev/version (should show new version)
+- Check https://akisflow.com/health
+- Check https://akisflow.com/version (should show new version)
 - Run quick manual smoke test
 
 ### 3.5 Hotfix Process
@@ -258,8 +258,8 @@ docker compose pull backend:${PREVIOUS_TAG}
 docker compose up -d backend
 
 # Verify
-curl https://akis.dev/health
-curl https://akis.dev/version
+curl https://akisflow.com/health
+curl https://akisflow.com/version
 ```
 
 **Via GitHub Actions (Recommended):**
@@ -422,7 +422,7 @@ docker compose logs db --tail=50
 
 **Cause:** Cookie domain mismatch
 
-**Fix:** Ensure `AUTH_COOKIE_DOMAIN=.akis.dev` is set in production `.env`
+**Fix:** Ensure `AUTH_COOKIE_DOMAIN=.akisflow.com` is set in production `.env`
 
 ---
 

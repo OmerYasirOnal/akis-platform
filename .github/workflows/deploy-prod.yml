@@ -2,7 +2,7 @@
 # Deploys to production when a release is published or a semver tag is pushed
 #
 # Trigger: GitHub Release publish OR semver tag (v*.*.*)
-# Target: OCI Free Tier VM (akis.dev)
+# Target: OCI Free Tier VM (akisflow.com)
 # Requires: Manual approval via GitHub Environment protection
 
 name: Deploy to Production
@@ -209,7 +209,7 @@ jobs:
     needs: [validate, build, docker]
     environment:
       name: production
-      url: https://akis.dev
+      url: https://akisflow.com
 
     steps:
       - name: Checkout code
@@ -287,8 +287,8 @@ jobs:
         run: |
           echo "🏥 Running health checks..."
           for i in {1..30}; do
-            HEALTH=$(curl -s -o /dev/null -w "%{http_code}" https://akis.dev/health || echo "000")
-            READY=$(curl -s -o /dev/null -w "%{http_code}" https://akis.dev/ready || echo "000")
+            HEALTH=$(curl -s -o /dev/null -w "%{http_code}" https://akisflow.com/health || echo "000")
+            READY=$(curl -s -o /dev/null -w "%{http_code}" https://akisflow.com/ready || echo "000")
             
             if [ "$HEALTH" = "200" ] && [ "$READY" = "200" ]; then
               echo "✅ Health checks passed!"
@@ -307,7 +307,7 @@ jobs:
       - name: Verify deployed version
         if: steps.health.outputs.health_status == 'success'
         run: |
-          DEPLOYED=$(curl -s https://akis.dev/version)
+          DEPLOYED=$(curl -s https://akisflow.com/version)
           DEPLOYED_VERSION=$(echo "$DEPLOYED" | jq -r '.version')
           DEPLOYED_COMMIT=$(echo "$DEPLOYED" | jq -r '.commit')
           EXPECTED_VERSION="${{ needs.validate.outputs.version }}"
@@ -354,11 +354,11 @@ jobs:
               "docker compose -f /opt/akis/docker-compose.yml logs --tail=200" 2>&1 || echo "Failed to get logs"
             echo ""
             echo "=== Health Check Results ==="
-            curl -s https://akis.dev/health || echo "Health check failed"
+            curl -s https://akisflow.com/health || echo "Health check failed"
             echo ""
-            curl -s https://akis.dev/ready || echo "Ready check failed"
+            curl -s https://akisflow.com/ready || echo "Ready check failed"
             echo ""
-            curl -s https://akis.dev/version || echo "Version check failed"
+            curl -s https://akisflow.com/version || echo "Version check failed"
           } > deploy-evidence.txt
 
       - name: Upload deployment evidence
@@ -385,7 +385,7 @@ jobs:
       - name: Test health endpoints with schema validation
         run: |
           echo "Testing /health..."
-          HEALTH_RESPONSE=$(curl -sf https://akis.dev/health)
+          HEALTH_RESPONSE=$(curl -sf https://akisflow.com/health)
           echo "Response: $HEALTH_RESPONSE"
           # Validate schema: must contain {"status":"ok"}
           if echo "$HEALTH_RESPONSE" | grep -q '"status"'; then
@@ -396,7 +396,7 @@ jobs:
           fi
           
           echo "Testing /ready..."
-          READY_RESPONSE=$(curl -sf https://akis.dev/ready)
+          READY_RESPONSE=$(curl -sf https://akisflow.com/ready)
           echo "Response: $READY_RESPONSE"
           # Validate schema: must contain {"ready":true/false}
           if echo "$READY_RESPONSE" | grep -q '"ready"'; then
@@ -407,7 +407,7 @@ jobs:
           fi
           
           echo "Testing /version..."
-          VERSION_RESPONSE=$(curl -sf https://akis.dev/version)
+          VERSION_RESPONSE=$(curl -sf https://akisflow.com/version)
           echo "Response: $VERSION_RESPONSE"
           # Validate schema: must contain {"version":"..."}
           if echo "$VERSION_RESPONSE" | grep -q '"version"'; then
@@ -420,7 +420,7 @@ jobs:
       - name: Test API endpoints
         run: |
           echo "Testing /api/agents/jobs (should return 401 or jobs list)..."
-          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" https://akis.dev/api/agents/jobs)
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" https://akisflow.com/api/agents/jobs)
           if [ "$HTTP_CODE" = "401" ] || [ "$HTTP_CODE" = "200" ]; then
             echo "✅ API responding correctly (HTTP $HTTP_CODE)"
           else
@@ -431,7 +431,7 @@ jobs:
       - name: Test frontend loading
         run: |
           echo "Testing frontend..."
-          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" https://akis.dev/)
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" https://akisflow.com/)
           if [ "$HTTP_CODE" = "200" ]; then
             echo "✅ Frontend loading correctly"
           else
@@ -491,7 +491,7 @@ jobs:
             echo "| Version | ${{ needs.validate.outputs.version }} |"
             echo "| Tag | ${{ needs.validate.outputs.tag }} |"
             echo "| Commit | ${{ needs.validate.outputs.commit }} |"
-            echo "| URL | https://akis.dev |"
+            echo "| URL | https://akisflow.com |"
             echo "| Workflow Run | [#${{ github.run_number }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) |"
             echo "| Triggered By | ${{ github.actor }} |"
             echo "| Timestamp | $(date -u +%Y-%m-%dT%H:%M:%SZ) |"

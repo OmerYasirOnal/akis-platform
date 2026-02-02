@@ -8,7 +8,7 @@
 
 ## Executive Summary
 
-AKIS Platform has staging (`staging.akis.dev`) and production (`akis.dev`) environments configured with:
+AKIS Platform has staging (`staging.akisflow.com`) and production (`akisflow.com`) environments configured with:
 - Fastify + Drizzle ORM backend (aligned with architecture mandate)
 - React + Vite SPA frontend
 - PostgreSQL 16 database (containerized)
@@ -31,8 +31,8 @@ AKIS Platform has staging (`staging.akis.dev`) and production (`akis.dev`) envir
 | Environment | Domain | Reverse Proxy | TLS |
 |-------------|--------|---------------|-----|
 | **Local Dev** | localhost:5173/3000 | N/A | N/A |
-| **Staging** | staging.akis.dev | Caddy | Let's Encrypt (auto) |
-| **Production** | akis.dev | Caddy | Let's Encrypt (auto) |
+| **Staging** | staging.akisflow.com | Caddy | Let's Encrypt (auto) |
+| **Production** | akisflow.com | Caddy | Let's Encrypt (auto) |
 
 **Routing Configuration:**
 - `/api/*` → Backend Fastify server (port 3000)
@@ -44,8 +44,8 @@ AKIS Platform has staging (`staging.akis.dev`) and production (`akis.dev`) envir
 | Workflow | Trigger | Target | Status |
 |----------|---------|--------|--------|
 | `ci.yml` | All branches/PRs | N/A (validation only) | Active |
-| `deploy-staging.yml` | Push to `main` | staging.akis.dev | Active |
-| `deploy-prod.yml` | Semver tags + release | akis.dev | Active |
+| `deploy-staging.yml` | Push to `main` | staging.akisflow.com | Active |
+| `deploy-prod.yml` | Semver tags + release | akisflow.com | Active |
 | `pr-gate.yml` | Pull requests | N/A (validation only) | Active |
 
 ### 1.3 Database State
@@ -87,7 +87,7 @@ AKIS Platform has staging (`staging.akis.dev`) and production (`akis.dev`) envir
 
 | Issue | Evidence | Impact | Fix Strategy | Status |
 |-------|----------|--------|--------------|--------|
-| **Auth cookie domain empty** | `docker-compose.prod.yml` line 72: `AUTH_COOKIE_DOMAIN` was empty string | Session cookies may not persist across subdomains | **FIXED:** Set `AUTH_COOKIE_DOMAIN=.akis.dev` as default | ✅ Completed |
+| **Auth cookie domain empty** | `docker-compose.prod.yml` line 72: `AUTH_COOKIE_DOMAIN` was empty string | Session cookies may not persist across subdomains | **FIXED:** Set `AUTH_COOKIE_DOMAIN=.akisflow.com` as default | ✅ Completed |
 | **AI provider inconsistency** | Staging: `AI_PROVIDER=mock`, Prod: `AI_PROVIDER=openrouter` | Staging tests don't reflect prod AI behavior | Document difference; optionally allow user keys in staging | Documentation task |
 | **Stale planning docs** | `docs/NEXT.md` shows conflicts; `PROJECT_TRACKING_BASELINE.md` 41+ days stale | Planning confusion; outdated task tracking | Resolve doc conflicts; archive stale docs | Manual cleanup |
 | **No feature flags** | No mechanism to disable unstable routes in production | Unstable features could impact prod users | **FIXED:** Added `FEATURE_FLAG_UNSTABLE_ROUTES` env var | ✅ Completed |
@@ -192,7 +192,7 @@ AKIS Platform has staging (`staging.akis.dev`) and production (`akis.dev`) envir
 |--------|------|-------------|
 | Environment documentation | `docs/ops/ENVIRONMENTS_AND_RELEASES.md` | Full environment contract and release flow |
 | Feature flags | `backend/src/config/env.ts` | Added `FEATURE_FLAG_UNSTABLE_ROUTES` |
-| Cookie domain fix | `devops/compose/docker-compose.prod.yml` | Default to `.akis.dev` for session sharing |
+| Cookie domain fix | `devops/compose/docker-compose.prod.yml` | Default to `.akisflow.com` for session sharing |
 | Smoke test enhancement | `.github/workflows/deploy-*.yml` | Schema validation for health endpoints |
 
 ---

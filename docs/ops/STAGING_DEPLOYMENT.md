@@ -53,7 +53,7 @@ Navigate to: **Repository → Settings → Secrets and variables → Actions →
 
 | Secret Name | Description | Example |
 |-------------|-------------|---------|
-| `STAGING_HOST` | Server IP address or hostname | `192.168.1.100` or `staging.akis.dev` |
+| `STAGING_HOST` | Server IP address or hostname | `192.168.1.100` or `staging.akisflow.com` |
 | `STAGING_USER` | SSH username on the server | `ubuntu`, `opc`, `akis` |
 | `STAGING_SSH_KEY` | Private SSH key (PEM format) | See generation instructions below |
 
@@ -223,7 +223,7 @@ If GitHub Actions fails or you need to deploy manually:
 
 ```bash
 # 1. SSH into the server
-ssh -i ~/.ssh/akis_deploy user@staging.akis.dev
+ssh -i ~/.ssh/akis_deploy user@staging.akisflow.com
 
 # 2. Navigate to app directory
 cd /opt/akis
@@ -243,8 +243,8 @@ docker compose up -d --remove-orphans
 docker compose logs -f --tail=100
 
 # 7. Verify health
-curl -s https://staging.akis.dev/health | jq
-curl -s https://staging.akis.dev/version | jq
+curl -s https://staging.akisflow.com/health | jq
+curl -s https://staging.akisflow.com/version | jq
 ```
 
 ## Smoke Test URLs
@@ -253,18 +253,18 @@ After deployment, verify these endpoints:
 
 | URL | Expected Response |
 |-----|-------------------|
-| `https://staging.akis.dev/health` | `{"status":"ok",...}` (200) |
-| `https://staging.akis.dev/ready` | `{"status":"ready",...}` (200) |
-| `https://staging.akis.dev/version` | `{"version":"...","commit":"..."}` (200) |
-| `https://staging.akis.dev/docs` | Frontend documentation SPA (200 HTML) |
-| `https://staging.akis.dev/api/docs` | Swagger UI interface (200 HTML) |
-| `https://staging.akis.dev/openapi.json` | OpenAPI spec JSON (200) |
+| `https://staging.akisflow.com/health` | `{"status":"ok",...}` (200) |
+| `https://staging.akisflow.com/ready` | `{"status":"ready",...}` (200) |
+| `https://staging.akisflow.com/version` | `{"version":"...","commit":"..."}` (200) |
+| `https://staging.akisflow.com/docs` | Frontend documentation SPA (200 HTML) |
+| `https://staging.akisflow.com/api/docs` | Swagger UI interface (200 HTML) |
+| `https://staging.akisflow.com/openapi.json` | OpenAPI spec JSON (200) |
 
 ### Quick smoke test script
 
 ```bash
 #!/bin/bash
-BASE_URL="https://staging.akis.dev"
+BASE_URL="https://staging.akisflow.com"
 
 echo "Testing AKIS staging deployment..."
 
@@ -308,8 +308,8 @@ The workflow shows which secrets are missing. Add them in GitHub → Repository 
 
 ### SSH connection failed
 
-1. Verify the server is accessible: `ping staging.akis.dev`
-2. Verify SSH port is open: `nc -zv staging.akis.dev 22`
+1. Verify the server is accessible: `ping staging.akisflow.com`
+2. Verify SSH port is open: `nc -zv staging.akisflow.com 22`
 3. Verify key is correct: Test locally with the same key
 4. Check server logs: `sudo journalctl -u ssh -n 50`
 
@@ -352,7 +352,7 @@ If a deployment causes issues:
 
 ```bash
 # SSH into server
-ssh -i ~/.ssh/akis_deploy user@staging.akis.dev
+ssh -i ~/.ssh/akis_deploy user@staging.akisflow.com
 cd /opt/akis
 
 # Option 1: Roll back to previous image tag

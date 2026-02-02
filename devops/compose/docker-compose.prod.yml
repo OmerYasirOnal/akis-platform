@@ -69,13 +69,13 @@ services:
       AUTH_COOKIE_SECURE: "true"
       AUTH_COOKIE_SAMESITE: ${AUTH_COOKIE_SAMESITE:-lax}
       AUTH_COOKIE_NAME: ${AUTH_COOKIE_NAME:-akis_sid}
-      # Cookie domain enables cross-subdomain session sharing (e.g., akis.dev and www.akis.dev)
-      AUTH_COOKIE_DOMAIN: ${AUTH_COOKIE_DOMAIN:-.akis.dev}
+      # Cookie domain enables cross-subdomain session sharing (e.g., akisflow.com and www.akisflow.com)
+      AUTH_COOKIE_DOMAIN: ${AUTH_COOKIE_DOMAIN:-.akisflow.com}
       
       # URLs
-      BACKEND_URL: ${BACKEND_URL:-https://akis.dev/api}
-      FRONTEND_URL: ${FRONTEND_URL:-https://akis.dev}
-      CORS_ORIGINS: ${CORS_ORIGINS:-https://akis.dev}
+      BACKEND_URL: ${BACKEND_URL:-https://akisflow.com/api}
+      FRONTEND_URL: ${FRONTEND_URL:-https://akisflow.com}
+      CORS_ORIGINS: ${CORS_ORIGINS:-https://akisflow.com}
       
       # Rate Limiting (strict for production)
       RATE_LIMIT_MAX: ${RATE_LIMIT_MAX:-100}

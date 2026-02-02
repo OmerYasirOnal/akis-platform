@@ -7,11 +7,11 @@
     # acme_ca https://acme-staging-v02.api.letsencrypt.org/directory
     
     # Email for ACME notifications
-    email {$ACME_EMAIL:admin@akis.dev}
+    email {$ACME_EMAIL:admin@akisflow.com}
 }
 
 # Staging domain
-staging.akis.dev {
+staging.akisflow.com {
     # Enable compression
     encode gzip zstd
 
@@ -79,6 +79,6 @@ staging.akis.dev {
 }
 
 # HTTP → HTTPS redirect
-http://staging.akis.dev {
+http://staging.akisflow.com {
     redir https://{host}{uri} permanent
 }

@@ -64,9 +64,9 @@ services:
       AUTH_COOKIE_NAME: ${AUTH_COOKIE_NAME:-akis_sid}
       
       # URLs
-      BACKEND_URL: ${BACKEND_URL:-https://staging.akis.dev/api}
-      FRONTEND_URL: ${FRONTEND_URL:-https://staging.akis.dev}
-      CORS_ORIGINS: ${CORS_ORIGINS:-https://staging.akis.dev}
+      BACKEND_URL: ${BACKEND_URL:-https://staging.akisflow.com/api}
+      FRONTEND_URL: ${FRONTEND_URL:-https://staging.akisflow.com}
+      CORS_ORIGINS: ${CORS_ORIGINS:-https://staging.akisflow.com}
       
       # Rate Limiting (relaxed for staging)
       RATE_LIMIT_MAX: ${RATE_LIMIT_MAX:-200}
