@@ -276,12 +276,15 @@ jobs:
           ssh -i ~/.ssh/deploy_key ${{ secrets.PROD_USER }}@${{ secrets.PROD_HOST }} << 'EOF'
             # Check if nginx is running
             if systemctl is-active --quiet nginx 2>/dev/null; then
-              echo "nginx is running. Stopping for AKIS deployment..."
+              echo "nginx is running. Stopping and masking for AKIS deployment..."
               sudo systemctl stop nginx
               sudo systemctl disable nginx
-              echo "✅ nginx stopped and disabled"
+              sudo systemctl mask nginx 2>/dev/null || true
+              echo "✅ nginx stopped, disabled, and masked (will not auto-start)"
             else
               echo "nginx is not running (OK)"
+              # Ensure nginx stays masked even if not currently running
+              sudo systemctl mask nginx 2>/dev/null || true
             fi
             
             # Stop any old akis containers that might bind to 80/443

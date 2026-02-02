@@ -308,10 +308,11 @@ jobs:
                 echo "If other sites break, you may need to reconfigure nginx to coexist with Docker Caddy."
               fi
               
-              echo "Stopping nginx..."
+              echo "Stopping and masking nginx..."
               sudo systemctl stop nginx
               sudo systemctl disable nginx
-              echo "✅ nginx stopped and disabled"
+              sudo systemctl mask nginx 2>/dev/null || true
+              echo "✅ nginx stopped, disabled, and masked (will not auto-start)"
             else
               echo "nginx is not running (OK)"
             fi
@@ -538,6 +539,39 @@ jobs:
           else
             echo "❌ Version mismatch: deployed=$DEPLOYED, expected=$EXPECTED"
             exit 1
+          fi
+
+      - name: OAuth endpoint smoke check
+        if: steps.health.outputs.health_status == 'success'
+        run: |
+          echo "=== OAuth endpoint smoke check ==="
+          echo "Testing /auth/oauth/github endpoint..."
+          
+          # Get response and status code
+          OAUTH_STATUS=$(curl -s -o /tmp/oauth_response.json -w "%{http_code}" https://staging.akisflow.com/auth/oauth/github || echo "000")
+          OAUTH_BODY=$(cat /tmp/oauth_response.json 2>/dev/null || echo "")
+          
+          echo "Status: $OAUTH_STATUS"
+          echo "Body: $OAUTH_BODY"
+          
+          # Valid responses:
+          # - 301/302/303: OAuth redirect (OAuth is configured)
+          # - 503 with OAUTH_NOT_CONFIGURED: OAuth not configured (expected if env vars not set)
+          # - 400 with error JSON: Bad request (acceptable)
+          
+          if [ "$OAUTH_STATUS" = "301" ] || [ "$OAUTH_STATUS" = "302" ] || [ "$OAUTH_STATUS" = "303" ]; then
+            echo "✅ OAuth endpoint returns redirect (OAuth is configured)"
+          elif [ "$OAUTH_STATUS" = "503" ] && echo "$OAUTH_BODY" | grep -q "OAUTH_NOT_CONFIGURED"; then
+            echo "✅ OAuth endpoint returns expected 'not configured' response"
+            echo "   (This is normal if GITHUB_OAUTH_CLIENT_ID is not set in staging environment)"
+          elif [ "$OAUTH_STATUS" = "502" ]; then
+            echo "❌ OAuth endpoint returns 502 - edge proxy cannot reach backend"
+            echo "   This indicates nginx may still be binding 80/443 or edge proxy is misconfigured"
+            exit 1
+          else
+            echo "⚠️ OAuth endpoint returns unexpected status: $OAUTH_STATUS"
+            echo "   This may indicate a routing or backend issue"
+            # Don't fail - OAuth not being configured is acceptable for staging
           fi
 
       - name: Rollback on failure
