@@ -343,7 +343,7 @@ jobs:
       - name: Wait for deployment
         run: sleep 30
 
-      - name: Health check
+      - name: Health check with schema validation
         id: health
         run: |
           for i in {1..30}; do
@@ -351,7 +351,35 @@ jobs:
             READY=$(curl -s -o /dev/null -w "%{http_code}" https://staging.akis.dev/ready || echo "000")
             
             if [ "$HEALTH" = "200" ] && [ "$READY" = "200" ]; then
-              echo "Health checks passed!"
+              echo "HTTP status checks passed!"
+              
+              # Validate response schemas
+              echo "Validating response schemas..."
+              
+              HEALTH_RESPONSE=$(curl -sf https://staging.akis.dev/health)
+              if echo "$HEALTH_RESPONSE" | grep -q '"status"'; then
+                echo "✅ /health schema valid"
+              else
+                echo "❌ /health response missing required 'status' field"
+                exit 1
+              fi
+              
+              READY_RESPONSE=$(curl -sf https://staging.akis.dev/ready)
+              if echo "$READY_RESPONSE" | grep -q '"ready"'; then
+                echo "✅ /ready schema valid"
+              else
+                echo "❌ /ready response missing required 'ready' field"
+                exit 1
+              fi
+              
+              VERSION_RESPONSE=$(curl -sf https://staging.akis.dev/version)
+              if echo "$VERSION_RESPONSE" | grep -q '"version"'; then
+                echo "✅ /version schema valid"
+              else
+                echo "❌ /version response missing required 'version' field"
+                exit 1
+              fi
+              
               echo "health_status=success" >> $GITHUB_OUTPUT
               exit 0
             fi
