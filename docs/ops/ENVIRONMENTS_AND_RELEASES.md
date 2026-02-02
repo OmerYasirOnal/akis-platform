@@ -516,6 +516,32 @@ docker compose logs backend --tail=100
 
 **Fix:** Usually DNS or server-level issue, not workflow issue.
 
+#### Failure Mode 4: Backend Container Not Started
+
+**Symptoms:**
+- `health=502, ready=502` in workflow logs
+- `docker compose ps` shows only `db` and `caddy` running, no `backend`
+- Workflow artifact shows database logs but no backend logs
+
+**Diagnosis:**
+1. Check workflow logs for "=== Container status ===" section
+2. Look for backend container in `docker compose ps` output
+3. Download workflow artifact `staging-deploy-logs-XX` and check for backend logs
+
+**Common Causes:**
+- Deploy script exited early (e.g., after migration error)
+- Image pull failed silently
+- Container health check failing on startup
+
+**Fix:**
+```bash
+# SSH to server and manually start
+ssh $STAGING_USER@$STAGING_HOST
+cd /opt/akis
+docker compose up -d --force-recreate backend
+docker compose logs -f backend  # Watch for startup errors
+```
+
 ### 9.5 Important Notes
 
 - **SSH Host vs Public URL:** `STAGING_HOST` is for SSH connectivity (private IP or hostname), while health checks use `staging.akisflow.com` (public domain)

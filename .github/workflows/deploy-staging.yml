@@ -306,42 +306,44 @@ jobs:
             ${{ secrets.STAGING_USER }}@${{ secrets.STAGING_HOST }}:/opt/akis/frontend/
           
           # Write .env with deterministic image references (survives reboots)
-          ssh -i ~/.ssh/deploy_key ${{ secrets.STAGING_USER }}@${{ secrets.STAGING_HOST }} << 'DEPLOY_EOF'
-            cd /opt/akis
-
-            echo "=== Writing image references to .env ==="
-            touch .env
-            sed -i '/^GITHUB_REPOSITORY=/d; /^BACKEND_VERSION=/d' .env
-          DEPLOY_EOF
-          
-          # Write env vars separately (variables expanded locally)
+          echo "=== Writing image references to .env ==="
           ssh -i ~/.ssh/deploy_key ${{ secrets.STAGING_USER }}@${{ secrets.STAGING_HOST }} \
-            "cd /opt/akis && echo 'GITHUB_REPOSITORY=$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')' >> .env && echo 'BACKEND_VERSION=${{ needs.build.outputs.commit }}' >> .env"
+            "cd /opt/akis && touch .env && sed -i '/^GITHUB_REPOSITORY=/d; /^BACKEND_VERSION=/d' .env"
           
-          # Pull images, run migrations, deploy services
-          ssh -i ~/.ssh/deploy_key ${{ secrets.STAGING_USER }}@${{ secrets.STAGING_HOST }} << 'DEPLOY_EOF'
-            cd /opt/akis
-            
-            echo "=== Pulling new images ==="
-            docker compose pull || { echo "ERROR: Failed to pull images"; docker compose logs; exit 1; }
+          # Write env vars (variables expanded locally)
+          ssh -i ~/.ssh/deploy_key ${{ secrets.STAGING_USER }}@${{ secrets.STAGING_HOST }} \
+            "cd /opt/akis && echo 'GITHUB_REPOSITORY=${REPO_LC}' >> .env && echo 'BACKEND_VERSION=${{ needs.build.outputs.commit }}' >> .env"
+          
+          echo "Image: ghcr.io/${REPO_LC}/akis-backend:${{ needs.build.outputs.commit }}"
 
-            echo ""
-            echo "=== Running database migrations ==="
-            # Run migration in subshell to prevent heredoc exit on error
-            (docker compose run --rm backend pnpm db:migrate) || echo "WARN: Migration failed or no migrations to run (this is often OK if schema is up-to-date)"
+      - name: Pull Docker images
+        run: |
+          echo "=== Pulling new images ==="
+          ssh -i ~/.ssh/deploy_key ${{ secrets.STAGING_USER }}@${{ secrets.STAGING_HOST }} \
+            "cd /opt/akis && docker compose pull"
 
-            echo ""
-            echo "=== Deploying services ==="
-            docker compose up -d --remove-orphans
-            
-            echo ""
-            echo "=== Container status ==="
-            docker compose ps
+      - name: Run database migrations
+        run: |
+          echo "=== Running database migrations ==="
+          # Migration may fail if schema is already up-to-date - this is OK
+          ssh -i ~/.ssh/deploy_key ${{ secrets.STAGING_USER }}@${{ secrets.STAGING_HOST }} \
+            "cd /opt/akis && docker compose run --rm backend pnpm db:migrate" || echo "WARN: Migration failed or no migrations to run (this is often OK if schema is up-to-date)"
 
-            echo ""
-            echo "=== Cleanup old images ==="
-            docker image prune -f
-          DEPLOY_EOF
+      - name: Start services
+        run: |
+          echo "=== Deploying services ==="
+          ssh -i ~/.ssh/deploy_key ${{ secrets.STAGING_USER }}@${{ secrets.STAGING_HOST }} \
+            "cd /opt/akis && docker compose up -d --remove-orphans"
+          
+          echo ""
+          echo "=== Container status ==="
+          ssh -i ~/.ssh/deploy_key ${{ secrets.STAGING_USER }}@${{ secrets.STAGING_HOST }} \
+            "cd /opt/akis && docker compose ps"
+
+      - name: Cleanup old images
+        run: |
+          ssh -i ~/.ssh/deploy_key ${{ secrets.STAGING_USER }}@${{ secrets.STAGING_HOST }} \
+            "docker image prune -f" || true
 
       - name: Wait for deployment
         run: sleep 30
@@ -411,18 +413,55 @@ jobs:
       - name: Rollback on failure
         if: failure() && steps.previous.outputs.previous_image != 'none'
         run: |
-          echo "⚠️ Deployment failed, rolling back to previous version..."
-          ssh -i ~/.ssh/deploy_key ${{ secrets.STAGING_USER }}@${{ secrets.STAGING_HOST }} << EOF
-            cd /opt/akis
-            docker compose pull backend:${{ steps.previous.outputs.previous_image }}
-            docker compose up -d backend
-          EOF
+          echo "⚠️ Deployment failed, attempting rollback to previous version..."
+          echo "Previous image: ${{ steps.previous.outputs.previous_image }}"
+          
+          # Extract the tag from the previous image (e.g., ghcr.io/.../akis-backend:abc123 -> abc123)
+          PREV_TAG=$(echo "${{ steps.previous.outputs.previous_image }}" | sed 's/.*://')
+          echo "Rollback target tag: $PREV_TAG"
+          
+          # Update .env with previous version and restart
+          ssh -i ~/.ssh/deploy_key ${{ secrets.STAGING_USER }}@${{ secrets.STAGING_HOST }} \
+            "cd /opt/akis && sed -i 's/^BACKEND_VERSION=.*/BACKEND_VERSION=${PREV_TAG}/' .env && docker compose pull && docker compose up -d backend"
+          
+          echo "Rollback initiated. Check staging.akisflow.com/health manually."
 
-      - name: Save deployment log
+      - name: Collect diagnostic logs
         if: always()
         run: |
+          echo "=== Collecting diagnostic logs ===" > deploy-logs.txt
+          echo "" >> deploy-logs.txt
+          
+          echo "=== Container Status ===" >> deploy-logs.txt
           ssh -i ~/.ssh/deploy_key ${{ secrets.STAGING_USER }}@${{ secrets.STAGING_HOST }} \
-            "docker compose -f /opt/akis/docker-compose.yml logs --tail=100" > deploy-logs.txt 2>&1 || true
+            "cd /opt/akis && docker compose ps -a" >> deploy-logs.txt 2>&1 || true
+          echo "" >> deploy-logs.txt
+          
+          echo "=== Backend Container Logs (last 200 lines) ===" >> deploy-logs.txt
+          ssh -i ~/.ssh/deploy_key ${{ secrets.STAGING_USER }}@${{ secrets.STAGING_HOST }} \
+            "cd /opt/akis && docker compose logs --tail=200 backend" >> deploy-logs.txt 2>&1 || true
+          echo "" >> deploy-logs.txt
+          
+          echo "=== Caddy Container Logs (last 50 lines) ===" >> deploy-logs.txt
+          ssh -i ~/.ssh/deploy_key ${{ secrets.STAGING_USER }}@${{ secrets.STAGING_HOST }} \
+            "cd /opt/akis && docker compose logs --tail=50 caddy" >> deploy-logs.txt 2>&1 || true
+          echo "" >> deploy-logs.txt
+          
+          echo "=== Database Container Logs (last 50 lines) ===" >> deploy-logs.txt
+          ssh -i ~/.ssh/deploy_key ${{ secrets.STAGING_USER }}@${{ secrets.STAGING_HOST }} \
+            "cd /opt/akis && docker compose logs --tail=50 db" >> deploy-logs.txt 2>&1 || true
+          echo "" >> deploy-logs.txt
+          
+          echo "=== Local Health Check (from server) ===" >> deploy-logs.txt
+          ssh -i ~/.ssh/deploy_key ${{ secrets.STAGING_USER }}@${{ secrets.STAGING_HOST }} \
+            "curl -sf http://localhost:3000/health 2>&1 || echo 'Backend not responding on localhost:3000'" >> deploy-logs.txt 2>&1 || true
+          echo "" >> deploy-logs.txt
+          
+          echo "=== Docker Network Inspection ===" >> deploy-logs.txt
+          ssh -i ~/.ssh/deploy_key ${{ secrets.STAGING_USER }}@${{ secrets.STAGING_HOST }} \
+            "docker network inspect akis-staging_staging-network 2>&1 | head -50" >> deploy-logs.txt 2>&1 || true
+          
+          echo "Diagnostic logs collected."
 
       - name: Upload deployment logs
         if: always()
