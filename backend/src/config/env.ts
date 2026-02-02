@@ -143,7 +143,9 @@ const envSchema = z
     const isProduction = data.NODE_ENV === 'production';
     const isTestMode = data.NODE_ENV === 'test' || process.env.CI === 'true';
     const isAtlassianEnabled = data.MCP_ATLASSIAN_ENABLED === 'true';
-    const isStrictMode = isProduction || isAtlassianEnabled;
+    // Atlassian credentials are only required when explicitly enabled, not just because we're in production
+    // This allows staging/prod deployments without Atlassian integration
+    const isAtlassianStrictMode = isAtlassianEnabled;
 
     // AUTH_JWT_SECRET is required except in test/CI mode
     if (!isTestMode && !data.AUTH_JWT_SECRET) {
@@ -170,12 +172,11 @@ const envSchema = z
       });
     }
 
-    if (!isTestMode && !data.AI_KEY_ENCRYPTION_KEY) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: 'AI_KEY_ENCRYPTION_KEY is required for encrypting user AI keys',
-        path: ['AI_KEY_ENCRYPTION_KEY'],
-      });
+    // AI_KEY_ENCRYPTION_KEY is strongly recommended but not strictly required
+    // This allows staging deployments without user AI key encryption feature
+    // A warning will be logged at startup if not configured
+    if (!isTestMode && !data.AI_KEY_ENCRYPTION_KEY && isProduction) {
+      console.warn('[env] WARNING: AI_KEY_ENCRYPTION_KEY is not set. User AI key encryption will be disabled.');
     }
 
     // Email provider validation
@@ -242,12 +243,12 @@ const envSchema = z
       });
     }
 
-    if (isStrictMode) {
-      // In production or when explicitly enabled, require all Atlassian vars
+    if (isAtlassianStrictMode) {
+      // When Atlassian integration is explicitly enabled, require all Atlassian vars
       if (!data.ATLASSIAN_ORG_ID) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
-          message: 'ATLASSIAN_ORG_ID is required when MCP_ATLASSIAN_ENABLED=true or NODE_ENV=production',
+          message: 'ATLASSIAN_ORG_ID is required when MCP_ATLASSIAN_ENABLED=true',
           path: ['ATLASSIAN_ORG_ID'],
         });
       }
@@ -255,7 +256,7 @@ const envSchema = z
       if (!data.ATLASSIAN_API_TOKEN) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
-          message: 'ATLASSIAN_API_TOKEN is required when MCP_ATLASSIAN_ENABLED=true or NODE_ENV=production',
+          message: 'ATLASSIAN_API_TOKEN is required when MCP_ATLASSIAN_ENABLED=true',
           path: ['ATLASSIAN_API_TOKEN'],
         });
       }
@@ -263,7 +264,7 @@ const envSchema = z
       if (!data.ATLASSIAN_EMAIL) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
-          message: 'ATLASSIAN_EMAIL is required when MCP_ATLASSIAN_ENABLED=true or NODE_ENV=production',
+          message: 'ATLASSIAN_EMAIL is required when MCP_ATLASSIAN_ENABLED=true',
           path: ['ATLASSIAN_EMAIL'],
         });
       } else {
