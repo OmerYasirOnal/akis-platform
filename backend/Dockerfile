@@ -47,8 +47,9 @@ ENV BUILD_COMMIT=${BUILD_COMMIT}
 ENV BUILD_TIME=${BUILD_TIME}
 ENV APP_VERSION=${APP_VERSION}
 
-# Install runtime dependencies only
-RUN apk add --no-cache wget dumb-init
+# Install runtime dependencies and pnpm (for migrations)
+RUN apk add --no-cache wget dumb-init && \
+    npm install -g pnpm@9
 
 # Create non-root user
 RUN addgroup -g 1001 -S akis && \
