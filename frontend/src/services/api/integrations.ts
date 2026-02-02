@@ -3,13 +3,10 @@
  * For managing external integrations
  */
 import { HttpClient } from './HttpClient';
+import { getApiBaseUrl } from './config';
 
-const apiBaseURL =
-  import.meta.env.VITE_API_URL ||
-  import.meta.env.VITE_BACKEND_URL ||
-  'http://localhost:3000';
-
-const httpClient = new HttpClient(apiBaseURL);
+// Use centralized config to prevent /api/api double prefix
+const httpClient = new HttpClient(getApiBaseUrl());
 
 // Types
 export interface GitHubStatus {
@@ -110,7 +107,7 @@ export const integrationsApi = {
    * Start GitHub OAuth flow (redirects browser)
    */
   startGitHubOAuth(): void {
-    window.location.href = `${apiBaseURL}/api/integrations/github/oauth/start`;
+    window.location.href = `${getApiBaseUrl()}/api/integrations/github/oauth/start`;
   },
 
   /**
@@ -137,7 +134,7 @@ export const integrationsApi = {
    * One OAuth connection enables both Jira and Confluence
    */
   startAtlassianOAuth(): void {
-    window.location.href = `${apiBaseURL}/api/integrations/atlassian/oauth/start`;
+    window.location.href = `${getApiBaseUrl()}/api/integrations/atlassian/oauth/start`;
   },
 
   /**

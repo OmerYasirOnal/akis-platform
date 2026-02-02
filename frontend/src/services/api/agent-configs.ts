@@ -3,13 +3,10 @@
  * Frontend API client for agent configuration endpoints
  */
 import { HttpClient } from './HttpClient';
+import { getApiBaseUrl } from './config';
 
-const apiBaseURL =
-  import.meta.env.VITE_API_URL ||
-  import.meta.env.VITE_BACKEND_URL ||
-  'http://localhost:3000';
-
-const httpClient = new HttpClient(apiBaseURL);
+// Use centralized config to prevent /api/api double prefix
+const httpClient = new HttpClient(getApiBaseUrl());
 
 const withCredentials = {
   credentials: 'include' as const,
