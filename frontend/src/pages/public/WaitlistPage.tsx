@@ -11,10 +11,10 @@ export default function WaitlistPage() {
   const { t } = useI18n();
 
   const benefits = [
-    t('waitlist.page.benefits.1'),
-    t('waitlist.page.benefits.2'),
-    t('waitlist.page.benefits.3'),
-    t('waitlist.page.benefits.4'),
+    t('waitlist.page.benefits.1') || 'Priority access to new features',
+    t('waitlist.page.benefits.2') || 'Founding member pricing',
+    t('waitlist.page.benefits.3') || 'Direct line to the team',
+    t('waitlist.page.benefits.4') || 'Shape the product roadmap',
   ];
 
   const handleJoinWaitlist = () => {
@@ -32,18 +32,18 @@ export default function WaitlistPage() {
 
         {/* Title */}
         <h1 className="mb-4 text-[clamp(32px,6vw,48px)] font-bold leading-tight text-ak-text-primary">
-          {t('waitlist.page.title')}
+          {t('waitlist.page.title') || 'Join the AKIS Waitlist'}
         </h1>
 
         {/* Subtitle */}
         <p className="mb-10 text-lg leading-relaxed text-ak-text-secondary">
-          {t('waitlist.page.subtitle')}
+          {t('waitlist.page.subtitle') || 'Be the first to experience AI-powered development automation.'}
         </p>
 
         {/* Benefits Card */}
         <div className="mb-10 rounded-2xl border border-ak-border bg-ak-surface-2 p-8 text-left shadow-ak-elevation-1">
           <h2 className="mb-6 text-center text-lg font-semibold text-ak-primary">
-            {t('waitlist.page.benefits.title')}
+            {t('waitlist.page.benefits.title') || 'Early Access Benefits'}
           </h2>
           <ul className="space-y-4">
             {benefits.map((benefit, index) => (
@@ -72,12 +72,12 @@ export default function WaitlistPage() {
           size="lg"
           className="w-full sm:w-auto"
         >
-          {t('waitlist.page.cta')}
+          {t('waitlist.page.cta') || 'Join the Waitlist'}
         </Button>
 
         {/* Privacy Note */}
         <p className="mt-6 text-sm text-ak-text-secondary/70">
-          {t('waitlist.page.privacy')}
+          {t('waitlist.page.privacy') || 'We respect your privacy. No spam, ever.'}
         </p>
       </div>
     </section>

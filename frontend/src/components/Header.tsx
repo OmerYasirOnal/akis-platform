@@ -186,7 +186,7 @@ export default function Header({ className }: HeaderProps) {
                 onClick={() => openWaitlist('website', 'header_cta')}
                 variant="primary"
               >
-                {t('waitlist.cta')}
+                {t('waitlist.cta') || 'Join Waitlist'}
               </Button>
             </>
           )}
@@ -314,7 +314,7 @@ export default function Header({ className }: HeaderProps) {
                   }}
                   variant="primary"
                 >
-                  {t('waitlist.cta')}
+                  {t('waitlist.cta') || 'Join Waitlist'}
                 </Button>
               </>
             )}
