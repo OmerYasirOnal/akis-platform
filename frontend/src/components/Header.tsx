@@ -6,6 +6,7 @@ import { useTheme } from '../theme/useTheme';
 import { cn } from '../utils/cn';
 import Button from './common/Button';
 import Logo from './branding/Logo';
+import { openWaitlist } from '../utils/waitlist';
 
 // Theme toggle icon component
 function ThemeToggleIcon({ isDark }: { isDark: boolean }) {
@@ -181,8 +182,11 @@ export default function Header({ className }: HeaderProps) {
               <Button as={Link} to="/login" variant="outline">
                 {t('header.login')}
               </Button>
-              <Button as={Link} to="/signup" variant="primary">
-                {t('header.cta')}
+              <Button
+                onClick={() => openWaitlist('website', 'header_cta')}
+                variant="primary"
+              >
+                {t('waitlist.cta')}
               </Button>
             </>
           )}
@@ -303,8 +307,14 @@ export default function Header({ className }: HeaderProps) {
                 <Button as={Link} to="/login" variant="outline" onClick={closeMobileMenu}>
                   {t('header.login')}
                 </Button>
-                <Button as={Link} to="/signup" variant="primary" onClick={closeMobileMenu}>
-                  {t('header.cta')}
+                <Button
+                  onClick={() => {
+                    openWaitlist('website', 'header_mobile_cta');
+                    closeMobileMenu();
+                  }}
+                  variant="primary"
+                >
+                  {t('waitlist.cta')}
                 </Button>
               </>
             )}

@@ -497,5 +497,17 @@
   "issueReport.copied": "Kopyalandı!",
   "issueReport.createGitHubIssue": "GitHub Issue Oluştur",
   "issueReport.gitHubConnected": "GitHub'a bağlı - doğrudan bir issue oluşturabilirsiniz",
-  "issueReport.gitHubNotConnected": "Markdown'u kopyalayın ve yeni bir GitHub issue'ya yapıştırın"
+  "issueReport.gitHubNotConnected": "Markdown'u kopyalayın ve yeni bir GitHub issue'ya yapıştırın",
+
+  "waitlist.cta": "Bekleme Listesine Katıl",
+  "waitlist.ctaShort": "Bekleme Listesi",
+  "waitlist.page.title": "AKIS Bekleme Listesine Katılın",
+  "waitlist.page.subtitle": "Yapay zeka destekli geliştirme otomasyonunu ilk deneyimleyenlerden olun. Erken erişim üyeleri özel avantajlar kazanır.",
+  "waitlist.page.benefits.title": "Erken Erişim Avantajları",
+  "waitlist.page.benefits.1": "Yeni özelliklere öncelikli erişim",
+  "waitlist.page.benefits.2": "Kurucu üye fiyatlandırması",
+  "waitlist.page.benefits.3": "Ekibe doğrudan hat",
+  "waitlist.page.benefits.4": "Ürün yol haritasını şekillendirin",
+  "waitlist.page.cta": "Bekleme Listesine Katıl",
+  "waitlist.page.privacy": "Gizliliğinize saygı duyuyoruz. Asla spam göndermiyoruz."
 }

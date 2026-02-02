@@ -31,6 +31,7 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 const PricingPage = lazy(() => import('./pages/public/PricingPage'));
 const BlogIndexPage = lazy(() => import('./pages/public/BlogIndexPage'));
 const LearnLandingPage = lazy(() => import('./pages/public/LearnLandingPage'));
+const WaitlistPage = lazy(() => import('./pages/public/WaitlistPage'));
 
 const DocsLayout = lazy(() => import('./components/docs/DocsLayout'));
 const DocsIndexPage = lazy(() => import('./pages/docs/DocsIndexPage'));
@@ -79,6 +80,7 @@ function App() {
             <Route path="pricing" element={<Suspense fallback={<PageLoader />}><PricingPage /></Suspense>} />
             <Route path="blog" element={<Suspense fallback={<PageLoader />}><BlogIndexPage /></Suspense>} />
             <Route path="learn" element={<Suspense fallback={<PageLoader />}><LearnLandingPage /></Suspense>} />
+            <Route path="waitlist" element={<Suspense fallback={<PageLoader />}><WaitlistPage /></Suspense>} />
             <Route path="legal">
               <Route path="terms" element={<LegalTermsPage />} />
               <Route path="privacy" element={<LegalPrivacyPage />} />
