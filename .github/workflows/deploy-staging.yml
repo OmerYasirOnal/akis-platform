@@ -560,17 +560,24 @@ jobs:
           # - 400 with error JSON: Bad request (acceptable)
           
           if [ "$OAUTH_STATUS" = "301" ] || [ "$OAUTH_STATUS" = "302" ] || [ "$OAUTH_STATUS" = "303" ]; then
-            echo "✅ OAuth endpoint returns redirect (OAuth is configured)"
+            echo "✅ OAuth endpoint returns redirect (OAuth is configured and working)"
           elif [ "$OAUTH_STATUS" = "503" ] && echo "$OAUTH_BODY" | grep -q "OAUTH_NOT_CONFIGURED"; then
             echo "✅ OAuth endpoint returns expected 'not configured' response"
             echo "   (This is normal if GITHUB_OAUTH_CLIENT_ID is not set in staging environment)"
+            echo "   To enable OAuth, see: docs/ops/OAUTH_SETUP.md"
           elif [ "$OAUTH_STATUS" = "502" ]; then
             echo "❌ OAuth endpoint returns 502 - edge proxy cannot reach backend"
             echo "   This indicates nginx may still be binding 80/443 or edge proxy is misconfigured"
+            echo "   See: docs/ops/EDGE_PROXY_RUNBOOK.md"
+            exit 1
+          elif [ "$OAUTH_STATUS" = "404" ]; then
+            echo "❌ OAuth endpoint returns 404 - route not found"
+            echo "   This indicates /auth/oauth/github route is not registered in backend"
+            echo "   Check Caddyfile.edge routing and backend auth routes"
             exit 1
           else
             echo "⚠️ OAuth endpoint returns unexpected status: $OAUTH_STATUS"
-            echo "   This may indicate a routing or backend issue"
+            echo "   Body: $OAUTH_BODY"
             # Don't fail - OAuth not being configured is acceptable for staging
           fi
 
