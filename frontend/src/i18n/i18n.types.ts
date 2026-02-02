@@ -507,6 +507,19 @@ export const MESSAGE_KEYS = [
   'auth.oauth.error.generic',
   'auth.oauth.error.tryAgain',
   'auth.oauth.error.dismiss',
+
+  // Waitlist
+  'waitlist.cta',
+  'waitlist.ctaShort',
+  'waitlist.page.title',
+  'waitlist.page.subtitle',
+  'waitlist.page.benefits.title',
+  'waitlist.page.benefits.1',
+  'waitlist.page.benefits.2',
+  'waitlist.page.benefits.3',
+  'waitlist.page.benefits.4',
+  'waitlist.page.cta',
+  'waitlist.page.privacy',
 ] as const;
 
 export type MessageKey = (typeof MESSAGE_KEYS)[number];

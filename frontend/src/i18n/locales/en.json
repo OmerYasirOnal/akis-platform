@@ -497,5 +497,17 @@
   "issueReport.copied": "Copied!",
   "issueReport.createGitHubIssue": "Create GitHub Issue",
   "issueReport.gitHubConnected": "Connected to GitHub - you can create an issue directly",
-  "issueReport.gitHubNotConnected": "Copy the markdown and paste it into a new GitHub issue"
+  "issueReport.gitHubNotConnected": "Copy the markdown and paste it into a new GitHub issue",
+
+  "waitlist.cta": "Join Waitlist",
+  "waitlist.ctaShort": "Waitlist",
+  "waitlist.page.title": "Join the AKIS Waitlist",
+  "waitlist.page.subtitle": "Be the first to experience AI-powered development automation. Early access members get exclusive benefits.",
+  "waitlist.page.benefits.title": "Early Access Benefits",
+  "waitlist.page.benefits.1": "Priority access to new features",
+  "waitlist.page.benefits.2": "Founding member pricing",
+  "waitlist.page.benefits.3": "Direct line to the team",
+  "waitlist.page.benefits.4": "Shape the product roadmap",
+  "waitlist.page.cta": "Join the Waitlist",
+  "waitlist.page.privacy": "We respect your privacy. No spam, ever."
 }

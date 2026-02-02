@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { useI18n } from '../i18n/useI18n';
 import Button from './common/Button';
 import Logo from './branding/Logo';
+import { openWaitlist } from '../utils/waitlist';
 
 /**
  * Hero Section
@@ -31,8 +32,12 @@ export default function Hero() {
 
         {/* CTA Buttons */}
         <div className="flex flex-col items-center justify-center gap-4 sm:flex-row">
-          <Button as={Link} to="/signup" variant="primary" size="lg">
-            {t('cta.primary')}
+          <Button
+            onClick={() => openWaitlist('website', 'hero_cta')}
+            variant="primary"
+            size="lg"
+          >
+            {t('waitlist.cta')}
           </Button>
           <Button as={Link} to="/login" variant="outline" size="lg">
             {t('cta.secondary')}

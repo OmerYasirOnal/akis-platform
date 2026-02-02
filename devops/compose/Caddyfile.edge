@@ -24,6 +24,15 @@ akisflow.com {
         -Server
     }
 
+    # Waitlist redirect (edge-level for campaigns)
+    @waitlist_redirect {
+        path /waitlist
+        query utm_source=*
+    }
+    handle @waitlist_redirect {
+        redir {$WAITLIST_URL:https://forms.gle/3aVfEh1Q8929DSY2A}?{query} temporary
+    }
+
     # Health check endpoint
     handle /health {
         reverse_proxy akis-prod-backend:3000
@@ -100,6 +109,15 @@ staging.akisflow.com {
         X-XSS-Protection "1; mode=block"
         Referrer-Policy "strict-origin-when-cross-origin"
         -Server
+    }
+
+    # Waitlist redirect (edge-level for campaigns)
+    @waitlist_redirect {
+        path /waitlist
+        query utm_source=*
+    }
+    handle @waitlist_redirect {
+        redir {$WAITLIST_URL:https://forms.gle/3aVfEh1Q8929DSY2A}?{query} temporary
     }
 
     # Health check endpoint
