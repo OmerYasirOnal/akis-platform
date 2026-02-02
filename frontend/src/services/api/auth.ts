@@ -1,4 +1,6 @@
 /**
+ * Auth API Service
+ * 
  * Get the base URL for auth endpoints.
  * Auth routes are at /auth/* (no /api prefix).
  * In production/staging, we use same origin. In development, backend may be on different port.
