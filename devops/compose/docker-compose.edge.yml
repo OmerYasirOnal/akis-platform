@@ -47,10 +47,11 @@ services:
           memory: 64M
 
 networks:
-  # External network that staging and prod stacks connect to
+  # External network shared by staging, prod, and edge stacks
+  # Must be created before first deploy: docker network create akis-edge-net
   akis-edge-net:
+    external: true
     name: akis-edge-net
-    driver: bridge
 
 volumes:
   edge_caddy_data:

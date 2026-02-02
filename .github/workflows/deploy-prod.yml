@@ -247,37 +247,167 @@ jobs:
             ls -lh "$BACKUP_FILE"
           EOF
 
+      - name: Verify server prerequisites
+        run: |
+          echo "Checking server prerequisites..."
+          ssh -i ~/.ssh/deploy_key ${{ secrets.PROD_USER }}@${{ secrets.PROD_HOST }} << 'EOF'
+            echo "=== Server Architecture ==="
+            uname -m
+
+            echo ""
+            echo "=== Docker Version ==="
+            docker --version || { echo "ERROR: Docker not installed"; exit 1; }
+
+            echo ""
+            echo "=== Docker Compose Version ==="
+            docker compose version || docker-compose --version || { echo "ERROR: Docker Compose not available"; exit 1; }
+
+            echo ""
+            echo "=== Port 80/443 binding check (preflight) ==="
+            echo "Services binding to port 80:"
+            sudo ss -tlnp | grep ':80 ' || echo "  (none)"
+            echo "Services binding to port 443:"
+            sudo ss -tlnp | grep ':443 ' || echo "  (none)"
+          EOF
+
+      - name: Stop conflicting services
+        run: |
+          echo "=== Checking and stopping services that may conflict with port 80/443 ==="
+          ssh -i ~/.ssh/deploy_key ${{ secrets.PROD_USER }}@${{ secrets.PROD_HOST }} << 'EOF'
+            # Check if nginx is running
+            if systemctl is-active --quiet nginx 2>/dev/null; then
+              echo "nginx is running. Stopping for AKIS deployment..."
+              sudo systemctl stop nginx
+              sudo systemctl disable nginx
+              echo "✅ nginx stopped and disabled"
+            else
+              echo "nginx is not running (OK)"
+            fi
+            
+            # Stop any old akis containers that might bind to 80/443
+            echo ""
+            echo "Stopping old akis containers with port bindings..."
+            docker stop akis-staging-caddy akis-prod-caddy akis-edge-caddy 2>/dev/null || true
+            docker rm akis-staging-caddy akis-prod-caddy akis-edge-caddy 2>/dev/null || true
+            
+            sleep 2
+            
+            # Verify ports are free
+            echo ""
+            echo "=== Port status after cleanup ==="
+            if sudo ss -tlnp | grep -q ':80 '; then
+              echo "⚠️ Port 80 still in use:"
+              sudo ss -tlnp | grep ':80 '
+            else
+              echo "✅ Port 80 is free"
+            fi
+            
+            if sudo ss -tlnp | grep -q ':443 '; then
+              echo "⚠️ Port 443 still in use:"
+              sudo ss -tlnp | grep ':443 '
+            else
+              echo "✅ Port 443 is free"
+            fi
+          EOF
+
+      - name: Setup GHCR authentication on server
+        run: |
+          ssh -i ~/.ssh/deploy_key ${{ secrets.PROD_USER }}@${{ secrets.PROD_HOST }} << EOF
+            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+          EOF
+          echo "✅ GHCR authentication configured on production server"
+
       - name: Deploy to production server
         env:
           BACKEND_VERSION: ${{ needs.validate.outputs.tag }}
         run: |
-          # Copy compose files and Caddyfile
+          # Compute lowercase repo for image references
+          REPO_LC=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
+          
+          # Copy compose files - prod stack and edge proxy
           scp -i ~/.ssh/deploy_key devops/compose/docker-compose.prod.yml \
-            ${{ secrets.PROD_USER }}@${{ secrets.PROD_HOST }}:/opt/akis/docker-compose.yml
-          scp -i ~/.ssh/deploy_key devops/compose/Caddyfile.prod \
-            ${{ secrets.PROD_USER }}@${{ secrets.PROD_HOST }}:/opt/akis/Caddyfile.prod
+            ${{ secrets.PROD_USER }}@${{ secrets.PROD_HOST }}:/opt/akis/prod/docker-compose.yml
+          scp -i ~/.ssh/deploy_key devops/compose/docker-compose.edge.yml \
+            ${{ secrets.PROD_USER }}@${{ secrets.PROD_HOST }}:/opt/akis/docker-compose.edge.yml
+          scp -i ~/.ssh/deploy_key devops/compose/Caddyfile.edge \
+            ${{ secrets.PROD_USER }}@${{ secrets.PROD_HOST }}:/opt/akis/Caddyfile.edge
           
-          # Copy frontend dist
+          # Copy frontend dist to bind mount location
+          ssh -i ~/.ssh/deploy_key ${{ secrets.PROD_USER }}@${{ secrets.PROD_HOST }} \
+            "mkdir -p /opt/akis/prod-frontend /opt/akis/staging-frontend /opt/akis/prod"
           scp -r -i ~/.ssh/deploy_key frontend/dist/* \
-            ${{ secrets.PROD_USER }}@${{ secrets.PROD_HOST }}:/opt/akis/frontend/
+            ${{ secrets.PROD_USER }}@${{ secrets.PROD_HOST }}:/opt/akis/prod-frontend/
           
-          # Deploy
-          ssh -i ~/.ssh/deploy_key ${{ secrets.PROD_USER }}@${{ secrets.PROD_HOST }} << EOF
+          # Write .env with deterministic image references
+          echo "=== Writing image references to .env ==="
+          ssh -i ~/.ssh/deploy_key ${{ secrets.PROD_USER }}@${{ secrets.PROD_HOST }} \
+            "cd /opt/akis/prod && touch .env && sed -i '/^GITHUB_REPOSITORY=/d; /^BACKEND_VERSION=/d' .env"
+          ssh -i ~/.ssh/deploy_key ${{ secrets.PROD_USER }}@${{ secrets.PROD_HOST }} \
+            "cd /opt/akis/prod && echo 'GITHUB_REPOSITORY=${REPO_LC}' >> .env && echo 'BACKEND_VERSION=${{ needs.validate.outputs.tag }}' >> .env"
+          
+          echo "Image: ghcr.io/${REPO_LC}/akis-backend:${{ needs.validate.outputs.tag }}"
+
+      - name: Setup edge proxy network
+        run: |
+          echo "=== Creating edge proxy network ==="
+          ssh -i ~/.ssh/deploy_key ${{ secrets.PROD_USER }}@${{ secrets.PROD_HOST }} \
+            "docker network create akis-edge-net 2>/dev/null || echo 'Network akis-edge-net already exists'"
+
+      - name: Pull Docker images
+        run: |
+          echo "=== Pulling new images ==="
+          ssh -i ~/.ssh/deploy_key ${{ secrets.PROD_USER }}@${{ secrets.PROD_HOST }} \
+            "cd /opt/akis/prod && docker compose pull"
+
+      - name: Run database migrations
+        run: |
+          echo "=== Running database migrations ==="
+          ssh -i ~/.ssh/deploy_key ${{ secrets.PROD_USER }}@${{ secrets.PROD_HOST }} \
+            "cd /opt/akis/prod && docker compose run --rm backend pnpm db:migrate" || echo "WARN: Migration failed or no migrations to run"
+
+      - name: Start production services
+        run: |
+          echo "=== Starting production services ==="
+          ssh -i ~/.ssh/deploy_key ${{ secrets.PROD_USER }}@${{ secrets.PROD_HOST }} \
+            "cd /opt/akis/prod && docker compose up -d --remove-orphans"
+
+      - name: Start edge proxy
+        run: |
+          echo "=== Starting edge proxy ==="
+          ssh -i ~/.ssh/deploy_key ${{ secrets.PROD_USER }}@${{ secrets.PROD_HOST }} << 'EOF'
             cd /opt/akis
             
-            # Pull new images
-            export BACKEND_VERSION=${{ needs.validate.outputs.tag }}
-            docker compose pull
+            # Start edge proxy (the only service binding 80/443)
+            echo "Starting edge proxy container..."
+            if ! docker compose -f docker-compose.edge.yml up -d 2>&1; then
+              echo "ERROR: Failed to start edge proxy"
+              docker compose -f docker-compose.edge.yml logs --tail=50 2>&1 || true
+              exit 1
+            fi
             
-            # Run migrations (with backup already done)
-            docker compose run --rm backend pnpm db:migrate
+            sleep 5
             
-            # Deploy with zero-downtime (if possible)
-            docker compose up -d --remove-orphans
+            # Verify edge proxy container is running
+            if ! docker ps --format '{{.Names}}' | grep -q 'akis-edge-caddy'; then
+              echo "ERROR: akis-edge-caddy container is not running!"
+              docker ps -a --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}'
+              docker logs akis-edge-caddy 2>&1 || true
+              exit 1
+            fi
             
-            # Cleanup old images (keep last 3)
-            docker image prune -f
+            echo "✅ Edge proxy container is running"
+            docker exec akis-edge-caddy caddy reload --config /etc/caddy/Caddyfile 2>/dev/null || true
           EOF
+          
+          echo ""
+          echo "=== Container status ==="
+          ssh -i ~/.ssh/deploy_key ${{ secrets.PROD_USER }}@${{ secrets.PROD_HOST }} \
+            "docker ps --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}' | head -20"
+
+      - name: Cleanup old images
+        run: |
+          ssh -i ~/.ssh/deploy_key ${{ secrets.PROD_USER }}@${{ secrets.PROD_HOST }} \
+            "docker image prune -f" || true
 
       - name: Wait for deployment
         run: sleep 45

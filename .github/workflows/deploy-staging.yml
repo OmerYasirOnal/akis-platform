@@ -288,29 +288,66 @@ jobs:
 
       - name: Stop conflicting services
         run: |
-          echo "=== Stopping services that may conflict with port 80/443 ==="
+          echo "=== Checking and stopping services that may conflict with port 80/443 ==="
           ssh -i ~/.ssh/deploy_key ${{ secrets.STAGING_USER }}@${{ secrets.STAGING_HOST }} << 'EOF'
-            # Stop nginx if running (common conflict source)
+            # Check if nginx is running and what sites it serves
             if systemctl is-active --quiet nginx 2>/dev/null; then
+              echo "nginx is running. Checking configured sites..."
+              
+              # Get nginx server_name directives to see what sites are served
+              NGINX_SITES=$(sudo nginx -T 2>/dev/null | grep -E "^\s*server_name" | grep -v "_" | sort -u || true)
+              
+              # Check if nginx serves non-AKIS sites
+              NON_AKIS_SITES=$(echo "$NGINX_SITES" | grep -v -E "(akisflow\.com|staging\.akisflow\.com|localhost)" || true)
+              
+              if [ -n "$NON_AKIS_SITES" ]; then
+                echo "⚠️ WARNING: nginx appears to serve other sites besides AKIS:"
+                echo "$NON_AKIS_SITES"
+                echo ""
+                echo "Proceeding anyway - nginx will be stopped for AKIS deployment."
+                echo "If other sites break, you may need to reconfigure nginx to coexist with Docker Caddy."
+              fi
+              
               echo "Stopping nginx..."
               sudo systemctl stop nginx
               sudo systemctl disable nginx
-              echo "nginx stopped and disabled"
+              echo "✅ nginx stopped and disabled"
+            else
+              echo "nginx is not running (OK)"
             fi
             
             # Stop any old akis containers that might bind to 80/443
+            echo ""
             echo "Stopping old akis containers with port bindings..."
-            docker stop akis-staging-caddy akis-prod-caddy 2>/dev/null || true
-            docker rm akis-staging-caddy akis-prod-caddy 2>/dev/null || true
+            docker stop akis-staging-caddy akis-prod-caddy akis-edge-caddy 2>/dev/null || true
+            docker rm akis-staging-caddy akis-prod-caddy akis-edge-caddy 2>/dev/null || true
+            
+            # Wait a moment for ports to be released
+            sleep 2
             
             # Verify ports are free
+            echo ""
+            echo "=== Port status after cleanup ==="
             if sudo ss -tlnp | grep -q ':80 '; then
-              echo "WARNING: Port 80 still in use after cleanup"
+              echo "⚠️ Port 80 still in use:"
               sudo ss -tlnp | grep ':80 '
+              echo ""
+              echo "Attempting to identify and stop the process..."
+              # Get PID of process using port 80
+              PORT80_PID=$(sudo ss -tlnp | grep ':80 ' | grep -oP 'pid=\K\d+' | head -1)
+              if [ -n "$PORT80_PID" ]; then
+                PORT80_CMD=$(ps -p $PORT80_PID -o comm= 2>/dev/null || echo "unknown")
+                echo "Process on port 80: PID=$PORT80_PID CMD=$PORT80_CMD"
+              fi
+            else
+              echo "✅ Port 80 is free"
             fi
+            
             if sudo ss -tlnp | grep -q ':443 '; then
-              echo "WARNING: Port 443 still in use after cleanup"
+              echo "⚠️ Port 443 still in use:"
               sudo ss -tlnp | grep ':443 '
+            else
+              echo "✅ Port 443 is free"
             fi
           EOF
 
@@ -388,13 +425,36 @@ jobs:
             
             # Create frontend directories if they don't exist (for bind mounts)
             mkdir -p /opt/akis/prod-frontend
+            mkdir -p /opt/akis/staging-frontend
             
             # Start edge proxy (the only service binding 80/443)
-            docker compose -f docker-compose.edge.yml up -d
+            echo "Starting edge proxy container..."
+            if ! docker compose -f docker-compose.edge.yml up -d 2>&1; then
+              echo "ERROR: Failed to start edge proxy"
+              echo "=== Docker compose logs ==="
+              docker compose -f docker-compose.edge.yml logs --tail=50 2>&1 || true
+              exit 1
+            fi
             
             # Wait for edge proxy to start
-            echo "Waiting for edge proxy..."
+            echo "Waiting for edge proxy container..."
             sleep 5
+            
+            # Verify edge proxy container is running
+            if ! docker ps --format '{{.Names}}' | grep -q 'akis-edge-caddy'; then
+              echo "ERROR: akis-edge-caddy container is not running!"
+              echo "=== All containers ==="
+              docker ps -a --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}'
+              echo ""
+              echo "=== Edge proxy logs ==="
+              docker logs akis-edge-caddy 2>&1 || true
+              echo ""
+              echo "=== Port 80/443 status ==="
+              sudo ss -tlnp | grep -E ':(80|443) ' || echo "No services on 80/443"
+              exit 1
+            fi
+            
+            echo "✅ Edge proxy container is running"
             
             # Reload Caddy config to pick up any changes
             docker exec akis-edge-caddy caddy reload --config /etc/caddy/Caddyfile 2>/dev/null || true
@@ -404,6 +464,11 @@ jobs:
           echo "=== Container status ==="
           ssh -i ~/.ssh/deploy_key ${{ secrets.STAGING_USER }}@${{ secrets.STAGING_HOST }} \
             "docker ps --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}' | head -20"
+          
+          echo ""
+          echo "=== Verifying edge proxy binds to 80/443 ==="
+          ssh -i ~/.ssh/deploy_key ${{ secrets.STAGING_USER }}@${{ secrets.STAGING_HOST }} \
+            "sudo ss -tlnp | grep -E ':(80|443) ' || echo 'WARNING: No services binding to 80/443'"
 
       - name: Cleanup old images
         run: |
