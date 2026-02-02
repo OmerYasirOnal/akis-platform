@@ -27,7 +27,7 @@ export default function WaitlistPage() {
       <div className="mx-auto max-w-2xl text-center">
         {/* Logo */}
         <div className="mb-8 flex justify-center">
-          <Logo size="lg" linkToHome={false} />
+          <Logo size="sm" linkToHome={false} />
         </div>
 
         {/* Title */}
