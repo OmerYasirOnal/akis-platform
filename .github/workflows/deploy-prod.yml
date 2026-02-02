@@ -382,16 +382,40 @@ jobs:
       - name: Wait for services to stabilize
         run: sleep 15
 
-      - name: Test health endpoints
+      - name: Test health endpoints with schema validation
         run: |
           echo "Testing /health..."
-          curl -sf https://akis.dev/health
+          HEALTH_RESPONSE=$(curl -sf https://akis.dev/health)
+          echo "Response: $HEALTH_RESPONSE"
+          # Validate schema: must contain {"status":"ok"}
+          if echo "$HEALTH_RESPONSE" | grep -q '"status"'; then
+            echo "✅ /health schema valid"
+          else
+            echo "❌ /health response missing required 'status' field"
+            exit 1
+          fi
           
           echo "Testing /ready..."
-          curl -sf https://akis.dev/ready
+          READY_RESPONSE=$(curl -sf https://akis.dev/ready)
+          echo "Response: $READY_RESPONSE"
+          # Validate schema: must contain {"ready":true/false}
+          if echo "$READY_RESPONSE" | grep -q '"ready"'; then
+            echo "✅ /ready schema valid"
+          else
+            echo "❌ /ready response missing required 'ready' field"
+            exit 1
+          fi
           
           echo "Testing /version..."
-          curl -sf https://akis.dev/version
+          VERSION_RESPONSE=$(curl -sf https://akis.dev/version)
+          echo "Response: $VERSION_RESPONSE"
+          # Validate schema: must contain {"version":"..."}
+          if echo "$VERSION_RESPONSE" | grep -q '"version"'; then
+            echo "✅ /version schema valid"
+          else
+            echo "❌ /version response missing required 'version' field"
+            exit 1
+          fi
 
       - name: Test API endpoints
         run: |

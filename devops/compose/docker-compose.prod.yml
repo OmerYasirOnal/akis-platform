@@ -69,7 +69,8 @@ services:
       AUTH_COOKIE_SECURE: "true"
       AUTH_COOKIE_SAMESITE: ${AUTH_COOKIE_SAMESITE:-lax}
       AUTH_COOKIE_NAME: ${AUTH_COOKIE_NAME:-akis_sid}
-      AUTH_COOKIE_DOMAIN: ${AUTH_COOKIE_DOMAIN:-}
+      # Cookie domain enables cross-subdomain session sharing (e.g., akis.dev and www.akis.dev)
+      AUTH_COOKIE_DOMAIN: ${AUTH_COOKIE_DOMAIN:-.akis.dev}
       
       # URLs
       BACKEND_URL: ${BACKEND_URL:-https://akis.dev/api}

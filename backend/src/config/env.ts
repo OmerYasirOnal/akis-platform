@@ -131,6 +131,13 @@ const envSchema = z
     STRIPE_PRICE_PRO: z.string().optional(),        // price_xxx for Pro plan
     STRIPE_PRICE_PRO_PLUS: z.string().optional(),   // price_xxx for Pro+ plan
     STRIPE_PRICE_TEAM: z.string().optional(),        // price_xxx for Team plan
+
+    // Feature flags
+    // Control access to unstable/experimental features
+    FEATURE_FLAG_UNSTABLE_ROUTES: z
+      .enum(['true', 'false'])
+      .default('false')
+      .transform((value) => value === 'true'),
   })
   .superRefine((data, ctx) => {
     const isProduction = data.NODE_ENV === 'production';
