@@ -2,13 +2,10 @@
  * Settings API Client - Profile and Workspace management
  */
 import { HttpClient } from './HttpClient';
+import { getApiBaseUrl } from './config';
 
-const apiBaseURL =
-  import.meta.env.VITE_API_URL ||
-  import.meta.env.VITE_BACKEND_URL ||
-  'http://localhost:3000';
-
-const httpClient = new HttpClient(apiBaseURL);
+// Use centralized config to prevent /api/api double prefix
+const httpClient = new HttpClient(getApiBaseUrl());
 
 // Types
 export interface UserProfile {

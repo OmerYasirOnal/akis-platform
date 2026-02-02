@@ -10,6 +10,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import type { Job, JobComment, RevisionInfo, JobState } from '../../services/api/types';
+import { getApiBaseUrl } from '../../services/api/config';
 
 // ============================================================================
 // Props
@@ -24,13 +25,14 @@ interface FeedbackTabProps {
 // API Helpers
 // ============================================================================
 
-// Use backend URL from env, ensuring /api prefix is included
-const API_BASE = import.meta.env.VITE_API_URL 
-  ? `${import.meta.env.VITE_API_URL}/api` 
-  : '/api';
+// Get API base at runtime to ensure window is available
+// Paths already include /api prefix, so base is origin only
+function getApiBase(): string {
+  return `${getApiBaseUrl()}/api`;
+}
 
 async function fetchComments(jobId: string): Promise<JobComment[]> {
-  const res = await fetch(`${API_BASE}/agents/jobs/${jobId}/comments`, {
+  const res = await fetch(`${getApiBase()}/agents/jobs/${jobId}/comments`, {
     credentials: 'include',
   });
   if (!res.ok) {
@@ -46,7 +48,7 @@ async function fetchComments(jobId: string): Promise<JobComment[]> {
 }
 
 async function fetchRevisions(jobId: string): Promise<RevisionInfo> {
-  const res = await fetch(`${API_BASE}/agents/jobs/${jobId}/revisions`, {
+  const res = await fetch(`${getApiBase()}/agents/jobs/${jobId}/revisions`, {
     credentials: 'include',
   });
   if (!res.ok) {
@@ -60,7 +62,7 @@ async function fetchRevisions(jobId: string): Promise<RevisionInfo> {
 }
 
 async function addComment(jobId: string, text: string): Promise<JobComment> {
-  const res = await fetch(`${API_BASE}/agents/jobs/${jobId}/comments`, {
+  const res = await fetch(`${getApiBase()}/agents/jobs/${jobId}/comments`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     credentials: 'include',
@@ -79,7 +81,7 @@ async function requestRevision(
   instruction: string, 
   mode: 'edit' | 'regenerate' = 'edit'
 ): Promise<string> {
-  const res = await fetch(`${API_BASE}/agents/jobs/${jobId}/revise`, {
+  const res = await fetch(`${getApiBase()}/agents/jobs/${jobId}/revise`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     credentials: 'include',
