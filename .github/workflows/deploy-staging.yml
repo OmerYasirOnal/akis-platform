@@ -14,6 +14,13 @@ on:
       - 'docs/**'
       - '*.md'
       - '.cursor/**'
+  # Manual trigger for retrying failed deployments
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: 'Reason for manual trigger'
+        required: false
+        default: 'Manual deploy retry'
 
 # Prevent concurrent deployments
 concurrency:
