@@ -37,7 +37,7 @@ export default function Hero() {
             variant="primary"
             size="lg"
           >
-            {t('waitlist.cta')}
+            {t('waitlist.cta') || 'Join Waitlist'}
           </Button>
           <Button as={Link} to="/login" variant="outline" size="lg">
             {t('cta.secondary')}
