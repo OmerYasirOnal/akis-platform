@@ -275,8 +275,43 @@ jobs:
             df -h /opt/akis 2>/dev/null || df -h /
 
             echo ""
+            echo "=== Port 80/443 binding check (preflight) ==="
+            echo "Services binding to port 80:"
+            sudo ss -tlnp | grep ':80 ' || echo "  (none)"
+            echo "Services binding to port 443:"
+            sudo ss -tlnp | grep ':443 ' || echo "  (none)"
+
+            echo ""
             echo "=== AKIS Directory ==="
             ls -la /opt/akis/ 2>/dev/null || echo "Directory /opt/akis does not exist (will be created)"
+          EOF
+
+      - name: Stop conflicting services
+        run: |
+          echo "=== Stopping services that may conflict with port 80/443 ==="
+          ssh -i ~/.ssh/deploy_key ${{ secrets.STAGING_USER }}@${{ secrets.STAGING_HOST }} << 'EOF'
+            # Stop nginx if running (common conflict source)
+            if systemctl is-active --quiet nginx 2>/dev/null; then
+              echo "Stopping nginx..."
+              sudo systemctl stop nginx
+              sudo systemctl disable nginx
+              echo "nginx stopped and disabled"
+            fi
+            
+            # Stop any old akis containers that might bind to 80/443
+            echo "Stopping old akis containers with port bindings..."
+            docker stop akis-staging-caddy akis-prod-caddy 2>/dev/null || true
+            docker rm akis-staging-caddy akis-prod-caddy 2>/dev/null || true
+            
+            # Verify ports are free
+            if sudo ss -tlnp | grep -q ':80 '; then
+              echo "WARNING: Port 80 still in use after cleanup"
+              sudo ss -tlnp | grep ':80 '
+            fi
+            if sudo ss -tlnp | grep -q ':443 '; then
+              echo "WARNING: Port 443 still in use after cleanup"
+              sudo ss -tlnp | grep ':443 '
+            fi
           EOF
 
       - name: Setup GHCR authentication on server
@@ -295,15 +330,19 @@ jobs:
           # Compute lowercase repo for image references
           REPO_LC=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
 
-          # Copy compose files and Caddyfile
+          # Copy compose files - staging stack and edge proxy
           scp -i ~/.ssh/deploy_key devops/compose/docker-compose.staging.yml \
             ${{ secrets.STAGING_USER }}@${{ secrets.STAGING_HOST }}:/opt/akis/docker-compose.yml
-          scp -i ~/.ssh/deploy_key devops/compose/Caddyfile.staging \
-            ${{ secrets.STAGING_USER }}@${{ secrets.STAGING_HOST }}:/opt/akis/Caddyfile.staging
+          scp -i ~/.ssh/deploy_key devops/compose/docker-compose.edge.yml \
+            ${{ secrets.STAGING_USER }}@${{ secrets.STAGING_HOST }}:/opt/akis/docker-compose.edge.yml
+          scp -i ~/.ssh/deploy_key devops/compose/Caddyfile.edge \
+            ${{ secrets.STAGING_USER }}@${{ secrets.STAGING_HOST }}:/opt/akis/Caddyfile.edge
           
-          # Copy frontend dist
+          # Copy frontend dist to volume mount location
+          ssh -i ~/.ssh/deploy_key ${{ secrets.STAGING_USER }}@${{ secrets.STAGING_HOST }} \
+            "mkdir -p /opt/akis/staging-frontend"
           scp -r -i ~/.ssh/deploy_key frontend/dist/* \
-            ${{ secrets.STAGING_USER }}@${{ secrets.STAGING_HOST }}:/opt/akis/frontend/
+            ${{ secrets.STAGING_USER }}@${{ secrets.STAGING_HOST }}:/opt/akis/staging-frontend/
           
           # Write .env with deterministic image references (survives reboots)
           echo "=== Writing image references to .env ==="
@@ -315,6 +354,12 @@ jobs:
             "cd /opt/akis && echo 'GITHUB_REPOSITORY=${REPO_LC}' >> .env && echo 'BACKEND_VERSION=${{ needs.build.outputs.commit }}' >> .env"
           
           echo "Image: ghcr.io/${REPO_LC}/akis-backend:${{ needs.build.outputs.commit }}"
+
+      - name: Setup edge proxy network
+        run: |
+          echo "=== Creating edge proxy network ==="
+          ssh -i ~/.ssh/deploy_key ${{ secrets.STAGING_USER }}@${{ secrets.STAGING_HOST }} \
+            "docker network create akis-edge-net 2>/dev/null || echo 'Network akis-edge-net already exists'"
 
       - name: Pull Docker images
         run: |
@@ -329,16 +374,36 @@ jobs:
           ssh -i ~/.ssh/deploy_key ${{ secrets.STAGING_USER }}@${{ secrets.STAGING_HOST }} \
             "cd /opt/akis && docker compose run --rm backend pnpm db:migrate" || echo "WARN: Migration failed or no migrations to run (this is often OK if schema is up-to-date)"
 
-      - name: Start services
+      - name: Start staging services
         run: |
-          echo "=== Deploying services ==="
+          echo "=== Starting staging services (backend, db) ==="
           ssh -i ~/.ssh/deploy_key ${{ secrets.STAGING_USER }}@${{ secrets.STAGING_HOST }} \
             "cd /opt/akis && docker compose up -d --remove-orphans"
+
+      - name: Start edge proxy
+        run: |
+          echo "=== Starting edge proxy ==="
+          ssh -i ~/.ssh/deploy_key ${{ secrets.STAGING_USER }}@${{ secrets.STAGING_HOST }} << 'EOF'
+            cd /opt/akis
+            
+            # Create frontend directories if they don't exist (for bind mounts)
+            mkdir -p /opt/akis/prod-frontend
+            
+            # Start edge proxy (the only service binding 80/443)
+            docker compose -f docker-compose.edge.yml up -d
+            
+            # Wait for edge proxy to start
+            echo "Waiting for edge proxy..."
+            sleep 5
+            
+            # Reload Caddy config to pick up any changes
+            docker exec akis-edge-caddy caddy reload --config /etc/caddy/Caddyfile 2>/dev/null || true
+          EOF
           
           echo ""
           echo "=== Container status ==="
           ssh -i ~/.ssh/deploy_key ${{ secrets.STAGING_USER }}@${{ secrets.STAGING_HOST }} \
-            "cd /opt/akis && docker compose ps"
+            "docker ps --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}' | head -20"
 
       - name: Cleanup old images
         run: |

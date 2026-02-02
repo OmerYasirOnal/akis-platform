@@ -9,43 +9,15 @@
 #   - Docker and Docker Compose installed on OCI VM
 #   - GitHub Release or semver tag trigger
 #   - Manual approval via GitHub Environment protection
+#   - Edge proxy must be running (docker-compose.edge.yml)
+#
+# Architecture:
+#   This stack does NOT bind to ports 80/443. Instead, the edge proxy
+#   (akis-edge-caddy) routes traffic to the backend via the shared network.
 
 name: akis-prod
 
 services:
-  # ============================================================================
-  # Reverse Proxy - Caddy (HTTPS termination, static serving, API routing)
-  # ============================================================================
-  caddy:
-    image: caddy:2-alpine
-    container_name: akis-prod-caddy
-    restart: always
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./Caddyfile.prod:/etc/caddy/Caddyfile:ro
-      - caddy_data:/data
-      - caddy_config:/config
-      - frontend_dist:/srv/frontend:ro
-    networks:
-      - prod-network
-    depends_on:
-      backend:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:80/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 10s
-    deploy:
-      resources:
-        limits:
-          memory: 128M
-        reservations:
-          memory: 64M
-
   # ============================================================================
   # Backend - Fastify API Server
   # ============================================================================
@@ -90,8 +62,12 @@ services:
       
       # MCP Gateway
       GITHUB_MCP_BASE_URL: ${GITHUB_MCP_BASE_URL:-http://mcp-gateway:4010/mcp}
+      
+      # Atlassian (disabled by default)
+      MCP_ATLASSIAN_ENABLED: ${MCP_ATLASSIAN_ENABLED:-false}
     networks:
       - prod-network
+      - akis-edge-net  # Connect to edge proxy network
     depends_on:
       db:
         condition: service_healthy
@@ -218,6 +194,10 @@ networks:
     ipam:
       config:
         - subnet: 172.21.0.0/16
+  # External network shared with edge proxy
+  akis-edge-net:
+    external: true
+    name: akis-edge-net
 
 # ============================================================================
 # Volumes
@@ -225,9 +205,3 @@ networks:
 volumes:
   prod_pgdata:
     name: akis-prod-pgdata
-  caddy_data:
-    name: akis-prod-caddy-data
-  caddy_config:
-    name: akis-prod-caddy-config
-  frontend_dist:
-    name: akis-prod-frontend

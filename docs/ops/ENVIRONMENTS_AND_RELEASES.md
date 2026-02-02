@@ -542,11 +542,88 @@ docker compose up -d --force-recreate backend
 docker compose logs -f backend  # Watch for startup errors
 ```
 
-### 9.5 Important Notes
+#### Failure Mode 5: Port 80/443 Already in Use
+
+**Symptoms:**
+- `failed to bind host port 0.0.0.0:80/tcp: address already in use`
+- Deployment fails at "Start services" step
+
+**Diagnosis:**
+```bash
+# SSH to server
+ssh $STAGING_USER@$STAGING_HOST
+
+# Check what's using port 80/443
+sudo ss -tlnp | grep ':80 '
+sudo ss -tlnp | grep ':443 '
+
+# Common culprits: nginx, apache, another Caddy container
+```
+
+**Fix:**
+```bash
+# Stop nginx if running
+sudo systemctl stop nginx
+sudo systemctl disable nginx
+
+# Stop old Caddy containers
+docker stop akis-staging-caddy akis-prod-caddy 2>/dev/null
+docker rm akis-staging-caddy akis-prod-caddy 2>/dev/null
+
+# Verify ports are free
+sudo ss -tlnp | grep ':80 '  # Should show nothing
+```
+
+### 9.5 Edge Proxy Architecture
+
+AKIS uses a **single edge reverse proxy** pattern for hosting both staging and production on the same server:
+
+```
+Internet
+    │
+    ▼
+┌─────────────────────────────────────┐
+│  akis-edge-caddy (ports 80/443)     │
+│  ├─ akisflow.com → prod-backend     │
+│  └─ staging.akisflow.com → staging  │
+└─────────────────────────────────────┘
+    │               │
+    ▼               ▼
+┌─────────────┐ ┌─────────────┐
+│ akis-prod   │ │ akis-staging│
+│ (no ports)  │ │ (no ports)  │
+└─────────────┘ └─────────────┘
+```
+
+**Key Files:**
+- `devops/compose/docker-compose.edge.yml` - Edge proxy (binds 80/443)
+- `devops/compose/Caddyfile.edge` - Routing rules by hostname
+- `devops/compose/docker-compose.staging.yml` - Staging stack (no port bindings)
+- `devops/compose/docker-compose.prod.yml` - Production stack (no port bindings)
+
+**Managing Edge Proxy:**
+```bash
+cd /opt/akis
+
+# Start/restart edge proxy
+docker compose -f docker-compose.edge.yml up -d
+
+# Reload Caddy config (zero-downtime)
+docker exec akis-edge-caddy caddy reload --config /etc/caddy/Caddyfile
+
+# View edge proxy logs
+docker compose -f docker-compose.edge.yml logs -f
+
+# Check which containers are connected to edge network
+docker network inspect akis-edge-net
+```
+
+### 9.6 Important Notes
 
 - **SSH Host vs Public URL:** `STAGING_HOST` is for SSH connectivity (private IP or hostname), while health checks use `staging.akisflow.com` (public domain)
 - **Migration Failures:** Migration errors are logged as WARN and do not stop the deploy. This is intentional because "enum already exists" errors are common on re-deploys.
 - **Rollback:** On health check failure, the workflow automatically attempts to rollback to the previous image version.
+- **Edge Proxy:** Only one service (akis-edge-caddy) should bind to ports 80/443. All other stacks connect via the `akis-edge-net` network.
 
 ---
 
