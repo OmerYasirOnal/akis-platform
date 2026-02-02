@@ -426,7 +426,105 @@ docker compose logs db --tail=50
 
 ---
 
-## 9. References
+## 9. Staging Deploy Runbook
+
+### 9.1 Prerequisites (One-Time Setup)
+
+**GitHub Repository Secrets (Settings → Secrets and variables → Actions):**
+
+| Secret Name | Description | Example |
+|-------------|-------------|---------|
+| `STAGING_HOST` | Server IP or hostname | `192.168.1.100` or `staging-server.internal` |
+| `STAGING_USER` | SSH username | `ubuntu`, `opc`, or `akis` |
+| `STAGING_SSH_KEY` | Private SSH key (PEM format) | `-----BEGIN OPENSSH PRIVATE KEY-----...` |
+
+**Note:** These are **repository secrets**, not environment secrets. The workflow does NOT require a GitHub Environment to be configured.
+
+### 9.2 Triggering a Deploy
+
+**Automatic (Recommended):**
+- Push to `main` branch triggers staging deploy automatically
+- Merging a PR to `main` also triggers deploy
+
+**Manual Re-run:**
+1. Go to Actions → "Deploy to Staging"
+2. Click on the failed/successful run
+3. Click "Re-run jobs" → "Re-run all jobs"
+
+### 9.3 Success Criteria
+
+After deployment, these URLs must respond:
+
+| Endpoint | Expected Response | HTTP Status |
+|----------|-------------------|-------------|
+| `https://staging.akisflow.com/health` | `{"status":"ok"}` | 200 |
+| `https://staging.akisflow.com/ready` | `{"ready":true}` | 200 |
+| `https://staging.akisflow.com/version` | `{"version":"x.y.z","commit":"abc123"}` | 200 |
+
+### 9.4 Diagnosing Failures
+
+#### Failure Mode 1: SSH Connection Failed
+
+**Symptoms:**
+- `Permission denied (publickey)`
+- `Could not resolve hostname`
+- `Connection timed out`
+
+**Diagnosis:**
+1. Check that `STAGING_HOST`, `STAGING_USER`, `STAGING_SSH_KEY` are set in GitHub Secrets
+2. Verify SSH key format (must be PEM, not PPK)
+3. Check server firewall allows port 22 from GitHub Actions IPs
+
+**Fix:** Re-add the SSH key secret with correct format.
+
+#### Failure Mode 2: Health Check Returns 502
+
+**Symptoms:**
+- `health=502, ready=502` in workflow logs
+- Caddy is running but backend is down
+
+**Diagnosis:**
+```bash
+# SSH to staging server
+ssh $STAGING_USER@$STAGING_HOST
+
+# Check container status
+cd /opt/akis && docker compose ps
+
+# Check backend logs
+docker compose logs backend --tail=100
+
+# Common issues:
+# - Backend crash on startup (missing env vars)
+# - Database connection refused
+# - Migration running indefinitely
+```
+
+**Fix:** Check backend container logs for specific error.
+
+#### Failure Mode 3: Health Check Returns 000
+
+**Symptoms:**
+- `health=000000, ready=000000` in workflow logs
+- Cannot reach the server at all
+
+**Diagnosis:**
+1. Check DNS: `nslookup staging.akisflow.com`
+2. Check server is running: Can you SSH manually?
+3. Check Caddy is running: `docker compose ps caddy`
+4. Check firewall: Ports 80, 443 open?
+
+**Fix:** Usually DNS or server-level issue, not workflow issue.
+
+### 9.5 Important Notes
+
+- **SSH Host vs Public URL:** `STAGING_HOST` is for SSH connectivity (private IP or hostname), while health checks use `staging.akisflow.com` (public domain)
+- **Migration Failures:** Migration errors are logged as WARN and do not stop the deploy. This is intentional because "enum already exists" errors are common on re-deploys.
+- **Rollback:** On health check failure, the workflow automatically attempts to rollback to the previous image version.
+
+---
+
+## 10. References
 
 - CI Workflow: [`.github/workflows/ci.yml`](../../.github/workflows/ci.yml)
 - Staging Deploy: [`.github/workflows/deploy-staging.yml`](../../.github/workflows/deploy-staging.yml)
