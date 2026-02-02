@@ -1,7 +1,22 @@
-const BASE =
-  import.meta.env.VITE_API_URL ||
-  import.meta.env.VITE_BACKEND_URL ||
-  'http://localhost:3000';
+/**
+ * Get the base URL for auth endpoints.
+ * Auth routes are at /auth/* (no /api prefix).
+ * In production/staging, we use same origin. In development, backend may be on different port.
+ */
+function getAuthBaseUrl(): string {
+  // VITE_BACKEND_URL is the explicit backend origin (e.g., http://localhost:3000)
+  if (import.meta.env.VITE_BACKEND_URL) {
+    return import.meta.env.VITE_BACKEND_URL;
+  }
+  // In production/staging, frontend and backend share the same origin
+  if (typeof window !== 'undefined' && window.location.origin) {
+    return window.location.origin;
+  }
+  // Fallback for development
+  return 'http://localhost:3000';
+}
+
+const BASE = getAuthBaseUrl();
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   // Only set Content-Type: application/json if there's a body
