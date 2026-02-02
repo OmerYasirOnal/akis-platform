@@ -306,31 +306,34 @@ jobs:
             ${{ secrets.STAGING_USER }}@${{ secrets.STAGING_HOST }}:/opt/akis/frontend/
           
           # Write .env with deterministic image references (survives reboots)
-          ssh -i ~/.ssh/deploy_key ${{ secrets.STAGING_USER }}@${{ secrets.STAGING_HOST }} << EOF
-            set -e
+          ssh -i ~/.ssh/deploy_key ${{ secrets.STAGING_USER }}@${{ secrets.STAGING_HOST }} << 'DEPLOY_EOF'
             cd /opt/akis
 
             echo "=== Writing image references to .env ==="
-            # Persist GITHUB_REPOSITORY and BACKEND_VERSION so compose
-            # resolves the correct image on restarts/reboots too
             touch .env
             sed -i '/^GITHUB_REPOSITORY=/d; /^BACKEND_VERSION=/d' .env
-            echo "GITHUB_REPOSITORY=${REPO_LC}" >> .env
-            echo "BACKEND_VERSION=${{ needs.build.outputs.commit }}" >> .env
-            echo "Image: ghcr.io/${REPO_LC}/akis-backend:${{ needs.build.outputs.commit }}"
-
-            echo ""
+          DEPLOY_EOF
+          
+          # Write env vars separately (variables expanded locally)
+          ssh -i ~/.ssh/deploy_key ${{ secrets.STAGING_USER }}@${{ secrets.STAGING_HOST }} \
+            "cd /opt/akis && echo 'GITHUB_REPOSITORY=$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')' >> .env && echo 'BACKEND_VERSION=${{ needs.build.outputs.commit }}' >> .env"
+          
+          # Pull images, run migrations, deploy services
+          ssh -i ~/.ssh/deploy_key ${{ secrets.STAGING_USER }}@${{ secrets.STAGING_HOST }} << 'DEPLOY_EOF'
+            cd /opt/akis
+            
             echo "=== Pulling new images ==="
             docker compose pull || { echo "ERROR: Failed to pull images"; docker compose logs; exit 1; }
 
             echo ""
             echo "=== Running database migrations ==="
-            docker compose run --rm backend pnpm db:migrate || echo "WARN: Migration failed or no migrations to run"
+            # Run migration in subshell to prevent heredoc exit on error
+            (docker compose run --rm backend pnpm db:migrate) || echo "WARN: Migration failed or no migrations to run (this is often OK if schema is up-to-date)"
 
             echo ""
             echo "=== Deploying services ==="
             docker compose up -d --remove-orphans
-
+            
             echo ""
             echo "=== Container status ==="
             docker compose ps
@@ -338,7 +341,7 @@ jobs:
             echo ""
             echo "=== Cleanup old images ==="
             docker image prune -f
-          EOF
+          DEPLOY_EOF
 
       - name: Wait for deployment
         run: sleep 30

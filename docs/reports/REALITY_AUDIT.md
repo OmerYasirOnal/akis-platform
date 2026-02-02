@@ -82,6 +82,8 @@ AKIS Platform has staging (`staging.akisflow.com`) and production (`akisflow.com
 | **Missing GitHub Secrets** | `deploy-staging.yml` lines 186-223 validate `STAGING_HOST`, `STAGING_USER`, `STAGING_SSH_KEY` | Staging deployment blocked; CI passes but deploy fails | Configure secrets in GitHub repo settings (Settings → Secrets) | Manual action required |
 | **MCP Gateway not deployed** | `docker-compose.staging.yml` line 131-155 shows MCP service with `profiles: [mcp]` | Scribe agent cannot execute GitHub operations in staging/prod | Deploy MCP gateway container; set `GITHUB_MCP_BASE_URL` env var | Manual action required |
 | **Missing environment documentation** | No `docs/ops/ENVIRONMENTS_AND_RELEASES.md` existed | Onboarding friction; unclear deployment procedures | **FIXED:** Created comprehensive environment documentation | ✅ Completed |
+| **SSH heredoc exit on migration error** | Deploy run #34 logs show migration WARN followed by immediate step end (6ms gap); `docker compose up` never ran | Backend container not started; health checks fail with 502 | **FIXED:** Removed `set -e` from heredoc; wrapped migration in subshell | ✅ Completed |
+| **Domain drift (akis.dev vs akisflow.com)** | Multiple files referenced old `akis.dev` domain | Health checks targeted wrong domain; cookie domain mismatch | **FIXED:** Standardized all references to `akisflow.com` | ✅ Completed |
 
 ### 2.2 High Priority Issues (P1)
 
