@@ -5,11 +5,23 @@ import Logo from '../../components/branding/Logo';
 import { useI18n } from '../../i18n/useI18n';
 import type { MessageKey } from '../../i18n/i18n.types';
 
-// Backend URL for OAuth redirects (same pattern as auth.ts)
-const BACKEND_URL =
-  import.meta.env.VITE_API_URL ||
-  import.meta.env.VITE_BACKEND_URL ||
-  'http://localhost:3000';
+/**
+ * Get the base URL for OAuth redirects.
+ * OAuth endpoints are at /auth/oauth/:provider (no /api prefix).
+ * In production, we use same origin. In development, backend may be on different port.
+ */
+function getOAuthBaseUrl(): string {
+  // VITE_BACKEND_URL is the explicit backend origin (e.g., http://localhost:3000)
+  if (import.meta.env.VITE_BACKEND_URL) {
+    return import.meta.env.VITE_BACKEND_URL;
+  }
+  // In production/staging, frontend and backend share the same origin
+  if (typeof window !== 'undefined' && window.location.origin) {
+    return window.location.origin;
+  }
+  // Fallback for development
+  return 'http://localhost:3000';
+}
 
 // Map OAuth error codes to user-friendly i18n keys
 const OAUTH_ERROR_MAP: Record<string, string> = {
@@ -100,7 +112,8 @@ export default function LoginEmail() {
 
   function handleOAuthLogin(provider: 'github' | 'google') {
     // Full-page redirect to backend OAuth endpoint
-    window.location.href = `${BACKEND_URL}/auth/oauth/${provider}`;
+    // OAuth routes are at /auth/oauth/:provider (no /api prefix)
+    window.location.href = `${getOAuthBaseUrl()}/auth/oauth/${provider}`;
   }
 
   function dismissOAuthError() {
