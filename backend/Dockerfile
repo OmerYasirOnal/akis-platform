@@ -51,9 +51,11 @@ ENV APP_VERSION=${APP_VERSION}
 RUN apk add --no-cache wget dumb-init && \
     npm install -g pnpm@9
 
-# Create non-root user
+# Create non-root user with home directory (needed for drizzle-kit migrations)
 RUN addgroup -g 1001 -S akis && \
-    adduser -S -D -H -u 1001 -s /sbin/nologin -G akis akis
+    adduser -S -D -u 1001 -h /home/akis -s /sbin/nologin -G akis akis && \
+    mkdir -p /home/akis/.local/share && \
+    chown -R akis:akis /home/akis
 
 WORKDIR /app
 

@@ -2,7 +2,7 @@
 # Automatically deploys to staging when changes are merged to main
 #
 # Trigger: Push to main branch (after PR merge)
-# Target: OCI Free Tier VM (staging.akis.dev)
+# Target: OCI Free Tier VM (staging.akisflow.com)
 
 name: Deploy to Staging
 
@@ -180,7 +180,7 @@ jobs:
     needs: [build, docker]
     environment:
       name: staging
-      url: https://staging.akis.dev
+      url: https://staging.akisflow.com
 
     steps:
       - name: Validate required secrets
@@ -208,7 +208,7 @@ jobs:
             echo "  Repository → Settings → Secrets and variables → Actions → New repository secret"
             echo ""
             echo "Required secrets:"
-            echo "  STAGING_HOST     - Staging server IP or hostname (e.g., 192.168.1.100 or staging.akis.dev)"
+            echo "  STAGING_HOST     - Staging server IP or hostname (e.g., 192.168.1.100 or staging.akisflow.com)"
             echo "  STAGING_USER     - SSH username on the server (e.g., ubuntu, opc, akis)"
             echo "  STAGING_SSH_KEY  - Private SSH key in PEM format (ed25519 or RSA)"
             echo ""
@@ -347,8 +347,8 @@ jobs:
         id: health
         run: |
           for i in {1..30}; do
-            HEALTH=$(curl -s -o /dev/null -w "%{http_code}" https://staging.akis.dev/health || echo "000")
-            READY=$(curl -s -o /dev/null -w "%{http_code}" https://staging.akis.dev/ready || echo "000")
+            HEALTH=$(curl -s -o /dev/null -w "%{http_code}" https://staging.akisflow.com/health || echo "000")
+            READY=$(curl -s -o /dev/null -w "%{http_code}" https://staging.akisflow.com/ready || echo "000")
             
             if [ "$HEALTH" = "200" ] && [ "$READY" = "200" ]; then
               echo "HTTP status checks passed!"
@@ -356,7 +356,7 @@ jobs:
               # Validate response schemas
               echo "Validating response schemas..."
               
-              HEALTH_RESPONSE=$(curl -sf https://staging.akis.dev/health)
+              HEALTH_RESPONSE=$(curl -sf https://staging.akisflow.com/health)
               if echo "$HEALTH_RESPONSE" | grep -q '"status"'; then
                 echo "✅ /health schema valid"
               else
@@ -364,7 +364,7 @@ jobs:
                 exit 1
               fi
               
-              READY_RESPONSE=$(curl -sf https://staging.akis.dev/ready)
+              READY_RESPONSE=$(curl -sf https://staging.akisflow.com/ready)
               if echo "$READY_RESPONSE" | grep -q '"ready"'; then
                 echo "✅ /ready schema valid"
               else
@@ -372,7 +372,7 @@ jobs:
                 exit 1
               fi
               
-              VERSION_RESPONSE=$(curl -sf https://staging.akis.dev/version)
+              VERSION_RESPONSE=$(curl -sf https://staging.akisflow.com/version)
               if echo "$VERSION_RESPONSE" | grep -q '"version"'; then
                 echo "✅ /version schema valid"
               else
@@ -395,7 +395,7 @@ jobs:
       - name: Verify deployed version
         if: steps.health.outputs.health_status == 'success'
         run: |
-          DEPLOYED=$(curl -s https://staging.akis.dev/version | jq -r '.commit')
+          DEPLOYED=$(curl -s https://staging.akisflow.com/version | jq -r '.commit')
           EXPECTED="${{ needs.build.outputs.commit }}"
           
           if [ "$DEPLOYED" = "$EXPECTED" ]; then
@@ -452,5 +452,5 @@ jobs:
           echo "|-------|-------|" >> $GITHUB_STEP_SUMMARY
           echo "| Version | ${{ needs.build.outputs.version }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Commit | ${{ needs.build.outputs.commit }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| URL | https://staging.akis.dev |" >> $GITHUB_STEP_SUMMARY
+          echo "| URL | https://staging.akisflow.com |" >> $GITHUB_STEP_SUMMARY
           echo "| Workflow | ${{ github.run_number }} |" >> $GITHUB_STEP_SUMMARY
