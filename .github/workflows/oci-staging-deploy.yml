@@ -489,6 +489,78 @@ jobs:
             exit 1
           fi
 
+      - name: Post-deploy smoke test
+        if: steps.health.outputs.health_status == 'success'
+        run: |
+          echo "Running post-deploy smoke tests..."
+          echo ""
+          
+          SMOKE_PASS=true
+          
+          # Test 1: Health endpoint
+          HEALTH_CODE=$(curl -s -o /dev/null -w "%{http_code}" https://staging.akisflow.com/health)
+          if [ "$HEALTH_CODE" = "200" ]; then
+            echo "✅ /health: $HEALTH_CODE"
+          else
+            echo "❌ /health: $HEALTH_CODE"
+            SMOKE_PASS=false
+          fi
+          
+          # Test 2: Ready endpoint
+          READY_CODE=$(curl -s -o /dev/null -w "%{http_code}" https://staging.akisflow.com/ready)
+          if [ "$READY_CODE" = "200" ]; then
+            echo "✅ /ready: $READY_CODE"
+          else
+            echo "❌ /ready: $READY_CODE"
+            SMOKE_PASS=false
+          fi
+          
+          # Test 3: Version endpoint
+          VERSION_CODE=$(curl -s -o /dev/null -w "%{http_code}" https://staging.akisflow.com/version)
+          if [ "$VERSION_CODE" = "200" ]; then
+            echo "✅ /version: $VERSION_CODE"
+          else
+            echo "❌ /version: $VERSION_CODE"
+            SMOKE_PASS=false
+          fi
+          
+          # Test 4: Frontend main page (served by Caddy)
+          FRONTEND_CODE=$(curl -s -o /dev/null -w "%{http_code}" https://staging.akisflow.com/)
+          if [ "$FRONTEND_CODE" = "200" ]; then
+            echo "✅ / (frontend): $FRONTEND_CODE"
+          else
+            echo "❌ / (frontend): $FRONTEND_CODE"
+            SMOKE_PASS=false
+          fi
+          
+          # Test 5: API auth endpoint exists
+          AUTH_CODE=$(curl -s -o /dev/null -w "%{http_code}" https://staging.akisflow.com/api/auth/me)
+          if [ "$AUTH_CODE" = "401" ] || [ "$AUTH_CODE" = "200" ]; then
+            echo "✅ /api/auth/me: $AUTH_CODE (expected 401 or 200)"
+          else
+            echo "⚠️ /api/auth/me: $AUTH_CODE (unexpected)"
+          fi
+          
+          echo ""
+          if [ "$SMOKE_PASS" = "true" ]; then
+            echo "✅ All smoke tests passed!"
+          else
+            echo "❌ Some smoke tests failed!"
+            echo ""
+            echo "--- Debug: Container Status ---"
+            ssh -i ~/.ssh/deploy_key ${{ secrets.STAGING_USER }}@${{ secrets.STAGING_HOST }} \
+              "cd /opt/akis && docker compose ps" || true
+            echo ""
+            echo "--- Debug: Backend Logs (last 30 lines) ---"
+            ssh -i ~/.ssh/deploy_key ${{ secrets.STAGING_USER }}@${{ secrets.STAGING_HOST }} \
+              "cd /opt/akis && docker compose logs --tail=30 backend 2>&1 | grep -v -E '(PASSWORD|SECRET|KEY|TOKEN)='" || true
+            echo ""
+            echo "--- Debug: Caddy Logs (last 20 lines) ---"
+            ssh -i ~/.ssh/deploy_key ${{ secrets.STAGING_USER }}@${{ secrets.STAGING_HOST }} \
+              "cd /opt/akis && docker compose logs --tail=20 caddy 2>&1" || true
+            exit 1
+          fi
+
       - name: Rollback on failure
         if: failure() && steps.previous.outputs.previous_image != 'none' && github.event.inputs.force_deploy != 'true'
         run: |
