@@ -446,17 +446,10 @@ jobs:
           export BACKEND_VERSION="${BACKEND_VERSION}"
           
           # Step 4: Run database migrations (idempotent)
-          # Disable errexit for migration - it may fail on already-applied migrations
-          set +e
+          # Migrations may fail on already-applied migrations - this is OK
+          # Using subshell + || true to ensure script continues regardless
           echo "Running migrations..."
-          docker compose run --rm --pull never backend pnpm db:migrate
-          MIGRATE_EXIT=$?
-          set -e
-          if [ $MIGRATE_EXIT -ne 0 ]; then
-            echo "⚠️ Migration exited with code $MIGRATE_EXIT (may be OK if already applied)"
-          else
-            echo "✅ Migrations completed"
-          fi
+          ( docker compose run --rm --pull never backend pnpm db:migrate ) && echo "✅ Migrations completed" || echo "⚠️ Migration exited non-zero (may be OK if already applied)"
           
           # Step 5: Deploy with rolling update (CRITICAL - must run even if migration failed)
           echo "Starting services..."
