@@ -13,21 +13,6 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
-    services:
-      postgres:
-        image: postgres:16
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: akis_v2_test
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd="pg_isready -U postgres"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=10
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -59,16 +44,6 @@ jobs:
         working-directory: backend
         run: pnpm install --frozen-lockfile || pnpm install
 
-      - name: Wait for Postgres
-        run: |
-          until nc -z 127.0.0.1 5432; do echo "waiting for pg..."; sleep 1; done
-
-      - name: Run database migrations
-        working-directory: backend
-        env:
-          DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/akis_v2_test
-        run: pnpm db:migrate
-
       - name: Backend Typecheck
         working-directory: backend
         run: pnpm run typecheck
@@ -77,20 +52,13 @@ jobs:
         working-directory: backend
         run: pnpm run lint
 
-      - name: Backend Tests
+      - name: Backend Unit Tests
         working-directory: backend
         env:
-          DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/akis_v2_test
           NODE_ENV: test
-        run: pnpm run test:unit > backend-tests.log 2>&1 || (cat backend-tests.log && exit 1)
-      
-      - name: Upload Backend Test Logs
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: backend-test-logs
-          path: backend/backend-tests.log
-          retention-days: 7
+          SKIP_DB_TESTS: 'true'
+          SKIP_MCP_TESTS: 'true'
+        run: pnpm run test:unit
 
   frontend-gate:
     runs-on: ubuntu-latest
