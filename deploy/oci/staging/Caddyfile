@@ -2,10 +2,7 @@
 # =========================================================================
 #
 # Reverse proxy configuration for staging environment
-#
-# NOTE: This file is for deploy/oci/staging/ manual deployments.
-#       The canonical Caddyfile used by GitHub Actions is:
-#       devops/compose/Caddyfile.staging
+# Domain: staging.akisflow.com
 #
 # Handles:
 # - HTTPS termination (automatic Let's Encrypt)
@@ -13,23 +10,13 @@
 # - API routing to Fastify backend
 # - Security headers
 #
-# ROUTING RULES:
-# - /docs* → Frontend SPA (user documentation)
-# - /api/* → Backend (includes /api/docs for Swagger UI)
-# - /openapi.json → Backend
-#
 # =========================================================================
 
 {
-    # Let's Encrypt configuration
-    email {$ACME_EMAIL:admin@akis.dev}
-
-    # Uncomment to use Let's Encrypt staging CA for testing:
-    # acme_ca https://acme-staging-v02.api.letsencrypt.org/directory
+    email {$ACME_EMAIL:admin@akisflow.com}
 }
 
-# Main staging domain
-staging.akis.dev {
+staging.akisflow.com {
     # Enable compression
     encode gzip zstd
 
@@ -114,6 +101,6 @@ staging.akis.dev {
 }
 
 # HTTP → HTTPS redirect
-http://staging.akis.dev {
+http://staging.akisflow.com {
     redir https://{host}{uri} permanent
 }
