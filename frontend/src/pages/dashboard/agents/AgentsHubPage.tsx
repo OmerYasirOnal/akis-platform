@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import Button from '../../../components/common/Button';
 import SearchableSelect, { type SelectOption } from '../../../components/common/SearchableSelect';
 import { agentsApi, type AgentType, type JobDetail, type RunningJob } from '../../../services/api/agents';
@@ -10,7 +10,7 @@ import { getMultiProviderStatus, type AIKeyProvider } from '../../../services/ap
 import { cn } from '../../../utils/cn';
 
 interface AgentDefinition {
-  id: AgentType;
+  id: AgentType | 'smart-automations';
   name: string;
   description: string;
   icon: React.ReactNode;
@@ -20,6 +20,7 @@ interface AgentDefinition {
   requiresInput: boolean;
   inputPlaceholder?: string;
   inputLabel?: string;
+  routeTo?: string; // Optional redirect to different page
 }
 
 interface ChatMessage {
@@ -85,6 +86,12 @@ const CoderIcon = () => (
 const DeveloperIcon = () => (
   <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
     <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 7.5l3 2.25-3 2.25m4.5 0h3m-9 8.25h13.5A2.25 2.25 0 0021 18V6a2.25 2.25 0 00-2.25-2.25H5.25A2.25 2.25 0 003 6v12a2.25 2.25 0 002.25 2.25z" />
+  </svg>
+);
+
+const AutomationIcon = () => (
+  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12a7.5 7.5 0 0015 0m-15 0a7.5 7.5 0 1115 0m-15 0H3m16.5 0H21m-1.5 0H12m-8.457 3.077l1.41-.513m14.095-5.13l1.41-.513M5.106 17.785l1.15-.964m11.49-9.642l1.149-.964M7.501 19.795l.75-1.3m7.5-12.99l.75-1.3m-6.063 16.658l.26-1.477m2.605-14.772l.26-1.477m0 17.726l-.26-1.477M10.698 4.614l-.26-1.477M16.5 19.794l-.75-1.299M7.5 4.205L12 12m6.894 5.785l-1.149-.964M6.256 7.178l-1.15-.964m15.352 8.864l-1.41-.513M4.954 9.435l-1.41-.514M12.002 12l-3.75 6.495" />
   </svg>
 );
 
@@ -155,6 +162,17 @@ const builtInAgents: AgentDefinition[] = [
     inputPlaceholder: 'Describe your goal or requirements...\n\nExample: "Add user authentication with JWT to the Express API"',
     inputLabel: 'Goal / Requirements',
   },
+  {
+    id: 'smart-automations',
+    name: 'Akıllı Otomasyonlar',
+    description: 'RSS kaynaklarından günlük LinkedIn içeriği oluşturun.',
+    icon: <AutomationIcon />,
+    capabilities: ['RSS kaynak takibi', 'AI ile özetleme', 'LinkedIn taslağı', 'Slack bildirimi'],
+    status: 'available',
+    color: 'cyan-400',
+    requiresInput: false,
+    routeTo: '/agents/smart-automations',
+  },
 ];
 
 const PHASE_LABELS: Record<string, { icon: string; label: string }> = {
@@ -175,11 +193,13 @@ function getAgentColor(id: string) {
     case 'proto': return { bg: 'bg-purple-500/10', text: 'text-purple-400' };
     case 'coder': return { bg: 'bg-amber-500/10', text: 'text-amber-400' };
     case 'developer': return { bg: 'bg-emerald-500/10', text: 'text-emerald-400' };
+    case 'smart-automations': return { bg: 'bg-cyan-500/10', text: 'text-cyan-400' };
     default: return { bg: 'bg-ak-primary/10', text: 'text-ak-primary' };
   }
 }
 
 export default function AgentsHubPage() {
+  const navigate = useNavigate();
   const [selectedAgent, setSelectedAgent] = useState<AgentDefinition>(builtInAgents[0]);
   const [searchQuery, setSearchQuery] = useState('');
   const chatEndRef = useRef<HTMLDivElement>(null);
@@ -460,8 +480,9 @@ export default function AgentsHubPage() {
         payload.goal = extraInput.trim();
       }
 
+      // smart-automations redirects to a separate page, so it won't reach here
       const response = await agentsApi.runAgent({
-        type: selectedAgent.id,
+        type: selectedAgent.id as AgentType,
         payload,
       });
 
@@ -611,7 +632,13 @@ export default function AgentsHubPage() {
               return (
                 <button
                   key={agent.id}
-                  onClick={() => setSelectedAgent(agent)}
+                  onClick={() => {
+                    if (agent.routeTo) {
+                      navigate(agent.routeTo);
+                    } else {
+                      setSelectedAgent(agent);
+                    }
+                  }}
                   className={cn(
                     'flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left transition-all duration-150',
                     selectedAgent?.id === agent.id

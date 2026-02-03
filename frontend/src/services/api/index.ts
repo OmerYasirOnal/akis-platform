@@ -14,3 +14,13 @@ export type {
 } from './agents';
 export { aiKeysApi } from './ai-keys';
 export type { AiKeyStatus } from './ai-keys';
+export { smartAutomationsApi } from './smart-automations';
+export type {
+  SmartAutomation,
+  SmartAutomationRun,
+  SmartAutomationItem,
+  AutomationWithLastRun,
+  AutomationSource,
+  CreateAutomationRequest,
+  UpdateAutomationRequest,
+} from './smart-automations';
