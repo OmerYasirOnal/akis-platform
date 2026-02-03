@@ -446,17 +446,27 @@ jobs:
           export BACKEND_VERSION="${BACKEND_VERSION}"
           
           # Step 4: Run database migrations (idempotent)
+          # Disable errexit for migration - it may fail on already-applied migrations
+          set +e
           echo "Running migrations..."
-          docker compose run --rm --pull never backend pnpm db:migrate 2>/dev/null || true
+          docker compose run --rm --pull never backend pnpm db:migrate
+          MIGRATE_EXIT=$?
+          set -e
+          if [ $MIGRATE_EXIT -ne 0 ]; then
+            echo "⚠️ Migration exited with code $MIGRATE_EXIT (may be OK if already applied)"
+          else
+            echo "✅ Migrations completed"
+          fi
           
-          # Step 5: Deploy with rolling update
+          # Step 5: Deploy with rolling update (CRITICAL - must run even if migration failed)
           echo "Starting services..."
           if [ "$PULL_SUCCESS" = "false" ]; then
             echo "Using locally built image (--pull never)"
-            docker compose up -d --remove-orphans --pull never
+            docker compose up -d --remove-orphans --pull never --force-recreate
           else
-            docker compose up -d --remove-orphans
+            docker compose up -d --remove-orphans --force-recreate
           fi
+          echo "✅ Services started"
           
           # Step 6: Prune old images
           docker image prune -f 2>/dev/null || true
