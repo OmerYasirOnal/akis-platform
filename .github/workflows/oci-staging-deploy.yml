@@ -447,9 +447,13 @@ jobs:
           
           # Step 4: Run database migrations (idempotent)
           # Migrations may fail on already-applied migrations - this is OK
-          # Using subshell + || true to ensure script continues regardless
           echo "Running migrations..."
-          ( docker compose run --rm --pull never backend pnpm db:migrate ) && echo "✅ Migrations completed" || echo "⚠️ Migration exited non-zero (may be OK if already applied)"
+          if docker compose run --rm --pull never backend pnpm db:migrate; then
+            echo "✅ Migrations completed"
+          else
+            echo "⚠️ Migration exited non-zero (may be OK if already applied)"
+          fi
+          echo "Migration step done, continuing to deploy..."
           
           # Step 5: Deploy with rolling update (CRITICAL - must run even if migration failed)
           echo "Starting services..."
