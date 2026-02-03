@@ -1,19 +1,28 @@
+# =============================================================================
 # AKIS Platform - Production Deployment
-# Deploys to production when a release is published or a semver tag is pushed
+# =============================================================================
 #
-# Trigger: GitHub Release publish OR semver tag (v*.*.*)
+# DISABLED: Auto-deploy on release/tags - staging must be stable first
+# Sadece workflow_dispatch (manuel) aktif
+#
 # Target: OCI Free Tier VM (akisflow.com)
 # Requires: Manual approval via GitHub Environment protection
+#
+# =============================================================================
 
 name: Deploy to Production
 
 on:
-  release:
-    types: [published]
-  push:
-    tags:
-      - 'v[0-9]+.[0-9]+.[0-9]+'
-      - 'v[0-9]+.[0-9]+.[0-9]+-*'
+  # DISABLED: Auto-deploy on release publish
+  # release:
+  #   types: [published]
+
+  # DISABLED: Auto-deploy on semver tags
+  # push:
+  #   tags:
+  #     - 'v[0-9]+.[0-9]+.[0-9]+'
+  #     - 'v[0-9]+.[0-9]+.[0-9]+-*'
+
   workflow_dispatch:
     inputs:
       reason:
@@ -28,8 +37,6 @@ concurrency:
 
 env:
   REGISTRY: ghcr.io
-  BACKEND_IMAGE: ghcr.io/${{ github.repository }}/akis-backend
-  FRONTEND_IMAGE: ghcr.io/${{ github.repository }}/akis-frontend
   NODE_VERSION: '22.12.0'
 
 jobs:
@@ -171,9 +178,21 @@ jobs:
       contents: read
       packages: write
 
+    outputs:
+      backend_image: ${{ steps.vars.outputs.backend_image }}
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Compute image names
+        id: vars
+        run: |
+          REPO_LC=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
+          BACKEND_IMAGE="ghcr.io/${REPO_LC}/akis-backend"
+          echo "repo_lc=${REPO_LC}" >> $GITHUB_OUTPUT
+          echo "backend_image=${BACKEND_IMAGE}" >> $GITHUB_OUTPUT
+          echo "Backend Image: ${BACKEND_IMAGE}"
 
       - name: Download frontend build
         uses: actions/download-artifact@v4
@@ -198,9 +217,9 @@ jobs:
           file: ./backend/Dockerfile
           push: true
           tags: |
-            ${{ env.BACKEND_IMAGE }}:latest
-            ${{ env.BACKEND_IMAGE }}:${{ needs.validate.outputs.tag }}
-            ${{ env.BACKEND_IMAGE }}:${{ needs.validate.outputs.version }}
+            ${{ steps.vars.outputs.backend_image }}:latest
+            ${{ steps.vars.outputs.backend_image }}:${{ needs.validate.outputs.tag }}
+            ${{ steps.vars.outputs.backend_image }}:${{ needs.validate.outputs.version }}
           build-args: |
             BUILD_COMMIT=${{ needs.validate.outputs.commit }}
             BUILD_TIME=${{ github.event.head_commit.timestamp || github.event.release.created_at }}
