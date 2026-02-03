@@ -1,7 +1,7 @@
 # AKIS Platform - OCI Staging Runbook
 
-**Version**: 1.0.0  
-**Last Updated**: 2026-01-13  
+**Version**: 1.1.0  
+**Last Updated**: 2026-02-03  
 **Scope**: Staging Environment (pilot-grade)  
 **Target**: OCI Free Tier (single VM)
 
@@ -365,11 +365,67 @@ AI_PROVIDER=mock
    - `curl https://staging.akisflow.com/health`
    - `curl https://staging.akisflow.com/ready`
 
-### 5.3 Deployment Verification Checklist
+### 5.3 GHCR Pull Denied and Server-Side Build Fallback
+
+**Why Does This Happen?**
+
+The OCI VM does not have GitHub Container Registry (GHCR) credentials configured by default. When the deployment workflow attempts to pull the backend image from GHCR, it receives a "denied" error.
+
+**Automatic Fallback Behavior**:
+
+1. Workflow attempts to pull image from GHCR
+2. If pull fails (denied or image not found), it falls back to server-side build
+3. The backend source code is copied to `/opt/akis/backend-src/`
+4. Docker builds the image locally with `--no-cache` to ensure fresh commit hash
+5. The locally built image is used for deployment
+
+**Build Args for Version Info**:
+```bash
+docker build \
+  --no-cache \
+  --build-arg BUILD_COMMIT="${COMMIT_SHA}" \
+  --build-arg BUILD_TIME="${BUILD_TIME}" \
+  --build-arg APP_VERSION="0.1.0" \
+  -t ghcr.io/.../akis-backend:${COMMIT_SHA} \
+  -t ghcr.io/.../akis-backend:staging \
+  .
+```
+
+**Important**: The `--no-cache` flag ensures the BUILD_COMMIT is always freshly embedded, avoiding Docker cache issues with old commit hashes.
+
+**Optional: Configure GHCR Access on Server**
+
+To enable GHCR pulls (faster deploys, no server-side build):
+
+1. Create a GitHub PAT with `read:packages` scope
+2. SSH to the server and login:
+   ```bash
+   echo $GITHUB_PAT | docker login ghcr.io -u YOUR_USERNAME --password-stdin
+   ```
+3. The workflow will automatically use GHCR pulls when available
+
+### 5.4 Version Verification
+
+The deployment workflow verifies that the deployed version matches the expected commit:
+
+1. After `docker compose up`, wait for stabilization (30s)
+2. Check `/health` and `/ready` endpoints
+3. Fetch `/version` and compare the `commit` field with expected SHA
+4. **Fail the deployment if versions don't match**
+
+**Troubleshooting Version Mismatch**:
+
+| Symptom | Possible Cause | Resolution |
+|---------|----------------|------------|
+| Old commit still shown | `docker compose up` didn't run | Check workflow logs for script errors |
+| Build succeeded but old version | Docker cache used old layers | Ensure `--no-cache` is used in build |
+| Container not restarted | Missing `--force-recreate` | Add `--force-recreate` to compose up |
+
+### 5.5 Deployment Verification Checklist
 
 - [ ] `/health` returns `200 {"status":"ok"}`
 - [ ] `/ready` returns `200 {"ready":true,"database":"connected"}`
-- [ ] `/version` returns expected version and commit
+- [ ] `/version` returns expected version and commit (matches deployed SHA)
 - [ ] Frontend loads at `https://staging.akisflow.com`
 - [ ] Login page accessible
 - [ ] Test login works (use test credentials if available)
@@ -743,3 +799,4 @@ free -h
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
 | 1.0.0 | 2026-01-13 | Auto | Initial staging runbook |
+| 1.1.0 | 2026-02-03 | Auto | Added GHCR fallback docs, version verification details |
