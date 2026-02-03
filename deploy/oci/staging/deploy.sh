@@ -209,10 +209,40 @@ fi
 echo ""
 
 # -----------------------------------------------------------------------------
-# Step 6: Verify containers are running
+# Step 6: Verify containers are running and show detailed status
 # -----------------------------------------------------------------------------
 echo ">>> Step 6: Verifying container status..."
+echo ""
+echo "--- Container Status ---"
 docker compose ps
+echo ""
+
+echo "--- Backend Container Details ---"
+BACKEND_CONTAINER="akis-staging-backend"
+if docker inspect "$BACKEND_CONTAINER" > /dev/null 2>&1; then
+    CONTAINER_IMAGE=$(docker inspect "$BACKEND_CONTAINER" --format '{{.Config.Image}}' 2>/dev/null || echo "unknown")
+    CONTAINER_CREATED=$(docker inspect "$BACKEND_CONTAINER" --format '{{.Created}}' 2>/dev/null || echo "unknown")
+    CONTAINER_STATE=$(docker inspect "$BACKEND_CONTAINER" --format '{{.State.Status}}' 2>/dev/null || echo "unknown")
+    CONTAINER_HEALTH=$(docker inspect "$BACKEND_CONTAINER" --format '{{.State.Health.Status}}' 2>/dev/null || echo "no healthcheck")
+    
+    echo "Container: $BACKEND_CONTAINER"
+    echo "  Image:   $CONTAINER_IMAGE"
+    echo "  Created: $CONTAINER_CREATED"
+    echo "  State:   $CONTAINER_STATE"
+    echo "  Health:  $CONTAINER_HEALTH"
+    
+    # Verify the container is running the expected version
+    if echo "$CONTAINER_IMAGE" | grep -q "${BACKEND_VERSION}"; then
+        echo "  ✅ Image tag matches expected commit: ${BACKEND_VERSION}"
+    else
+        echo "  ⚠️ WARNING: Image tag does not contain expected commit!"
+        echo "     Expected: ${BACKEND_VERSION}"
+        echo "     Got: $CONTAINER_IMAGE"
+    fi
+else
+    echo "  ❌ Backend container not found!"
+    DEPLOY_EXIT=1
+fi
 echo ""
 
 # -----------------------------------------------------------------------------
@@ -227,6 +257,12 @@ echo ""
 # -----------------------------------------------------------------------------
 echo "=============================================="
 echo "=== Deployment script completed ==="
+echo "Target commit: ${BACKEND_VERSION}"
 echo "Exit code: ${DEPLOY_EXIT}"
+if [ "$DEPLOY_EXIT" = "0" ]; then
+    echo "Status: ✅ SUCCESS"
+else
+    echo "Status: ❌ FAILED"
+fi
 echo "=============================================="
 exit ${DEPLOY_EXIT}
