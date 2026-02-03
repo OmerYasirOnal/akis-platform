@@ -391,7 +391,7 @@ jobs:
           ssh -i ~/.ssh/deploy_key ${{ secrets.STAGING_USER }}@${{ secrets.STAGING_HOST }} \
             "mkdir -p /opt/akis/backend-src"
           
-          scp -r -i ~/.ssh/deploy_key backend/Dockerfile backend/package.json backend/pnpm-lock.yaml backend/tsconfig.json backend/drizzle.config.ts backend/src \
+          scp -r -i ~/.ssh/deploy_key backend/Dockerfile backend/package.json backend/pnpm-lock.yaml backend/tsconfig.json backend/drizzle.config.ts backend/src backend/migrations \
             ${{ secrets.STAGING_USER }}@${{ secrets.STAGING_HOST }}:/opt/akis/backend-src/
           
           # Deploy services with GHCR fallback
