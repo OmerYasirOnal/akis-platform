@@ -1,15 +1,31 @@
-import { drizzle } from 'drizzle-orm/node-postgres';
+import { drizzle, NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
 import * as schema from './schema.js';
 
-if (!process.env.DATABASE_URL) {
-  throw new Error('DATABASE_URL environment variable is required');
+let _db: NodePgDatabase<typeof schema> | null = null;
+let _pool: Pool | null = null;
+
+export function getDb(): NodePgDatabase<typeof schema> {
+  if (_db) return _db;
+
+  if (!process.env.DATABASE_URL) {
+    throw new Error(
+      'DATABASE_URL environment variable is required. ' +
+        'If running unit tests, ensure SKIP_DB_TESTS=true and avoid importing DB-dependent modules.'
+    );
+  }
+
+  _pool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    max: 10,
+  });
+
+  _db = drizzle(_pool, { schema });
+  return _db;
 }
 
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  max: 10, // Conservative pooling for OCI Free Tier
+export const db = new Proxy({} as NodePgDatabase<typeof schema>, {
+  get(_target, prop) {
+    return getDb()[prop as keyof NodePgDatabase<typeof schema>];
+  },
 });
-
-export const db = drizzle(pool, { schema });
-
