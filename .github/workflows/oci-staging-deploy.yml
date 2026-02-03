@@ -447,11 +447,16 @@ jobs:
           
           # Step 4: Run database migrations (idempotent)
           echo "Running migrations..."
-          docker compose run --rm backend pnpm db:migrate 2>/dev/null || true
+          docker compose run --rm --pull never backend pnpm db:migrate 2>/dev/null || true
           
           # Step 5: Deploy with rolling update
           echo "Starting services..."
-          docker compose up -d --remove-orphans
+          if [ "$PULL_SUCCESS" = "false" ]; then
+            echo "Using locally built image (--pull never)"
+            docker compose up -d --remove-orphans --pull never
+          else
+            docker compose up -d --remove-orphans
+          fi
           
           # Step 6: Prune old images
           docker image prune -f 2>/dev/null || true
