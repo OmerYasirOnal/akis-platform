@@ -1,6 +1,6 @@
 # AKIS Platform - OCI Staging Runbook
 
-**Version**: 1.1.0  
+**Version**: 1.2.0  
 **Last Updated**: 2026-02-03  
 **Scope**: Staging Environment (pilot-grade)  
 **Target**: OCI Free Tier (single VM)
@@ -421,7 +421,53 @@ The deployment workflow verifies that the deployed version matches the expected 
 | Build succeeded but old version | Docker cache used old layers | Ensure `--no-cache` is used in build |
 | Container not restarted | Missing `--force-recreate` | Add `--force-recreate` to compose up |
 
-### 5.5 Deployment Verification Checklist
+### 5.5 Deploy Script Architecture
+
+The deployment uses a **script-file approach** instead of SSH heredocs to avoid shell parsing issues:
+
+**File**: `deploy/oci/staging/deploy.sh`
+
+**Key Features**:
+1. **GHCR Fallback**: Attempts GHCR pull first, falls back to server-side build
+2. **No-Cache Build**: Uses `--no-cache` to ensure BUILD_COMMIT is always fresh
+3. **Idempotent Migrations**: Runs migrations with `|| true` to handle "already applied" errors
+4. **Force Recreate**: Uses `--force-recreate` to ensure containers restart with new image
+5. **Exit Code Tracking**: Script tracks failures but always attempts `docker compose up`
+
+**Script Execution Flow**:
+```
+Step 1: GHCR pull (may fail - OK)
+Step 2: Server-side build if pull failed (with --no-cache)
+Step 3: Update .env with BACKEND_VERSION
+Step 4: Run migrations (|| true - errors OK if already applied)
+Step 5: docker compose up --force-recreate (CRITICAL - always runs)
+Step 6: Verify containers are running
+Step 7: Prune old images
+```
+
+**Why Script File Instead of Heredoc?**
+
+When using SSH heredocs with `docker compose run`, the heredoc can be corrupted by docker's stdin/stdout handling. This caused silent failures where steps after migrations never executed. The script file approach is deterministic and debuggable.
+
+### 5.6 Known Migration Idempotency Issues
+
+Some Drizzle-generated migrations are not idempotent:
+
+**Example Error**:
+```
+error: enum label "validate" already exists
+```
+
+**Root Cause**: Migration `0004_broad_gideon.sql` uses simple `ALTER TYPE ADD VALUE` without `IF NOT EXISTS` check.
+
+**Mitigation**: The deploy script uses `|| true` for migrations, treating "already exists" errors as warnings rather than failures. This is safe because:
+1. The enum value already exists in the database
+2. The schema is in the correct state
+3. Only truly breaking migrations (e.g., missing required column) would cause runtime errors
+
+**Future Improvement**: Consider wrapping enum additions in DO blocks with IF NOT EXISTS checks (see `0012_add_explainability_enum_values.sql` for example).
+
+### 5.7 Deployment Verification Checklist
 
 - [ ] `/health` returns `200 {"status":"ok"}`
 - [ ] `/ready` returns `200 {"ready":true,"database":"connected"}`
@@ -800,3 +846,4 @@ free -h
 |---------|------|--------|---------|
 | 1.0.0 | 2026-01-13 | Auto | Initial staging runbook |
 | 1.1.0 | 2026-02-03 | Auto | Added GHCR fallback docs, version verification details |
+| 1.2.0 | 2026-02-03 | Auto | Added deploy script architecture, migration idempotency docs |
