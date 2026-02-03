@@ -737,3 +737,209 @@ export const billingNotifications = pgTable('billing_notifications', {
 }));
 
 export type BillingNotification = typeof billingNotifications.$inferSelect;
+
+// ============================================================================
+// Smart Automations: Daily LinkedIn Content Generation
+// ============================================================================
+
+/**
+ * Smart automation status enum
+ */
+export const smartAutomationRunStatusEnum = pgEnum('smart_automation_run_status', [
+  'pending',
+  'running',
+  'success',
+  'failed',
+]);
+
+/**
+ * Smart automations - stores automation definitions for daily content generation
+ * Each automation can fetch from multiple RSS sources, generate LinkedIn drafts via AI,
+ * and send notifications via Slack/in-app.
+ */
+export const smartAutomations = pgTable('smart_automations', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  name: varchar('name', { length: 255 }).notNull(),
+  /** Topics/keywords for content filtering (JSON array of strings) */
+  topics: jsonb('topics').$type<string[]>().notNull(),
+  /** RSS/webpage sources (JSON array of {url, type}) */
+  sources: jsonb('sources').$type<{ url: string; type: 'rss' | 'webpage' }[]>().notNull(),
+  /** Schedule time in HH:MM format */
+  scheduleTime: varchar('schedule_time', { length: 5 }).notNull().default('09:00'),
+  /** Timezone for scheduling (IANA format) */
+  timezone: varchar('timezone', { length: 50 }).notNull().default('Europe/Istanbul'),
+  /** Output language: tr or en */
+  outputLanguage: varchar('output_language', { length: 10 }).notNull().default('tr'),
+  /** Output style: linkedin (default) */
+  style: varchar('style', { length: 50 }).notNull().default('linkedin'),
+  /** Enable in-app notification */
+  deliveryInApp: boolean('delivery_in_app').notNull().default(true),
+  /** Enable Slack notification */
+  deliverySlack: boolean('delivery_slack').notNull().default(false),
+  /** Slack channel ID or name (optional) */
+  slackChannel: varchar('slack_channel', { length: 100 }),
+  /** Whether this automation is enabled */
+  enabled: boolean('enabled').notNull().default(true),
+  /** Mode: draft_only (default) or autopost_linkedin (future) */
+  mode: varchar('mode', { length: 50 }).notNull().default('draft_only'),
+  /** Next scheduled run timestamp */
+  nextRunAt: timestamp('next_run_at', { withTimezone: true }),
+  /** Last run timestamp */
+  lastRunAt: timestamp('last_run_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  userIdIdx: index('idx_smart_automations_user_id').on(table.userId),
+  enabledIdx: index('idx_smart_automations_enabled').on(table.enabled),
+  nextRunAtIdx: index('idx_smart_automations_next_run_at').on(table.nextRunAt),
+}));
+
+export type SmartAutomation = typeof smartAutomations.$inferSelect;
+export type NewSmartAutomation = typeof smartAutomations.$inferInsert;
+
+/**
+ * Smart automation runs - stores each execution/run of an automation
+ */
+export const smartAutomationRuns = pgTable('smart_automation_runs', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  automationId: uuid('automation_id').notNull().references(() => smartAutomations.id, { onDelete: 'cascade' }),
+  /** Run status: pending, running, success, failed */
+  status: smartAutomationRunStatusEnum('status').notNull().default('pending'),
+  /** Generated LinkedIn draft text */
+  output: text('output'),
+  /** AI-generated summary */
+  summary: text('summary'),
+  /** Number of items processed */
+  itemCount: integer('item_count').default(0),
+  /** Error message if failed */
+  error: text('error'),
+  /** Structured error code */
+  errorCode: varchar('error_code', { length: 50 }),
+  /** Run start timestamp */
+  startedAt: timestamp('started_at', { withTimezone: true }),
+  /** Run completion timestamp */
+  completedAt: timestamp('completed_at', { withTimezone: true }),
+  /** Slack message timestamp (for resend functionality) */
+  slackMessageTs: varchar('slack_message_ts', { length: 50 }),
+  /** Whether Slack notification was sent */
+  slackSent: boolean('slack_sent').default(false),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  automationIdIdx: index('idx_smart_automation_runs_automation_id').on(table.automationId),
+  statusIdx: index('idx_smart_automation_runs_status').on(table.status),
+  createdAtIdx: index('idx_smart_automation_runs_created_at').on(table.createdAt),
+}));
+
+export type SmartAutomationRun = typeof smartAutomationRuns.$inferSelect;
+export type NewSmartAutomationRun = typeof smartAutomationRuns.$inferInsert;
+
+/**
+ * Smart automation items - stores individual content items selected for each run
+ * Used for deduplication and source tracking
+ */
+export const smartAutomationItems = pgTable('smart_automation_items', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  runId: uuid('run_id').notNull().references(() => smartAutomationRuns.id, { onDelete: 'cascade' }),
+  /** Article/content title */
+  title: varchar('title', { length: 500 }).notNull(),
+  /** Original link URL */
+  link: varchar('link', { length: 2000 }).notNull(),
+  /** SHA-256 hash of link for deduplication */
+  linkHash: varchar('link_hash', { length: 64 }).notNull(),
+  /** Article excerpt/summary */
+  excerpt: text('excerpt'),
+  /** Original publish date */
+  publishedAt: timestamp('published_at', { withTimezone: true }),
+  /** Source name/domain */
+  source: varchar('source', { length: 255 }),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  runIdIdx: index('idx_smart_automation_items_run_id').on(table.runId),
+  linkHashIdx: index('idx_smart_automation_items_link_hash').on(table.linkHash),
+}));
+
+export type SmartAutomationItem = typeof smartAutomationItems.$inferSelect;
+export type NewSmartAutomationItem = typeof smartAutomationItems.$inferInsert;
+
+// Relations for smart automations
+export const smartAutomationsRelations = relations(smartAutomations, ({ one, many }) => ({
+  user: one(users, {
+    fields: [smartAutomations.userId],
+    references: [users.id],
+  }),
+  runs: many(smartAutomationRuns),
+}));
+
+export const smartAutomationRunsRelations = relations(smartAutomationRuns, ({ one, many }) => ({
+  automation: one(smartAutomations, {
+    fields: [smartAutomationRuns.automationId],
+    references: [smartAutomations.id],
+  }),
+  items: many(smartAutomationItems),
+}));
+
+export const smartAutomationItemsRelations = relations(smartAutomationItems, ({ one }) => ({
+  run: one(smartAutomationRuns, {
+    fields: [smartAutomationItems.runId],
+    references: [smartAutomationRuns.id],
+  }),
+}));
+
+// ============================================================================
+// Knowledge Base
+// ============================================================================
+
+export const knowledgeDocStatusEnum = pgEnum('knowledge_doc_status', ['proposed', 'approved', 'deprecated']);
+export const knowledgeDocTypeEnum = pgEnum('knowledge_doc_type', ['repo_doc', 'job_artifact', 'manual']);
+
+export const knowledgeDocuments = pgTable('knowledge_documents', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  workspaceId: uuid('workspace_id'),
+  title: varchar('title', { length: 500 }).notNull(),
+  content: text('content').notNull(),
+  docType: knowledgeDocTypeEnum('doc_type').notNull(),
+  sourcePath: varchar('source_path', { length: 1000 }),
+  commitSha: varchar('commit_sha', { length: 40 }),
+  agentType: varchar('agent_type', { length: 50 }),
+  status: knowledgeDocStatusEnum('status').default('proposed').notNull(),
+  version: integer('version').notNull().default(1),
+  metadata: jsonb('metadata').$type<Record<string, unknown>>(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  workspaceIdx: index('idx_knowledge_documents_workspace').on(table.workspaceId),
+  statusIdx: index('idx_knowledge_documents_status').on(table.status),
+  docTypeIdx: index('idx_knowledge_documents_doc_type').on(table.docType),
+  agentTypeIdx: index('idx_knowledge_documents_agent_type').on(table.agentType),
+}));
+
+export type KnowledgeDocument = typeof knowledgeDocuments.$inferSelect;
+export type NewKnowledgeDocument = typeof knowledgeDocuments.$inferInsert;
+
+export const knowledgeChunks = pgTable('knowledge_chunks', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  documentId: uuid('document_id').notNull().references(() => knowledgeDocuments.id, { onDelete: 'cascade' }),
+  chunkIndex: integer('chunk_index').notNull(),
+  content: text('content').notNull(),
+  embedding: text('embedding'),
+  tokenCount: integer('token_count'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  documentIdx: index('idx_knowledge_chunks_document').on(table.documentId),
+  chunkIndexIdx: index('idx_knowledge_chunks_chunk_index').on(table.documentId, table.chunkIndex),
+}));
+
+export type KnowledgeChunk = typeof knowledgeChunks.$inferSelect;
+export type NewKnowledgeChunk = typeof knowledgeChunks.$inferInsert;
+
+export const knowledgeDocumentsRelations = relations(knowledgeDocuments, ({ many }) => ({
+  chunks: many(knowledgeChunks),
+}));
+
+export const knowledgeChunksRelations = relations(knowledgeChunks, ({ one }) => ({
+  document: one(knowledgeDocuments, {
+    fields: [knowledgeChunks.documentId],
+    references: [knowledgeDocuments.id],
+  }),
+}));
