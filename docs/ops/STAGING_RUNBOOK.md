@@ -270,3 +270,152 @@ curl -sf https://staging.akisflow.com/version | jq
 - [OAUTH_SETUP.md](./OAUTH_SETUP.md) - OAuth configuration
 - [STAGING_DEPLOYMENT.md](./STAGING_DEPLOYMENT.md) - Full deployment guide
 - [EDGE_PROXY_RUNBOOK.md](./EDGE_PROXY_RUNBOOK.md) - Caddy/nginx troubleshooting
+
+---
+
+## DEMO READY CHECKLIST
+
+Demo öncesi staging ortamını doğrulamak için bu kontrol listesini kullanın.
+
+### Temel Sağlık Kontrolleri
+
+```bash
+# 1. Health endpoint (200 beklenir)
+curl -sf https://staging.akisflow.com/health | jq .
+# Beklenen: {"status":"ok"}
+
+# 2. Version endpoint (JSON beklenir)
+curl -sf https://staging.akisflow.com/version | jq .
+# Beklenen: {"version":"x.x.x","commit":"abc1234",...}
+
+# 3. Ready endpoint (200 beklenir)
+curl -sf https://staging.akisflow.com/ready | jq .
+# Beklenen: {"ready":true}
+```
+
+### İletişim Sayfası
+
+```bash
+# 4. Contact page (200 beklenir)
+curl -sI https://staging.akisflow.com/contact | head -3
+# Beklenen: HTTP/2 200
+
+# 5. İletişim page (200 beklenir)
+curl -sI https://staging.akisflow.com/iletisim | head -3
+# Beklenen: HTTP/2 200
+```
+
+UI Kontrolleri:
+- [ ] https://staging.akisflow.com/contact açılıyor
+- [ ] Email: info@akisflow.com görünüyor
+- [ ] Telefon: VITE_CONTACT_PHONE env'den geliyor (yoksa "Coming soon")
+- [ ] Kopyala butonları çalışıyor
+
+### AI Provider Keys
+
+```bash
+# 6. AI Keys status endpoint (401 beklenir - auth gerekli)
+curl -sI https://staging.akisflow.com/api/settings/ai-keys/status | head -3
+# Beklenen: HTTP/2 401
+```
+
+UI Test Senaryoları:
+- [ ] Dashboard > Settings > AI Provider Keys sayfası açılıyor
+- [ ] OpenAI/OpenRouter key kaydedince:
+  - 200: Başarılı kayıt (key masked olarak görünür)
+  - 503 ENCRYPTION_NOT_CONFIGURED: Server'da AI_KEY_ENCRYPTION_KEY eksik
+  - 409 DUPLICATE_KEY: Key zaten mevcut
+  - 400 VALIDATION_ERROR: Geçersiz key formatı
+- [ ] 500 hatası OLMAMALI
+
+### OAuth (Opsiyonel)
+
+```bash
+# 7. OAuth endpoint kontrolü
+curl -sI https://staging.akisflow.com/auth/oauth/github | head -5
+# Beklenen: 302 (redirect) veya 503 OAUTH_NOT_CONFIGURED
+```
+
+### Akıllı Otomasyonlar (Smart Automations)
+
+UI Test Senaryoları:
+- [ ] Agents Hub > "Akıllı Otomasyonlar" kartı görünüyor
+- [ ] Otomasyon oluşturma çalışıyor
+- [ ] "Run Now" çalışıyor ve draft üretiyor
+- [ ] Draft kopyalama çalışıyor
+- [ ] Slack bildirimi çalışıyor (env ayarlıysa)
+
+---
+
+## Staging Environment Variables
+
+Server'da ayarlanması gereken env değişkenleri:
+
+### Zorunlu
+
+| Değişken | Açıklama | Örnek Değer |
+|----------|----------|-------------|
+| `DATABASE_URL` | PostgreSQL connection string | `postgresql://user:pass@host:5432/db` |
+| `AUTH_JWT_SECRET` | JWT signing secret | `openssl rand -base64 32` |
+
+### AI Keys (Encryption)
+
+| Değişken | Açıklama | Nasıl Oluşturulur |
+|----------|----------|-------------------|
+| `AI_KEY_ENCRYPTION_KEY` | AES-256-GCM key | `openssl rand -base64 32` |
+| `AI_KEY_ENCRYPTION_KEY_VERSION` | Key version | `v1` |
+
+### OAuth (Opsiyonel)
+
+| Değişken | Açıklama |
+|----------|----------|
+| `GITHUB_OAUTH_CLIENT_ID` | GitHub OAuth App Client ID |
+| `GITHUB_OAUTH_CLIENT_SECRET` | GitHub OAuth App Client Secret |
+
+Callback URL'leri:
+- Staging: `https://staging.akisflow.com/auth/oauth/github/callback`
+- Production: `https://akisflow.com/auth/oauth/github/callback`
+- Local: `http://localhost:5173/auth/oauth/github/callback`
+
+### Slack (Opsiyonel)
+
+| Değişken | Açıklama |
+|----------|----------|
+| `SLACK_BOT_TOKEN` | Slack Bot OAuth Token (xoxb-...) |
+| `SLACK_DEFAULT_CHANNEL` | Default channel ID |
+
+### Frontend Build-time
+
+| Değişken | Açıklama |
+|----------|----------|
+| `VITE_CONTACT_PHONE` | İletişim sayfasında gösterilecek telefon |
+
+---
+
+## Server Environment Kurulum Adımları
+
+```bash
+# 1. SSH ile sunucuya bağlan
+ssh user@staging.akisflow.com
+
+# 2. AKIS dizinine git
+cd /opt/akis
+
+# 3. AI Key encryption key oluştur
+echo "AI_KEY_ENCRYPTION_KEY=$(openssl rand -base64 32)" >> .env
+echo "AI_KEY_ENCRYPTION_KEY_VERSION=v1" >> .env
+
+# 4. (Opsiyonel) OAuth ayarla
+echo "GITHUB_OAUTH_CLIENT_ID=your_client_id" >> .env
+echo "GITHUB_OAUTH_CLIENT_SECRET=your_client_secret" >> .env
+
+# 5. (Opsiyonel) Slack ayarla
+echo "SLACK_BOT_TOKEN=xoxb-your-token" >> .env
+echo "SLACK_DEFAULT_CHANNEL=C0123456789" >> .env
+
+# 6. Backend'i yeniden başlat
+docker compose restart backend
+
+# 7. Health check
+curl -sf http://localhost:3000/health
+```
