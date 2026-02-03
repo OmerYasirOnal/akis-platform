@@ -38,6 +38,7 @@ jobs:
   build:
     name: Build & Test
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     
     services:
       postgres:
@@ -127,6 +128,7 @@ jobs:
   docker:
     name: Build Docker Images
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     needs: build
     
     permissions:
@@ -698,6 +700,7 @@ jobs:
   notify:
     name: Notify
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     needs: [build, deploy]
     if: always()
 

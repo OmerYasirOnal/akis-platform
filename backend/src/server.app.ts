@@ -24,10 +24,12 @@ import { triggersRoutes } from './api/triggers.js';
 import { registerPlaybookRoutes } from './api/playbooks.js';
 import { dashboardMetricsRoutes } from './api/dashboard-metrics.js';
 import { aiModelsRoutes } from './api/ai-models.js';
+import { smartAutomationsRoutes } from './api/smart-automations.js';
 import { AgentOrchestrator } from './core/orchestrator/AgentOrchestrator.js';
 import { createAIService } from './services/ai/AIService.js';
 import type { MCPTools } from './services/mcp/adapters/index.js';
 import { StaleJobWatchdog } from './core/watchdog/StaleJobWatchdog.js';
+import { startAutomationScheduler } from './services/smart-automations/index.js';
 
 const QUIET_ROUTES = new Set([
   '/api/agents/jobs/running',
@@ -78,6 +80,9 @@ export async function buildApp() {
   // Start stale job watchdog
   const watchdog = new StaleJobWatchdog();
   watchdog.start();
+
+  // Start smart automation scheduler (polls for due automations every 60s)
+  startAutomationScheduler();
 
   // Phase 7.A: Enable structured logging with request-id
   const isTest = process.env.NODE_ENV === 'test';
@@ -180,6 +185,7 @@ export async function buildApp() {
   await app.register(registerPlaybookRoutes);
   await app.register(dashboardMetricsRoutes);
   await app.register(aiModelsRoutes);
+  await app.register(smartAutomationsRoutes);
   if (env.NODE_ENV !== 'production' && process.env.SCRIBE_DEV_GITHUB_BOOTSTRAP === 'true') {
     await app.register(testHelpersRoutes, { prefix: '/test' });
   }

@@ -14,6 +14,12 @@ on:
     tags:
       - 'v[0-9]+.[0-9]+.[0-9]+'
       - 'v[0-9]+.[0-9]+.[0-9]+-*'
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: 'Reason for manual trigger'
+        required: false
+        default: 'Manual production deploy'
 
 # Prevent concurrent production deployments
 concurrency:
@@ -33,6 +39,7 @@ jobs:
   validate:
     name: Validate Release
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     
     outputs:
       version: ${{ steps.version.outputs.version }}
@@ -79,6 +86,7 @@ jobs:
   build:
     name: Build & Test
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     needs: validate
     
     services:
@@ -156,6 +164,7 @@ jobs:
   docker:
     name: Build Docker Images
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     needs: [validate, build]
     
     permissions:
@@ -206,6 +215,7 @@ jobs:
   deploy:
     name: Deploy to Production
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     needs: [validate, build, docker]
     environment:
       name: production
@@ -508,6 +518,7 @@ jobs:
   smoke-test:
     name: Production Smoke Tests
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     needs: [validate, deploy]
     if: success()
 
@@ -600,6 +611,7 @@ jobs:
   summary:
     name: Deployment Summary
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     needs: [validate, deploy, smoke-test]
     if: always()
 

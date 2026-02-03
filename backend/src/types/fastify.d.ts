@@ -43,6 +43,15 @@ declare module 'fastify' {
     get(path: string, opts: Record<string, unknown>, handler: FastifyHandler): FastifyInstance;
     post(path: string, handler: FastifyHandler): FastifyInstance;
     post(path: string, opts: Record<string, unknown>, handler: FastifyHandler): FastifyInstance;
+    put(path: string, handler: FastifyHandler): FastifyInstance;
+    put(path: string, opts: Record<string, unknown>, handler: FastifyHandler): FastifyInstance;
+    route(opts: {
+      method: string | string[];
+      url: string;
+      schema?: Record<string, unknown>;
+      handler: FastifyHandler;
+      preHandler?: FastifyHook | FastifyHook[];
+    }): FastifyInstance;
     register<Options = Record<string, unknown>>(
       plugin: (instance: FastifyInstance, opts: Options) => unknown | Promise<unknown>,
       opts?: Options

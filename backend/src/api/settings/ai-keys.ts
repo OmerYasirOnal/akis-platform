@@ -85,6 +85,15 @@ export async function aiKeysRoutes(fastify: FastifyInstance) {
             },
           });
         }
+        if (err instanceof Error && err.message.includes('AI_KEY_ENCRYPTION_KEY')) {
+          fastify.log.error('Encryption configuration error');
+          return reply.code(503).send({
+            error: {
+              code: 'ENCRYPTION_NOT_CONFIGURED',
+              message: 'Server encryption is not properly configured. Contact administrator.',
+            },
+          });
+        }
         throw err;
       }
     }
@@ -149,6 +158,23 @@ export async function aiKeysRoutes(fastify: FastifyInstance) {
               code: 'VALIDATION_ERROR',
               message: 'Invalid API key payload',
               details: err.errors,
+            },
+          });
+        }
+        if (err instanceof Error && err.message.includes('AI_KEY_ENCRYPTION_KEY')) {
+          fastify.log.error('Encryption configuration error');
+          return reply.code(503).send({
+            error: {
+              code: 'ENCRYPTION_NOT_CONFIGURED',
+              message: 'Server encryption is not properly configured. Contact administrator.',
+            },
+          });
+        }
+        if (err instanceof Error && 'code' in err && (err as { code: string }).code === '23505') {
+          return reply.code(409).send({
+            error: {
+              code: 'DUPLICATE_KEY',
+              message: 'API key already exists for this provider',
             },
           });
         }
@@ -236,6 +262,15 @@ export async function aiKeysRoutes(fastify: FastifyInstance) {
             },
           });
         }
+        if (err instanceof Error && err.message.includes('AI_KEY_ENCRYPTION_KEY')) {
+          fastify.log.error('Encryption configuration error');
+          return reply.code(503).send({
+            error: {
+              code: 'ENCRYPTION_NOT_CONFIGURED',
+              message: 'Server encryption is not properly configured. Contact administrator.',
+            },
+          });
+        }
         throw err;
       }
     }
@@ -295,6 +330,15 @@ export async function aiKeysRoutes(fastify: FastifyInstance) {
               code: 'VALIDATION_ERROR',
               message: 'Invalid request',
               details: err.errors,
+            },
+          });
+        }
+        if (err instanceof Error && err.message.includes('AI_KEY_ENCRYPTION_KEY')) {
+          fastify.log.error('Encryption configuration error');
+          return reply.code(503).send({
+            error: {
+              code: 'ENCRYPTION_NOT_CONFIGURED',
+              message: 'Server encryption is not properly configured. Contact administrator.',
             },
           });
         }
