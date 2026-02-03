@@ -19,9 +19,104 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # ===========================================================================
+  # Migration Idempotency Verification
+  # ===========================================================================
+  # Ensures migrations can be run twice without errors (idempotent)
+  # This catches issues like "enum label already exists" before they hit staging
+  # ===========================================================================
+  migration-idempotency:
+    name: Migration Idempotency Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: akis
+          POSTGRES_PASSWORD: akis_test_password
+          POSTGRES_DB: akis_migration_test
+        ports:
+          - 5434:5432
+        options: >-
+          --health-cmd="pg_isready -U akis -d akis_migration_test"
+          --health-interval=5s
+          --health-timeout=3s
+          --health-retries=10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: pnpm install --frozen-lockfile || pnpm install
+
+      - name: Wait for Postgres
+        run: |
+          echo "Waiting for Postgres to be ready..."
+          for i in {1..30}; do
+            if pg_isready -h 127.0.0.1 -p 5434 -U akis 2>/dev/null; then
+              echo "Postgres is ready!"
+              break
+            fi
+            echo "Waiting... ($i/30)"
+            sleep 1
+          done
+
+      - name: Run migrations FIRST time
+        working-directory: backend
+        env:
+          DATABASE_URL: postgresql://akis:akis_test_password@127.0.0.1:5434/akis_migration_test
+        run: |
+          echo "=== Running migrations FIRST time ==="
+          pnpm db:migrate
+          echo "✅ First migration run completed"
+
+      - name: Run migrations SECOND time (idempotency check)
+        working-directory: backend
+        env:
+          DATABASE_URL: postgresql://akis:akis_test_password@127.0.0.1:5434/akis_migration_test
+        run: |
+          echo "=== Running migrations SECOND time (idempotency check) ==="
+          echo "This MUST succeed without 'already exists' errors"
+          pnpm db:migrate
+          echo "✅ Second migration run completed - migrations are idempotent!"
+
+      - name: Migration Idempotency Summary
+        if: always()
+        run: |
+          echo "## Migration Idempotency Check" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ job.status }}" = "success" ]; then
+            echo "✅ **PASSED**: Migrations can be run multiple times without errors" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **FAILED**: Migrations are NOT idempotent - fix required" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Common issues:" >> $GITHUB_STEP_SUMMARY
+            echo "- \`ALTER TYPE ADD VALUE\` without IF NOT EXISTS guard" >> $GITHUB_STEP_SUMMARY
+            echo "- \`CREATE TABLE\` without IF NOT EXISTS" >> $GITHUB_STEP_SUMMARY
+            echo "- \`ADD COLUMN\` without IF NOT EXISTS" >> $GITHUB_STEP_SUMMARY
+          fi
+
+  # ===========================================================================
+  # Smoke Tests
+  # ===========================================================================
   smoke-tests:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    needs: [migration-idempotency]
 
     services:
       postgres:

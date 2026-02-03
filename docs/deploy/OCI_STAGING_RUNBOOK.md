@@ -1,9 +1,11 @@
 # AKIS Platform - OCI Staging Runbook
 
-**Version**: 1.2.0  
+**Version**: 1.3.0  
 **Last Updated**: 2026-02-03  
 **Scope**: Staging Environment (pilot-grade)  
 **Target**: OCI Free Tier (single VM)
+
+> **Quick Reference**: For day-to-day releases, see the [Staging Release Checklist](../release/STAGING_RELEASE_CHECKLIST.md).
 
 ---
 
@@ -847,3 +849,4 @@ free -h
 | 1.0.0 | 2026-01-13 | Auto | Initial staging runbook |
 | 1.1.0 | 2026-02-03 | Auto | Added GHCR fallback docs, version verification details |
 | 1.2.0 | 2026-02-03 | Auto | Added deploy script architecture, migration idempotency docs |
+| 1.3.0 | 2026-02-03 | Auto | Added reference to Staging Release Checklist |
