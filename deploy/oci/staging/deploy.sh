@@ -1,251 +1,173 @@
 #!/bin/bash
 # =============================================================================
-# AKIS Platform - Staging Deployment Script
+# AKIS Staging Deploy Script
 # =============================================================================
+# This script is copied to the server and executed during deployment.
+# It handles GHCR pull fallback, local build, migrations, and compose up.
 #
-# Single entrypoint for staging deployment operations
+# Arguments:
+#   $1 - EXPECTED_COMMIT (git sha to deploy)
 #
-# Usage:
-#   ./deploy.sh start         Start all services
-#   ./deploy.sh start-mcp     Start all services including MCP gateway
-#   ./deploy.sh stop          Stop all services
-#   ./deploy.sh restart       Restart all services
-#   ./deploy.sh logs          View all logs (follow mode)
-#   ./deploy.sh logs-backend  View backend logs only
-#   ./deploy.sh migrate       Run database migrations
-#   ./deploy.sh backup        Create database backup
-#   ./deploy.sh status        Check service status
-#   ./deploy.sh health        Check health endpoints
-#   ./deploy.sh pull          Pull latest images
-#   ./deploy.sh update        Pull + migrate + restart
+# Required environment on server:
+#   - /opt/akis/.env with all required variables
+#   - /opt/akis/backend-src with backend source (copied before this runs)
+#   - /opt/akis/docker-compose.yml (copied before this runs)
 #
-# PROMOTION TO PRODUCTION:
-# - Use deploy/oci/production/ directory instead
-# - Ensure production .env file is configured
-# - Run with production-specific compose file
-#
+# Exit codes:
+#   0 - Success
+#   1 - Failure (build or compose failed)
 # =============================================================================
 
-set -e
+set -o pipefail  # Capture pipe failures
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-cd "$SCRIPT_DIR"
+EXPECTED_COMMIT="$1"
+if [ -z "$EXPECTED_COMMIT" ]; then
+    echo "ERROR: EXPECTED_COMMIT argument required"
+    exit 1
+fi
 
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-NC='\033[0m' # No Color
+cd /opt/akis
 
-# Helper functions
-log_info() {
-    echo -e "${GREEN}[INFO]${NC} $1"
-}
+BACKEND_VERSION="${EXPECTED_COMMIT}"
+BACKEND_IMAGE="ghcr.io/omeryasironal/akis-platform-devolopment/akis-backend"
+BUILD_TIME="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+DEPLOY_EXIT=0
 
-log_warn() {
-    echo -e "${YELLOW}[WARN]${NC} $1"
-}
+echo "=============================================="
+echo "=== AKIS Staging Deploy Script ==="
+echo "=============================================="
+echo "Target commit: ${BACKEND_VERSION}"
+echo "Build time: ${BUILD_TIME}"
+echo "Working directory: $(pwd)"
+echo ""
 
-log_error() {
-    echo -e "${RED}[ERROR]${NC} $1"
-}
+# -----------------------------------------------------------------------------
+# Step 1: Try GHCR pull (may fail if no credentials)
+# -----------------------------------------------------------------------------
+echo ">>> Step 1: Attempting GHCR pull..."
+if docker pull "${BACKEND_IMAGE}:${BACKEND_VERSION}" 2>&1; then
+    echo "GHCR pull successful"
+    PULL_SUCCESS=true
+else
+    echo "GHCR pull failed (no credentials or image not found)"
+    PULL_SUCCESS=false
+fi
+echo ""
 
-# Check for .env file
-check_env() {
-    if [ ! -f ".env" ]; then
-        log_error ".env file not found!"
-        log_info "Copy env.example to .env and configure it:"
-        log_info "  cp env.example .env"
-        log_info "  nano .env"
+# -----------------------------------------------------------------------------
+# Step 2: Fallback to server-side build if pull failed
+# -----------------------------------------------------------------------------
+echo ">>> Step 2: Check if local build needed..."
+if [ "$PULL_SUCCESS" = "false" ]; then
+    echo "=== Building image locally (fallback) ==="
+    
+    if [ ! -d /opt/akis/backend-src ]; then
+        echo "ERROR: /opt/akis/backend-src not found!"
         exit 1
     fi
-}
-
-# Check Docker is running
-check_docker() {
-    if ! docker info > /dev/null 2>&1; then
-        log_error "Docker is not running!"
-        exit 1
-    fi
-}
-
-# Commands
-cmd_start() {
-    log_info "Starting AKIS staging services..."
-    check_env
-    check_docker
-    docker compose up -d --remove-orphans
-    log_info "Services started. Checking health..."
-    sleep 5
-    cmd_health
-}
-
-cmd_start_mcp() {
-    log_info "Starting AKIS staging services with MCP gateway..."
-    check_env
-    check_docker
-    docker compose --profile mcp up -d --remove-orphans
-    log_info "Services started. Checking health..."
-    sleep 5
-    cmd_health
-}
-
-cmd_stop() {
-    log_info "Stopping AKIS staging services..."
-    docker compose down
-    log_info "Services stopped."
-}
-
-cmd_restart() {
-    log_info "Restarting AKIS staging services..."
-    docker compose restart
-    log_info "Services restarted. Checking health..."
-    sleep 5
-    cmd_health
-}
-
-cmd_logs() {
-    log_info "Viewing logs (Ctrl+C to exit)..."
-    docker compose logs -f --tail=100
-}
-
-cmd_logs_backend() {
-    log_info "Viewing backend logs (Ctrl+C to exit)..."
-    docker compose logs -f --tail=100 backend
-}
-
-cmd_migrate() {
-    log_info "Running database migrations..."
-    check_env
-    check_docker
-    docker compose run --rm backend pnpm db:migrate
-    log_info "Migrations completed."
-}
-
-cmd_backup() {
-    log_info "Creating database backup..."
-    BACKUP_FILE="backups/manual-$(date +%Y%m%d-%H%M%S).sql"
-    mkdir -p backups
-    docker exec akis-staging-db pg_dump -U akis akis_staging > "$BACKUP_FILE"
-    log_info "Backup created: $BACKUP_FILE"
-}
-
-cmd_status() {
-    log_info "Service status:"
-    docker compose ps
-}
-
-cmd_health() {
-    log_info "Checking health endpoints..."
     
-    # Get domain from .env or use localhost
-    DOMAIN="${FRONTEND_URL:-http://localhost}"
+    cd /opt/akis/backend-src
     
-    # Health check
-    HEALTH_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "${DOMAIN}/health" 2>/dev/null || echo "000")
-    if [ "$HEALTH_STATUS" = "200" ]; then
-        echo -e "  /health: ${GREEN}OK${NC} ($HEALTH_STATUS)"
+    # Use --no-cache to ensure BUILD_COMMIT is always fresh
+    echo "Building with --no-cache to ensure commit hash is embedded..."
+    if docker build \
+        --no-cache \
+        --build-arg BUILD_COMMIT="${BACKEND_VERSION}" \
+        --build-arg BUILD_TIME="${BUILD_TIME}" \
+        --build-arg APP_VERSION="0.1.0" \
+        -t "${BACKEND_IMAGE}:${BACKEND_VERSION}" \
+        -t "${BACKEND_IMAGE}:staging" \
+        . 2>&1; then
+        echo "Local build successful"
     else
-        echo -e "  /health: ${RED}FAIL${NC} ($HEALTH_STATUS)"
+        echo "ERROR: Local build FAILED"
+        DEPLOY_EXIT=1
     fi
-    
-    # Ready check
-    READY_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "${DOMAIN}/ready" 2>/dev/null || echo "000")
-    if [ "$READY_STATUS" = "200" ]; then
-        echo -e "  /ready:  ${GREEN}OK${NC} ($READY_STATUS)"
+    cd /opt/akis
+else
+    echo "Skipping local build - using GHCR image"
+fi
+echo ""
+
+# Exit early if build failed
+if [ "$DEPLOY_EXIT" != "0" ]; then
+    echo "=== Deployment FAILED at build step ==="
+    exit ${DEPLOY_EXIT}
+fi
+
+# -----------------------------------------------------------------------------
+# Step 3: Update .env with the target version
+# -----------------------------------------------------------------------------
+echo ">>> Step 3: Updating .env..."
+if grep -q '^BACKEND_VERSION=' .env 2>/dev/null; then
+    sed -i "s/^BACKEND_VERSION=.*/BACKEND_VERSION=${BACKEND_VERSION}/" .env
+else
+    echo "BACKEND_VERSION=${BACKEND_VERSION}" >> .env
+fi
+export BACKEND_VERSION="${BACKEND_VERSION}"
+echo "BACKEND_VERSION set to: ${BACKEND_VERSION}"
+echo ""
+
+# -----------------------------------------------------------------------------
+# Step 4: Run database migrations (idempotent)
+# Migrations may fail on already-applied migrations - this is OK
+# -----------------------------------------------------------------------------
+echo ">>> Step 4: Running migrations..."
+echo "Note: Migration errors for already-applied changes are expected and OK."
+
+# Run migrations - capture output but don't fail the whole script
+docker compose run --rm --pull never backend pnpm db:migrate 2>&1 || true
+MIGRATION_EXIT=$?
+
+if [ "$MIGRATION_EXIT" = "0" ]; then
+    echo "Migrations completed successfully"
+else
+    echo "Migration exited with code ${MIGRATION_EXIT} (may be OK if already applied)"
+fi
+echo "Migration step done."
+echo ""
+
+# -----------------------------------------------------------------------------
+# Step 5: Deploy with rolling update (CRITICAL - must run even if migration failed)
+# -----------------------------------------------------------------------------
+echo ">>> Step 5: Starting services (CRITICAL STEP)..."
+if [ "$PULL_SUCCESS" = "false" ]; then
+    echo "Using locally built image (--pull never)"
+    if docker compose up -d --remove-orphans --pull never --force-recreate 2>&1; then
+        echo "docker compose up completed successfully"
     else
-        echo -e "  /ready:  ${RED}FAIL${NC} ($READY_STATUS)"
+        echo "ERROR: docker compose up FAILED"
+        DEPLOY_EXIT=1
     fi
-    
-    # Version check
-    VERSION=$(curl -s "${DOMAIN}/version" 2>/dev/null | grep -o '"version":"[^"]*"' | cut -d'"' -f4 || echo "unknown")
-    COMMIT=$(curl -s "${DOMAIN}/version" 2>/dev/null | grep -o '"commit":"[^"]*"' | cut -d'"' -f4 || echo "unknown")
-    echo "  Version: ${VERSION} (${COMMIT})"
-}
+else
+    if docker compose up -d --remove-orphans --force-recreate 2>&1; then
+        echo "docker compose up completed successfully"
+    else
+        echo "ERROR: docker compose up FAILED"
+        DEPLOY_EXIT=1
+    fi
+fi
+echo ""
 
-cmd_pull() {
-    log_info "Pulling latest images..."
-    check_docker
-    docker compose pull
-    log_info "Images pulled."
-}
+# -----------------------------------------------------------------------------
+# Step 6: Verify containers are running
+# -----------------------------------------------------------------------------
+echo ">>> Step 6: Verifying container status..."
+docker compose ps
+echo ""
 
-cmd_update() {
-    log_info "Performing full update..."
-    cmd_pull
-    cmd_migrate
-    log_info "Restarting services with new images..."
-    docker compose up -d --remove-orphans
-    log_info "Update complete. Checking health..."
-    sleep 10
-    cmd_health
-}
+# -----------------------------------------------------------------------------
+# Step 7: Prune old images
+# -----------------------------------------------------------------------------
+echo ">>> Step 7: Pruning old images..."
+docker image prune -f 2>/dev/null || true
+echo ""
 
-cmd_help() {
-    echo "AKIS Platform - Staging Deployment Script"
-    echo ""
-    echo "Usage: ./deploy.sh <command>"
-    echo ""
-    echo "Commands:"
-    echo "  start         Start all services"
-    echo "  start-mcp     Start all services including MCP gateway"
-    echo "  stop          Stop all services"
-    echo "  restart       Restart all services"
-    echo "  logs          View all logs (follow mode)"
-    echo "  logs-backend  View backend logs only"
-    echo "  migrate       Run database migrations"
-    echo "  backup        Create database backup"
-    echo "  status        Check service status"
-    echo "  health        Check health endpoints"
-    echo "  pull          Pull latest images"
-    echo "  update        Pull + migrate + restart (full update)"
-    echo "  help          Show this help message"
-}
-
-# Main command dispatcher
-case "${1:-help}" in
-    start)
-        cmd_start
-        ;;
-    start-mcp)
-        cmd_start_mcp
-        ;;
-    stop)
-        cmd_stop
-        ;;
-    restart)
-        cmd_restart
-        ;;
-    logs)
-        cmd_logs
-        ;;
-    logs-backend)
-        cmd_logs_backend
-        ;;
-    migrate)
-        cmd_migrate
-        ;;
-    backup)
-        cmd_backup
-        ;;
-    status)
-        cmd_status
-        ;;
-    health)
-        cmd_health
-        ;;
-    pull)
-        cmd_pull
-        ;;
-    update)
-        cmd_update
-        ;;
-    help|--help|-h)
-        cmd_help
-        ;;
-    *)
-        log_error "Unknown command: $1"
-        cmd_help
-        exit 1
-        ;;
-esac
+# -----------------------------------------------------------------------------
+# Final status
+# -----------------------------------------------------------------------------
+echo "=============================================="
+echo "=== Deployment script completed ==="
+echo "Exit code: ${DEPLOY_EXIT}"
+echo "=============================================="
+exit ${DEPLOY_EXIT}

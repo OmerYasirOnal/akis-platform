@@ -380,6 +380,10 @@ jobs:
           scp -i ~/.ssh/deploy_key deploy/oci/staging/Caddyfile \
             ${{ secrets.STAGING_USER }}@${{ secrets.STAGING_HOST }}:/opt/akis/Caddyfile
           
+          # Copy deploy script (avoids heredoc parsing issues with docker compose run)
+          scp -i ~/.ssh/deploy_key deploy/oci/staging/deploy.sh \
+            ${{ secrets.STAGING_USER }}@${{ secrets.STAGING_HOST }}:/opt/akis/deploy.sh
+          
           # Copy frontend dist
           ssh -i ~/.ssh/deploy_key ${{ secrets.STAGING_USER }}@${{ secrets.STAGING_HOST }} \
             "mkdir -p /opt/akis/frontend"
@@ -394,115 +398,11 @@ jobs:
           scp -r -i ~/.ssh/deploy_key backend/Dockerfile backend/package.json backend/pnpm-lock.yaml backend/tsconfig.json backend/drizzle.config.ts backend/src backend/migrations \
             ${{ secrets.STAGING_USER }}@${{ secrets.STAGING_HOST }}:/opt/akis/backend-src/
           
-          # Deploy services with GHCR fallback
-          # Note: Using quoted heredoc to prevent premature variable expansion
-          # EXPECTED_COMMIT is passed explicitly
-          # IMPORTANT: Do NOT use 'set -e' as it can cause premature script exit
+          # Execute deploy script on server
+          # Using a script file avoids heredoc parsing issues when docker compose run
+          # interacts with SSH stdin/stdout
           ssh -i ~/.ssh/deploy_key ${{ secrets.STAGING_USER }}@${{ secrets.STAGING_HOST }} \
-            "EXPECTED_COMMIT=${EXPECTED_COMMIT}" \
-            'bash -s' << 'DEPLOY_SCRIPT'
-          # Explicitly NOT using set -e to ensure docker compose up always runs
-          cd /opt/akis
-          
-          BACKEND_VERSION="${EXPECTED_COMMIT}"
-          BACKEND_IMAGE="ghcr.io/omeryasironal/akis-platform-devolopment/akis-backend"
-          BUILD_TIME="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
-          DEPLOY_EXIT=0
-          
-          echo "=== Staging Deploy ==="
-          echo "Target commit: ${BACKEND_VERSION}"
-          echo "Build time: ${BUILD_TIME}"
-          
-          # Step 1: Try GHCR pull (may fail if no credentials)
-          echo ""
-          echo ">>> Step 1: Attempting GHCR pull..."
-          if docker pull "${BACKEND_IMAGE}:${BACKEND_VERSION}" 2>&1; then
-            echo "✅ GHCR pull successful"
-            PULL_SUCCESS=true
-          else
-            echo "⚠️ GHCR pull failed (no credentials or image not found)"
-            PULL_SUCCESS=false
-          fi
-          
-          # Step 2: Fallback to server-side build if pull failed
-          echo ""
-          echo ">>> Step 2: Check if local build needed..."
-          if [ "$PULL_SUCCESS" = "false" ]; then
-            echo "=== Building image locally (fallback) ==="
-            cd /opt/akis/backend-src
-            
-            # Use --no-cache to ensure BUILD_COMMIT is always fresh
-            echo "Building with --no-cache to ensure commit hash is embedded..."
-            if docker build \
-              --no-cache \
-              --build-arg BUILD_COMMIT="${BACKEND_VERSION}" \
-              --build-arg BUILD_TIME="${BUILD_TIME}" \
-              --build-arg APP_VERSION="0.1.0" \
-              -t "${BACKEND_IMAGE}:${BACKEND_VERSION}" \
-              -t "${BACKEND_IMAGE}:staging" \
-              . 2>&1; then
-              echo "✅ Local build successful"
-            else
-              echo "❌ Local build FAILED"
-              DEPLOY_EXIT=1
-            fi
-            cd /opt/akis
-          else
-            echo "Skipping local build - using GHCR image"
-          fi
-          
-          # Step 3: Update .env with the target version
-          echo ""
-          echo ">>> Step 3: Updating .env..."
-          if grep -q '^BACKEND_VERSION=' .env 2>/dev/null; then
-            sed -i "s/^BACKEND_VERSION=.*/BACKEND_VERSION=${BACKEND_VERSION}/" .env
-          else
-            echo "BACKEND_VERSION=${BACKEND_VERSION}" >> .env
-          fi
-          export BACKEND_VERSION="${BACKEND_VERSION}"
-          echo "BACKEND_VERSION set to: ${BACKEND_VERSION}"
-          
-          # Step 4: Run database migrations (idempotent)
-          # Migrations may fail on already-applied migrations - this is OK
-          echo ""
-          echo ">>> Step 4: Running migrations..."
-          docker compose run --rm --pull never backend pnpm db:migrate 2>&1 || echo "⚠️ Migration exited non-zero (may be OK if already applied)"
-          echo "Migration step done."
-          
-          # Step 5: Deploy with rolling update (CRITICAL - must run even if migration failed)
-          echo ""
-          echo ">>> Step 5: Starting services (CRITICAL STEP)..."
-          if [ "$PULL_SUCCESS" = "false" ]; then
-            echo "Using locally built image (--pull never)"
-            if docker compose up -d --remove-orphans --pull never --force-recreate 2>&1; then
-              echo "✅ docker compose up completed successfully"
-            else
-              echo "❌ docker compose up FAILED"
-              DEPLOY_EXIT=1
-            fi
-          else
-            if docker compose up -d --remove-orphans --force-recreate 2>&1; then
-              echo "✅ docker compose up completed successfully"
-            else
-              echo "❌ docker compose up FAILED"
-              DEPLOY_EXIT=1
-            fi
-          fi
-          
-          # Step 6: Verify containers are running
-          echo ""
-          echo ">>> Step 6: Verifying container status..."
-          docker compose ps
-          
-          # Step 7: Prune old images
-          echo ""
-          echo ">>> Step 7: Pruning old images..."
-          docker image prune -f 2>/dev/null || true
-          
-          echo ""
-          echo "=== Deployment script completed (exit code: ${DEPLOY_EXIT}) ==="
-          exit ${DEPLOY_EXIT}
-          DEPLOY_SCRIPT
+            "chmod +x /opt/akis/deploy.sh && /opt/akis/deploy.sh '${EXPECTED_COMMIT}'"
 
       - name: Wait for deployment stabilization
         run: sleep 30
