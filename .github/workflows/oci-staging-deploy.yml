@@ -395,7 +395,11 @@ jobs:
             ${{ secrets.STAGING_USER }}@${{ secrets.STAGING_HOST }}:/opt/akis/backend-src/
           
           # Deploy services with GHCR fallback
-          ssh -i ~/.ssh/deploy_key ${{ secrets.STAGING_USER }}@${{ secrets.STAGING_HOST }} << DEPLOY_SCRIPT
+          # Note: Using quoted heredoc to prevent premature variable expansion
+          # EXPECTED_COMMIT is passed explicitly
+          ssh -i ~/.ssh/deploy_key ${{ secrets.STAGING_USER }}@${{ secrets.STAGING_HOST }} \
+            "EXPECTED_COMMIT=${EXPECTED_COMMIT}" \
+            'bash -s' << 'DEPLOY_SCRIPT'
           set -e
           cd /opt/akis
           
