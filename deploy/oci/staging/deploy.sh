@@ -42,15 +42,36 @@ echo "Working directory: $(pwd)"
 echo ""
 
 # -----------------------------------------------------------------------------
-# Step 1: Try GHCR pull (may fail if no credentials)
+# Step 1: Try GHCR login + pull (credentials passed via environment)
 # -----------------------------------------------------------------------------
 echo ">>> Step 1: Attempting GHCR pull..."
-if docker pull "${BACKEND_IMAGE}:${BACKEND_VERSION}" 2>&1; then
-    echo "GHCR pull successful"
-    PULL_SUCCESS=true
+PULL_SUCCESS=false
+
+# Try ephemeral GHCR login if credentials are provided
+if [ -n "$GHCR_USERNAME" ] && [ -n "$GHCR_READ_TOKEN" ]; then
+    echo "GHCR credentials provided, attempting login..."
+    if echo "$GHCR_READ_TOKEN" | docker login ghcr.io -u "$GHCR_USERNAME" --password-stdin 2>&1; then
+        echo "GHCR login successful"
+        # Now try to pull the image
+        if docker pull "${BACKEND_IMAGE}:${BACKEND_VERSION}" 2>&1; then
+            echo "GHCR pull successful"
+            PULL_SUCCESS=true
+        else
+            echo "GHCR pull failed (image may not exist yet)"
+        fi
+        # Logout to avoid storing credentials
+        docker logout ghcr.io 2>/dev/null || true
+    else
+        echo "GHCR login failed"
+    fi
 else
-    echo "GHCR pull failed (no credentials or image not found)"
-    PULL_SUCCESS=false
+    echo "No GHCR credentials provided, attempting anonymous pull..."
+    if docker pull "${BACKEND_IMAGE}:${BACKEND_VERSION}" 2>&1; then
+        echo "GHCR pull successful (public image)"
+        PULL_SUCCESS=true
+    else
+        echo "GHCR pull failed (no credentials or image not found)"
+    fi
 fi
 echo ""
 
@@ -109,21 +130,59 @@ echo "BACKEND_VERSION set to: ${BACKEND_VERSION}"
 echo ""
 
 # -----------------------------------------------------------------------------
-# Step 4: Run database migrations (idempotent)
-# Migrations may fail on already-applied migrations - this is OK
+# Step 4: Run database migrations with smart error handling
+# Only benign errors (enum already exists) are allowed; others fail the deploy
 # -----------------------------------------------------------------------------
 echo ">>> Step 4: Running migrations..."
-echo "Note: Migration errors for already-applied changes are expected and OK."
+MIGRATION_LOG="/tmp/migration_output_$$.log"
 
-# Run migrations - capture output but don't fail the whole script
-docker compose run --rm --pull never backend pnpm db:migrate 2>&1 || true
+# Run migrations and capture output
+docker compose run --rm --pull never backend pnpm db:migrate > "$MIGRATION_LOG" 2>&1
 MIGRATION_EXIT=$?
 
+# Show migration output (redacted)
+echo "--- Migration output (last 50 lines) ---"
+tail -50 "$MIGRATION_LOG" | grep -v -E '(PASSWORD|SECRET|KEY|TOKEN)=' || true
+echo "--- End migration output ---"
+
 if [ "$MIGRATION_EXIT" = "0" ]; then
-    echo "Migrations completed successfully"
+    echo "✅ Migrations completed successfully"
 else
-    echo "Migration exited with code ${MIGRATION_EXIT} (may be OK if already applied)"
+    echo "⚠️ Migration exited with code ${MIGRATION_EXIT}"
+    
+    # Check if the error is ONLY a benign "enum label already exists" error
+    # Benign patterns that we allow:
+    #   - "enum label .* already exists"
+    #   - "relation .* already exists" (for idempotent table/index creation)
+    #   - "column .* of relation .* already exists"
+    BENIGN_PATTERNS="(enum label .* already exists|relation .* already exists|column .* of relation .* already exists)"
+    
+    # Extract actual error lines (lines containing 'error:' or 'ERROR')
+    ERROR_LINES=$(grep -iE '(^error:|error:)' "$MIGRATION_LOG" || true)
+    
+    if [ -z "$ERROR_LINES" ]; then
+        echo "No explicit error lines found, treating as success"
+    else
+        # Check if ALL error lines match benign patterns
+        NON_BENIGN=$(echo "$ERROR_LINES" | grep -ivE "$BENIGN_PATTERNS" || true)
+        
+        if [ -z "$NON_BENIGN" ]; then
+            echo "✅ All errors are benign (already exists), continuing deployment"
+        else
+            echo "❌ NON-BENIGN MIGRATION ERRORS DETECTED:"
+            echo "$NON_BENIGN"
+            echo ""
+            echo "Full migration log (last 40 lines):"
+            tail -40 "$MIGRATION_LOG"
+            rm -f "$MIGRATION_LOG"
+            echo ""
+            echo "=== Deployment FAILED due to migration errors ==="
+            exit 1
+        fi
+    fi
 fi
+
+rm -f "$MIGRATION_LOG"
 echo "Migration step done."
 echo ""
 

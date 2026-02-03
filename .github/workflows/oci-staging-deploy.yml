@@ -372,6 +372,9 @@ jobs:
         env:
           BACKEND_VERSION: ${{ needs.build.outputs.commit }}
           EXPECTED_COMMIT: ${{ needs.build.outputs.commit }}
+          # Optional GHCR credentials for faster pulls (secrets may be empty)
+          GHCR_USERNAME: ${{ secrets.GHCR_USERNAME }}
+          GHCR_READ_TOKEN: ${{ secrets.GHCR_READ_TOKEN }}
         run: |
           # Copy deployment files
           scp -i ~/.ssh/deploy_key deploy/oci/staging/docker-compose.yml \
@@ -398,11 +401,12 @@ jobs:
           scp -r -i ~/.ssh/deploy_key backend/Dockerfile backend/package.json backend/pnpm-lock.yaml backend/tsconfig.json backend/drizzle.config.ts backend/src backend/migrations \
             ${{ secrets.STAGING_USER }}@${{ secrets.STAGING_HOST }}:/opt/akis/backend-src/
           
-          # Execute deploy script on server
+          # Execute deploy script on server with optional GHCR credentials
+          # Credentials are passed via environment variables, not stored on disk
           # Using a script file avoids heredoc parsing issues when docker compose run
           # interacts with SSH stdin/stdout
           ssh -i ~/.ssh/deploy_key ${{ secrets.STAGING_USER }}@${{ secrets.STAGING_HOST }} \
-            "chmod +x /opt/akis/deploy.sh && /opt/akis/deploy.sh '${EXPECTED_COMMIT}'"
+            "chmod +x /opt/akis/deploy.sh && GHCR_USERNAME='${GHCR_USERNAME}' GHCR_READ_TOKEN='${GHCR_READ_TOKEN}' /opt/akis/deploy.sh '${EXPECTED_COMMIT}'"
 
       - name: Wait for deployment stabilization
         run: sleep 30
@@ -457,18 +461,30 @@ jobs:
           else
             echo "❌ VERSION MISMATCH DETECTED"
             echo ""
-            echo "Deployed commit: $DEPLOYED"
+            echo "=============================================="
+            echo "DEPLOYMENT FAILURE - DEBUG INFORMATION"
+            echo "=============================================="
             echo "Expected commit: $EXPECTED"
+            echo "Deployed commit: $DEPLOYED"
             echo ""
-            echo "This is a deployment failure. Possible causes:"
+            echo "Possible causes:"
             echo "  1. docker compose up did not restart the backend container"
             echo "  2. Docker build cache used old layers (should be fixed with --no-cache)"
             echo "  3. Wrong image tag referenced in docker-compose.yml"
             echo ""
-            echo "Debug: Checking server-side container info..."
+            echo "--- Container Status (docker compose ps) ---"
             ssh -i ~/.ssh/deploy_key ${{ secrets.STAGING_USER }}@${{ secrets.STAGING_HOST }} \
-              "docker inspect akis-staging-backend --format '{{.Config.Image}} created={{.Created}}' 2>/dev/null || echo 'Container not found'"
+              "cd /opt/akis && docker compose ps" || true
             echo ""
+            echo "--- Backend Container Image ---"
+            ssh -i ~/.ssh/deploy_key ${{ secrets.STAGING_USER }}@${{ secrets.STAGING_HOST }} \
+              "docker inspect akis-staging-backend --format 'Image: {{.Config.Image}}\nCreated: {{.Created}}\nID: {{.Id}}' 2>/dev/null || echo 'Container not found'" || true
+            echo ""
+            echo "--- Backend Logs (last 80 lines, secrets redacted) ---"
+            ssh -i ~/.ssh/deploy_key ${{ secrets.STAGING_USER }}@${{ secrets.STAGING_HOST }} \
+              "cd /opt/akis && docker compose logs --tail=80 backend 2>&1 | grep -v -E '(PASSWORD|SECRET|KEY|TOKEN)='" || true
+            echo ""
+            echo "=============================================="
             echo "Failing deployment due to version mismatch."
             exit 1
           fi
