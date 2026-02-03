@@ -1,5 +1,36 @@
 # NEXT — Gap Audit (2025-01-08)
 
+## Demo Ready ✅ (2026-02-03)
+
+Staging ortamı demo için hazır. PR #195 ile aşağıdaki özellikler main'e merge edildi:
+
+| Özellik | Durum | Notlar |
+|---------|-------|--------|
+| Workflow Hardening | ✅ | timeout-minutes + workflow_dispatch |
+| AI Keys 500 Fix | ✅ | 503/409/400 hata kodları, 500 yok |
+| İletişim Sayfası | ✅ | /contact + /iletisim |
+| Akıllı Otomasyonlar | ✅ | Full MVP |
+| Bilgi Tabanı + RAG | ✅ | Schema + services |
+| Staging Runbook | ✅ | Demo checklist eklendi |
+
+### Bilinen Kısıtlamalar
+
+- Backend testlerinde 3 pre-existing failure var (Scribe DB testleri - DB connection gerektirir)
+- OAuth GitHub: Server'da env ayarlanmadıysa 503 döner (beklenen davranış)
+- AI Keys: Server'da `AI_KEY_ENCRYPTION_KEY` yoksa 503 döner (beklenen davranış)
+
+### Demo Verification
+
+```bash
+curl -sf https://staging.akisflow.com/health | jq .
+curl -sf https://staging.akisflow.com/version | jq .
+curl -sI https://staging.akisflow.com/contact | head -3
+```
+
+Detaylı checklist için: [docs/ops/STAGING_RUNBOOK.md](docs/ops/STAGING_RUNBOOK.md#demo-ready-checklist)
+
+---
+
 ## Summary
 
 Comprehensive gap analysis performed across the entire AKIS Platform codebase (frontend, backend, docs, CI/DX). This audit was conducted following Phase 9.1 (Dark Theme Unification & Auth UI) and Phase 9.2 (i18n & Theming Foundations) completions, with focus on identifying blockers and risks for Phase 10 (Next Foundations).
