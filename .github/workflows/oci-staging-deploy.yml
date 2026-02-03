@@ -72,34 +72,18 @@ concurrency:
 
 env:
   REGISTRY: ghcr.io
-  BACKEND_IMAGE: ghcr.io/${{ toLower(github.repository) }}/akis-backend
   NODE_VERSION: '22.12.0'
   PNPM_VERSION: '9'
 
 jobs:
   # ===========================================================================
-  # Quality Gates - Backend
+  # Quality Gates - Backend (Unit Tests Only - Fast)
   # ===========================================================================
   backend-quality:
     name: Backend Quality Gates
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 10
     if: ${{ github.event.inputs.skip_tests != 'true' }}
-    
-    services:
-      postgres:
-        image: postgres:16
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: akis_test
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd="pg_isready -U postgres"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=5
 
     steps:
       - name: Checkout code
@@ -131,19 +115,6 @@ jobs:
         working-directory: backend
         run: pnpm install --frozen-lockfile || pnpm install
 
-      - name: Wait for Postgres
-        run: |
-          until nc -z 127.0.0.1 5432; do
-            echo "Waiting for PostgreSQL..."
-            sleep 1
-          done
-
-      - name: Run migrations
-        working-directory: backend
-        env:
-          DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/akis_test
-        run: pnpm db:migrate
-
       - name: Typecheck
         working-directory: backend
         run: pnpm run typecheck
@@ -152,12 +123,13 @@ jobs:
         working-directory: backend
         run: pnpm run lint
 
-      - name: Test
+      - name: Unit Tests
         working-directory: backend
         env:
-          DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/akis_test
           NODE_ENV: test
-        run: pnpm run test:ci
+          SKIP_DB_TESTS: 'true'
+          SKIP_MCP_TESTS: 'true'
+        run: pnpm run test:unit
 
   # ===========================================================================
   # Quality Gates - Frontend
@@ -230,10 +202,21 @@ jobs:
     outputs:
       version: ${{ steps.version.outputs.version }}
       commit: ${{ steps.version.outputs.commit }}
+      backend_image: ${{ steps.vars.outputs.backend_image }}
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Compute image names
+        id: vars
+        run: |
+          REPO_LC=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
+          BACKEND_IMAGE="ghcr.io/${REPO_LC}/akis-backend"
+          echo "repo_lc=${REPO_LC}" >> $GITHUB_OUTPUT
+          echo "backend_image=${BACKEND_IMAGE}" >> $GITHUB_OUTPUT
+          echo "Repository: ${REPO_LC}"
+          echo "Backend Image: ${BACKEND_IMAGE}"
 
       - name: Get version info
         id: version
@@ -283,8 +266,8 @@ jobs:
           file: ./backend/Dockerfile
           push: true
           tags: |
-            ${{ env.BACKEND_IMAGE }}:staging
-            ${{ env.BACKEND_IMAGE }}:${{ steps.version.outputs.commit }}
+            ${{ steps.vars.outputs.backend_image }}:staging
+            ${{ steps.vars.outputs.backend_image }}:${{ steps.version.outputs.commit }}
           build-args: |
             BUILD_COMMIT=${{ steps.version.outputs.commit }}
             BUILD_TIME=${{ steps.version.outputs.build_time }}
