@@ -37,6 +37,60 @@ gh workflow run oci-staging-deploy.yml --field confirm_deploy=deploy
 
 ---
 
+## Manual Deploy Path (No GitHub Actions)
+
+### When to Use
+- GitHub Actions billing/minutes issues
+- Workflow failures or pipeline blocked
+- Emergency deploy needed from local machine
+
+### Prerequisites
+- [ ] SSH key file (e.g., `~/.ssh/akis-oci`)
+- [ ] Local repo at target commit
+- [ ] Clean git working tree (`git status` clean)
+- [ ] Optional: GHCR credentials for faster deploy
+
+### Deploy Command
+
+```bash
+./scripts/staging_deploy_manual.sh \
+  --host 141.147.25.123 \
+  --user ubuntu \
+  --key ~/.ssh/akis-oci \
+  --ghcr-user omeryasironal \
+  --ghcr-token ghp_xxxxxxxxxxxxx \
+  --confirm
+```
+
+**Notes**:
+- Without `--confirm`: dry-run (preview commands)
+- Without `--ghcr-*`: slower but works (server-side build)
+- Use `--skip-tests` for emergency deploys
+- Use `--skip-backup` to skip pre-deploy database backup
+
+### Verification
+
+Run smoke tests manually:
+```bash
+./scripts/staging_smoke.sh --commit $(git rev-parse --short HEAD)
+```
+
+Expected output:
+```
+✅ /health: 200
+✅ /ready: 200
+✅ /version: 200 (commit: abc1234) MATCH
+✅ / (frontend): 200
+✅ /api/auth/me: 401
+All smoke tests passed!
+```
+
+### Troubleshooting
+
+Same as GitHub Actions path (see OCI_STAGING_RUNBOOK.md Section 9).
+
+---
+
 ## Post-Deployment Verification
 
 ### Required Endpoints
