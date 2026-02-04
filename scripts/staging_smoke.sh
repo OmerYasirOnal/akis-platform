@@ -226,20 +226,20 @@ fi
 # Test 5: API Existence (Auth Endpoint)
 # =============================================================================
 echo "Test 5: API endpoint existence"
-AUTH_CODE=$(check_endpoint "https://${HOST}/api/auth/me" "api_auth")
+AUTH_CODE=$(check_endpoint "https://${HOST}/auth/me" "auth")
 
 # Accept 401 (unauthenticated) or 200 (authenticated) - both mean API is working
 if [ "$AUTH_CODE" = "401" ] || [ "$AUTH_CODE" = "200" ]; then
-  echo -e "${GREEN}✅ /api/auth/me: ${AUTH_CODE} (expected 401 or 200)${NC}"
+  echo -e "${GREEN}✅ /auth/me: ${AUTH_CODE} (expected 401 or 200)${NC}"
   TESTS_PASSED=$((TESTS_PASSED + 1))
 elif [ "$AUTH_CODE" = "404" ]; then
-  echo -e "${RED}❌ /api/auth/me: ${AUTH_CODE} - API endpoint not found${NC}"
+  echo -e "${RED}❌ /auth/me: ${AUTH_CODE} - Auth endpoint not found${NC}"
   TESTS_FAILED=$((TESTS_FAILED + 1))
 elif [ "$AUTH_CODE" = "500" ] || [ "$AUTH_CODE" = "502" ] || [ "$AUTH_CODE" = "503" ]; then
-  echo -e "${RED}❌ /api/auth/me: ${AUTH_CODE} - API server error${NC}"
+  echo -e "${RED}❌ /auth/me: ${AUTH_CODE} - Auth server error${NC}"
   TESTS_FAILED=$((TESTS_FAILED + 1))
 else
-  echo -e "${YELLOW}⚠️  /api/auth/me: ${AUTH_CODE} (unexpected but not critical)${NC}"
+  echo -e "${YELLOW}⚠️  /auth/me: ${AUTH_CODE} (unexpected but not critical)${NC}"
   TESTS_PASSED=$((TESTS_PASSED + 1))
 fi
 

@@ -545,8 +545,9 @@ if [ "$CONFIRM" = true ]; then
   echo "Running smoke tests..."
   echo ""
 
-  # Run smoke tests
-  if ./scripts/staging_smoke.sh --host "${SSH_HOST}" --commit "${EXPECTED_SHORT}"; then
+  # Run smoke tests (use staging domain, not IP - Caddy expects domain)
+  STAGING_DOMAIN="staging.akisflow.com"
+  if ./scripts/staging_smoke.sh --host "${STAGING_DOMAIN}" --commit "${EXPECTED_SHORT}"; then
     echo ""
     echo "✅ All smoke tests passed"
   else
@@ -604,8 +605,9 @@ if [ "$CONFIRM" = true ]; then
     exit 4
   fi
 else
+  STAGING_DOMAIN="staging.akisflow.com"
   echo "[DRY-RUN] Would wait 30 seconds for stabilization"
-  echo "[DRY-RUN] Would run: ./scripts/staging_smoke.sh --host ${SSH_HOST} --commit ${EXPECTED_SHORT}"
+  echo "[DRY-RUN] Would run: ./scripts/staging_smoke.sh --host ${STAGING_DOMAIN} --commit ${EXPECTED_SHORT}"
 fi
 
 # =============================================================================
@@ -623,9 +625,9 @@ if [ "$CONFIRM" = true ]; then
   echo -e "${GREEN}Deployment Status: ✅ SUCCESS${NC}"
   echo ""
   echo "Verification URLs:"
-  echo "  https://${SSH_HOST}/health"
-  echo "  https://${SSH_HOST}/ready"
-  echo "  https://${SSH_HOST}/version"
+  echo "  https://staging.akisflow.com/health"
+  echo "  https://staging.akisflow.com/ready"
+  echo "  https://staging.akisflow.com/version"
 else
   echo ""
   echo -e "${YELLOW}DRY-RUN COMPLETE${NC}"
