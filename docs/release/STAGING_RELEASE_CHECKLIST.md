@@ -1,6 +1,6 @@
 # AKIS Staging Release Checklist
 
-**Version**: 1.0.0  
+**Version**: 1.1.0  
 **Last Updated**: 2026-02-03
 
 This checklist ensures repeatable, reliable staging deployments.
@@ -34,6 +34,60 @@ This checklist ensures repeatable, reliable staging deployments.
 ```bash
 gh workflow run oci-staging-deploy.yml --field confirm_deploy=deploy
 ```
+
+---
+
+## Manual Deploy Path (No GitHub Actions)
+
+### When to Use
+- GitHub Actions billing/minutes issues
+- Workflow failures or pipeline blocked
+- Emergency deploy needed from local machine
+
+### Prerequisites
+- [ ] SSH key file (e.g., `~/.ssh/akis-oci`)
+- [ ] Local repo at target commit
+- [ ] Clean git working tree (`git status` clean)
+- [ ] Optional: GHCR credentials for faster deploy
+
+### Deploy Command
+
+```bash
+./scripts/staging_deploy_manual.sh \
+  --host 141.147.25.123 \
+  --user ubuntu \
+  --key ~/.ssh/akis-oci \
+  --ghcr-user omeryasironal \
+  --ghcr-token ghp_xxxxxxxxxxxxx \
+  --confirm
+```
+
+**Notes**:
+- Without `--confirm`: dry-run (preview commands)
+- Without `--ghcr-*`: slower but works (server-side build)
+- Use `--skip-tests` for emergency deploys
+- Use `--skip-backup` to skip pre-deploy database backup
+
+### Verification
+
+Run smoke tests manually:
+```bash
+./scripts/staging_smoke.sh --commit $(git rev-parse --short HEAD)
+```
+
+Expected output:
+```
+✅ /health: 200
+✅ /ready: 200
+✅ /version: 200 (commit: abc1234) MATCH
+✅ / (frontend): 200
+✅ /api/auth/me: 401
+All smoke tests passed!
+```
+
+### Troubleshooting
+
+Same as GitHub Actions path (see OCI_STAGING_RUNBOOK.md Section 9).
 
 ---
 
@@ -101,11 +155,47 @@ docker compose logs --tail=50 backend
 
 **Impact**: Deploy continues with server-side build (slower but works)
 
-**Optional Fix**: Configure GHCR credentials for faster deploys:
-1. Create GitHub PAT with `read:packages` scope
-2. Add repository secrets:
-   - `GHCR_USERNAME`: GitHub username
-   - `GHCR_READ_TOKEN`: PAT token
+**Optional Fix**: Configure GHCR credentials for faster deploys (reduces deploy time by ~5 minutes):
+
+#### Step 1: Create GitHub PAT
+
+1. Go to GitHub → Settings → Developer settings → Personal access tokens → Tokens (classic)
+2. Click **Generate new token (classic)**
+3. Set:
+   - **Note**: `AKIS GHCR Read Token`
+   - **Expiration**: 90 days (or custom)
+   - **Scopes**: Select only `read:packages`
+4. Click **Generate token**
+5. Copy the token (you won't see it again)
+
+#### Step 2: Add Repository Secrets
+
+1. Go to Repository → Settings → Secrets and variables → Actions
+2. Add two secrets:
+   - **`GHCR_USERNAME`**: Your GitHub username
+   - **`GHCR_READ_TOKEN`**: The PAT you just created
+
+#### Step 3: Verify
+
+After next deploy, check workflow logs for:
+```
+GHCR credentials provided, attempting login...
+GHCR login successful
+GHCR pull successful
+```
+
+Instead of:
+```
+No GHCR credentials provided, attempting anonymous pull...
+GHCR pull failed (no credentials or image not found)
+=== Building image locally (fallback) ===
+```
+
+#### Note on Security
+
+- Credentials are passed via environment variables, never stored on disk
+- `docker logout ghcr.io` is called after pull attempt
+- If PAT expires, deploy falls back to server-side build (no failure)
 
 ### Migration Errors
 
@@ -175,6 +265,96 @@ docker exec -i akis-staging-db psql -U akis akis_staging < backups/<backup-file>
 # Restart backend
 docker compose up -d backend
 ```
+
+---
+
+---
+
+## GitHub Actions Billing
+
+### Handling "Problem Billing Your Account" Email
+
+If you receive an email from GitHub about billing issues:
+
+#### Impact
+
+- **Actions**: Workflows may be paused or fail
+- **Packages**: GHCR pulls may be denied
+- **Artifacts**: Storage limits may apply
+
+#### Resolution Checklist
+
+1. **Check Payment Method**
+   - Go to GitHub → Settings → Billing and plans → Payment information
+   - Verify card is valid and not expired
+   - Update if necessary
+
+2. **Check Spending Limits**
+   - Go to GitHub → Settings → Billing and plans → Spending limits
+   - Ensure **Actions** spending limit is NOT $0 (which stops all usage)
+   - Set a reasonable limit (e.g., $10/month for safety)
+
+3. **Review Usage**
+   - Go to GitHub → Settings → Billing and plans → Plans and usage
+   - Check Actions minutes used this billing cycle
+   - Check Packages storage used
+
+4. **Verify No Blocks**
+   - Go to GitHub → Settings → Billing and plans → Payment information
+   - Look for any red warnings or "action required" notices
+
+#### After Fixing
+
+1. Re-run any failed workflows
+2. Verify GHCR access: `docker pull ghcr.io/<owner>/<repo>/<image>:tag`
+3. Monitor next billing cycle for recurring issues
+
+---
+
+## Migration Idempotency Guide
+
+### Writing Idempotent Migrations
+
+All migrations in this repo MUST be idempotent (safe to run multiple times).
+
+#### Pattern: Enum Value Addition
+
+```sql
+-- ❌ BAD: Will fail if value exists
+ALTER TYPE my_enum ADD VALUE 'new_value';
+
+-- ✅ GOOD: Idempotent pattern
+DO $$ 
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_enum WHERE enumlabel = 'new_value' AND enumtypid = 'my_enum'::regtype) THEN
+        ALTER TYPE my_enum ADD VALUE 'new_value';
+    END IF;
+END $$;
+```
+
+#### Pattern: Column Addition
+
+```sql
+-- ❌ BAD: Will fail if column exists
+ALTER TABLE users ADD COLUMN status VARCHAR(50);
+
+-- ✅ GOOD: Idempotent pattern
+ALTER TABLE users ADD COLUMN IF NOT EXISTS status VARCHAR(50);
+```
+
+#### Pattern: Index Creation
+
+```sql
+-- ❌ BAD: Will fail if index exists
+CREATE INDEX idx_users_email ON users(email);
+
+-- ✅ GOOD: Idempotent pattern
+CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+```
+
+#### Verifying Idempotency
+
+Nightly smoke workflow runs migrations twice against the same DB. If your migration is not idempotent, it will fail there before reaching staging.
 
 ---
 

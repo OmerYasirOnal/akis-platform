@@ -478,6 +478,76 @@ error: enum label "validate" already exists
 - [ ] Login page accessible
 - [ ] Test login works (use test credentials if available)
 
+### 5.8 Manual Deployment from Developer Machine (Option C)
+
+**When to Use**: GitHub Actions unreliable, billing issues, or explicit need for local control
+
+**Prerequisites**:
+- SSH access to staging server (private key file)
+- Local repo at target commit (clean working tree)
+- Optional: GHCR credentials for faster deploys
+
+**Command**:
+```bash
+./scripts/staging_deploy_manual.sh \
+  --host 141.147.25.123 \
+  --user ubuntu \
+  --key ~/.ssh/akis-oci \
+  [--ghcr-user USERNAME --ghcr-token TOKEN] \
+  --confirm
+```
+
+**Process**:
+1. Validates SSH connectivity and git state
+2. Runs quality gates (typecheck/lint)
+3. Builds frontend if needed
+4. Creates pre-deploy database backup
+5. Copies deploy files to server via scp
+6. Executes deploy.sh remotely (GHCR pull → fallback to build)
+7. Runs migrations (allow benign errors)
+8. Recreates services (docker compose up --force-recreate)
+9. Verifies /health, /ready, /version endpoints
+10. Fails if version mismatch detected
+
+**Safety Features**:
+- Dry-run mode by default (requires --confirm)
+- Git working tree check (fails if dirty)
+- Secret redaction in all logs
+- Comprehensive error diagnostics
+- Rollback option on failure
+
+**Troubleshooting**:
+
+| Issue | Resolution |
+|-------|------------|
+| SSH connection failed | Verify key file permissions (chmod 600), check OCI security list allows SSH from your IP |
+| GHCR pull denied | Omit --ghcr-* flags; deploy continues with server-side build |
+| Version mismatch | Check container status, backend logs (script shows diagnostics automatically) |
+| Migration errors | Review migration output; benign "already exists" errors are allowed |
+| Tests failing | Use --skip-tests for emergency deploy, or --force to continue despite failures |
+
+**Performance**:
+- With GHCR: ~3 minutes (faster, uses pre-built image)
+- Without GHCR (server build): ~8 minutes (slower, builds on server)
+
+**Emergency Deploy Options**:
+```bash
+# Skip tests and backup for fastest deploy
+./scripts/staging_deploy_manual.sh \
+  --host 141.147.25.123 \
+  --user ubuntu \
+  --key ~/.ssh/akis-oci \
+  --skip-tests \
+  --skip-backup \
+  --confirm
+```
+
+**Standalone Verification**:
+After deployment, verify manually:
+```bash
+./scripts/staging_smoke.sh --commit $(git rev-parse --short HEAD)
+```
+
 ---
 
 ## 6. Database Management
