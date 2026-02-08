@@ -3,24 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import Button from '../../components/common/Button';
 import Logo from '../../components/branding/Logo';
 import { useI18n } from '../../i18n/useI18n';
-
-/**
- * Get the base URL for OAuth redirects.
- * OAuth endpoints are at /auth/oauth/:provider (no /api prefix).
- * In production, we use same origin. In development, backend may be on different port.
- */
-function getOAuthBaseUrl(): string {
-  // VITE_BACKEND_URL is the explicit backend origin (e.g., http://localhost:3000)
-  if (import.meta.env.VITE_BACKEND_URL) {
-    return import.meta.env.VITE_BACKEND_URL;
-  }
-  // In production/staging, frontend and backend share the same origin
-  if (typeof window !== 'undefined' && window.location.origin) {
-    return window.location.origin;
-  }
-  // Fallback for development
-  return 'http://localhost:3000';
-}
+import { getAuthBaseUrl } from '../../services/api/config';
 
 export default function SignupEmail() {
   const navigate = useNavigate();
@@ -76,7 +59,7 @@ export default function SignupEmail() {
     // Full-page redirect to backend OAuth endpoint
     // Same endpoints used for both login and signup - backend handles user creation
     // OAuth routes are at /auth/oauth/:provider (no /api prefix)
-    window.location.href = `${getOAuthBaseUrl()}/auth/oauth/${provider}`;
+    window.location.href = `${getAuthBaseUrl()}/auth/oauth/${provider}`;
   }
 
   return (

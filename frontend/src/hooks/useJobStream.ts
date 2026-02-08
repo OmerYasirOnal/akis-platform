@@ -85,21 +85,7 @@ export interface UseJobStreamResult {
   clearEvents: () => void;
 }
 
-/**
- * Resolve SSE base URL.
- * For EventSource we need a URL the browser can reach directly.
- * In dev, the Vite proxy handles /api/* → backend, so we use a relative path.
- * In production, requests go through the reverse proxy at the same origin.
- */
-function getSSEBase(): string {
-  // If an explicit backend URL is set (absolute), use it with /api suffix
-  const backendUrl = import.meta.env.VITE_BACKEND_URL;
-  if (backendUrl && backendUrl.startsWith('http')) {
-    return backendUrl.replace(/\/$/, '');
-  }
-  // Otherwise use relative path (works with Vite proxy and production reverse proxy)
-  return '';
-}
+import { getApiBaseUrl } from '../services/api/config';
 
 export function useJobStream(
   jobId: string | null,
@@ -194,7 +180,7 @@ export function useJobStream(
       params.set('includeHistory', 'false');
     }
     
-    const sseBase = getSSEBase();
+    const sseBase = getApiBaseUrl();
     const url = `${sseBase}/api/agents/jobs/${jobId}/stream${params.toString() ? `?${params}` : ''}`;
     
     try {

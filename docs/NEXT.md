@@ -3,7 +3,7 @@
 > **Canonical Plan:** [`docs/planning/DELIVERY_PLAN_S0.5_FEB_TO_GRADUATION.md`](planning/DELIVERY_PLAN_S0.5_FEB_TO_GRADUATION.md)  
 > **WBS Export:** [`docs/planning/WBS_EXPORT_S0.5.xlsx_compatible.md`](planning/WBS_EXPORT_S0.5.xlsx_compatible.md)  
 > **Research Brief:** [`docs/planning/RESEARCH_BRIEF_S0.5_STAGING_RAG_AGENTS.md`](planning/RESEARCH_BRIEF_S0.5_STAGING_RAG_AGENTS.md)  
-> **Last Updated:** 2026-02-07
+> **Last Updated:** 2026-02-08
 
 ---
 
@@ -25,7 +25,7 @@ docs/NEXT.md                                             (this file — immediat
 
 | ID | Task | Status | Notes |
 |----|------|--------|-------|
-| S0.5.0-OPS-1 | Frontend base URL fix (`client.ts` + `HttpClient.ts`) | Not Started | `getApiBaseUrl()` import eksik — localhost leak root cause |
+| S0.5.0-OPS-1 | Frontend base URL fix (`client.ts` + `HttpClient.ts`) | Done | PR pending — 6 dosyada localhost fallback kaldirildi, config.ts tek kaynak (2026-02-08) |
 | S0.5.0-OPS-2 | Backend trust-proxy (`env.ts` + `server.app.ts`) | Not Started | Caddy arkasi cookie/protocol fix |
 | S0.5.0-OPS-3 | Staging env + OAuth callback dogrulama | Not Started | Dep: OPS-1, OPS-2 |
 | S0.5.0-OPS-4 | Smoke test'e localhost leak check ekle | Not Started | Dep: OPS-1 |
