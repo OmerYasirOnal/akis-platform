@@ -123,6 +123,50 @@ Cursor may auto-merge (via GitHub merge button or API) **only** when ALL of:
 - Delete remote branch only after PR is merged AND no active follow-up PR depends on it.
 - If uncertain, leave the branch; add a note in PR description.
 
+# GITHUB ISSUE LIFECYCLE (MANDATORY)
+> Every development task must have a corresponding GitHub issue. This ensures traceability and keeps the planning docs in sync with actual work.
+
+## Before Starting Work
+1. **Verify Issue Exists:**
+   - Check if a GitHub issue exists for the Task ID (e.g., S0.5.0-OPS-2).
+   - If no issue exists, create one using the Task template (`.github/ISSUE_TEMPLATE/task.yml`).
+   - Ensure issue has:
+     - Task ID in title
+     - Labels: `scope:S0.5` (or `scope:Backlog`), `status:Not Started`, area labels (`ops`, `backend`, `frontend`, `docs`, `tests`)
+     - Milestone: appropriate S0.5 phase (e.g., `S0.5-A Staging Fix`)
+     - Acceptance criteria, verification steps, dependencies in body
+
+2. **Set Status:**
+   - When starting work, update issue label: `status:Not Started` → `status:In Progress`.
+
+## During PR Lifecycle
+1. **Link Issue in PR:**
+   - PR description must reference the issue using closing keywords: `Closes #123` or `Fixes #123`.
+   - If PR does not fully close the issue, use `Related to #123` and add a note.
+
+2. **Update Issue Status:**
+   - When PR is opened: ensure issue shows `status:In Progress`.
+   - If work is blocked: update issue with `status:Blocked` + add blocker note in issue comments.
+
+## After PR Merge
+1. **Close Issue:**
+   - If PR used closing keywords (`Closes #123`), GitHub auto-closes the issue.
+   - If not auto-closed, manually close the issue immediately after PR merge.
+   - Before closing, set `status:Done`.
+
+2. **Update Planning Docs:**
+   - Update `docs/NEXT.md` task status if the issue represents a major task.
+   - If milestone status changes, update `docs/ROADMAP.md`.
+
+## Scope Expansion
+- If the work scope expands beyond the original issue:
+  - Do NOT bloat the original issue with new requirements.
+  - Create a new issue for the follow-up work and link it: `Follow-up to #123`.
+
+## Never Create Issues For
+- Trivial typo fixes (< 5 LoC, no logic change).
+- Emergency hotfixes (create PR directly, document in PR description why no issue).
+
 # S0.5 LOCKED DECISIONS
 > Canonical source: `docs/NEXT.md` § Critical Decisions
 
