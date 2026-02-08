@@ -95,5 +95,13 @@ jobs:
         working-directory: frontend
         run: npm run build
 
+      - name: Install Playwright browsers
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium
+
+      - name: E2E routing guard (auth deep-links)
+        working-directory: frontend
+        run: npx playwright test auth-deep-links --reporter=github
+
       - name: Localhost leak check
         run: ./scripts/check-localhost-leak.sh
