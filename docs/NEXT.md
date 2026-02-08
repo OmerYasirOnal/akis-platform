@@ -25,7 +25,7 @@ docs/NEXT.md                                             (this file — immediat
 
 | ID | Task | Status | Notes |
 |----|------|--------|-------|
-| S0.5.0-OPS-1 | Frontend base URL fix (`client.ts` + `HttpClient.ts`) | Done | PR pending — 6 dosyada localhost fallback kaldirildi, config.ts tek kaynak (2026-02-08) |
+| S0.5.0-OPS-1 | Frontend base URL fix (`config.ts` production guard) | Done | PR #217 + regression fix PR #226: production guard rejects localhost in `getApiBaseUrl()` (2026-02-08) |
 | S0.5.0-OPS-2 | Backend trust-proxy (`env.ts` + `server.app.ts`) | Not Started | Caddy arkasi cookie/protocol fix |
 | S0.5.0-OPS-3 | Staging env + OAuth callback dogrulama | Not Started | Dep: OPS-1, OPS-2 |
 | S0.5.0-OPS-4 | Smoke test'e localhost leak check ekle | Not Started | Dep: OPS-1 |
