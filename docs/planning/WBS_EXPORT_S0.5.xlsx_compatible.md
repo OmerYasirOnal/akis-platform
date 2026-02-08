@@ -29,7 +29,7 @@
 | S0.5.2-RAG-1 | 0.5 | S0.5.2 | WS-RAG | Research brief + karar | RAG secenekleri degerlendirmesi ve karar | Yasir | Ayse | Yasir | Not Started | 2026-02-17 | 2026-02-18 | — | RESEARCH_BRIEF dosyasi | Karar kilitlenmis | — |
 | S0.5.2-RAG-2 | 0.5 | S0.5.2 | WS-RAG | Context pack dogrulama | ScribeAgent context toplama mekanizmasi test | Yasir | — | Yasir | Not Started | 2026-02-20 | 2026-02-21 | — | Dogrulama raporu | Context dogru toplaniyor | Dep: AGT-3 |
 | S0.5.2-UX-1 | 0.5 | S0.5.2 | WS-UX | Trace console sayfasi | DashboardAgentTracePage.tsx olustur | Yasir | — | Yasir | Done | 2026-02-10 | 2026-02-13 | 2026-02-08 | Frontend sayfasi | /dashboard/trace calisiyor | PR #236 |
-| S0.5.2-UX-2 | 0.5 | S0.5.2 | WS-UX | Proto console sayfasi | DashboardAgentProtoPage.tsx olustur | Yasir | — | Yasir | Not Started | 2026-02-10 | 2026-02-13 | — | Frontend sayfasi | /dashboard/proto calisiyor | Dep: OPS-6 |
+| S0.5.2-UX-2 | 0.5 | S0.5.2 | WS-UX | Proto console sayfasi | DashboardAgentProtoPage.tsx olustur | Yasir | — | Yasir | Done | 2026-02-10 | 2026-02-13 | 2026-02-08 | Frontend sayfasi | /dashboard/proto calisiyor | Delivered with Trace |
 | S0.5.2-UX-3 | 0.5 | S0.5.2 | WS-UX | Getting Started karti | Dashboard'a onboarding karti ekle | Yasir | — | Yasir | Not Started | 2026-02-14 | 2026-02-16 | — | UI bileseni | Yeni kullanici yonlendirilmis | Dep: WL-2 |
 | S0.5.3-QA-1 | 0.5 | S0.5.3 | WS-QA | Regression checklist | REGRESSION_CHECKLIST_S0.5.md olustur | Yasir | Ayse | Yasir | Not Started | 2026-02-24 | 2026-02-25 | — | QA dokumani | Her item pass/fail | Dep: AGT-3~5 |
 | S0.5.3-QA-2 | 0.5 | S0.5.3 | WS-QA | Demo scripti | 15 dk canli demo akisi scripti | Yasir | Ayse | Yasir | Not Started | 2026-02-25 | 2026-02-26 | — | DEMO_SCRIPT_S0.5.md | 1x prova yapilmis | Dep: QA-1 |
@@ -62,7 +62,7 @@ S0.5.1-AGT-6,0.5,S0.5.1,WS-AGENTS,Hata handling standardizasyonu,5 hata senaryos
 S0.5.2-RAG-1,0.5,S0.5.2,WS-RAG,Research brief + karar,RAG secenekleri degerlendirmesi ve karar,Yasir,Ayse,Yasir,Not Started,2026-02-17,2026-02-18,,RESEARCH_BRIEF dosyasi,Karar kilitlenmis,
 S0.5.2-RAG-2,0.5,S0.5.2,WS-RAG,Context pack dogrulama,ScribeAgent context toplama mekanizmasi test,Yasir,,Yasir,Not Started,2026-02-20,2026-02-21,,Dogrulama raporu,Context dogru toplaniyor,Dep: AGT-3
 S0.5.2-UX-1,0.5,S0.5.2,WS-UX,Trace console sayfasi,DashboardAgentTracePage.tsx olustur,Yasir,,Yasir,Done,2026-02-10,2026-02-13,2026-02-08,Frontend sayfasi,/dashboard/trace calisiyor,PR #236
-S0.5.2-UX-2,0.5,S0.5.2,WS-UX,Proto console sayfasi,DashboardAgentProtoPage.tsx olustur,Yasir,,Yasir,Not Started,2026-02-10,2026-02-13,,Frontend sayfasi,/dashboard/proto calisiyor,Dep: OPS-6
+S0.5.2-UX-2,0.5,S0.5.2,WS-UX,Proto console sayfasi,DashboardAgentProtoPage.tsx olustur,Yasir,,Yasir,Done,2026-02-10,2026-02-13,2026-02-08,Frontend sayfasi,/dashboard/proto calisiyor,Delivered with Trace
 S0.5.2-UX-3,0.5,S0.5.2,WS-UX,Getting Started karti,Dashboard'a onboarding karti ekle,Yasir,,Yasir,Not Started,2026-02-14,2026-02-16,,UI bileseni,Yeni kullanici yonlendirilmis,Dep: WL-2
 S0.5.3-QA-1,0.5,S0.5.3,WS-QA,Regression checklist,REGRESSION_CHECKLIST_S0.5.md olustur,Yasir,Ayse,Yasir,Not Started,2026-02-24,2026-02-25,,QA dokumani,Her item pass/fail,Dep: AGT-3~5
 S0.5.3-QA-2,0.5,S0.5.3,WS-QA,Demo scripti,15 dk canli demo akisi scripti,Yasir,Ayse,Yasir,Not Started,2026-02-25,2026-02-26,,DEMO_SCRIPT_S0.5.md,1x prova yapilmis,Dep: QA-1
