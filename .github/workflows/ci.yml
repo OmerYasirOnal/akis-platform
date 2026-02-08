@@ -99,19 +99,28 @@ jobs:
         working-directory: frontend
         run: npx playwright install --with-deps chromium
 
-      - name: E2E auth tests (routing guard + mocked flows)
+      - name: E2E tests (auth + agent consoles + navigation guards)
         working-directory: frontend
-        run: npx playwright test auth-deep-links auth-signup-flow auth-login-flow --reporter=github
+        run: >
+          npx playwright test
+          auth-deep-links
+          auth-signup-flow
+          auth-login-flow
+          trace-console
+          proto-console
+          navigation-guards
+          --reporter=github
 
       - name: Upload Playwright artifacts on failure
         uses: actions/upload-artifact@v4
         if: failure()
         with:
-          name: playwright-report
+          name: playwright-report-${{ github.run_id }}
           path: |
-            frontend/test-results/playwright/
+            frontend/test-results/
             frontend/playwright-report/
-          retention-days: 7
+          retention-days: 5
+          if-no-files-found: ignore
 
       - name: Localhost leak check
         run: ./scripts/check-localhost-leak.sh
