@@ -3,7 +3,18 @@
 	handle /api/* {
 		reverse_proxy backend:3000
 	}
-	handle /auth/* {
+	# Auth API routes → Backend (SPA auth pages fall through to frontend)
+	handle /auth/oauth/* {
+		reverse_proxy backend:3000
+	}
+	handle /auth/signup/* {
+		reverse_proxy backend:3000
+	}
+	handle /auth/login/* {
+		reverse_proxy backend:3000
+	}
+	@auth_api path /auth/signup /auth/login /auth/logout /auth/me /auth/health /auth/verify-email /auth/resend-code /auth/update-preferences
+	handle @auth_api {
 		reverse_proxy backend:3000
 	}
 	handle /health {
