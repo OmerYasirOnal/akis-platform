@@ -1,8 +1,9 @@
 #!/bin/bash
 # =============================================================================
-# AKIS Staging Smoke Tests
+# AKIS Staging Smoke Tests (S0.5.0-OPS-6: 6/6 checks)
 # =============================================================================
 # Verifies that staging deployment succeeded by testing critical endpoints.
+# Required checks: health, ready, version, frontend, auth API, SPA deep link.
 #
 # Usage:
 #   ./scripts/staging_smoke.sh [--host DOMAIN] [--commit SHA] [--timeout SECONDS]
