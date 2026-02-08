@@ -228,11 +228,26 @@ CORS_ORIGINS=https://staging.akisflow.com
 RATE_LIMIT_MAX=200
 LOG_LEVEL=debug
 
+# Reverse proxy (required behind Caddy)
+TRUST_PROXY=true
+
 # Email (mock for staging, resend for production-like)
 EMAIL_PROVIDER=mock
 
 # AI (optional)
 AI_PROVIDER=mock
+
+# OAuth — GitHub (optional, for "Continue with GitHub" login)
+# Create at: https://github.com/settings/developers → OAuth Apps
+# Callback URL: https://staging.akisflow.com/auth/oauth/github/callback
+GITHUB_OAUTH_CLIENT_ID=<from_github_oauth_app>
+GITHUB_OAUTH_CLIENT_SECRET=<from_github_oauth_app>
+
+# OAuth — Google (optional, for "Continue with Google" login)
+# Create at: https://console.cloud.google.com/apis/credentials
+# Authorized redirect URI: https://staging.akisflow.com/auth/oauth/google/callback
+GOOGLE_OAUTH_CLIENT_ID=<from_google_cloud_console>
+GOOGLE_OAUTH_CLIENT_SECRET=<from_google_cloud_console>
 ```
 
 **Permission Requirements**:
@@ -247,6 +262,43 @@ AI_PROVIDER=mock
 | Database Password | 90 days | ALTER USER in PostgreSQL + update .env |
 | SSH Key | 180 days | Generate new key + update OCI + GitHub Secret |
 | API Keys | As needed | Update in GitHub Secrets + redeploy |
+
+### 3.5 OAuth Provider Setup
+
+OAuth requires matching callback URIs between the backend configuration and the provider's developer console. The backend builds callback URLs as `${BACKEND_URL}/auth/oauth/<provider>/callback`.
+
+**GitHub OAuth App**:
+
+1. Go to https://github.com/settings/developers → "OAuth Apps" → "New OAuth App"
+2. Set **Homepage URL**: `https://staging.akisflow.com`
+3. Set **Authorization callback URL**: `https://staging.akisflow.com/auth/oauth/github/callback`
+4. Copy Client ID → `GITHUB_OAUTH_CLIENT_ID` in `/opt/akis/.env`
+5. Generate Client Secret → `GITHUB_OAUTH_CLIENT_SECRET` in `/opt/akis/.env`
+
+**Google OAuth Client**:
+
+1. Go to https://console.cloud.google.com/apis/credentials
+2. Create "OAuth 2.0 Client ID" (Web application)
+3. Add **Authorized JavaScript origin**: `https://staging.akisflow.com`
+4. Add **Authorized redirect URI**: `https://staging.akisflow.com/auth/oauth/google/callback`
+5. Copy Client ID → `GOOGLE_OAUTH_CLIENT_ID` in `/opt/akis/.env`
+6. Copy Client Secret → `GOOGLE_OAUTH_CLIENT_SECRET` in `/opt/akis/.env`
+
+**Verification** (after deploy):
+
+```bash
+# Should redirect to GitHub/Google login page (302)
+curl -s -o /dev/null -w "%{http_code}" https://staging.akisflow.com/auth/oauth/github
+curl -s -o /dev/null -w "%{http_code}" https://staging.akisflow.com/auth/oauth/google
+
+# Should return 503 if credentials are missing
+# Should return 302 if credentials are configured
+```
+
+> **Common Errors**:
+> - `invalid_client` → Client ID/Secret mismatch or not set in `.env`
+> - `redirect_uri_mismatch` → Callback URL in provider console doesn't match `${BACKEND_URL}/auth/oauth/<provider>/callback`
+> - `OAUTH_NOT_CONFIGURED` → Missing `*_CLIENT_ID` or `*_CLIENT_SECRET` in env
 
 ---
 
