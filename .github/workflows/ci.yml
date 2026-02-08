@@ -99,9 +99,19 @@ jobs:
         working-directory: frontend
         run: npx playwright install --with-deps chromium
 
-      - name: E2E routing guard (auth deep-links)
+      - name: E2E auth tests (routing guard + mocked flows)
         working-directory: frontend
-        run: npx playwright test auth-deep-links --reporter=github
+        run: npx playwright test auth-deep-links auth-signup-flow auth-login-flow --reporter=github
+
+      - name: Upload Playwright artifacts on failure
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: |
+            frontend/test-results/playwright/
+            frontend/playwright-report/
+          retention-days: 7
 
       - name: Localhost leak check
         run: ./scripts/check-localhost-leak.sh
