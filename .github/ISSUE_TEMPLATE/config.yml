@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: "Delivery Plan"
+    url: "https://github.com/OmerYasirOnal/akis-platform-devolopment/blob/main/docs/planning/DELIVERY_PLAN_S0.5_FEB_TO_GRADUATION.md"
+    about: "See the canonical delivery plan for task details and WBS."
