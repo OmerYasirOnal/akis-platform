@@ -99,7 +99,7 @@ jobs:
         working-directory: frontend
         run: npx playwright install --with-deps chromium
 
-      - name: E2E tests (auth + agent consoles + navigation guards)
+      - name: E2E tests (auth + agent consoles + navigation guards + getting-started)
         working-directory: frontend
         run: >
           npx playwright test
@@ -109,6 +109,7 @@ jobs:
           trace-console
           proto-console
           navigation-guards
+          getting-started
           --reporter=github
 
       - name: Upload Playwright artifacts on failure
