@@ -41,7 +41,7 @@ docs/NEXT.md                                             (this file — immediat
 | S0.5.1-WL-1 | Invite stratejisi (email + acik signup) | Not Started | Dep: OPS-6 |
 | S0.5.1-WL-2 | Onboarding flow (signup -> AI key -> first job) | Not Started | Getting Started karti |
 | S0.5.1-WL-3 | Feedback capture (FeedbackTab entegrasyonu) | Not Started | Dep: WL-2 |
-| S0.5.2-UX-1 | Trace console sayfasi | Not Started | Dep: OPS-6 |
+| S0.5.2-UX-1 | Trace console sayfasi | Done | PR #236: DashboardAgentTracePage + useAgentStatus hook + sidebar nav (2026-02-08) |
 | S0.5.2-UX-2 | Proto console sayfasi | Not Started | Dep: OPS-6 |
 | S0.5.2-UX-3 | Dashboard Getting Started karti | Not Started | Dep: WL-2 |
 
@@ -49,7 +49,7 @@ docs/NEXT.md                                             (this file — immediat
 
 | ID | Task | Status | Notes |
 |----|------|--------|-------|
-| S0.5.1-AGT-1 | Agent contract dokumantasyonu (3 ajan) | Not Started | Input/output/error |
+| S0.5.1-AGT-1 | Agent contract dokumantasyonu (3 ajan) | Done | `docs/agents/AGENT_CONTRACTS_S0.5.md` — 3 agent schemas + error taxonomy (2026-02-08) |
 | S0.5.1-AGT-2 | Playbook determinizm (temp=0, prompt sabit) | Not Started | |
 | S0.5.1-AGT-3 | Scribe golden path dogrulama | Not Started | Dep: OPS-6, AGT-1 |
 | S0.5.1-AGT-4 | Trace golden path dogrulama | Not Started | Dep: OPS-6, AGT-1 |
