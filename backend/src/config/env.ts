@@ -99,6 +99,7 @@ const envSchema = z
     AI_PROVIDER: z.enum(['openrouter', 'openai', 'mock']).default('mock'),
     AI_KEY_ENCRYPTION_KEY: z.string().optional(),
     AI_KEY_ENCRYPTION_KEY_VERSION: z.string().default('v1'),
+    AI_DETERMINISTIC_MODE: z.enum(['true', 'false']).default('true'),
     AI_SCRIBE_MODEL_ALLOWLIST: z.string().optional(),
     
     // API Keys - supports both new names and legacy OPENROUTER_*/OPENAI_* names

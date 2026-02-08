@@ -2,6 +2,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import Button from '../../components/common/Button';
 import { UsageWidget } from '../../components/dashboard/UsageWidget';
 import { QualityReliabilityCard } from '../../components/dashboard/QualityReliabilityCard';
+import { GettingStartedCard } from '../../components/dashboard/GettingStartedCard';
 
 const AgentsIcon = () => (
   <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
@@ -152,6 +153,9 @@ const DashboardOverviewPage = () => {
           Open Agents Hub
         </Button>
       </div>
+
+      {/* Getting Started — onboarding checklist */}
+      <GettingStartedCard />
 
       {/* Quick Actions */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">

@@ -1,0 +1,267 @@
+/**
+ * Proto Console E2E (mocked backend)
+ *
+ * Verifies the Proto console page renders, interactions work, and edge
+ * cases (empty state, error, job lifecycle) are handled correctly.
+ * Backend API calls are mocked via Playwright route interception.
+ *
+ * Run: npx playwright test proto-console
+ */
+import { test, expect } from '@playwright/test';
+import {
+  mockDashboardApis,
+  mockAiKeysStatus,
+  mockRunAgent,
+  mockJobPolling,
+  mockRunAgentError,
+  MOCK_JOB_ID,
+} from './helpers/mock-dashboard-apis';
+
+test.describe('Proto Console', () => {
+  /* ------------------------------------------------------------------ */
+  /* P1 — Route load: page renders heading and core elements             */
+  /* ------------------------------------------------------------------ */
+  test('P1: /dashboard/proto renders Proto Console page', async ({ page }) => {
+    await mockDashboardApis(page);
+
+    await page.goto('/dashboard/proto');
+
+    // Heading
+    await expect(page.getByRole('heading', { name: /proto console/i })).toBeVisible();
+
+    // Requirements textarea
+    const textarea = page.locator('textarea');
+    await expect(textarea).toBeVisible();
+
+    // Run button (disabled when empty)
+    const runButton = page.getByRole('button', { name: /run proto/i });
+    await expect(runButton).toBeVisible();
+    await expect(runButton).toBeDisabled();
+  });
+
+  /* ------------------------------------------------------------------ */
+  /* P2 — Run button enables when requirements are provided              */
+  /* ------------------------------------------------------------------ */
+  test('P2: Run button enables when requirements are provided', async ({ page }) => {
+    await mockDashboardApis(page);
+
+    await page.goto('/dashboard/proto');
+
+    const textarea = page.locator('textarea');
+    await textarea.fill('Build a REST API for a todo list app');
+
+    const runButton = page.getByRole('button', { name: /run proto/i });
+    await expect(runButton).toBeEnabled();
+  });
+
+  /* ------------------------------------------------------------------ */
+  /* P3 — Tabs: Logs and Artifacts are present                           */
+  /* ------------------------------------------------------------------ */
+  test('P3: Proto Console has Logs and Artifacts tabs', async ({ page }) => {
+    await mockDashboardApis(page);
+
+    await page.goto('/dashboard/proto');
+
+    await expect(page.getByRole('button', { name: /logs/i })).toBeVisible();
+    await expect(page.getByRole('button', { name: /artifacts/i })).toBeVisible();
+  });
+
+  /* ------------------------------------------------------------------ */
+  /* P4 — Empty state for logs                                           */
+  /* ------------------------------------------------------------------ */
+  test('P4: Logs tab shows empty state when no job has run', async ({ page }) => {
+    await mockDashboardApis(page);
+
+    await page.goto('/dashboard/proto');
+
+    await expect(page.getByText(/proto agent activity will appear here/i)).toBeVisible();
+  });
+
+  /* ------------------------------------------------------------------ */
+  /* P5 — Artifacts tab empty state                                      */
+  /* ------------------------------------------------------------------ */
+  test('P5: Artifacts tab shows empty state placeholder', async ({ page }) => {
+    await mockDashboardApis(page);
+
+    await page.goto('/dashboard/proto');
+
+    // Switch to Artifacts tab
+    await page.getByRole('button', { name: /artifacts/i }).click();
+
+    await expect(page.getByText(/generated scaffold files will appear here/i)).toBeVisible();
+  });
+
+  /* ------------------------------------------------------------------ */
+  /* P6 — Run button gated by AI keys status                             */
+  /* ------------------------------------------------------------------ */
+  test('P6: Run Proto calls AI keys status before job submission', async ({ page }) => {
+    await mockDashboardApis(page);
+    await mockAiKeysStatus(page);
+    await mockRunAgent(page);
+    await mockJobPolling(page, [{ state: 'pending' }, { state: 'completed', result: { artifacts: [] } }]);
+
+    await page.goto('/dashboard/proto');
+
+    await page.locator('textarea').fill('Create a Node.js CLI tool');
+    await page.getByRole('button', { name: /run proto/i }).click();
+
+    // Should show starting log — confirms AI keys check passed
+    await expect(page.getByText(/starting proto workflow/i)).toBeVisible();
+  });
+
+  /* ------------------------------------------------------------------ */
+  /* P7 — Happy path: submit → running → completed                       */
+  /* ------------------------------------------------------------------ */
+  test('P7: Submit requirements triggers job, shows running then completed', async ({ page }) => {
+    await mockDashboardApis(page);
+    await mockAiKeysStatus(page);
+    await mockRunAgent(page);
+    await mockJobPolling(page, [
+      { state: 'pending' },
+      {
+        state: 'running',
+        trace: [
+          { id: 'p1', timestamp: '2026-02-08T12:00:01Z', title: 'Analysing requirements...', status: 'running' },
+        ],
+      },
+      {
+        state: 'completed',
+        trace: [
+          { id: 'p1', timestamp: '2026-02-08T12:00:01Z', title: 'Analysing requirements...', status: 'completed' },
+          { id: 'p2', timestamp: '2026-02-08T12:00:03Z', title: 'Generated scaffold', status: 'completed' },
+        ],
+        result: {
+          artifacts: [
+            { filePath: 'package.json', content: '{ "name": "my-app" }' },
+            { filePath: 'src/index.ts', content: 'console.log("hello");' },
+          ],
+        },
+      },
+    ]);
+
+    await page.goto('/dashboard/proto');
+
+    await page.locator('textarea').fill('Build a todo REST API with Express');
+    await page.getByRole('button', { name: /run proto/i }).click();
+
+    // Should show starting log
+    await expect(page.getByText(/starting proto workflow/i)).toBeVisible();
+
+    // Should show job submitted log
+    await expect(page.getByText(new RegExp(`job submitted.*${MOCK_JOB_ID}`, 'i'))).toBeVisible({ timeout: 10_000 });
+
+    // Proto auto-switches to Artifacts tab on completion.
+    // Wait for "Run Proto" button to confirm completion (isIdle=true when isPolling=false).
+    await expect(page.getByRole('button', { name: /run proto/i })).toBeVisible({ timeout: 15_000 });
+
+    // Artifacts tab should be active and show generated files
+    await expect(page.getByText('package.json')).toBeVisible();
+    await expect(page.getByText('src/index.ts')).toBeVisible();
+
+    // Switch to Logs tab to verify completion log was recorded
+    await page.getByRole('button', { name: /logs/i }).click();
+    await expect(page.getByText(/proto scaffold generated successfully/i)).toBeVisible();
+  });
+
+  /* ------------------------------------------------------------------ */
+  /* P8 — Error path: backend returns 500 on job submission               */
+  /* ------------------------------------------------------------------ */
+  test('P8: Backend 500 on submit shows error in logs', async ({ page }) => {
+    await mockDashboardApis(page);
+    await mockAiKeysStatus(page);
+    await mockRunAgentError(page, 500, 'Internal Server Error');
+
+    await page.goto('/dashboard/proto');
+
+    await page.locator('textarea').fill('Some requirements text');
+    await page.getByRole('button', { name: /run proto/i }).click();
+
+    // Should show error log entry
+    await expect(page.getByText(/failed to start proto/i)).toBeVisible({ timeout: 10_000 });
+  });
+
+  /* ------------------------------------------------------------------ */
+  /* P9 — Job failure state shows error message                          */
+  /* ------------------------------------------------------------------ */
+  test('P9: Job failure shows error message in logs', async ({ page }) => {
+    await mockDashboardApis(page);
+    await mockAiKeysStatus(page);
+    await mockRunAgent(page);
+    await mockJobPolling(page, [
+      { state: 'pending' },
+      {
+        state: 'failed',
+        error: 'SCAFFOLD_ERROR',
+        errorMessage: 'Failed to generate scaffold. Template not found.',
+      },
+    ]);
+
+    await page.goto('/dashboard/proto');
+
+    await page.locator('textarea').fill('Test requirements for failure');
+    await page.getByRole('button', { name: /run proto/i }).click();
+
+    // Wait for failure log
+    await expect(page.getByText(/proto workflow failed/i)).toBeVisible({ timeout: 15_000 });
+
+    // After failure, "Run Proto" re-appears (user can retry)
+    await expect(page.getByRole('button', { name: /run proto/i })).toBeVisible({ timeout: 5_000 });
+  });
+
+  /* ------------------------------------------------------------------ */
+  /* P10 — After completion, Run Proto is re-enabled for retry            */
+  /* ------------------------------------------------------------------ */
+  test('P10: After job completes, Run Proto is re-enabled for another run', async ({ page }) => {
+    await mockDashboardApis(page);
+    await mockAiKeysStatus(page);
+    await mockRunAgent(page);
+    await mockJobPolling(page, [
+      { state: 'pending' },
+      { state: 'completed', result: { artifacts: [] } },
+    ]);
+
+    await page.goto('/dashboard/proto');
+
+    await page.locator('textarea').fill('Quick requirements for retry test');
+    await page.getByRole('button', { name: /run proto/i }).click();
+
+    // Proto auto-switches to Artifacts on completion. Wait for "Run Proto" to confirm idle.
+    const runButton = page.getByRole('button', { name: /run proto/i });
+    await expect(runButton).toBeVisible({ timeout: 15_000 });
+    await expect(runButton).toBeEnabled();
+
+    // Switch to Logs to verify completion log was recorded
+    await page.getByRole('button', { name: /logs/i }).click();
+    await expect(page.getByText(/proto scaffold generated/i)).toBeVisible();
+  });
+
+  /* ------------------------------------------------------------------ */
+  /* P11 — Deep link: /dashboard/proto returns SPA HTML                  */
+  /* ------------------------------------------------------------------ */
+  test('P11: Deep link /dashboard/proto returns SPA HTML', async ({ page }) => {
+    await mockDashboardApis(page);
+
+    const response = await page.goto('/dashboard/proto');
+    expect(response).not.toBeNull();
+    expect(response!.status()).toBe(200);
+
+    const ct = response!.headers()['content-type'] ?? '';
+    expect(ct).toContain('text/html');
+
+    // React app mounts and renders Proto heading
+    await expect(page.getByRole('heading', { name: /proto console/i })).toBeVisible();
+  });
+
+  /* ------------------------------------------------------------------ */
+  /* P12 — Optional stack input is present                               */
+  /* ------------------------------------------------------------------ */
+  test('P12: Tech Stack optional input is visible', async ({ page }) => {
+    await mockDashboardApis(page);
+
+    await page.goto('/dashboard/proto');
+
+    // Should have a tech stack input
+    const stackInput = page.locator('input[placeholder*="React"]');
+    await expect(stackInput).toBeVisible();
+  });
+});
