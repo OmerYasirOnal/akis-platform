@@ -1,0 +1,65 @@
+name: "Task"
+description: "A planned task from the delivery plan (S0.5+)"
+labels: ["task"]
+body:
+  - type: input
+    id: task-id
+    attributes:
+      label: "Task ID"
+      description: "From NEXT.md / WBS (e.g., S0.5.0-OPS-1)"
+      placeholder: "S0.5.X-XXX-N"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: "Affected Area"
+      options:
+        - FE (Frontend)
+        - BE (Backend)
+        - OPS (Deploy / Infra)
+        - DOC (Documentation)
+        - QA (Testing / Evidence)
+        - MULTI (Multiple areas)
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: "Description"
+      description: "What needs to be done and why."
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: "Acceptance Criteria"
+      description: "Conditions that must be true for this task to be Done."
+      value: |
+        - [ ] Criterion 1
+        - [ ] Criterion 2
+    validations:
+      required: true
+
+  - type: textarea
+    id: verification
+    attributes:
+      label: "Verification Steps"
+      description: "How to verify this task is complete."
+      value: |
+        1. Step 1
+        2. Step 2
+    validations:
+      required: true
+
+  - type: input
+    id: depends-on
+    attributes:
+      label: "Dependencies"
+      description: "Task IDs this depends on (comma-separated)"
+      placeholder: "S0.5.0-OPS-1, S0.5.0-OPS-2"
+    validations:
+      required: false

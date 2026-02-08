@@ -1,0 +1,63 @@
+name: "Bug Report"
+description: "Report a bug or regression"
+labels: ["bug"]
+body:
+  - type: input
+    id: task-id
+    attributes:
+      label: "Related Task ID (if any)"
+      placeholder: "S0.5.X-XXX-N"
+    validations:
+      required: false
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: "Affected Area"
+      options:
+        - FE (Frontend)
+        - BE (Backend)
+        - OPS (Deploy / Infra)
+        - DOC (Documentation)
+        - QA (Testing / Evidence)
+    validations:
+      required: true
+
+  - type: dropdown
+    id: severity
+    attributes:
+      label: "Severity"
+      options:
+        - P0 — Blocker (staging broken)
+        - P1 — Critical (feature broken)
+        - P2 — Major (degraded experience)
+        - P3 — Minor (cosmetic / low impact)
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: "Bug Description"
+      description: "What happened vs. what you expected."
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: "Steps to Reproduce"
+      value: |
+        1. Go to ...
+        2. Click on ...
+        3. Observe ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: evidence
+    attributes:
+      label: "Evidence"
+      description: "Logs, screenshots, or error messages."
+    validations:
+      required: false
