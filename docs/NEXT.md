@@ -29,8 +29,8 @@ docs/NEXT.md                                             (this file — immediat
 | S0.5.0-OPS-2 | Backend trust-proxy (`env.ts` + `server.app.ts`) | Done | PR #230: TRUST_PROXY env-gated, Fastify trustProxy: true (2026-02-08). docker-compose TRUST_PROXY passthrough added (2026-02-08) |
 | S0.5.0-OPS-3 | Staging env + OAuth callback dogrulama | Done | PR #232: Runbook Section 3.5, callback URLs, startup diagnostics (2026-02-08) |
 | S0.5.0-OPS-4 | Smoke test'e localhost leak check ekle | Done | PR #233: `scripts/check-localhost-leak.sh` + CI step + smoke Test 6 (2026-02-08) |
-| S0.5.0-OPS-5 | DB migration ve health dogrulama | In Progress | `/ready` now includes `migrations` field; runbook Section 6.3 documents post-migration validation |
-| S0.5.0-OPS-6 | Full deploy + smoke test | Not Started | Dep: OPS-1~5, 6/6 pass |
+| S0.5.0-OPS-5 | DB migration ve health dogrulama | Done | PR #234: `/ready` includes `migrations` field; runbook Section 6.3 (2026-02-08) |
+| S0.5.0-OPS-6 | Full deploy + smoke test | In Progress | Deploy workflow uses `staging_smoke.sh` (6/6 checks); all OPS-1~5 done |
 | S0.5.0-AUTH-PRIVACY | `/auth/privacy-consent` 404 (Caddy routing) | Done | PR #231: Caddyfile split — backend auth API routes vs SPA pages (2026-02-08) |
 | S0.5.0-OAUTH-GOOGLE | Google login `invalid_client` on staging | Done | PR #232: Runbook documents callback URI setup; startup diagnostics (2026-02-08) |
 
