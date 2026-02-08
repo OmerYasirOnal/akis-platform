@@ -63,13 +63,17 @@ const DashboardAgentTracePage = () => {
       setCurrentJob(job);
 
       if (job.trace && Array.isArray(job.trace)) {
-        const newLogs: LogEntry[] = (job.trace as TraceEvent[]).map((event) => ({
+        const traceLogs: LogEntry[] = (job.trace as TraceEvent[]).map((event) => ({
           id: event.id || String(Math.random()),
           timestamp: new Date(event.timestamp),
           level: event.status === 'failed' ? 'error' : event.status === 'completed' ? 'success' : 'info',
           message: event.title || event.detail || 'Processing...',
         }));
-        setLogs(newLogs);
+        // Preserve manually-added logs (start/submit) and append trace events
+        setLogs((prev) => {
+          const manualLogs = prev.filter((l) => l.id.startsWith('start-') || l.id.startsWith('submitted-'));
+          return [...manualLogs, ...traceLogs];
+        });
       }
 
       if (job.state === 'completed' || job.state === 'failed') {
