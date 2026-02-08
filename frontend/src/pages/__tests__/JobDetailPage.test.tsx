@@ -87,7 +87,7 @@ describe('JobDetailPage', () => {
   });
 
   it('hides Quality tab for non-Scribe jobs', async () => {
-    (api.getJob as ReturnType<typeof vi.fn>).mockResolvedValue({ ...baseJob, type: 'developer' });
+    (api.getJob as ReturnType<typeof vi.fn>).mockResolvedValue({ ...baseJob, type: 'trace' });
 
     renderJobDetail();
 

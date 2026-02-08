@@ -2,14 +2,23 @@
 
 Quick reference for starting local development on AKIS.
 
+> **Canonical dev setup doc.** Consolidates root `DEV_SETUP.md` and `docs/DEV_SETUP.md`.
+
 ## Prerequisites
 
-- **Node.js**: >= 20.0.0
+- **Node.js**: >= 20.0.0 (use `nvm` or `asdf`)
 - **pnpm**: Latest version (`npm install -g pnpm`)
-- **Docker**: For PostgreSQL (or install PostgreSQL 14+ locally)
+- **Docker** & **Docker Compose**: For PostgreSQL and MCP Gateway
 - **Git**: For version control
+- **GitHub account**: Needed for OAuth and MCP integration
 
 ## 🚀 Quick Start (5 steps)
+
+```bash
+# 0. Clone the repo (skip if already cloned)
+git clone https://github.com/OmerYasirOnal/akis-platform-devolopment.git
+cd akis-platform-devolopment/devagents
+```
 
 ```bash
 # 1. Install dependencies (development mode)
@@ -313,12 +322,29 @@ devagents/
 └── docs/                  # Documentation
 ```
 
+## 🗄️ Adminer (Database Web UI)
+
+```bash
+docker compose -f docker-compose.dev.yml up -d adminer
+```
+
+Navigate to [http://localhost:8080](http://localhost:8080) to access Adminer (PostgreSQL web UI).
+
+## 🧪 API Smoke Test
+
+```bash
+./scripts/dev-smoke-jobs.sh
+```
+
+This script tests the job APIs and quickly detects port/migration issues.
+
 ## 🔗 Helpful Links
 
 - **Backend API**: http://localhost:3000
 - **Frontend UI**: http://localhost:5173
 - **DB Studio**: `pnpm -C backend db:studio` (opens in browser)
 - **API Health**: http://localhost:3000/health
+- **Adminer**: http://localhost:8080 (when running)
 
 ## 💡 Tips
 
@@ -360,6 +386,15 @@ lsof -ti:5173 | xargs kill -9  # Frontend
 
 ---
 
-**Last Updated**: 2025-12-25  
+## 📚 Related Docs
+
+- [ENV_SETUP.md](../ENV_SETUP.md) - Full environment variable documentation
+- [GITHUB_MCP_SETUP.md](../GITHUB_MCP_SETUP.md) - MCP Gateway setup
+- [TESTING.md](../TESTING.md) - Test strategy and commands
+- [CONTRIBUTING.md](../../CONTRIBUTING.md) - Contribution guidelines
+
+---
+
+**Last Updated**: 2026-02-07
 **Maintainer**: Dev Team
 
