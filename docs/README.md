@@ -9,12 +9,12 @@
 > Kanonik planlama zinciri:
 
 ```
-PROJECT_TRACKING_BASELINE.md  →  ROADMAP.md  →  NEXT.md
+docs/planning/DELIVERY_PLAN_S0.5_FEB_TO_GRADUATION.md  →  ROADMAP.md  →  NEXT.md
 ```
 
 | Amac | Dokuman |
 |------|---------|
-| Sprint/milestone takibi | [PROJECT_TRACKING_BASELINE.md](PROJECT_TRACKING_BASELINE.md) |
+| Kanonik teslimat plani (SSOT) | [planning/DELIVERY_PLAN_S0.5_FEB_TO_GRADUATION.md](planning/DELIVERY_PLAN_S0.5_FEB_TO_GRADUATION.md) |
 | Faz gorunumu & kabul kriterleri | [ROADMAP.md](ROADMAP.md) |
 | Anlik aksiyon listesi | [NEXT.md](NEXT.md) |
 | Mimari kararlar | [../.cursor/context/CONTEXT_ARCHITECTURE.md](../.cursor/context/CONTEXT_ARCHITECTURE.md) |

@@ -25,6 +25,10 @@ description: "Definition of Done — AKIS"
 - [ ] Single topic; small PR (≤ 300 LoC); **Conventional Commit** title.
 - [ ] Screenshot/log evidence included.
 - [ ] Branch is not `main` (feature/fix/chore branch only).
+- [ ] **GitHub issue linked** via `Closes #123` or `Fixes #123` in PR description.
+- [ ] Issue status set to `status:In Progress` when PR opened.
+- [ ] **Issue closed** (auto via closing keyword or manually) when PR merged.
+- [ ] Issue label `status:Done` applied before/at close time.
 
 ## Staging Pilot (S0.5 — when deploying to staging)
 > Canonical DoD: `docs/NEXT.md` § M1 Definition of Done.

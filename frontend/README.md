@@ -17,7 +17,9 @@ npm install
 
 2. Create `.env` file (copy from `.env.example`):
 ```bash
-VITE_BACKEND_URL=http://localhost:3000
+cp .env.example .env
+# Local dev icin: VITE_BACKEND_URL=http://localhost:3000
+# Staging/prod icin: VITE_BACKEND_URL set edilmez (runtime resolution via config.ts)
 ```
 
 3. Start development server:
