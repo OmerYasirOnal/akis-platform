@@ -151,10 +151,14 @@ if [ "$READY_CODE" = "200" ]; then
   READY_JSON=$(curl -sf "https://${HOST}/ready" 2>/dev/null || echo '{}')
   READY_STATUS=$(extract_json_field "$READY_JSON" "ready")
   DB_STATUS=$(extract_json_field "$READY_JSON" "database")
+  MIG_STATUS=$(extract_json_field "$READY_JSON" "migrations")
 
   if [ "$READY_STATUS" = "true" ]; then
-    echo -e "${GREEN}✅ /ready: ${READY_CODE} {\"ready\":${READY_STATUS}, \"database\":\"${DB_STATUS}\"}${NC}"
+    echo -e "${GREEN}✅ /ready: ${READY_CODE} {\"ready\":${READY_STATUS}, \"database\":\"${DB_STATUS}\", \"migrations\":\"${MIG_STATUS}\"}${NC}"
     TESTS_PASSED=$((TESTS_PASSED + 1))
+    if [ "$MIG_STATUS" = "pending" ]; then
+      echo -e "${YELLOW}⚠️  Migrations pending — run: docker compose run --rm backend pnpm db:migrate${NC}"
+    fi
   else
     echo -e "${RED}❌ /ready: ${READY_CODE} but ready=${READY_STATUS} (expected true)${NC}"
     TESTS_FAILED=$((TESTS_FAILED + 1))
