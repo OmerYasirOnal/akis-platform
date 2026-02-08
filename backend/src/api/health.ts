@@ -62,6 +62,7 @@ export async function healthRoutes(fastify: FastifyInstance) {
             properties: {
               ready: { type: 'boolean', example: true },
               database: { type: 'string', example: 'connected' },
+              migrations: { type: 'string', example: 'ok' },
               timestamp: { type: 'string', example: '2026-01-09T12:00:00.000Z' },
             },
           },
@@ -70,6 +71,7 @@ export async function healthRoutes(fastify: FastifyInstance) {
             properties: {
               ready: { type: 'boolean', example: false },
               database: { type: 'string', example: 'disconnected' },
+              migrations: { type: 'string', example: 'unknown' },
               error: { type: 'string' },
               timestamp: { type: 'string', example: '2026-01-09T12:00:00.000Z' },
             },
@@ -80,14 +82,24 @@ export async function healthRoutes(fastify: FastifyInstance) {
     async (_request, reply) => {
       const timestamp = new Date().toISOString();
       try {
-        // Test database connectivity with a simple query
-        await db.execute(sql`SELECT 1`);
-        return { ready: true, database: 'connected', timestamp };
+        // Test database connectivity and verify core schema exists
+        const result = await db.execute(
+          sql`SELECT EXISTS(SELECT 1 FROM information_schema.tables WHERE table_name = 'users') AS has_users`
+        );
+        const rows = result.rows as Array<Record<string, unknown>>;
+        const migrated = rows[0]?.has_users === true;
+        return {
+          ready: true,
+          database: 'connected',
+          migrations: migrated ? 'ok' : 'pending',
+          timestamp,
+        };
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
         reply.code(503).send({
           ready: false,
           database: 'disconnected',
+          migrations: 'unknown',
           error: errorMessage,
           timestamp,
         });
