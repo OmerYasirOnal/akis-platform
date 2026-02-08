@@ -7,11 +7,12 @@
 
 | Metric | Before | After |
 |--------|--------|-------|
-| Total E2E specs | 4 files | 7 files |
-| Total E2E tests | 16 tests | **47 tests** |
-| Unit tests | 77 tests | **83 tests** |
-| Flaky tests | unknown | **0** |
-| CI status | Red (pnpm not found) | **Green** |
+| Total E2E specs | 7 files | **8 files** |
+| Total E2E tests | 47 tests | **55 tests** |
+| Backend unit tests | 223 tests | **252 tests** |
+| Frontend unit tests | 83 tests | **83 tests** |
+| Flaky tests | 0 | **0** |
+| CI status | Green | **Green** |
 
 ## Coverage Matrix
 
@@ -23,7 +24,7 @@
 | `auth-signup-flow.spec.ts` | 4 | PASS |
 | `auth-deep-links.spec.ts` | 4 | PASS |
 
-### Trace Console Suite (10 tests — NEW)
+### Trace Console Suite (10 tests — unchanged)
 
 | ID | Test | Coverage |
 |----|------|----------|
@@ -38,7 +39,7 @@
 | T9 | After completion, Run Trace re-enabled | Re-run capability |
 | T10 | Deep link returns SPA HTML | SPA routing |
 
-### Proto Console Suite (12 tests — EXPANDED from 4)
+### Proto Console Suite (12 tests — unchanged)
 
 | ID | Test | Coverage |
 |----|------|----------|
@@ -55,7 +56,7 @@
 | P11 | Deep link returns SPA HTML | SPA routing |
 | P12 | Tech Stack optional input visible | UI element |
 
-### Navigation & Route Guards Suite (8 tests — NEW)
+### Navigation & Route Guards Suite (8 tests — unchanged)
 
 | ID | Test | Coverage |
 |----|------|----------|
@@ -68,31 +69,7 @@
 | G4 | Authenticated deep link /dashboard/trace | Deep link |
 | G5 | Authenticated deep link /dashboard/proto | Deep link |
 
-## CI Root Cause & Fix
-
-**Symptom:** `pnpm: not found` (exit code 127) in E2E step.
-
-**Root cause:** `playwright.config.ts` webServer command was `pnpm dev` but CI workflow (`ci.yml`) installs dependencies with `npm ci` and does not install pnpm for the frontend job.
-
-**Fix:** Changed `playwright.config.ts` webServer command to `npm run dev`.
-
-## Bug Fix — Log Preservation
-
-**Symptom:** "Starting workflow" and "Job submitted" log entries disappeared during job polling.
-
-**Root cause:** `pollJobStatus` in both Trace and Proto consoles replaced all logs with trace events from the backend response (`setLogs(newLogs)`), wiping manually-added entries.
-
-**Fix:** Changed to `setLogs((prev) => { const manualLogs = prev.filter(...); return [...manualLogs, ...traceLogs]; })` to preserve start/submit log entries.
-
-## Anti-Flake Measures
-
-- All mock responses use deterministic data (no random values)
-- Sidebar selectors scoped to `aside nav` to avoid mobile/desktop duplication
-- Timeouts set appropriately (15s for polling lifecycle, 10s for submissions)
-- Proto tests account for auto-switch to Artifacts tab on completion
-- Single shared mock helper (`mock-dashboard-apis.ts`) eliminates copy-paste drift
-
-### Getting Started Card Suite (5 tests — NEW, S0.5.2-UX-3)
+### Getting Started Card Suite (5 tests — unchanged)
 
 | ID | Test | Coverage |
 |----|------|----------|
@@ -102,12 +79,94 @@
 | GS4 | Dismissed state persists across navigation | localStorage |
 | GS5 | Step links point to correct destinations | Navigation |
 
+### Settings — AI Provider Keys Suite (8 tests — NEW)
+
+| ID | Test | Coverage |
+|----|------|----------|
+| AK1 | Page renders title + provider cards | Route load |
+| AK2 | Configured provider shows status indicators | Status display |
+| AK3 | Save key success (mocked) | Save flow |
+| AK4 | Save key with ENCRYPTION_NOT_CONFIGURED 503 | Structured error |
+| AK5 | Status fetch failure with encryption error | Page-level error |
+| AK6 | Save button disabled when input empty | Form validation |
+| AK7 | Save request sends correct payload shape | API contract |
+| AK8 | Client-side validation rejects non-sk- prefix | Input validation |
+
+## New Backend Tests Added
+
+### Crypto Unit Tests (12 tests — NEW)
+
+| Suite | Tests | Coverage |
+|-------|-------|----------|
+| `parseKeyMaterial` | 8 | Hex, base64, base64-prefixed, whitespace, short/long/garbage/empty keys |
+| `isEncryptionConfigured` | 2 | Valid key ↔ invalid key proxy tests |
+| `encrypt/decrypt` | 2 | Round-trip AES-256-GCM, AAD scope mismatch detection |
+
+### Prompt Determinism Tests (17 tests — NEW, S0.5.1-AGT-2)
+
+| Suite | Tests | Coverage |
+|-------|-------|----------|
+| Prompt Constants | 4 | Non-empty, JSON format instructions in plan/reflect/validate prompts |
+| Temperature Presets | 5 | Deterministic ≤ creative, valid range, max values |
+| Deterministic Seed | 1 | Positive integer check |
+| Prompt Builders | 7 | Plan/generate/repair builders with context/steps/truncation |
+
+## Bug Fixes in This Branch
+
+### 1. Staging AI Keys 503 — ENCRYPTION_NOT_CONFIGURED
+
+**Symptom:** PUT /api/settings/ai-keys returns 503 "Server encryption is not properly configured".
+
+**Root cause:** `AI_KEY_ENCRYPTION_KEY` not set in staging `.env`. The backend crypto module throws when the key is missing; the route handler catches and returns 503.
+
+**Fix:**
+- Backend: Extended `/ready` endpoint with `encryption: { configured: boolean }` readiness signal
+- Backend: Added `hint` field to ENCRYPTION_NOT_CONFIGURED error envelope
+- Backend: Added `isEncryptionConfigured()` helper in `crypto.ts`
+- Frontend: Parse structured error code; show admin-specific message for encryption errors
+- Staging: Updated runbook checklist + VM env template with `AI_KEY_ENCRYPTION_KEY`
+- Smoke: Added encryption readiness check (Test 2b) to `staging_smoke.sh`
+
+### 2. Playbook Determinism (S0.5.1-AGT-2)
+
+**What:** Centralised prompt templates and made AI calls reproducible for pilot demo.
+
+**Changes:**
+- Extracted all system prompts to `prompt-constants.ts` (version-controlled)
+- Added `seed=42` to all LLM chat completion requests
+- Lowered temperatures in deterministic mode (plan: 0.2, generate: 0.3, reflect: 0.1, validate: 0.1)
+- Added `AI_DETERMINISTIC_MODE` env var (default: true)
+- Two temperature presets: DETERMINISTIC (pilot) and CREATIVE (dev)
+
+## Deploy Instructions for Staging
+
+To resolve the 503 error on staging, the operator must:
+
+```bash
+# SSH to staging VM
+ssh -i ~/.ssh/akis-oci ubuntu@<STAGING_HOST>
+
+# Generate and add encryption key to .env
+echo "AI_KEY_ENCRYPTION_KEY=$(openssl rand -base64 32)" >> /opt/akis/.env
+echo "AI_KEY_ENCRYPTION_KEY_VERSION=v1" >> /opt/akis/.env
+
+# Restart backend
+cd /opt/akis && docker compose restart backend
+
+# Verify
+curl -s https://staging.akisflow.com/ready | jq '.encryption'
+# Expected: { "configured": true }
+```
+
 ## Quality Gates (Local)
 
 | Check | Result |
 |-------|--------|
-| `npm run typecheck` | PASS |
-| `npm run lint` | PASS (2 pre-existing warnings) |
-| `npm test` (83 unit) | PASS |
-| `npm run build` | PASS |
-| E2E (47 tests) | **PASS** — 0 flaky |
+| Backend typecheck | PASS |
+| Backend lint | PASS |
+| Backend unit tests (252) | PASS |
+| Frontend typecheck | PASS |
+| Frontend lint | PASS (2 pre-existing warnings) |
+| Frontend unit tests (83) | PASS |
+| Frontend build | PASS |
+| E2E tests (55) | **PASS** — 0 flaky |

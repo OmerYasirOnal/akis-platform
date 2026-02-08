@@ -13,6 +13,18 @@ import { getEnv, getAIConfig, type AIConfig } from '../../config/env.js';
 import { AIRateLimitedError, AIProviderError } from '../../core/errors.js';
 import { z } from 'zod';
 import { estimateCostUsd } from './pricing.js';
+import {
+  DETERMINISTIC_TEMPERATURES,
+  CREATIVE_TEMPERATURES,
+  DETERMINISTIC_SEED,
+  PLAN_SYSTEM_PROMPT,
+  buildPlanUserPrompt,
+  GENERATE_SYSTEM_PROMPT,
+  buildGenerateUserPrompt,
+  REFLECT_SYSTEM_PROMPT,
+  VALIDATE_SYSTEM_PROMPT,
+  buildRepairPrompt,
+} from './prompt-constants.js';
 
 // =============================================================================
 // JSON Schema Definitions for AI Responses
@@ -229,6 +241,15 @@ class RealAIService implements AIService {
   private readonly maxRetries: number;
   private readonly baseRetryDelay: number;
 
+  /**
+   * Whether the AI service operates in deterministic mode (S0.5.1-AGT-2).
+   * Deterministic mode: lower temperatures + seed for reproducible output.
+   * Defaults to true (pilot-safe). Set AI_DETERMINISTIC_MODE=false to disable.
+   */
+  private getDeterministicMode(): boolean {
+    return process.env.AI_DETERMINISTIC_MODE !== 'false';
+  }
+
   constructor(config: AIConfig, observer?: AIServiceObserver) {
     this.config = config;
     this.observer = observer;
@@ -295,7 +316,7 @@ class RealAIService implements AIService {
   private async chatCompletion(
     messages: ChatMessage[],
     model: string,
-    options: { temperature?: number; maxTokens?: number } = {},
+    options: { temperature?: number; maxTokens?: number; seed?: number | null } = {},
     purpose: string = 'unknown'
   ): Promise<{ content: string; usage?: AIUsage; durationMs?: number }> {
     if (!this.config.apiKey) {
@@ -308,11 +329,15 @@ class RealAIService implements AIService {
 
     const endpoint = `${this.config.baseUrl}/chat/completions`;
 
-    const body = {
+    // Resolve deterministic seed: explicit null = no seed, undefined = use default
+    const resolvedSeed = options.seed === null ? undefined : (options.seed ?? DETERMINISTIC_SEED);
+
+    const body: Record<string, unknown> = {
       model,
       messages,
       temperature: options.temperature ?? 0.7,
       max_tokens: options.maxTokens ?? 2048,
+      ...(resolvedSeed !== undefined && { seed: resolvedSeed }),
     };
 
     let lastError: Error | null = null;
@@ -603,19 +628,15 @@ class RealAIService implements AIService {
       
       // Repair attempt: ask AI to fix the JSON
       try {
-        const repairPrompt = `The following text was supposed to be valid JSON but failed to parse. 
-Return ONLY the corrected JSON with no explanation or additional text.
-The JSON should match this structure: ${JSON.stringify(schema._def)}
-
-Original response:
-${response.substring(0, 2000)}
-
-Return ONLY valid JSON:`;
+        const repairPromptText = buildRepairPrompt(
+          JSON.stringify(schema._def),
+          response
+        );
 
         const repairedResponse = await this.chatCompletion(
-          [{ role: 'user', content: repairPrompt }],
+          [{ role: 'user', content: repairPromptText }],
           this.config.modelDefault,
-          { temperature: 0, maxTokens: 2048 },
+          { temperature: DETERMINISTIC_TEMPERATURES.repair, maxTokens: 2048 },
           `repair:${context}`
         );
         
@@ -660,38 +681,16 @@ Return ONLY valid JSON:`;
    * Plan a task - uses AI_MODEL_PLANNER with strict JSON schema validation
    */
   async planTask(input: PlanInput): Promise<Plan> {
-    const systemPrompt = `You are an AI planning assistant for the AKIS platform.
-Your task is to create execution plans for autonomous agents.
-
-CRITICAL: You MUST respond with ONLY valid JSON in this EXACT format:
-{
-  "steps": [
-    { "id": "step-1", "title": "Step title", "detail": "Optional detailed description" }
-  ],
-  "rationale": "Brief explanation of why this plan achieves the goal"
-}
-
-Requirements:
-- steps array MUST have at least 1 step
-- Each step MUST have "id" and "title" fields
-- "detail" is optional but recommended
-- "rationale" explains the plan approach
-- NO text before or after the JSON
-- NO markdown code blocks`;
-
-    const userPrompt = `Create an execution plan for the ${input.agent} agent.
-Goal: ${input.goal}
-${input.context ? `Context: ${JSON.stringify(input.context)}` : ''}
-
-Respond with ONLY the JSON plan object.`;
+    const temps = this.getDeterministicMode() ? DETERMINISTIC_TEMPERATURES : CREATIVE_TEMPERATURES;
+    const userPrompt = buildPlanUserPrompt(input.agent, input.goal, input.context);
 
     const response = await this.chatCompletion(
       [
-        { role: 'system', content: systemPrompt },
+        { role: 'system', content: PLAN_SYSTEM_PROMPT },
         { role: 'user', content: userPrompt },
       ],
       this.config.modelPlanner,
-      { temperature: 0.5 },
+      { temperature: temps.plan },
       'plan'
     );
 
@@ -702,23 +701,16 @@ Respond with ONLY the JSON plan object.`;
    * Generate work artifact - uses AI_MODEL_DEFAULT
    */
   async generateWorkArtifact(input: WorkerInput): Promise<WorkerResult> {
-    const systemPrompt = `You are an AI code and content generation assistant for the AKIS platform.
-Generate high-quality output based on the given task.
-Be concise, accurate, and follow best practices.`;
-
-    const userPrompt = `Task: ${input.task}
-${input.context ? `Context: ${JSON.stringify(input.context)}` : ''}
-${input.previousSteps?.length ? `Previous steps completed: ${input.previousSteps.join(', ')}` : ''}
-
-Generate the requested content.`;
+    const temps = this.getDeterministicMode() ? DETERMINISTIC_TEMPERATURES : CREATIVE_TEMPERATURES;
+    const userPrompt = buildGenerateUserPrompt(input.task, input.context, input.previousSteps);
 
     const response = await this.chatCompletion(
       [
-        { role: 'system', content: systemPrompt },
+        { role: 'system', content: GENERATE_SYSTEM_PROMPT },
         { role: 'user', content: userPrompt },
       ],
       this.config.modelDefault,
-      { temperature: 0.7, maxTokens: 4096 },
+      { temperature: temps.generate, maxTokens: 4096 },
       'generate'
     );
 
@@ -738,22 +730,7 @@ Generate the requested content.`;
    * Reflect on artifact - uses AI_MODEL_DEFAULT with strict JSON schema validation
    */
   async reflectOnArtifact(input: ReflectionInput): Promise<Critique> {
-    const systemPrompt = `You are an AI code review and quality assessment assistant for the AKIS platform.
-Analyze the given artifact and provide constructive feedback.
-
-CRITICAL: You MUST respond with ONLY valid JSON in this EXACT format:
-{
-  "issues": ["List of identified issues or problems"],
-  "recommendations": ["List of specific recommendations for improvement"],
-  "severity": "low" | "medium" | "high"
-}
-
-Requirements:
-- "issues" MUST be an array of strings (can be empty if no issues)
-- "recommendations" MUST be an array of strings
-- "severity" MUST be exactly one of: "low", "medium", or "high"
-- NO text before or after the JSON
-- NO markdown code blocks`;
+    const temps = this.getDeterministicMode() ? DETERMINISTIC_TEMPERATURES : CREATIVE_TEMPERATURES;
 
     let checkResultsSummary = '';
     if (input.checkResults) {
@@ -791,11 +768,11 @@ Respond with ONLY the JSON critique object.`;
 
     const response = await this.chatCompletion(
       [
-        { role: 'system', content: systemPrompt },
+        { role: 'system', content: REFLECT_SYSTEM_PROMPT },
         { role: 'user', content: userPrompt },
       ],
       this.config.modelDefault,
-      { temperature: 0.3 },
+      { temperature: temps.reflect },
       'reflect'
     );
 
@@ -806,27 +783,7 @@ Respond with ONLY the JSON critique object.`;
    * Validate with strong model - uses AI_MODEL_VALIDATION with strict JSON schema validation
    */
   async validateWithStrongModel(input: ValidationInput): Promise<ValidationResult> {
-    const systemPrompt = `You are an expert AI validator for the AKIS platform.
-Your job is to perform final quality validation before marking a job as complete.
-Be thorough and critical. Only pass artifacts that meet high quality standards.
-
-CRITICAL: You MUST respond with ONLY valid JSON in this EXACT format:
-{
-  "passed": true | false,
-  "confidence": 0.0 to 1.0,
-  "issues": ["List of any issues found"],
-  "suggestions": ["List of improvement suggestions"],
-  "summary": "Brief summary of validation result"
-}
-
-Requirements:
-- "passed" MUST be a boolean (true or false)
-- "confidence" MUST be a number between 0.0 and 1.0
-- "issues" MUST be an array of strings
-- "suggestions" MUST be an array of strings  
-- "summary" MUST be a non-empty string
-- NO text before or after the JSON
-- NO markdown code blocks`;
+    const temps = this.getDeterministicMode() ? DETERMINISTIC_TEMPERATURES : CREATIVE_TEMPERATURES;
 
     const artifactStr = typeof input.artifact === 'string'
       ? input.artifact
@@ -859,11 +816,11 @@ Respond with ONLY the JSON validation result object.`;
 
     const response = await this.chatCompletion(
       [
-        { role: 'system', content: systemPrompt },
+        { role: 'system', content: VALIDATE_SYSTEM_PROMPT },
         { role: 'user', content: userPrompt },
       ],
       this.config.modelValidation,
-      { temperature: 0.2 },
+      { temperature: temps.validate },
       'validate'
     );
 
