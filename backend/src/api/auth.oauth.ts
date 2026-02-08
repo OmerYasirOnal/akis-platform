@@ -260,7 +260,14 @@ function redirect(reply: FastifyReply, url: string) {
 export async function registerOAuthRoutes(fastify: FastifyInstance) {
   const httpClient = new HttpClient({ timeout: 10000, retries: 2 });
   const config = getEnv();
-  
+
+  const githubConfigured = !!(config.GITHUB_OAUTH_CLIENT_ID && config.GITHUB_OAUTH_CLIENT_SECRET);
+  const googleConfigured = !!(config.GOOGLE_OAUTH_CLIENT_ID && config.GOOGLE_OAUTH_CLIENT_SECRET);
+  console.log(`[OAuth] Providers: github=${githubConfigured ? 'configured' : 'NOT configured'}, google=${googleConfigured ? 'configured' : 'NOT configured'}`);
+  if (githubConfigured || googleConfigured) {
+    console.log(`[OAuth] Callback base: ${config.BACKEND_URL}/auth/oauth/<provider>/callback`);
+  }
+
   // Cleanup expired states periodically
   const cleanupInterval = setInterval(cleanupExpiredStates, 60000); // Every minute
   
