@@ -1,25 +1,4 @@
-/**
- * Auth API Service
- * 
- * Get the base URL for auth endpoints.
- * Auth routes are at /auth/* (no /api prefix).
- * In production/staging, we use same origin. In development, backend may be on different port.
- * 
- * IMPORTANT: This must be called at runtime (not module init) to ensure window is available.
- */
-function getAuthBaseUrl(): string {
-  // VITE_BACKEND_URL is the explicit backend origin (e.g., http://localhost:3000)
-  if (import.meta.env.VITE_BACKEND_URL) {
-    return import.meta.env.VITE_BACKEND_URL;
-  }
-  // In production/staging, frontend and backend share the same origin
-  // This MUST be evaluated at runtime when window is available
-  if (typeof window !== 'undefined' && window.location.origin) {
-    return window.location.origin;
-  }
-  // Fallback for development
-  return 'http://localhost:3000';
-}
+import { getAuthBaseUrl } from './config';
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   // Get base URL at runtime (not module init) to ensure window.location is available

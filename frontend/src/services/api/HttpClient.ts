@@ -1,3 +1,5 @@
+import { getApiBaseUrl } from './config';
+
 export interface RequestOptions extends RequestInit {
   retries?: number;
   retryDelay?: number;
@@ -13,16 +15,9 @@ export interface ApiError extends Error {
 export class HttpClient {
   private baseURL: string;
 
-  /**
-   * Create an HTTP client with the given base URL.
-   * Default uses getApiBaseUrl() from config for consistency.
-   *
-   * NOTE: For most use cases, pass getApiBaseUrl() explicitly when creating
-   * the client to ensure proper origin resolution at runtime.
-   */
-  constructor(baseURL: string = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000') {
-    // Remove trailing slash and any accidental /api suffix to prevent double prefix
-    this.baseURL = baseURL.replace(/\/$/, '').replace(/\/api\/?$/, '');
+  constructor(baseURL?: string) {
+    const resolved = baseURL ?? getApiBaseUrl();
+    this.baseURL = resolved.replace(/\/$/, '').replace(/\/api\/?$/, '');
   }
 
   private async delay(ms: number): Promise<void> {

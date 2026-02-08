@@ -56,8 +56,8 @@ export function getApiBaseUrl(): string {
     return window.location.origin;
   }
 
-  // Fallback for SSR or test environments
-  return 'http://localhost:3000';
+  // Fallback: empty string = relative path (safe for all environments)
+  return '';
 }
 
 /**
