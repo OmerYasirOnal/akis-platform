@@ -105,6 +105,7 @@ The deployment workflow (`oci-staging-deploy.yml`) will **skip deployment** unti
 **VM Environment File** (`/opt/akis/.env`):
 - [ ] `POSTGRES_PASSWORD` - Secure database password
 - [ ] `AUTH_JWT_SECRET` - 256-bit secret (`openssl rand -base64 32`)
+- [ ] `AI_KEY_ENCRYPTION_KEY` - 32-byte base64 key (`openssl rand -base64 32`) — **required for user AI key saving**
 - [ ] `BACKEND_URL=https://staging.akisflow.com`
 - [ ] `FRONTEND_URL=https://staging.akisflow.com`
 - [ ] `AUTH_COOKIE_NAME=akis_session`
@@ -236,6 +237,11 @@ EMAIL_PROVIDER=mock
 
 # AI (optional)
 AI_PROVIDER=mock
+
+# AI Key Encryption (REQUIRED for user AI key saving)
+# Generate with: openssl rand -base64 32
+AI_KEY_ENCRYPTION_KEY=<generated_base64_32_bytes>
+AI_KEY_ENCRYPTION_KEY_VERSION=v1
 
 # OAuth — GitHub (optional, for "Continue with GitHub" login)
 # Create at: https://github.com/settings/developers → OAuth Apps

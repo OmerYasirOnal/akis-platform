@@ -170,6 +170,28 @@ else
 fi
 
 # =============================================================================
+# Test 2b: Encryption readiness (from /ready response)
+# =============================================================================
+echo "Test 2b: Encryption configuration"
+if [ "$READY_CODE" = "200" ]; then
+  ENCRYPTION_STATUS=$(extract_json_field "$READY_JSON" "encryption.configured" 2>/dev/null || echo "unknown")
+  # jq handles nested fields; fallback grep may not, so tolerate "unknown"
+  if [ "$ENCRYPTION_STATUS" = "true" ]; then
+    echo -e "${GREEN}✅ Encryption: configured${NC}"
+    TESTS_PASSED=$((TESTS_PASSED + 1))
+  elif [ "$ENCRYPTION_STATUS" = "false" ]; then
+    echo -e "${RED}❌ Encryption: NOT configured — user AI key saving will fail (503)${NC}"
+    echo -e "${YELLOW}   FIX: Set AI_KEY_ENCRYPTION_KEY in /opt/akis/.env (openssl rand -base64 32)${NC}"
+    TESTS_FAILED=$((TESTS_FAILED + 1))
+  else
+    echo -e "${YELLOW}⚠️  Encryption: could not determine status (old backend version?)${NC}"
+    TESTS_PASSED=$((TESTS_PASSED + 1))
+  fi
+else
+  echo -e "${YELLOW}⚠️  Skipping encryption check (/ready not available)${NC}"
+fi
+
+# =============================================================================
 # Test 3: Version Endpoint with Commit Verification (CRITICAL)
 # =============================================================================
 echo "Test 3: Version endpoint (CRITICAL)"
