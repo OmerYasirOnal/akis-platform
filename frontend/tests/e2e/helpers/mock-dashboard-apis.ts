@@ -157,3 +157,71 @@ export async function mockRunAgentError(page: Page, statusCode = 500, message = 
     }
   });
 }
+
+/* ---------- Scribe-specific mocks ---------- */
+
+/**
+ * Mock GitHub integration as connected with repos and branches.
+ * Intercepts:
+ *   GET /api/integrations/github/status → connected + login
+ *   GET /api/integrations/github/repos  → one repo
+ *   GET /api/integrations/github/branches → main branch
+ */
+export async function mockGitHubConnected(page: Page) {
+  await page.route('**/api/integrations/github/status', async (route: Route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        connected: true,
+        login: 'e2e-user',
+        avatarUrl: 'https://example.com/avatar.png',
+      }),
+    });
+  });
+
+  await page.route('**/api/integrations/github/repos**', async (route: Route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        repos: [
+          {
+            name: 'demo-app',
+            fullName: 'e2e-user/demo-app',
+            defaultBranch: 'main',
+            private: false,
+            description: 'Demo application',
+          },
+        ],
+      }),
+    });
+  });
+
+  await page.route('**/api/integrations/github/branches**', async (route: Route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        branches: [
+          { name: 'main', isDefault: true },
+          { name: 'develop', isDefault: false },
+        ],
+        defaultBranch: 'main',
+      }),
+    });
+  });
+}
+
+/**
+ * Mock GitHub integration as disconnected (API returns error → page shows error notice).
+ */
+export async function mockGitHubDisconnected(page: Page) {
+  await page.route('**/api/integrations/github/status', async (route: Route) => {
+    await route.fulfill({
+      status: 401,
+      contentType: 'application/json',
+      body: JSON.stringify({ error: { code: 'NOT_CONNECTED', message: 'GitHub not connected' } }),
+    });
+  });
+}

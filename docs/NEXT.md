@@ -51,7 +51,7 @@ docs/NEXT.md                                             (this file — immediat
 |----|------|--------|-------|
 | S0.5.1-AGT-1 | Agent contract dokumantasyonu (3 ajan) | Done | `docs/agents/AGENT_CONTRACTS_S0.5.md` — 3 agent schemas + error taxonomy (2026-02-08) |
 | S0.5.1-AGT-2 | Playbook determinizm (temp=0, prompt sabit) | Done | prompt-constants.ts, seed=42, deterministic temps, AI_DETERMINISTIC_MODE env + 17 unit tests (2026-02-09) |
-| S0.5.1-AGT-3 | Scribe golden path dogrulama | Not Started | Dep: OPS-6, AGT-1 |
+| S0.5.1-AGT-3 | Scribe golden path dogrulama | Done | `SCRIBE_GOLDEN_PATH.md` + 12 E2E tests (`scribe-console.spec.ts`) + shared GitHub mocks (2026-02-09) |
 | S0.5.1-AGT-4 | Trace golden path dogrulama | Not Started | Dep: OPS-6, AGT-1 |
 | S0.5.1-AGT-5 | Proto golden path dogrulama | Not Started | Dep: OPS-6, AGT-1 |
 | S0.5.1-AGT-6 | Hata handling standardizasyonu | Not Started | Dep: AGT-1 |

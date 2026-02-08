@@ -111,6 +111,7 @@ jobs:
           navigation-guards
           getting-started
           settings-ai-keys
+          scribe-console
           --reporter=github
 
       - name: Upload Playwright artifacts on failure

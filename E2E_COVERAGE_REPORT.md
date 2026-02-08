@@ -7,8 +7,8 @@
 
 | Metric | Before | After |
 |--------|--------|-------|
-| Total E2E specs | 7 files | **8 files** |
-| Total E2E tests | 47 tests | **55 tests** |
+| Total E2E specs | 7 files | **9 files** |
+| Total E2E tests | 47 tests | **67 tests** |
 | Backend unit tests | 223 tests | **252 tests** |
 | Frontend unit tests | 83 tests | **83 tests** |
 | Flaky tests | 0 | **0** |
@@ -92,6 +92,23 @@
 | AK7 | Save request sends correct payload shape | API contract |
 | AK8 | Client-side validation rejects non-sk- prefix | Input validation |
 
+### Scribe Console — Golden Path Suite (12 tests — NEW, S0.5.1-AGT-3)
+
+| ID | Test | Coverage |
+|----|------|----------|
+| SC1 | Page renders heading + configuration bar | Route load |
+| SC2 | GitHub connected → owner, repo, branch visible | GitHub integration |
+| SC3 | Run Scribe enabled when config complete | Form readiness |
+| SC4 | Golden path: submit → poll → completed with logs | Full job lifecycle |
+| SC5 | Submission fails (500) → error in logs | Error handling |
+| SC6 | Job fails during execution → error state | Failure state |
+| SC7 | Doc pack selector changes output targets | Config interaction |
+| SC8 | GitHub not connected → shows error notice | Integration error |
+| SC9 | Logs tab idle state | Empty state |
+| SC10 | Re-run enabled after completion | Re-run capability |
+| SC11 | Correct route renders page | SPA routing |
+| SC12 | Payload shape validation | API contract |
+
 ## New Backend Tests Added
 
 ### Crypto Unit Tests (12 tests — NEW)
@@ -169,4 +186,4 @@ curl -s https://staging.akisflow.com/ready | jq '.encryption'
 | Frontend lint | PASS (2 pre-existing warnings) |
 | Frontend unit tests (83) | PASS |
 | Frontend build | PASS |
-| E2E tests (55) | **PASS** — 0 flaky |
+| E2E tests (67) | **PASS** — 0 flaky |
