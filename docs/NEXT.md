@@ -27,12 +27,12 @@ docs/NEXT.md                                             (this file — immediat
 |----|------|--------|-------|
 | S0.5.0-OPS-1 | Frontend base URL fix (`config.ts` production guard) | Done | PR #217 + regression fix PR #226: production guard rejects localhost in `getApiBaseUrl()` (2026-02-08) |
 | S0.5.0-OPS-2 | Backend trust-proxy (`env.ts` + `server.app.ts`) | Done | PR #230: TRUST_PROXY env-gated, Fastify trustProxy: true (2026-02-08). docker-compose TRUST_PROXY passthrough added (2026-02-08) |
-| S0.5.0-OPS-3 | Staging env + OAuth callback dogrulama | Not Started | Dep: OPS-1, OPS-2, #228, #229 |
+| S0.5.0-OPS-3 | Staging env + OAuth callback dogrulama | In Progress | Runbook updated with OAuth provider setup, callback URLs documented, startup diagnostics added |
 | S0.5.0-OPS-4 | Smoke test'e localhost leak check ekle | Not Started | Dep: OPS-1 |
 | S0.5.0-OPS-5 | DB migration ve health dogrulama | Not Started | SSH + docker check |
 | S0.5.0-OPS-6 | Full deploy + smoke test | Not Started | Dep: OPS-1~5, 6/6 pass |
-| S0.5.0-AUTH-PRIVACY | `/auth/privacy-consent` 404 (Caddy routing) | In Progress | #228 — Caddyfile split: backend auth API routes vs SPA pages |
-| S0.5.0-OAUTH-GOOGLE | Google login `invalid_client` on staging | Not Started | #229 — Credentials veya redirect URI hatasi |
+| S0.5.0-AUTH-PRIVACY | `/auth/privacy-consent` 404 (Caddy routing) | Done | PR #231: Caddyfile split — backend auth API routes vs SPA pages (2026-02-08) |
+| S0.5.0-OAUTH-GOOGLE | Google login `invalid_client` on staging | In Progress | #229 — Runbook documents callback URI setup; startup log shows provider config status |
 
 ### Phase B (10-16 Sub) — PILOT ACCESS + UX
 
