@@ -91,6 +91,7 @@ export async function aiKeysRoutes(fastify: FastifyInstance) {
             error: {
               code: 'ENCRYPTION_NOT_CONFIGURED',
               message: 'Server encryption is not properly configured. Contact administrator.',
+              hint: 'Set AI_KEY_ENCRYPTION_KEY in the server environment. See docs/deploy/OCI_STAGING_RUNBOOK.md.',
             },
           });
         }
@@ -167,6 +168,7 @@ export async function aiKeysRoutes(fastify: FastifyInstance) {
             error: {
               code: 'ENCRYPTION_NOT_CONFIGURED',
               message: 'Server encryption is not properly configured. Contact administrator.',
+              hint: 'Set AI_KEY_ENCRYPTION_KEY in the server environment. See docs/deploy/OCI_STAGING_RUNBOOK.md.',
             },
           });
         }
@@ -268,6 +270,7 @@ export async function aiKeysRoutes(fastify: FastifyInstance) {
             error: {
               code: 'ENCRYPTION_NOT_CONFIGURED',
               message: 'Server encryption is not properly configured. Contact administrator.',
+              hint: 'Set AI_KEY_ENCRYPTION_KEY in the server environment. See docs/deploy/OCI_STAGING_RUNBOOK.md.',
             },
           });
         }
@@ -339,6 +342,7 @@ export async function aiKeysRoutes(fastify: FastifyInstance) {
             error: {
               code: 'ENCRYPTION_NOT_CONFIGURED',
               message: 'Server encryption is not properly configured. Contact administrator.',
+              hint: 'Set AI_KEY_ENCRYPTION_KEY in the server environment. See docs/deploy/OCI_STAGING_RUNBOOK.md.',
             },
           });
         }
