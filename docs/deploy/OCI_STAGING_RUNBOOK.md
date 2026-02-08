@@ -633,7 +633,23 @@ docker compose run --rm backend pnpm db:migrate
 docker compose exec db psql -U akis -d akis_staging -c "\dt"
 ```
 
-### 6.3 Database Connection
+### 6.3 Post-Migration Health Validation
+
+After running migrations, verify the `/ready` endpoint includes migration status:
+
+```bash
+curl -s https://staging.akisflow.com/ready | jq .
+# Expected: {"ready":true,"database":"connected","migrations":"ok","timestamp":"..."}
+```
+
+| Field | Expected | Meaning |
+|-------|----------|---------|
+| `ready` | `true` | Server accepts requests |
+| `database` | `connected` | PostgreSQL responds to queries |
+| `migrations` | `ok` | Core tables (users) exist |
+| `migrations` | `pending` | Schema not migrated — run `docker compose run --rm backend pnpm db:migrate` |
+
+### 6.4 Database Connection
 
 **From VM**:
 ```
