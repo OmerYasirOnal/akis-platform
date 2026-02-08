@@ -115,7 +115,7 @@ describe('RunBar', () => {
   it('shows expand button when multiple jobs exist', async () => {
     const stored = [
       { id: 'j6', type: 'scribe', state: 'running', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
-      { id: 'j7', type: 'developer', state: 'completed', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+      { id: 'j7', type: 'proto', state: 'completed', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
     ];
     localStorage.setItem(STORAGE_KEY, JSON.stringify(stored));
 
@@ -129,7 +129,7 @@ describe('RunBar', () => {
 
     await waitFor(() => {
       expect(screen.getByText('Hide')).toBeInTheDocument();
-      expect(screen.getByText('developer')).toBeInTheDocument();
+      expect(screen.getByText('proto')).toBeInTheDocument();
     });
   });
 

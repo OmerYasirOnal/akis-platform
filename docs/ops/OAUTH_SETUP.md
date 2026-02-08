@@ -156,6 +156,53 @@ For production (`akisflow.com`), create **separate** OAuth apps with production 
 
 **Never share OAuth secrets between staging and production.**
 
+## Local Development OAuth Setup
+
+> Consolidated from `docs/GITHUB_OAUTH_SETUP.md`.
+
+### Local GitHub OAuth App
+
+1. Go to [GitHub Developer Settings](https://github.com/settings/developers)
+2. Click **"New OAuth App"**
+3. Fill in:
+   - **Application name**: `AKIS Platform (Local Dev)`
+   - **Homepage URL**: `http://localhost:5173`
+   - **Authorization callback URL**: `http://localhost:3000/api/integrations/github/oauth/callback`
+4. Copy **Client ID** and generate **Client Secret**
+5. Add to `backend/.env.local`:
+
+```bash
+GITHUB_OAUTH_CLIENT_ID=Iv1.abc123...
+GITHUB_OAUTH_CLIENT_SECRET=abc123...
+GITHUB_OAUTH_CALLBACK_URL=http://localhost:3000/api/integrations/github/oauth/callback
+APP_PUBLIC_URL=http://localhost:5173
+```
+
+### OAuth Flow (Integration Page)
+
+```
+User clicks "Connect" on /dashboard/integrations
+  → Frontend redirects to backend: /api/integrations/github/oauth/start
+  → Backend generates CSRF state token (httpOnly cookie)
+  → Backend redirects to GitHub: github.com/login/oauth/authorize
+  → User authorizes on GitHub
+  → GitHub callback: /api/integrations/github/oauth/callback?code=...&state=...
+  → Backend validates state, exchanges code for token
+  → Backend stores token in DB, redirects to frontend
+```
+
+### Required GitHub Scopes (Integration)
+
+- `read:user` — Read user profile
+- `user:email` — Read user email
+- `repo` — Full repo access (for Scribe PR creation)
+
+### Security Features
+
+- CSRF protection via state token in httpOnly cookie
+- Session required (akis_sid cookie)
+- Callback URL validation by GitHub
+
 ## Related Documentation
 
 - [Staging Deployment Guide](./STAGING_DEPLOYMENT.md)

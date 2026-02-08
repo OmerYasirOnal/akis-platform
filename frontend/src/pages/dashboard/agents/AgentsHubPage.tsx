@@ -77,18 +77,6 @@ const ProtoIcon = () => (
   </svg>
 );
 
-const CoderIcon = () => (
-  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M17.25 6.75L22.5 12l-5.25 5.25m-10.5 0L1.5 12l5.25-5.25m7.5-3l-4.5 16.5" />
-  </svg>
-);
-
-const DeveloperIcon = () => (
-  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 7.5l3 2.25-3 2.25m4.5 0h3m-9 8.25h13.5A2.25 2.25 0 0021 18V6a2.25 2.25 0 00-2.25-2.25H5.25A2.25 2.25 0 003 6v12a2.25 2.25 0 002.25 2.25z" />
-  </svg>
-);
-
 const AutomationIcon = () => (
   <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
     <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12a7.5 7.5 0 0015 0m-15 0a7.5 7.5 0 1115 0m-15 0H3m16.5 0H21m-1.5 0H12m-8.457 3.077l1.41-.513m14.095-5.13l1.41-.513M5.106 17.785l1.15-.964m11.49-9.642l1.149-.964M7.501 19.795l.75-1.3m7.5-12.99l.75-1.3m-6.063 16.658l.26-1.477m2.605-14.772l.26-1.477m0 17.726l-.26-1.477M10.698 4.614l-.26-1.477M16.5 19.794l-.75-1.299M7.5 4.205L12 12m6.894 5.785l-1.149-.964M6.256 7.178l-1.15-.964m15.352 8.864l-1.41-.513M4.954 9.435l-1.41-.514M12.002 12l-3.75 6.495" />
@@ -139,30 +127,6 @@ const builtInAgents: AgentDefinition[] = [
     inputLabel: 'Requirements',
   },
   {
-    id: 'coder',
-    name: 'Coder',
-    description: 'Generate code with planning, execution, and reflection.',
-    icon: <CoderIcon />,
-    capabilities: ['Task-driven generation', 'Language/framework aware', 'Planning + reflection', 'Auditable outputs'],
-    status: 'available',
-    color: 'amber-400',
-    requiresInput: true,
-    inputPlaceholder: 'Describe the coding task...\n\nExample: "Create a TypeScript utility for date formatting with unit tests"',
-    inputLabel: 'Coding Task',
-  },
-  {
-    id: 'developer',
-    name: 'Developer',
-    description: 'Full developer workflow with multi-step planning.',
-    icon: <DeveloperIcon />,
-    capabilities: ['Multi-step execution', 'Constraint-aware planning', 'Stepwise narrative', 'Guardrailed ops'],
-    status: 'available',
-    color: 'emerald-400',
-    requiresInput: true,
-    inputPlaceholder: 'Describe your goal or requirements...\n\nExample: "Add user authentication with JWT to the Express API"',
-    inputLabel: 'Goal / Requirements',
-  },
-  {
     id: 'smart-automations',
     name: 'Akıllı Otomasyonlar',
     description: 'RSS kaynaklarından günlük LinkedIn içeriği oluşturun.',
@@ -191,8 +155,6 @@ function getAgentColor(id: string) {
     case 'scribe': return { bg: 'bg-ak-primary/10', text: 'text-ak-primary' };
     case 'trace': return { bg: 'bg-blue-500/10', text: 'text-blue-400' };
     case 'proto': return { bg: 'bg-purple-500/10', text: 'text-purple-400' };
-    case 'coder': return { bg: 'bg-amber-500/10', text: 'text-amber-400' };
-    case 'developer': return { bg: 'bg-emerald-500/10', text: 'text-emerald-400' };
     case 'smart-automations': return { bg: 'bg-cyan-500/10', text: 'text-cyan-400' };
     default: return { bg: 'bg-ak-primary/10', text: 'text-ak-primary' };
   }
@@ -416,8 +378,6 @@ export default function AgentsHubPage() {
     if (selectedAgent.requiresInput && !extraInput?.trim()) {
       setJobError(
         selectedAgent.id === 'trace' ? 'Please provide a test specification' :
-        selectedAgent.id === 'coder' ? 'Please describe the coding task' :
-        selectedAgent.id === 'developer' ? 'Please describe your goal or requirements' :
         'Please describe your requirements'
       );
       return;
@@ -474,10 +434,6 @@ export default function AgentsHubPage() {
         payload.requirements = extraInput.trim();
       } else if (selectedAgent.id === 'scribe' && extraInput?.trim()) {
         payload.taskDescription = extraInput.trim();
-      } else if (selectedAgent.id === 'coder' && extraInput) {
-        payload.task = extraInput.trim();
-      } else if (selectedAgent.id === 'developer' && extraInput) {
-        payload.goal = extraInput.trim();
       }
 
       // smart-automations redirects to a separate page, so it won't reach here

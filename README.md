@@ -97,7 +97,7 @@ pnpm -C frontend dev
 
 | Topic | Link |
 |-------|------|
-| Getting Started | [docs/DEV_SETUP.md](docs/DEV_SETUP.md) |
+| Getting Started | [docs/local-dev/LOCAL_DEV_QUICKSTART.md](docs/local-dev/LOCAL_DEV_QUICKSTART.md) |
 | API Specification | [backend/docs/API_SPEC.md](backend/docs/API_SPEC.md) |
 | Agent Workflows | [backend/docs/AGENT_WORKFLOWS.md](backend/docs/AGENT_WORKFLOWS.md) |
 | MCP Setup | [docs/GITHUB_MCP_SETUP.md](docs/GITHUB_MCP_SETUP.md) |

@@ -40,7 +40,7 @@ export default function JobsListPage() {
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<{ message: string; code?: string; requestId?: string } | null>(null);
-  const [filterType, setFilterType] = useState<'scribe' | 'trace' | 'proto' | 'coder' | 'developer' | ''>('');
+  const [filterType, setFilterType] = useState<'scribe' | 'trace' | 'proto' | ''>('');
   const [filterState, setFilterState] = useState<'pending' | 'running' | 'completed' | 'failed' | ''>('');
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -152,8 +152,6 @@ export default function JobsListPage() {
             <option value="scribe">Scribe</option>
             <option value="trace">Trace</option>
             <option value="proto">Proto</option>
-            <option value="coder">Coder</option>
-            <option value="developer">Developer</option>
           </select>
 
           {/* State Filter */}

@@ -1,9 +1,14 @@
 # AKIS Staging Release Checklist
 
-**Version**: 1.1.0  
-**Last Updated**: 2026-02-03
+**Version**: 1.2.0  
+**Last Updated**: 2026-02-07
 
 This checklist ensures repeatable, reliable staging deployments.
+
+> **Related**:
+> - [Smoke Test Checklist](../deploy/STAGING_SMOKE_TEST_CHECKLIST.md) — Detailed pass/fail criteria
+> - [Rollback Runbook](../deploy/STAGING_ROLLBACK_RUNBOOK.md) — When and how to rollback
+> - [OCI Staging Runbook](../deploy/OCI_STAGING_RUNBOOK.md) — Full operations guide
 
 ---
 
