@@ -105,6 +105,9 @@ services:
       AI_KEY_ENCRYPTION_KEY: ${AI_KEY_ENCRYPTION_KEY:-}
       AI_KEY_ENCRYPTION_KEY_VERSION: ${AI_KEY_ENCRYPTION_KEY_VERSION:-v1}
       
+      # Reverse proxy (Caddy terminates TLS; backend must trust X-Forwarded-* headers)
+      TRUST_PROXY: ${TRUST_PROXY:-true}
+
       # OAuth
       GITHUB_OAUTH_CLIENT_ID: ${GITHUB_OAUTH_CLIENT_ID:-}
       GITHUB_OAUTH_CLIENT_SECRET: ${GITHUB_OAUTH_CLIENT_SECRET:-}

@@ -57,9 +57,21 @@ staging.akisflow.com {
     }
 
     # =======================================================================
-    # Auth routes → Backend
+    # Auth API routes → Backend
+    # Only proxy backend API paths; SPA auth pages (/auth/privacy-consent,
+    # /auth/welcome-beta) fall through to the static file handler below.
     # =======================================================================
-    handle /auth/* {
+    handle /auth/oauth/* {
+        reverse_proxy backend:3000
+    }
+    handle /auth/signup/* {
+        reverse_proxy backend:3000
+    }
+    handle /auth/login/* {
+        reverse_proxy backend:3000
+    }
+    @auth_api path /auth/signup /auth/login /auth/logout /auth/me /auth/health /auth/verify-email /auth/resend-code /auth/update-preferences
+    handle @auth_api {
         reverse_proxy backend:3000
     }
 
