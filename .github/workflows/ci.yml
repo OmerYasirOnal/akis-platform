@@ -110,6 +110,7 @@ jobs:
           proto-console
           navigation-guards
           getting-started
+          settings-ai-keys
           --reporter=github
 
       - name: Upload Playwright artifacts on failure
