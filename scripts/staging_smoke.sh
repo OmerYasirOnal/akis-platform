@@ -244,6 +244,26 @@ else
 fi
 
 # =============================================================================
+# Test 6: SPA Deep Link (no backend 404)
+# =============================================================================
+echo "Test 6: SPA deep link (/auth/privacy-consent)"
+SPA_CODE=$(check_endpoint "https://${HOST}/auth/privacy-consent" "spa-deep-link")
+
+if [ "$SPA_CODE" = "200" ]; then
+  SPA_CONTENT=$(curl -sf "https://${HOST}/auth/privacy-consent" 2>/dev/null | head -c 100 || echo "")
+  if echo "$SPA_CONTENT" | grep -qi "<!DOCTYPE\|<html"; then
+    echo -e "${GREEN}✅ /auth/privacy-consent: ${SPA_CODE} (HTML — SPA served)${NC}"
+    TESTS_PASSED=$((TESTS_PASSED + 1))
+  else
+    echo -e "${RED}❌ /auth/privacy-consent: ${SPA_CODE} but content is not HTML (likely backend JSON)${NC}"
+    TESTS_FAILED=$((TESTS_FAILED + 1))
+  fi
+else
+  echo -e "${RED}❌ /auth/privacy-consent: ${SPA_CODE} (expected 200)${NC}"
+  TESTS_FAILED=$((TESTS_FAILED + 1))
+fi
+
+# =============================================================================
 # Summary
 # =============================================================================
 echo ""
