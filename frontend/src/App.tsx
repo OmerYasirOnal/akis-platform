@@ -56,6 +56,7 @@ const SelfHostingPage = lazy(() => import('./pages/docs/guides/SelfHostingPage')
 const IntegrationsHubPage = lazy(() => import('./pages/dashboard/integrations/IntegrationsHubPage'));
 const DashboardSettingsAiKeysPage = lazy(() => import('./pages/dashboard/settings/DashboardSettingsAiKeysPage'));
 const AgentsHubPage = lazy(() => import('./pages/dashboard/agents/AgentsHubPage'));
+const DashboardAgentTracePage = lazy(() => import('./pages/dashboard/agents/trace/index'));
 const SmartAutomationsPage = lazy(() => import('./pages/dashboard/agents/smart-automations/SmartAutomationsPage'));
 const AutomationDetailPage = lazy(() => import('./pages/dashboard/agents/smart-automations/AutomationDetailPage'));
 
@@ -157,6 +158,7 @@ function App() {
           >
             <Route index element={<DashboardOverviewPage />} />
             <Route path="scribe" element={<DashboardAgentScribePage />} />
+            <Route path="trace" element={<Suspense fallback={<PageLoader />}><DashboardAgentTracePage /></Suspense>} />
             <Route path="jobs">
               <Route index element={<JobsListPage />} />
               <Route path="new" element={<Navigate to="/dashboard/scribe" replace />} />
