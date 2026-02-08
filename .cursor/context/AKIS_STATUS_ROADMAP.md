@@ -1,38 +1,40 @@
-# AKIS Status + Roadmap Snapshot (Canonical, Scannable)
+# AKIS Status + Roadmap Snapshot
+
+> Canonical sources: `docs/ROADMAP.md` (milestones), `docs/NEXT.md` (actions).
 
 ## Where we are now
-- Phase 0.4 (Web Shell + Basic Engine)
-- Current sprint: S0.4.6 (Scribe Config Dashboard)
-- Step 2 verified (SearchableSelect)
-- Steps 3-5 pending (Target platform, advanced options, review/save)
+- **Active Phase:** S0.5 — Staging Fix + Pilot Demo (Feb 7–28, 2026)
+- **Current sprint:** S0.5.0 — Staging base URL fix + trust-proxy + deploy
+- **Next milestone:** M1: Pilot Demo (28 Feb 2026)
+- **Agents in scope:** Scribe, Trace, Proto only (Coder/Developer shelved)
 
 ## Canonical planning chain
 ```
-docs/PROJECT_TRACKING_BASELINE.md -> docs/ROADMAP.md -> docs/NEXT.md
+docs/planning/DELIVERY_PLAN_S0.5_FEB_TO_GRADUATION.md  (canonical plan — SSOT)
+          |
+docs/ROADMAP.md                                         (milestones overview)
+          |
+docs/NEXT.md                                            (immediate actions)
 ```
 
-## What's next (gated)
-- Finish S0.4.6 Steps 3-5 and exit criteria (all 5 steps functional, typecheck/lint/tests green, job creation endpoint connected)
-- Phase 0.5: Motor + GitHub integration (webhooks, PR flow, file retrieval, branch ops)
-- Phase 1: Scribe/Trace/Proto early access (S1.0.1, S1.0.2) gated by Phase 1 Functional Complete
-
-## Proposed Future Bets (not committed)
-- Phase 4: AKIS Premium Quality RAG System (self-hosted OCI, open-source LLM + advanced RAG)
-  - Gated after Phase 1 production demo + Phase 2 hosting baseline
-- Phase 5: AKIS Operator / Device-Link (secure tunnel + controlled computer operations)
-  - Gated after Phase 1 production demo + Phase 2 hosting baseline
+## S0.5 Sprint Map
+| Sprint | Dates | Focus |
+|--------|-------|-------|
+| S0.5.0 | Feb 7-9 | Staging base URL + trust-proxy + deploy |
+| S0.5.1 | Feb 10-21 | Pilot access + agent reliability |
+| S0.5.2 | Feb 10-23 | Demo UX + RAG research |
+| S0.5.3 | Feb 24-28 | QA evidence + demo script + M1 |
 
 ## Do-not-do list
 - Do not change canonical auth flows or agent architecture
 - Do not rewrite or reorder the canonical planning chain
-- Do not schedule or activate Phase 4/5 work before gates are met
-- Do not modify baseline phase dates (0.1-3) or sprint IDs
+- Do not add new features after scope freeze (21 Feb 2026)
+- Do not commit secrets or staging credentials
 
 ## Key links
-- docs/PROJECT_TRACKING_BASELINE.md
-- docs/ROADMAP.md
-- docs/NEXT.md
-- .cursor/context/CONTEXT_SCOPE.md
-- .cursor/context/CONTEXT_ARCHITECTURE.md
-- docs/plans/PHASE4_5_FUTURE_BETS_CONCEPT.md
-- docs/plans/FUTURE_PROPOSALS_PHASE4_5.md
+- `docs/ROADMAP.md`
+- `docs/NEXT.md`
+- `docs/planning/DELIVERY_PLAN_S0.5_FEB_TO_GRADUATION.md`
+- `docs/deploy/OCI_STAGING_RUNBOOK.md`
+- `.cursor/context/CONTEXT_SCOPE.md`
+- `.cursor/context/CONTEXT_ARCHITECTURE.md`

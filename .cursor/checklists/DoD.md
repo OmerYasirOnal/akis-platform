@@ -2,25 +2,35 @@
 description: "Definition of Done — AKIS"
 ---
 
-## Kod
-- [ ] TS **strict** uyarısız; `pnpm -r typecheck` temiz.
-- [ ] Lint temiz; `pnpm -r lint` temiz (warning kabul edilebilir, error yok).
-- [ ] Build temiz; `pnpm -r build` çalışıyor, artefact commit edilmedi.
+## Code
+- [ ] TS **strict** clean; `pnpm -r typecheck` passes.
+- [ ] Lint clean; `pnpm -r lint` passes (warnings OK, errors NO).
+- [ ] Build clean; `pnpm -r build` succeeds, no artifacts committed.
 
 ## Test
-- [ ] Frontend vitest: yeni/etkilenen komponent için test(ler).
-- [ ] Backend: **fastify.inject** ile en az 1 test.
-- [ ] CI `pnpm -r test` yeşil; backend test yoksa “no tests – skipping” mesajı logda.
+- [ ] Frontend vitest: test(s) for new/affected components.
+- [ ] Backend: at least 1 **fastify.inject** test per new route.
+- [ ] CI `pnpm -r test` green; if no backend tests, log shows "no tests – skipping".
 
-## Güvenlik
-- [ ] `helmet`,`cors`,`rate-limit` kayıtlı.
-- [ ] Gizli bilgiler .env’de; **.env.example** güncellendi.
-- [ ] Loglarda token/şifre yok; requestId zorunlu.
+## Security
+- [ ] `helmet`, `cors`, `rate-limit` registered.
+- [ ] Secrets in `.env` only; **.env.example** updated.
+- [ ] No tokens/passwords in logs; requestId attached.
 
-## Dokümantasyon
-- [ ] README/NEXT.md/CHANGELOG notu.
-- [ ] .env.example ve ENV_SETUP güncel.
+## Documentation
+- [ ] `docs/NEXT.md` task status updated (if milestone/status changed).
+- [ ] `.env.example` and `docs/ENV_SETUP.md` current.
 
-## PR Hijyeni
-- [ ] Tek konu; küçük PR; **Conventional Commit** başlığı.
-- [ ] Ekran/log kanıtı eklendi.
+## PR Hygiene
+- [ ] Single topic; small PR (≤ 300 LoC); **Conventional Commit** title.
+- [ ] Screenshot/log evidence included.
+- [ ] Branch is not `main` (feature/fix/chore branch only).
+
+## Staging Pilot (S0.5 — when deploying to staging)
+> Canonical DoD: `docs/NEXT.md` § M1 Definition of Done.
+> Smoke test checklist: `docs/deploy/STAGING_SMOKE_TEST_CHECKLIST.md`.
+
+- [ ] No `localhost` references in staging build (`grep -r localhost dist/` returns 0 runtime hits).
+- [ ] `/health`, `/ready`, `/version` return 200.
+- [ ] Email/password auth works on staging domain.
+- [ ] OAuth redirects use staging domain (not localhost).
