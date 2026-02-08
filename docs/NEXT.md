@@ -26,11 +26,13 @@ docs/NEXT.md                                             (this file — immediat
 | ID | Task | Status | Notes |
 |----|------|--------|-------|
 | S0.5.0-OPS-1 | Frontend base URL fix (`config.ts` production guard) | Done | PR #217 + regression fix PR #226: production guard rejects localhost in `getApiBaseUrl()` (2026-02-08) |
-| S0.5.0-OPS-2 | Backend trust-proxy (`env.ts` + `server.app.ts`) | Not Started | Caddy arkasi cookie/protocol fix |
-| S0.5.0-OPS-3 | Staging env + OAuth callback dogrulama | Not Started | Dep: OPS-1, OPS-2 |
+| S0.5.0-OPS-2 | Backend trust-proxy (`env.ts` + `server.app.ts`) | Done | PR #228: TRUST_PROXY env-gated, Fastify trustProxy: true (2026-02-08) |
+| S0.5.0-OPS-3 | Staging env + OAuth callback dogrulama | Not Started | Dep: OPS-1, OPS-2, #228, #229 |
 | S0.5.0-OPS-4 | Smoke test'e localhost leak check ekle | Not Started | Dep: OPS-1 |
 | S0.5.0-OPS-5 | DB migration ve health dogrulama | Not Started | SSH + docker check |
 | S0.5.0-OPS-6 | Full deploy + smoke test | Not Started | Dep: OPS-1~5, 6/6 pass |
+| S0.5.0-AUTH-PRIVACY | `/auth/privacy-consent` 404 (Caddy routing) | Not Started | #228 — SPA fallback eksik |
+| S0.5.0-OAUTH-GOOGLE | Google login `invalid_client` on staging | Not Started | #229 — Credentials veya redirect URI hatasi |
 
 ### Phase B (10-16 Sub) — PILOT ACCESS + UX
 

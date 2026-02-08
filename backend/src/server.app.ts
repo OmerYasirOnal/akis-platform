@@ -87,6 +87,7 @@ export async function buildApp() {
   // Phase 7.A: Enable structured logging with request-id
   const isTest = process.env.NODE_ENV === 'test';
   const app = Fastify({
+    trustProxy: env.TRUST_PROXY,
     logger: isTest
       ? false
       : {

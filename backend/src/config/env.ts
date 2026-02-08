@@ -136,6 +136,12 @@ const envSchema = z
     SLACK_BOT_TOKEN: z.string().optional(),         // xoxb-xxx Bot token
     SLACK_DEFAULT_CHANNEL: z.string().optional(),   // C0123456789 or #channel-name
 
+    // Reverse proxy
+    TRUST_PROXY: z
+      .enum(['true', 'false'])
+      .default('false')
+      .transform((value) => value === 'true'),
+
     // Feature flags
     // Control access to unstable/experimental features
     FEATURE_FLAG_UNSTABLE_ROUTES: z
