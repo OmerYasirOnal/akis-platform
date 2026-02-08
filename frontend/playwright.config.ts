@@ -17,7 +17,7 @@ export default defineConfig({
   fullyParallel: false,
   timeout: 240_000,
   webServer: {
-    command: 'pnpm dev',
+    command: 'npm run dev',
     url: baseURL,
     reuseExistingServer: true,
     timeout: 30_000,
