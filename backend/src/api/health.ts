@@ -1,6 +1,7 @@
 import { FastifyInstance } from 'fastify';
 import { db } from '../db/client.js';
 import { sql } from 'drizzle-orm';
+import { isEncryptionConfigured } from '../utils/crypto.js';
 
 // Build info - set at Docker build time via ARG/ENV
 const BUILD_INFO = {
@@ -63,6 +64,12 @@ export async function healthRoutes(fastify: FastifyInstance) {
               ready: { type: 'boolean', example: true },
               database: { type: 'string', example: 'connected' },
               migrations: { type: 'string', example: 'ok' },
+              encryption: {
+                type: 'object',
+                properties: {
+                  configured: { type: 'boolean', example: true },
+                },
+              },
               timestamp: { type: 'string', example: '2026-01-09T12:00:00.000Z' },
             },
           },
@@ -72,6 +79,12 @@ export async function healthRoutes(fastify: FastifyInstance) {
               ready: { type: 'boolean', example: false },
               database: { type: 'string', example: 'disconnected' },
               migrations: { type: 'string', example: 'unknown' },
+              encryption: {
+                type: 'object',
+                properties: {
+                  configured: { type: 'boolean', example: false },
+                },
+              },
               error: { type: 'string' },
               timestamp: { type: 'string', example: '2026-01-09T12:00:00.000Z' },
             },
@@ -81,6 +94,7 @@ export async function healthRoutes(fastify: FastifyInstance) {
     },
     async (_request, reply) => {
       const timestamp = new Date().toISOString();
+      const encryptionStatus = { configured: isEncryptionConfigured() };
       try {
         // Test database connectivity and verify core schema exists
         const result = await db.execute(
@@ -92,6 +106,7 @@ export async function healthRoutes(fastify: FastifyInstance) {
           ready: true,
           database: 'connected',
           migrations: migrated ? 'ok' : 'pending',
+          encryption: encryptionStatus,
           timestamp,
         };
       } catch (error) {
@@ -100,6 +115,7 @@ export async function healthRoutes(fastify: FastifyInstance) {
           ready: false,
           database: 'disconnected',
           migrations: 'unknown',
+          encryption: encryptionStatus,
           error: errorMessage,
           timestamp,
         });

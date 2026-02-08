@@ -10,7 +10,12 @@ export type EncryptedSecret = {
   keyVersion: string;
 };
 
-function parseKeyMaterial(rawKey: string): Buffer {
+/**
+ * Parse raw key material from an env var value.
+ * Accepts 64-char hex string or base64 (optionally prefixed with "base64:").
+ * Returns a 32-byte Buffer or throws.
+ */
+export function parseKeyMaterial(rawKey: string): Buffer {
   const trimmed = rawKey.trim();
 
   if (/^[0-9a-fA-F]{64}$/.test(trimmed)) {
@@ -24,6 +29,22 @@ function parseKeyMaterial(rawKey: string): Buffer {
   }
 
   throw new Error('AI_KEY_ENCRYPTION_KEY must be 32 bytes (base64 or hex)');
+}
+
+/**
+ * Check whether AI key encryption is properly configured.
+ * Returns true if AI_KEY_ENCRYPTION_KEY exists and decodes to 32 bytes.
+ * Never throws — safe to call from health/readiness checks.
+ */
+export function isEncryptionConfigured(): boolean {
+  try {
+    const env = getEnv();
+    if (!env.AI_KEY_ENCRYPTION_KEY) return false;
+    parseKeyMaterial(env.AI_KEY_ENCRYPTION_KEY);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function getEncryptionKey(): { key: Buffer; version: string } {

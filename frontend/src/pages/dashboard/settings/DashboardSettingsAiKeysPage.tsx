@@ -87,7 +87,13 @@ export default function DashboardSettingsAiKeysPage() {
       const data = await aiKeysApi.getStatus();
       setStatus(data);
     } catch (err) {
-      setError('Failed to load AI provider status. Please try again.');
+      const apiErr = err as { code?: string };
+      const isEncryptionError = apiErr.code === 'ENCRYPTION_NOT_CONFIGURED';
+      setError(
+        isEncryptionError
+          ? 'Server encryption is not configured. An administrator needs to set AI_KEY_ENCRYPTION_KEY in the server environment.'
+          : 'Failed to load AI provider status. Please try again.'
+      );
       console.error('Failed to fetch AI key status:', err);
     } finally {
       setLoading(false);
@@ -160,12 +166,17 @@ export default function DashboardSettingsAiKeysPage() {
         }));
       }, 3000);
     } catch (err) {
+      const apiErr = err as { code?: string; message?: string };
+      const isEncryptionError = apiErr.code === 'ENCRYPTION_NOT_CONFIGURED';
+      const errorMessage = isEncryptionError
+        ? 'Server encryption is not configured. An administrator needs to set AI_KEY_ENCRYPTION_KEY in the server environment.'
+        : 'Failed to save API key. Please try again.';
       setFormState((prev) => ({
         ...prev,
         [provider]: { 
           ...prev[provider], 
           saving: false, 
-          error: 'Failed to save API key. Please try again.',
+          error: errorMessage,
         },
       }));
       console.error('Failed to save API key:', err);
@@ -201,12 +212,17 @@ export default function DashboardSettingsAiKeysPage() {
         }));
       }, 3000);
     } catch (err) {
+      const apiErr = err as { code?: string };
+      const isEncryptionError = apiErr.code === 'ENCRYPTION_NOT_CONFIGURED';
+      const errorMessage = isEncryptionError
+        ? 'Server encryption is not configured. An administrator needs to set AI_KEY_ENCRYPTION_KEY in the server environment.'
+        : 'Failed to delete API key. Please try again.';
       setFormState((prev) => ({
         ...prev,
         [provider]: { 
           ...prev[provider], 
           deleting: false, 
-          error: 'Failed to delete API key. Please try again.',
+          error: errorMessage,
         },
       }));
       console.error('Failed to delete API key:', err);
