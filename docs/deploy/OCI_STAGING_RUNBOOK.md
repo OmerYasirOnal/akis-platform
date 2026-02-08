@@ -6,6 +6,11 @@
 **Target**: OCI Free Tier (single VM)
 
 > **Quick Reference**: For day-to-day releases, see the [Staging Release Checklist](../release/STAGING_RELEASE_CHECKLIST.md).
+> **Smoke Tests**: See [STAGING_SMOKE_TEST_CHECKLIST.md](STAGING_SMOKE_TEST_CHECKLIST.md) for pass/fail criteria.
+> **Rollback**: See [STAGING_ROLLBACK_RUNBOOK.md](STAGING_ROLLBACK_RUNBOOK.md) for dedicated rollback procedures.
+>
+> **Note**: This is the canonical staging runbook. Legacy duplicates (`RUNBOOK_OCI.md`, `ops/STAGING_RUNBOOK.md`) have been archived.
+> **Security**: Never commit `backend/.env.staging` or any file containing real secrets to git.
 
 ---
 
@@ -920,3 +925,4 @@ free -h
 | 1.1.0 | 2026-02-03 | Auto | Added GHCR fallback docs, version verification details |
 | 1.2.0 | 2026-02-03 | Auto | Added deploy script architecture, migration idempotency docs |
 | 1.3.0 | 2026-02-03 | Auto | Added reference to Staging Release Checklist |
+| 1.4.0 | 2026-02-07 | Auto | Consolidated from RUNBOOK_OCI.md + ops/STAGING_RUNBOOK.md; added smoke/rollback doc refs |

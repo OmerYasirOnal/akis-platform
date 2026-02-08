@@ -8,7 +8,7 @@ const withCredentials = {
   credentials: 'include' as const,
 };
 
-export type AgentType = 'scribe' | 'trace' | 'proto' | 'coder' | 'developer';
+export type AgentType = 'scribe' | 'trace' | 'proto';
 
 export type JobState = 'pending' | 'running' | 'completed' | 'failed';
 
@@ -83,28 +83,7 @@ const agents: AgentDefinition[] = [
       'Hands you deployable code to iterate on quickly',
     ],
   },
-  {
-    id: 'coder',
-    name: 'Coder',
-    description: 'Generates code with planning, execution, and reflection.',
-    capabilities: [
-      'Task-driven code generation',
-      'Language and framework aware',
-      'Planning and reflection pipeline',
-      'Auditable outputs',
-    ],
-  },
-  {
-    id: 'developer',
-    name: 'Developer',
-    description: 'Full developer workflow with multi-step planning and execution.',
-    capabilities: [
-      'Multi-step task execution',
-      'Constraint-aware planning',
-      'Claude-code-like narrative',
-      'Guardrailed operations',
-    ],
-  },
+  // NOTE: Coder and Developer agents shelved for S0.5 scope freeze.
 ];
 
 export interface RunAgentRequest {

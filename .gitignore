@@ -23,6 +23,7 @@ build/
 # Backend env files
 backend/.env
 backend/.env.local
+backend/.env.staging
 backend/.env.*.local
 !backend/.env.example
 
@@ -97,8 +98,10 @@ docs/~$*.docx
 !docs/academic/**/*.docx
 
 # Dev process artifacts
-.backend.pid
-.frontend.pid
+*.pid
 .pnpm-store/
-AKIS_PRODUCT_VISION.md
+backend/_tmp_*
+
+# One-off binary reports (not tracked)
 AKIS_UI_Audit_Report.docx
+.cursor/plans/

@@ -8,7 +8,7 @@ Quick navigation to all project documentation.
 
 | Document | Purpose |
 |----------|---------|
-| [DEV_SETUP.md](DEV_SETUP.md) | Local development setup |
+| [LOCAL_DEV_QUICKSTART.md](local-dev/LOCAL_DEV_QUICKSTART.md) | Local development setup |
 | [ENV_SETUP.md](ENV_SETUP.md) | Environment variables reference |
 | [GITHUB_MCP_SETUP.md](GITHUB_MCP_SETUP.md) | MCP Gateway configuration |
 
@@ -39,7 +39,7 @@ Quick navigation to all project documentation.
 
 | Document | Purpose |
 |----------|---------|
-| [GITHUB_OAUTH_SETUP.md](GITHUB_OAUTH_SETUP.md) | GitHub OAuth configuration |
+| [OAUTH_SETUP.md](ops/OAUTH_SETUP.md) | GitHub & Google OAuth configuration |
 | [integrations/ATLASSIAN_OAUTH_SETUP.md](integrations/ATLASSIAN_OAUTH_SETUP.md) | Atlassian integration |
 
 ## Design & UI
@@ -55,7 +55,10 @@ Quick navigation to all project documentation.
 | Document | Purpose |
 |----------|---------|
 | [deploy/DEPLOYMENT_STRATEGY.md](deploy/DEPLOYMENT_STRATEGY.md) | Deployment overview |
-| [deploy/RUNBOOK_OCI.md](deploy/RUNBOOK_OCI.md) | OCI deployment runbook |
+| [deploy/OCI_STAGING_RUNBOOK.md](deploy/OCI_STAGING_RUNBOOK.md) | OCI staging runbook (canonical) |
+| [deploy/STAGING_SMOKE_TEST_CHECKLIST.md](deploy/STAGING_SMOKE_TEST_CHECKLIST.md) | Smoke test pass/fail criteria |
+| [deploy/STAGING_ROLLBACK_RUNBOOK.md](deploy/STAGING_ROLLBACK_RUNBOOK.md) | Rollback procedures |
+| [release/STAGING_RELEASE_CHECKLIST.md](release/STAGING_RELEASE_CHECKLIST.md) | Release checklist |
 
 ## Project Tracking
 

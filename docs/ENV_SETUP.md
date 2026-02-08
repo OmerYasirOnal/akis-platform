@@ -379,9 +379,59 @@ curl -s -b cookies.txt http://localhost:3000/api/integrations/atlassian/status |
 
 ---
 
+## 🔒 Staging/Production Ek Değişkenler
+
+> Consolidates content from `docs/ops/ENV.md`.
+
+### Ortam Türleri
+
+| Ortam | Dosya | Açıklama |
+|-------|-------|----------|
+| Local Dev | `backend/.env` + `.env.local` | Geliştirme ortamı |
+| Staging | `/opt/akis/.env` | OCI staging sunucusu |
+| Production | `/opt/akis/.env` | Production sunucusu |
+
+### AI Key Encryption (Staging/Production zorunlu)
+
+| Değişken | Açıklama | Nasıl Oluşturulur |
+|----------|----------|-------------------|
+| `AI_KEY_ENCRYPTION_KEY` | AES-256-GCM encryption key | `openssl rand -base64 32` |
+| `AI_KEY_ENCRYPTION_KEY_VERSION` | Key version identifier | `v1` |
+
+**Eğer bu variable'lar eksikse:** AI Keys endpoint'i 503 `ENCRYPTION_NOT_CONFIGURED` döner.
+
+### Slack Integration (Opsiyonel)
+
+| Değişken | Açıklama | Format |
+|----------|----------|--------|
+| `SLACK_BOT_TOKEN` | Slack Bot OAuth Token | `xoxb-...` |
+| `SLACK_DEFAULT_CHANNEL` | Default channel ID | `C0123456789` |
+
+### Staging Server .env Kurulumu
+
+```bash
+ssh <USER>@<STAGING_HOST>
+cd /opt/akis
+
+# .env dosyasını yedekle
+cp .env .env.bak.$(date +%Y%m%d_%H%M%S)
+
+# AI Key Encryption (zorunlu)
+if ! grep -q "AI_KEY_ENCRYPTION_KEY=" .env; then
+  export NEW_KEY="$(openssl rand -base64 32)"
+  echo "AI_KEY_ENCRYPTION_KEY=$NEW_KEY" >> .env
+  echo "AI_KEY_ENCRYPTION_KEY_VERSION=v1" >> .env
+fi
+
+# Backend'i yeniden başlat
+docker compose restart backend
+```
+
+---
+
 ## 📚 İlgili Belgeler
 
 - [LOCAL_DEV_QUICKSTART.md](local-dev/LOCAL_DEV_QUICKSTART.md) - Kapsamlı local dev rehberi
-- [DEV_SETUP.md](../DEV_SETUP.md) - Hızlı kurulum rehberi
 - [GITHUB_MCP_SETUP.md](GITHUB_MCP_SETUP.md) - MCP Gateway kurulumu
+- [deploy/OCI_STAGING_RUNBOOK.md](deploy/OCI_STAGING_RUNBOOK.md) - Staging operations
 
