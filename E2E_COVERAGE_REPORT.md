@@ -1,27 +1,27 @@
-# E2E Coverage Report — qa/e2e-and-agent-contracts
+# E2E Coverage Report
 
 > Generated: 2026-02-09
-> Branch: `qa/e2e-and-agent-contracts`
+> Branch: `feat/S0.5.1-WL-1-verification-e2e-agt4`
 
 ## Summary
 
 | Metric | Before | After |
 |--------|--------|-------|
-| Total E2E specs | 7 files | **9 files** |
-| Total E2E tests | 47 tests | **67 tests** |
-| Backend unit tests | 223 tests | **252 tests** |
+| Total E2E specs | 9 files | **9 files** |
+| Total E2E tests | 67 tests | **71 tests** |
+| Backend unit tests | 252 tests | **284 tests** |
 | Frontend unit tests | 83 tests | **83 tests** |
 | Flaky tests | 0 | **0** |
 | CI status | Green | **Green** |
 
 ## Coverage Matrix
 
-### Auth Suite (12 tests — unchanged)
+### Auth Suite (16 tests — UPDATED)
 
 | Spec | Tests | Status |
 |------|-------|--------|
 | `auth-login-flow.spec.ts` | 4 | PASS |
-| `auth-signup-flow.spec.ts` | 4 | PASS |
+| `auth-signup-flow.spec.ts` | 8 (+4 new verification) | PASS |
 | `auth-deep-links.spec.ts` | 4 | PASS |
 
 ### Trace Console Suite (10 tests — unchanged)
