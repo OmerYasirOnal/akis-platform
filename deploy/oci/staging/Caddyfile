@@ -57,21 +57,35 @@ staging.akisflow.com {
     }
 
     # =======================================================================
-    # Auth API routes → Backend
-    # Only proxy backend API paths; SPA auth pages (/auth/privacy-consent,
-    # /auth/welcome-beta) fall through to the static file handler below.
+    # Auth routes → Backend (method-aware routing)
+    #
+    # Problem: /auth/login and /auth/signup are BOTH:
+    #   - GET  → frontend SPA pages (React Router)
+    #   - POST → backend API endpoints
+    #
+    # Solution: Route by HTTP method. POST/PUT/PATCH/DELETE to /auth/*
+    # always go to the backend. GET requests only go to backend for
+    # API-only paths (/auth/me, /auth/health). Everything else falls
+    # through to the SPA handler below.
     # =======================================================================
+
+    # OAuth routes always go to backend (all methods)
     handle /auth/oauth/* {
         reverse_proxy backend:3000
     }
-    handle /auth/signup/* {
+
+    # POST/PUT/PATCH/DELETE /auth/* → backend API
+    @auth_mutation {
+        method POST PUT PATCH DELETE
+        path /auth/*
+    }
+    handle @auth_mutation {
         reverse_proxy backend:3000
     }
-    handle /auth/login/* {
-        reverse_proxy backend:3000
-    }
-    @auth_api path /auth/signup /auth/login /auth/logout /auth/me /auth/health /auth/verify-email /auth/resend-code /auth/update-preferences
-    handle @auth_api {
+
+    # GET-only backend API endpoints under /auth/
+    @auth_get_api path /auth/me /auth/health
+    handle @auth_get_api {
         reverse_proxy backend:3000
     }
 
