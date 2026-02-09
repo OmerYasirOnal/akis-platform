@@ -17,7 +17,7 @@ import {
 } from '../../src/utils/errorHandler.js';
 
 import { ZodError } from 'zod';
-import { JobNotFoundError, InvalidStateTransitionError, DatabaseError, AIProviderError, MissingAIKeyError, ModelNotAllowedError } from '../../src/core/errors.js';
+import { JobNotFoundError, InvalidStateTransitionError, DatabaseError, AIProviderError, AIRateLimitedError, MissingAIKeyError, ModelNotAllowedError } from '../../src/core/errors.js';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -75,6 +75,9 @@ describe('getStatusCodeForError', () => {
     ['USER_DISABLED', 403],
     ['INVALID_PROVIDER', 400],
     ['OAUTH_NOT_CONFIGURED', 503],
+    ['INVITE_INVALID', 404],
+    ['INVITE_EXPIRED', 404],
+    ['EMAIL_ALREADY_ACTIVE', 409],
     // Settings
     ['ENCRYPTION_NOT_CONFIGURED', 503],
     ['DUPLICATE_KEY', 409],
@@ -254,5 +257,80 @@ describe('ErrorEnvelope shape', () => {
 
     // requestId must be present at top level
     assert.strictEqual(body.requestId, 'front-req-1');
+  });
+});
+
+// ─── AI error subclass tests ─────────────────────────────────────────────────
+
+describe('AI error subclass mapping', () => {
+  test('AIRateLimitedError maps with retryAfter in details', () => {
+    const error = new AIRateLimitedError('openai', 30, 'Rate limit exceeded');
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const envelope = formatErrorResponse(fakeRequest() as any, error);
+
+    assert.strictEqual(envelope.error.code, 'AI_RATE_LIMITED');
+    const details = envelope.error.details as Record<string, unknown>;
+    assert.strictEqual(details.provider, 'openai');
+    assert.strictEqual(details.retryAfter, 30);
+  });
+
+  test('AIRateLimitedError without raw message uses generic message', () => {
+    const error = new AIRateLimitedError('openrouter');
+    assert.ok(error.message.includes('temporarily rate limited'));
+    assert.strictEqual(error.retryAfter, undefined);
+  });
+
+  test('MissingAIKeyError has default message when none provided', () => {
+    const error = new MissingAIKeyError('openai');
+    assert.ok(error.message.includes('not configured'));
+    assert.ok(error.message.includes('openai'));
+  });
+
+  test('MissingAIKeyError uses custom message when provided', () => {
+    const error = new MissingAIKeyError('openai', 'Please add OpenAI key');
+    assert.strictEqual(error.message, 'Please add OpenAI key');
+  });
+
+  test('all AI error subclasses are instanceof AIProviderError and Error', () => {
+    const errors = [
+      new AIRateLimitedError('openai'),
+      new MissingAIKeyError('openai'),
+      new ModelNotAllowedError('openai', 'gpt-5', ['gpt-4o']),
+    ];
+    for (const e of errors) {
+      assert.ok(e instanceof AIProviderError, `${e.name} should be instanceof AIProviderError`);
+      assert.ok(e instanceof Error, `${e.name} should be instanceof Error`);
+    }
+  });
+});
+
+// ─── Security: no secret leakage ─────────────────────────────────────────────
+
+describe('Error response security', () => {
+  test('unknown errors never leak internal details', () => {
+    const error = new Error('postgres://user:password@host/db connection failed');
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const envelope = formatErrorResponse(fakeRequest() as any, error);
+    assert.strictEqual(envelope.error.message, 'Internal server error');
+    assert.ok(!envelope.error.message.includes('postgres'));
+    assert.strictEqual(envelope.error.details, undefined);
+  });
+
+  test('DatabaseError never leaks connection details', () => {
+    const error = new DatabaseError('FATAL: password authentication failed', new Error('pg: timeout'));
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const envelope = formatErrorResponse(fakeRequest() as any, error);
+    assert.strictEqual(envelope.error.message, 'Database operation failed');
+    assert.ok(!envelope.error.message.includes('password'));
+    assert.ok(!envelope.error.message.includes('FATAL'));
+  });
+
+  test('non-Error values (string, number, null) produce safe INTERNAL_ERROR', () => {
+    for (const val of ['string error', 42, null, undefined, { random: 'obj' }]) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const envelope = formatErrorResponse(fakeRequest() as any, val);
+      assert.strictEqual(envelope.error.code, 'INTERNAL_ERROR');
+      assert.strictEqual(envelope.error.message, 'Internal server error');
+    }
   });
 });

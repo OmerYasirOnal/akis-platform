@@ -23,6 +23,7 @@ export const RECOMMENDED_MODELS: Record<AIKeyProvider, string> = {
 /** @deprecated Use getScribeModelAllowlistByProvider instead */
 export const DEFAULT_SCRIBE_MODELS = DEFAULT_OPENAI_MODELS;
 
+/** Returns the Scribe model allowlist from env override or defaults. */
 export function getScribeModelAllowlist(): string[] {
   const env = getEnv();
   if (env.AI_SCRIBE_MODEL_ALLOWLIST) {
@@ -52,10 +53,12 @@ export function getScribeModelAllowlistByProvider(provider?: AIKeyProvider): str
   return DEFAULT_OPENAI_MODELS;
 }
 
+/** Returns the recommended default model for a given AI provider. */
 export function getRecommendedModel(provider: AIKeyProvider): string {
   return RECOMMENDED_MODELS[provider];
 }
 
+/** Checks whether a model ID is in the given allowlist. */
 export function isModelAllowed(model: string, allowlist: string[]): boolean {
   return allowlist.includes(model);
 }

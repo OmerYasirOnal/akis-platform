@@ -121,6 +121,22 @@ export interface RunningJobsResponse {
   jobs: RunningJob[];
 }
 
+export interface JobListItem {
+  id: string;
+  type: AgentType;
+  state: JobState;
+  errorCode: string | null;
+  errorMessage: string | null;
+  qualityScore: number | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface JobListResponse {
+  items: JobListItem[];
+  nextCursor: string | null;
+}
+
 export interface DuplicateJobError {
   error: {
     code: 'DUPLICATE_JOB';
@@ -169,5 +185,16 @@ export const agentsApi = {
       {},
       withCredentials
     );
+  },
+
+  /**
+   * List jobs with optional filtering (used for onboarding status checks)
+   */
+  listJobs: async (options?: { limit?: number }): Promise<JobListResponse> => {
+    const params = new URLSearchParams();
+    if (options?.limit) params.set('limit', String(options.limit));
+    const qs = params.toString();
+    const url = qs ? `/api/agents/jobs?${qs}` : '/api/agents/jobs';
+    return httpClient.get<JobListResponse>(url, withCredentials);
   },
 };

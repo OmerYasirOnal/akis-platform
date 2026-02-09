@@ -116,8 +116,10 @@ export function PlanView({
         </div>
 
         {/* View toggle */}
-        <div className="flex items-center gap-1 bg-ak-surface-2 rounded-lg p-1">
+        <div className="flex items-center gap-1 bg-ak-surface-2 rounded-lg p-1" role="tablist" aria-label="Plan view format">
           <button
+            role="tab"
+            aria-selected={activeView === 'markdown'}
             onClick={() => setActiveView('markdown')}
             className={`px-3 py-1 text-sm rounded-md transition-colors ${
               activeView === 'markdown'
@@ -128,6 +130,8 @@ export function PlanView({
             Markdown
           </button>
           <button
+            role="tab"
+            aria-selected={activeView === 'json'}
             onClick={() => setActiveView('json')}
             className={`px-3 py-1 text-sm rounded-md transition-colors ${
               activeView === 'json'

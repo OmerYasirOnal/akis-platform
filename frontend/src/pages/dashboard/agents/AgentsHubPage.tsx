@@ -203,9 +203,9 @@ export default function AgentsHubPage() {
   useEffect(() => {
     const loadProviderAndModels = async () => {
       setModelsLoading(true);
+      let currentProvider: AIKeyProvider | null = null;
       try {
         // 1. Get user's active provider
-        let currentProvider: AIKeyProvider | null = null;
         try {
           const aiStatus = await getMultiProviderStatus();
           currentProvider = aiStatus.activeProvider;
@@ -252,8 +252,8 @@ export default function AgentsHubPage() {
       } catch (err) {
         console.warn('Failed to load supported models, using fallback:', err);
         // Use provider-specific fallback
-        const fallback = activeProvider && FALLBACK_MODELS[activeProvider]
-          ? FALLBACK_MODELS[activeProvider]
+        const fallback = currentProvider && FALLBACK_MODELS[currentProvider]
+          ? FALLBACK_MODELS[currentProvider]
           : FALLBACK_MODEL_OPTIONS;
         setModelOptions(fallback);
         setSelectedModel(fallback[0].id);

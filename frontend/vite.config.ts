@@ -19,6 +19,15 @@ export default defineConfig({
     __GIT_SHA__: JSON.stringify(getGitSha()),
     __APP_VERSION__: JSON.stringify('0.1.0'),
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+        },
+      },
+    },
+  },
   server: {
     // Bind to 127.0.0.1 explicitly to avoid IPv6 ECONNREFUSED issues
     host: '127.0.0.1',
