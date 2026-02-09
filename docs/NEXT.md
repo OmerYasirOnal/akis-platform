@@ -25,7 +25,9 @@ docs/NEXT.md                                             (bu dosya — anlık ey
 |------|-------|
 | URL | https://staging.akisflow.com |
 | Deploy Edilen Commit | `c3ead3c` (PR #246 + #247 merge) |
+| S0.5 PR | [#265](https://github.com/OmerYasirOnal/akis-platform-devolopment/pull/265) — onboarding, feedback, context packs, QA docs |
 | Smoke Testleri | 10/10 otomatik test tanımlı (`staging_smoke.sh`) |
+| Test Sayısı | Backend: 458 + Frontend: 136 = **594 toplam** |
 | Kod Düzeltmeleri | MCP `/ready` durumu, OAuth hoşgeldin e-postası, agents yönlendirme `/agents/*`, logo güncelleme, güvenlik temizliği, E2E test hizalama |
 | Şifreleme | Staging'de yapılandırıldı (`/ready` → `encryption.configured: true`) |
 | E-posta | SMTP şablonu hazır (`/ready` → `email.configured`, `email.host`, `email.port`, `email.from`); OAuth hoşgeldin e-postası eklendi |
