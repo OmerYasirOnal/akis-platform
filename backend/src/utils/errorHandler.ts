@@ -33,7 +33,10 @@ export type AuthErrorCode =
   | 'RATE_LIMITED'
   | 'USER_DISABLED'
   | 'INVALID_PROVIDER'
-  | 'OAUTH_NOT_CONFIGURED';
+  | 'OAUTH_NOT_CONFIGURED'
+  | 'INVITE_INVALID'
+  | 'INVITE_EXPIRED'
+  | 'EMAIL_ALREADY_ACTIVE';
 
 // ── Settings / config error codes ──
 export type SettingsErrorCode =
@@ -149,9 +152,12 @@ export function getStatusCodeForError(code: ErrorCode): number {
       return 403;
     case 'NOT_FOUND':
     case 'USER_NOT_FOUND':
+    case 'INVITE_INVALID':
+    case 'INVITE_EXPIRED':
       return 404;
     case 'INVALID_STATE':
     case 'EMAIL_IN_USE':
+    case 'EMAIL_ALREADY_ACTIVE':
     case 'DUPLICATE_KEY':
       return 409;
     case 'AI_KEY_MISSING':

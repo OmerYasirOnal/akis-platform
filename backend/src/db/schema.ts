@@ -482,6 +482,41 @@ export const emailVerificationTokensRelations = relations(emailVerificationToken
 }));
 
 /**
+ * Invite status enum — tracks invite lifecycle
+ */
+export const inviteStatusEnum = pgEnum('invite_status', ['pending', 'accepted', 'expired', 'revoked']);
+
+/**
+ * Invite tokens — admin-created invitations for new users
+ * Token is a 64-char hex string; expires after 7 days.
+ */
+export const inviteTokens = pgTable('invite_tokens', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  token: varchar('token', { length: 64 }).notNull().unique(),
+  email: text('email').notNull(),
+  invitedBy: uuid('invited_by').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  status: inviteStatusEnum('status').default('pending').notNull(),
+  acceptedBy: uuid('accepted_by').references(() => users.id),
+  acceptedAt: timestamp('accepted_at', { withTimezone: false }),
+  expiresAt: timestamp('expires_at', { withTimezone: false }).notNull(),
+  createdAt: timestamp('created_at', { withTimezone: false }).defaultNow().notNull(),
+}, (table) => ({
+  tokenIdx: uniqueIndex('idx_invite_tokens_token').on(table.token),
+  emailIdx: index('idx_invite_tokens_email').on(table.email),
+  invitedByIdx: index('idx_invite_tokens_invited_by').on(table.invitedBy),
+}));
+
+export type InviteToken = typeof inviteTokens.$inferSelect;
+export type NewInviteToken = typeof inviteTokens.$inferInsert;
+
+export const inviteTokensRelations = relations(inviteTokens, ({ one }) => ({
+  inviter: one(users, {
+    fields: [inviteTokens.invitedBy],
+    references: [users.id],
+  }),
+}));
+
+/**
  * Integration provider enum for Jira/Confluence credentials
  */
 export const integrationProviderEnum = pgEnum('integration_provider', ['jira', 'confluence']);
