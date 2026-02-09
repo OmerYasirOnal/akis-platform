@@ -109,7 +109,7 @@ function App() {
             </Route>
           </Route>
 
-          {/* Agents — top-level route */}
+          {/* Agents — top-level route (canonical home for all agents) */}
           <Route
             path="/agents"
             element={
@@ -126,6 +126,9 @@ function App() {
                 </Suspense>
               }
             />
+            <Route path="scribe" element={<DashboardAgentScribePage />} />
+            <Route path="trace" element={<Suspense fallback={<PageLoader />}><DashboardAgentTracePage /></Suspense>} />
+            <Route path="proto" element={<Suspense fallback={<PageLoader />}><DashboardAgentProtoPage /></Suspense>} />
           </Route>
 
           {/* Smart Automations - standalone route (no AgentsLayout) */}
@@ -160,12 +163,13 @@ function App() {
             }
           >
             <Route index element={<DashboardOverviewPage />} />
-            <Route path="scribe" element={<DashboardAgentScribePage />} />
-            <Route path="trace" element={<Suspense fallback={<PageLoader />}><DashboardAgentTracePage /></Suspense>} />
-            <Route path="proto" element={<Suspense fallback={<PageLoader />}><DashboardAgentProtoPage /></Suspense>} />
+            {/* Legacy agent routes — redirect to /agents/* (backwards compat) */}
+            <Route path="scribe" element={<Navigate to="/agents/scribe" replace />} />
+            <Route path="trace" element={<Navigate to="/agents/trace" replace />} />
+            <Route path="proto" element={<Navigate to="/agents/proto" replace />} />
             <Route path="jobs">
               <Route index element={<JobsListPage />} />
-              <Route path="new" element={<Navigate to="/dashboard/scribe" replace />} />
+              <Route path="new" element={<Navigate to="/agents/scribe" replace />} />
               <Route
                 path=":id"
                 element={

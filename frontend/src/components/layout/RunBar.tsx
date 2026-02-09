@@ -81,11 +81,8 @@ export function RunBar() {
 
   // Only poll on agent-related pages (scribe, trace, proto, jobs)
   const isAgentRoute =
-    location.pathname.startsWith('/dashboard/scribe') ||
-    location.pathname.startsWith('/dashboard/trace') ||
-    location.pathname.startsWith('/dashboard/proto') ||
-    location.pathname.startsWith('/dashboard/jobs') ||
-    location.pathname.startsWith('/agents');
+    location.pathname.startsWith('/agents') ||
+    location.pathname.startsWith('/dashboard/jobs');
 
   useEffect(() => {
     if (!isAgentRoute) return;

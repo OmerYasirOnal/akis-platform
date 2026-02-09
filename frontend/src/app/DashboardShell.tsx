@@ -5,7 +5,7 @@ import Button from '../components/common/Button';
 
 const dashboardLinks = [
   { label: 'Overview', to: '/dashboard' },
-  { label: 'Scribe', to: '/dashboard/scribe' },
+  { label: 'Agents', to: '/agents' },
   { label: 'Jobs', to: '/dashboard/jobs' },
   { label: 'Integrations', to: '/dashboard/integrations' },
   { label: 'Settings', to: '/dashboard/settings/profile' },
