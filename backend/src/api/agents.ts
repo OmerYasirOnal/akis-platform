@@ -368,12 +368,12 @@ export async function agentsRoutes(fastify: FastifyInstance) {
               }
 
               if (!config) {
-                throw new Error('Scribe configuration not found. Please configure Scribe first at /dashboard/agents/scribe');
+                throw new Error('Scribe configuration not found. Please configure Scribe first at /agents/scribe');
               }
 
               // Validate config has required fields
               if (!config.repositoryOwner || !config.repositoryName || !config.baseBranch) {
-                throw new Error('Scribe configuration incomplete. Missing repository owner, name, or base branch. Please complete configuration at /dashboard/agents/scribe');
+                throw new Error('Scribe configuration incomplete. Missing repository owner, name, or base branch. Please complete configuration at /agents/scribe');
               }
 
               modelOverride = config.llmModelOverride ?? null;

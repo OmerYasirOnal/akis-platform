@@ -89,6 +89,8 @@ function getErrorHint(errorCode?: string | null): ErrorHintInfo | null {
     'AI_MODEL_NOT_FOUND': { hint: 'Requested AI model not found on the provider.', action: 'The model may be deprecated or renamed. Select a supported model.', link: '/dashboard/settings/ai-keys' },
     'AI_CONTEXT_LENGTH': { hint: 'Input too long for the selected model.', action: 'Reduce the scope of your request or use a model with a larger context window' },
     'AI_AUTH_ERROR': { hint: 'Authentication failed with AI provider.', action: 'Your API key may be invalid or expired. Update it in Settings.', link: '/dashboard/settings/ai-keys' },
+    'MISSING_DEPENDENCY': { hint: 'A required environment variable or service is not configured on the server.', action: 'Check the error message for details. Common fix: ensure GITHUB_MCP_BASE_URL and GITHUB_TOKEN are set in the staging .env file, then restart the backend.' },
+    'GITHUB_NOT_CONNECTED': { hint: 'Your GitHub account is not linked.', action: 'Connect your GitHub account in Agent settings before running jobs.', link: '/agents/scribe' },
   };
   const code = String(errorCode);
   const hintInfo = hints[code] || hints[code.toUpperCase()];
