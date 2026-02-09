@@ -53,9 +53,9 @@
 | Sprint | Tarihler | Odak | İş Akışları | İlerleme |
 |--------|----------|------|-------------|----------|
 | S0.5.0 | 7-9 Şub | Staging base URL düzeltme + trust-proxy + deploy | WS-OPS | ✅ 8/8 görev tamamlandı |
-| S0.5.1 | 10-21 Şub | Pilot erişim + agent güvenilirliği | WS-WAITLIST, WS-AGENTS | 🔄 8/10 görev tamamlandı |
-| S0.5.2 | 10-23 Şub | Demo UX + RAG araştırma | WS-UX, WS-RAG | 🔄 4/6 görev tamamlandı |
-| S0.5.3 | 24-28 Şub | KG kanıt + demo senaryosu + M1 | WS-QA | ⏳ 0/4 görev |
+| S0.5.1 | 10-21 Şub | Pilot erişim + agent güvenilirliği | WS-WAITLIST, WS-AGENTS | ✅ 10/10 görev tamamlandı |
+| S0.5.2 | 10-23 Şub | Demo UX + RAG araştırma | WS-UX, WS-RAG | ✅ 6/6 görev tamamlandı |
+| S0.5.3 | 24-28 Şub | KG kanıt + demo senaryosu + M1 | WS-QA | 🔄 1/4 görev tamamlandı |
 
 ### Gelecek Fazlar
 
@@ -78,7 +78,7 @@
 - [ ] Scribe golden path çalışıyor (kuru çalışma)
 - [ ] Trace golden path çalışıyor
 - [ ] Proto golden path çalışıyor
-- [ ] Pilot katılım akışı çalışıyor
+- [x] Pilot katılım akışı çalışıyor (2026-02-09)
 - [ ] Demo senaryosu yazılmış ve prova edilmiş
 - [ ] KG kanıt dokümanı mevcut
 
