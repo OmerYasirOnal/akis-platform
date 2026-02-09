@@ -113,23 +113,13 @@ staging.akisflow.com {
 }
 
 # =========================================================================
-# classcheck.site - Co-hosted QR Service (DO NOT REMOVE)
+# CO-HOSTED SITES (classcheck.site, unisum.duckdns.org, etc.)
 # =========================================================================
-# This site runs in a separate Docker container on the same VM.
-# Caddy reverse_proxies to it via host.docker.internal.
-# The port is configured via CLASSCHECK_PORT env var (default: 3001).
-# NOTE: Caddy handles HTTP→HTTPS redirect automatically for all sites.
+# Co-hosted services are NOT defined here. They are managed on the VM via:
+#   - docker-compose.override.yml (adds volume mounts for wrapper Caddyfile)
+#   - Caddyfile.wrapper (imports this file + caddy-sites/*.caddy)
+#   - caddy-sites/classcheck.caddy, caddy-sites/unisum.caddy
+#
+# DO NOT add site blocks here for co-hosted services — it will cause
+# "ambiguous site definition" errors when the override merges them.
 # =========================================================================
-classcheck.site {
-    encode gzip zstd
-
-    header {
-        X-Content-Type-Options "nosniff"
-        X-Frame-Options "SAMEORIGIN"
-        X-XSS-Protection "1; mode=block"
-        Referrer-Policy "strict-origin-when-cross-origin"
-        -Server
-    }
-
-    reverse_proxy host.docker.internal:{$CLASSCHECK_PORT:3001}
-}

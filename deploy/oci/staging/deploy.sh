@@ -232,7 +232,11 @@ else
     docker compose up -d --force-recreate caddy 2>&1 || true
 fi
 
-# 5d: Final ensure — bring up any remaining services (remove orphans from THIS project only)
+# 5d: Final ensure — bring up any remaining services
+# IMPORTANT: Do NOT use --force-recreate here. The earlier steps already handled
+# backend recreation and caddy reload. Running plain "up -d" only recreates
+# containers whose config/image actually changed. This prevents killing Caddy
+# mid-TLS-handshake or disrupting co-hosted services.
 echo "Final service check..."
 if [ "$PULL_SUCCESS" = "false" ]; then
     docker compose up -d --remove-orphans --pull never 2>&1 || true
@@ -279,16 +283,16 @@ fi
 echo ""
 
 # -----------------------------------------------------------------------------
-# Step 7: Verify classcheck.site is still accessible
+# Step 7: Verify co-hosted services (managed by docker-compose.override.yml)
 # -----------------------------------------------------------------------------
 echo ">>> Step 7: Verifying co-hosted services..."
-if docker exec akis-staging-caddy wget --no-verbose --tries=2 --spider --timeout=5 \
-    "http://host.docker.internal:${CLASSCHECK_PORT:-3001}/" 2>&1; then
-    echo "✅ classcheck.site backend is reachable on port ${CLASSCHECK_PORT:-3001}"
+echo "   Co-hosted sites (classcheck.site, etc.) are managed via docker-compose.override.yml"
+echo "   and caddy-sites/*.caddy on the VM. No action needed from deploy script."
+# Quick check: if Caddy is healthy, co-hosted sites should also work
+if docker compose ps caddy 2>/dev/null | grep -q "healthy"; then
+    echo "✅ Caddy is healthy — co-hosted sites should be operational"
 else
-    echo "⚠️ classcheck.site backend not reachable on port ${CLASSCHECK_PORT:-3001}"
-    echo "   This may be expected if classcheck is not running yet."
-    echo "   Ensure classcheck's Docker container exposes port ${CLASSCHECK_PORT:-3001} to host."
+    echo "⚠️ Caddy is not yet healthy — co-hosted sites may be starting up"
 fi
 echo ""
 
