@@ -9,6 +9,7 @@ import { createAIService, type AIService, type AIServiceObserver } from '../../s
 import type { Plan, Critique } from '../../services/ai/AIService.js';
 import { AICallMetricsCollector } from '../../services/ai/ai-metrics.js';
 import { getDecryptedUserAiKey, getUserActiveProvider, type AIKeyProvider } from '../../services/ai/user-ai-keys.js';
+import { RECOMMENDED_MODELS, detectProviderFromModel } from '../../services/ai/modelAllowlist.js';
 import { getAIConfig } from '../../config/env.js';
 import type { MCPTools } from '../../services/mcp/adapters/index.js';
 import { getEnv } from '../../config/env.js';
@@ -867,37 +868,29 @@ export class AgentOrchestrator {
     // ========================================================================
     // CREATE AI SERVICE WITH PROVIDER-CONSISTENT CONFIG
     // ========================================================================
-    const PROVIDER_DEFAULTS = {
-      openai: { baseUrl: 'https://api.openai.com/v1', model: 'gpt-4o-mini' },
-      openrouter: { baseUrl: 'https://openrouter.ai/api/v1', model: 'anthropic/claude-sonnet-4' },
+    const PROVIDER_BASE_URLS: Record<AIKeyProvider, string> = {
+      openai: 'https://api.openai.com/v1',
+      openrouter: 'https://openrouter.ai/api/v1',
     };
-    
-    // Helper to detect if model belongs to a provider
-    const detectModelProvider = (model: string): 'openai' | 'openrouter' | null => {
-      if (model.startsWith('gpt-') || model.startsWith('o1') || model.startsWith('o3') || 
-          model.startsWith('text-') || model.startsWith('davinci')) return 'openai';
-      if (model.includes('/') || model.includes(':free') || model.includes(':nitro')) return 'openrouter';
-      return null;
-    };
-    
+
     // Validate and resolve model
     let resolvedModel: string;
     if (modelOverride) {
-      const modelProvider = detectModelProvider(modelOverride);
+      const modelProvider = detectProviderFromModel(modelOverride);
       if (modelProvider && modelProvider !== providerCandidate) {
         // Model belongs to wrong provider - use provider's default
-        console.warn(`[resolveAiServiceForJob] Model "${modelOverride}" is for ${modelProvider}, but provider is ${providerCandidate}. Using default: ${PROVIDER_DEFAULTS[providerCandidate].model}`);
-        resolvedModel = PROVIDER_DEFAULTS[providerCandidate].model;
+        console.warn(`[resolveAiServiceForJob] Model "${modelOverride}" is for ${modelProvider}, but provider is ${providerCandidate}. Using default: ${RECOMMENDED_MODELS[providerCandidate]}`);
+        resolvedModel = RECOMMENDED_MODELS[providerCandidate];
       } else {
         resolvedModel = modelOverride;
       }
     } else {
-      resolvedModel = PROVIDER_DEFAULTS[providerCandidate].model;
+      resolvedModel = RECOMMENDED_MODELS[providerCandidate];
     }
-    
+
     const baseUrl = providerCandidate === 'openrouter'
-      ? PROVIDER_DEFAULTS.openrouter.baseUrl
-      : (env.OPENAI_BASE_URL || PROVIDER_DEFAULTS.openai.baseUrl);
+      ? PROVIDER_BASE_URLS.openrouter
+      : (env.OPENAI_BASE_URL || PROVIDER_BASE_URLS.openai);
     
     const aiConfig = {
       provider: providerCandidate,

@@ -9,7 +9,7 @@ import { metrics } from './metrics.js';
 import { formatErrorResponse, getStatusCodeForError } from '../utils/errorHandler.js';
 import { requireAuth } from '../utils/auth.js';
 import { getUserAiKeyStatus } from '../services/ai/user-ai-keys.js';
-import { getScribeModelAllowlist } from '../services/ai/modelAllowlist.js';
+import { getScribeModelAllowlist, RECOMMENDED_MODELS } from '../services/ai/modelAllowlist.js';
 import { getEnv, getAIConfig } from '../config/env.js';
 import { generateScribeBranchName } from '../utils/branchNaming.js';
 import { incrementUsage } from '../services/billing/BillingService.js';
@@ -441,16 +441,10 @@ export async function agentsRoutes(fastify: FastifyInstance) {
             // Model must be compatible with selected provider
             // ========================================================================
             
-            // Provider-specific default models
-            const PROVIDER_DEFAULTS = {
-              openai: 'gpt-4o-mini',
-              openrouter: 'anthropic/claude-sonnet-4',
-            };
-            
             // Helper to get provider-safe model
             const getProviderSafeModel = (provider: 'openai' | 'openrouter', requestedModel: string | null): string => {
               if (!requestedModel) {
-                return PROVIDER_DEFAULTS[provider];
+                return RECOMMENDED_MODELS[provider];
               }
               
               const modelProvider = detectModelProvider(requestedModel);
@@ -461,8 +455,8 @@ export async function agentsRoutes(fastify: FastifyInstance) {
               }
               
               // Model is incompatible - use provider's default and log
-              console.log(`[agents.ts] Model "${requestedModel}" (${modelProvider}) incompatible with ${provider}, using default: ${PROVIDER_DEFAULTS[provider]}`);
-              return PROVIDER_DEFAULTS[provider];
+              console.log(`[agents.ts] Model "${requestedModel}" (${modelProvider}) incompatible with ${provider}, using default: ${RECOMMENDED_MODELS[provider]}`);
+              return RECOMMENDED_MODELS[provider];
             };
             
             // Determine the effective provider
