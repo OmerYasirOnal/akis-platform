@@ -67,12 +67,16 @@ export async function buildApp() {
   console.log(`[buildApp] AI Base URL: ${configSummary.baseUrl}`);
   console.log(`[buildApp] AI API Key: ${configSummary.hasApiKey ? 'configured' : 'NOT CONFIGURED'}`);
 
-  // Startup diagnostics for encryption, email, and OAuth (no secrets)
+  // Startup diagnostics for encryption, email, OAuth, and MCP (no secrets)
   console.log(`[buildApp] Encryption: ${isEncryptionConfigured() ? 'configured' : 'NOT CONFIGURED — AI key save will return 503'}`);
   console.log(`[buildApp] Email: provider=${env.EMAIL_PROVIDER}, configured=${isEmailConfigured(env.EMAIL_PROVIDER)}`);
   console.log(`[buildApp] OAuth: google=${env.GOOGLE_OAUTH_CLIENT_ID ? 'configured' : 'NOT SET'}, github=${env.GITHUB_OAUTH_CLIENT_ID ? 'configured' : 'NOT SET'}`);
   if (env.GOOGLE_OAUTH_CLIENT_ID || env.GITHUB_OAUTH_CLIENT_ID) {
     console.log(`[buildApp] OAuth callback base: ${env.BACKEND_URL}/auth/oauth/<provider>/callback`);
+  }
+  console.log(`[buildApp] MCP: GITHUB_MCP_BASE_URL=${env.GITHUB_MCP_BASE_URL ? '(configured)' : 'NOT SET — agents requiring GitHub will fail'}`);
+  if (env.EMAIL_PROVIDER === 'smtp') {
+    console.log(`[buildApp] SMTP: host=${process.env.SMTP_HOST || 'NOT SET'}, port=${process.env.SMTP_PORT || '587'}, from=${process.env.SMTP_FROM_EMAIL || 'NOT SET'}`);
   }
 
   // Phase 5.D: Create MCPTools (signature-only adapters for now)

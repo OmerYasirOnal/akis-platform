@@ -45,7 +45,7 @@ describe('RunBar', () => {
       ],
     });
 
-    renderAt('/dashboard/scribe');
+    renderAt('/agents/scribe');
 
     await waitFor(() => {
       expect(screen.getByText('scribe')).toBeInTheDocument();
@@ -73,7 +73,7 @@ describe('RunBar', () => {
       jobs: [{ id: 'j3', type: 'scribe', state: 'running', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }],
     });
 
-    renderAt('/dashboard/scribe');
+    renderAt('/agents/scribe');
 
     // Initially empty before event
     await waitFor(() => {
@@ -172,8 +172,8 @@ describe('RunBar', () => {
     expect(agentsApi.getRunningJobs).not.toHaveBeenCalled();
   });
 
-  it('polls on agent-related dashboard routes (e.g., /dashboard/scribe)', async () => {
-    renderAt('/dashboard/scribe');
+  it('polls on agent-related routes (e.g., /agents/scribe)', async () => {
+    renderAt('/agents/scribe');
 
     await waitFor(() => {
       expect(agentsApi.getRunningJobs).toHaveBeenCalled();

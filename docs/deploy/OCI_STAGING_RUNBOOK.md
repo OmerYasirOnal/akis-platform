@@ -1,6 +1,6 @@
 # AKIS Platform - OCI Staging Runbook
 
-**Version**: 1.5.0  
+**Version**: 1.8.0  
 **Last Updated**: 2026-02-09  
 **Scope**: Staging Environment (pilot-grade)  
 **Target**: OCI Free Tier (single VM)
@@ -53,7 +53,7 @@ This runbook covers **staging-first deployment** on OCI Free Tier with minimal d
 | Reverse Proxy | Caddy | 80/443 | Public |
 | Backend API | Fastify | 3000 | Internal |
 | Database | PostgreSQL | 5432 | Internal |
-| MCP Gateway | Node.js | 4010 | Internal (optional) |
+| MCP Gateway | Node.js | 4010 | Internal (always-on) |
 | Frontend | Static (Vite build) | - | Served by Caddy |
 
 ---
@@ -198,6 +198,17 @@ Caddy handles TLS automatically via Let's Encrypt:
 | `STAGING_GITHUB_OAUTH_CLIENT_SECRET` | GitHub OAuth secret | For social login |
 | `STAGING_RESEND_API_KEY` | Email service API key | For email verification |
 
+**MCP + Email Env Vars** (in VM `/opt/akis/.env`, required for agents + email):
+
+| Variable | Purpose |
+|----------|---------|
+| `GITHUB_MCP_BASE_URL` | Backend → MCP gateway URL (`http://mcp-gateway:4010/mcp`) |
+| `GITHUB_TOKEN` | GitHub PAT with `repo` + `read:org` scopes |
+| `EMAIL_PROVIDER` | Set to `smtp` for real email delivery |
+| `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASS` | SMTP relay credentials |
+| `SMTP_FROM_EMAIL` / `SMTP_FROM_NAME` | Sender identity |
+| `PUBLIC_LOGO_URL` | Logo URL used in email templates |
+
 ### 3.3 VM Environment File
 
 **Location**: `/opt/akis/.env`
@@ -232,21 +243,26 @@ LOG_LEVEL=debug
 # Reverse proxy (required behind Caddy)
 TRUST_PROXY=true
 
-# Email (mock for staging; use smtp or resend for real delivery)
-EMAIL_PROVIDER=mock
-# For SMTP delivery, set EMAIL_PROVIDER=smtp and:
-# SMTP_HOST=smtp.gmail.com
-# SMTP_PORT=587
-# SMTP_USER=noreply@akisflow.com
-# SMTP_PASS=<app_password>
-# SMTP_SECURE=false
-# SMTP_FROM_NAME=AKIS Platform
-# SMTP_FROM_EMAIL=noreply@akisflow.com
-# SMTP_REPLY_TO=support@akisflow.com
-# PUBLIC_LOGO_URL=https://staging.akisflow.com/brand/logo.png
+# Email (REQUIRED for verification codes, welcome, and invite emails)
+EMAIL_PROVIDER=smtp
+SMTP_HOST=<your_smtp_host>
+SMTP_PORT=587
+SMTP_USER=<smtp_username>
+SMTP_PASS=<smtp_password>
+SMTP_SECURE=false
+SMTP_FROM_NAME=AKIS Platform
+SMTP_FROM_EMAIL=noreply@akisflow.com
+SMTP_REPLY_TO=support@akisflow.com
+PUBLIC_LOGO_URL=https://staging.akisflow.com/brand/logo.png
 
 # AI (optional)
 AI_PROVIDER=mock
+
+# MCP Gateway (REQUIRED for Scribe/Trace/Proto agents)
+# The mcp-gateway Docker service is always-on in staging compose.
+# Backend connects via internal Docker network hostname.
+GITHUB_MCP_BASE_URL=http://mcp-gateway:4010/mcp
+GITHUB_TOKEN=<github_pat_with_repo_and_read_org_scopes>
 
 # AI Key Encryption (REQUIRED for user AI key saving)
 # Generate with: openssl rand -base64 32
@@ -315,6 +331,88 @@ curl -s -o /dev/null -w "%{http_code}" https://staging.akisflow.com/auth/oauth/g
 > - `invalid_client` → Client ID/Secret mismatch or not set in `.env`
 > - `redirect_uri_mismatch` → Callback URL in provider console doesn't match `${BACKEND_URL}/auth/oauth/<provider>/callback`
 > - `OAUTH_NOT_CONFIGURED` → Missing `*_CLIENT_ID` or `*_CLIENT_SECRET` in env
+
+### 3.6 MCP Gateway Setup (Agents Dependency)
+
+The MCP Gateway enables Scribe, Trace, and Proto agents to interact with GitHub repositories via JSON-RPC over HTTP. It runs as an **always-on** Docker service in `docker-compose.yml`.
+
+**Required Environment Variables** (in `/opt/akis/.env`):
+
+| Variable | Purpose | Example |
+|----------|---------|---------|
+| `GITHUB_MCP_BASE_URL` | Internal URL for backend → MCP gateway | `http://mcp-gateway:4010/mcp` |
+| `GITHUB_TOKEN` | GitHub PAT with `repo` + `read:org` scopes | `ghp_xxxx...` |
+
+**Verification** (after deploy):
+
+```bash
+# Check /ready endpoint for MCP status:
+curl -s https://staging.akisflow.com/ready | python3 -m json.tool | grep -A4 '"mcp"'
+# Expected: "configured": true, "github": true
+
+# Check backend logs for MCP diagnostics:
+docker compose logs backend 2>&1 | grep -i mcp | tail -20
+# Expected: "[buildApp] MCP: GITHUB_MCP_BASE_URL=(configured)"
+
+# Verify mcp-gateway container is running:
+docker compose ps mcp-gateway
+# Expected: Status "Up"
+```
+
+**Troubleshooting**:
+
+| Symptom | Cause | Fix |
+|---------|-------|-----|
+| `MISSING_DEPENDENCY: GITHUB_MCP_BASE_URL` | Env var not set in `.env` | Add `GITHUB_MCP_BASE_URL=http://mcp-gateway:4010/mcp` to `.env` |
+| `mcp.github: false` in `/ready` | MCP gateway not reachable | Check `docker compose ps mcp-gateway` + logs |
+| `MCP_UNAUTHORIZED` | Invalid or expired `GITHUB_TOKEN` | Regenerate PAT with `repo` + `read:org` scopes |
+
+### 3.7 Email Deliverability (DNS Records)
+
+For staging emails to arrive (verification codes, welcome emails, OAuth new-user emails), DNS records must be correctly configured in your domain provider (e.g., Güzelhosting cPanel).
+
+**Required DNS Records** for `akisflow.com`:
+
+| Record | Type | Name/Host | Value | Purpose |
+|--------|------|-----------|-------|---------|
+| SPF | TXT | `@` or `akisflow.com` | `v=spf1 include:<smtp_provider_spf> ~all` | Authorize SMTP server |
+| DKIM | TXT | `<selector>._domainkey` | Provider-specific key | Sign outgoing mail |
+| DMARC | TXT | `_dmarc` | `v=DMARC1; p=none; rua=mailto:admin@akisflow.com` | Alignment reporting |
+
+**Verification Commands**:
+
+```bash
+# Check SPF record:
+dig TXT akisflow.com +short | grep spf
+
+# Check DKIM (replace <selector> with your SMTP provider's selector):
+dig TXT <selector>._domainkey.akisflow.com +short
+
+# Check DMARC:
+dig TXT _dmarc.akisflow.com +short
+```
+
+**Backend Email Diagnostics**:
+
+```bash
+# Check /ready for email status:
+curl -s https://staging.akisflow.com/ready | python3 -m json.tool | grep -A6 '"email"'
+# Expected: "configured": true, "provider": "smtp", "host": "...", "port": 587
+
+# Check backend logs for send attempts:
+docker compose logs backend 2>&1 | grep SmtpEmailService | tail -30
+# Look for: "[SmtpEmailService] Email sent OK: messageId=..." or error details
+```
+
+**Common SMTP Issues**:
+
+| Symptom | Cause | Fix |
+|---------|-------|-----|
+| `email.configured: false` | Missing `SMTP_HOST`/`SMTP_USER`/`SMTP_PASS`/`SMTP_FROM_EMAIL` | Set all 4 SMTP vars + `EMAIL_PROVIDER=smtp` |
+| `auth failed` in logs | Wrong SMTP credentials | Verify user/pass in SMTP provider panel |
+| `relay denied` in logs | From address not authorized | Ensure `SMTP_FROM_EMAIL` exists as a mailbox or alias |
+| Emails arrive in spam | Missing SPF/DKIM/DMARC | Add DNS records above |
+| `ETIMEDOUT` in logs | Wrong port or `SMTP_SECURE` mismatch | Port 587 → `SMTP_SECURE=false`, Port 465 → `SMTP_SECURE=true` |
 
 ---
 
@@ -1102,3 +1200,4 @@ free -h
 | 1.5.0 | 2026-02-09 | Auto | Added SMTP email configuration to VM env template + docker-compose passthrough |
 | 1.6.0 | 2026-02-09 | Auto | Added Operator Actions checklist for staging secrets (encryption, SMTP, Google OAuth) |
 | 1.7.0 | 2026-02-09 | Auto | Fixed PUBLIC_LOGO_URL to /brand/logo.png, added /ready OAuth field, troubleshooting table |
+| 1.8.0 | 2026-02-09 | Auto | Added MCP Gateway + Email Deliverability setup/troubleshooting sections; MCP now always-on |

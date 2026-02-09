@@ -140,8 +140,8 @@ describe('GettingStartedCard', () => {
     const aiKeysLink = screen.getByText('Set up AI Keys').closest('a');
     expect(aiKeysLink).toHaveAttribute('href', '/dashboard/settings/ai-keys');
 
-    const scribeLink = screen.getByText('Open Scribe').closest('a');
-    expect(scribeLink).toHaveAttribute('href', '/dashboard/scribe');
+    const agentsLink = screen.getByText('Open Agents Hub').closest('a');
+    expect(agentsLink).toHaveAttribute('href', '/agents');
 
     const jobsLink = screen.getByText('View Jobs').closest('a');
     expect(jobsLink).toHaveAttribute('href', '/dashboard/jobs');

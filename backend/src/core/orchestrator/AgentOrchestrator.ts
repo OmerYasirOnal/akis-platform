@@ -304,7 +304,7 @@ export class AgentOrchestrator {
         
         if (!userGitHubToken) {
           throw new GitHubNotConnectedError(
-            `GitHub is not connected for user ${userId}. Please connect your GitHub account at /dashboard/agents/scribe before running this job.`
+            `GitHub is not connected for user ${userId}. Please connect your GitHub account at /agents/scribe before running this job.`
           );
         }
         

@@ -34,7 +34,7 @@ async function gotoScribeConsole(page: Page) {
   await mockDashboardApis(page);
   await mockAiKeysStatus(page);
   await mockGitHubConnected(page);
-  await page.goto('/dashboard/scribe');
+  await page.goto('/agents/scribe');
   await expect(
     page.getByRole('heading', { name: 'Scribe Console' })
   ).toBeVisible({ timeout: 15_000 });
@@ -129,10 +129,8 @@ test.describe('Scribe Console — Golden Path', () => {
     await expect(page.getByText('Cloning repository...')).toBeVisible();
     await expect(page.getByText('Generating documentation...')).toBeVisible();
 
-    // RunBar at the bottom shows "completed" badge
-    await expect(page.getByText('completed', { exact: true })).toBeVisible();
-
     // After completion, "Run Scribe" button is re-enabled (isPolling=false → isIdle=true)
+    // Note: RunBar lives in DashboardLayout only, not AgentsLayout
     const reRunButton = page.getByRole('button', { name: /Run Scribe/i });
     await reRunButton.scrollIntoViewIfNeeded();
     await expect(reRunButton).toBeEnabled();
@@ -258,11 +256,11 @@ test.describe('Scribe Console — Golden Path', () => {
     await expect(reRunBtn).toBeEnabled({ timeout: 5_000 });
   });
 
-  test('SC11: correct route /dashboard/scribe renders page', async ({ page }) => {
+  test('SC11: correct route /agents/scribe renders page', async ({ page }) => {
     await gotoScribeConsole(page);
 
     // URL should be correct
-    expect(page.url()).toContain('/dashboard/scribe');
+    expect(page.url()).toContain('/agents/scribe');
 
     // Page should have rendered correctly
     await expect(page.getByRole('heading', { name: 'Scribe Console' })).toBeVisible();

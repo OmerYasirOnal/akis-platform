@@ -105,3 +105,9 @@ backend/_tmp_*
 # One-off binary reports (not tracked)
 AKIS_UI_Audit_Report.docx
 .cursor/plans/
+
+# Scratch/external AI session artifacts (never commit)
+CURSOR_PROMPT*.md
+STAGING_DEPLOY_CHECKLIST.md
+staging_env_template.env
+staging_smoke_test.sh
