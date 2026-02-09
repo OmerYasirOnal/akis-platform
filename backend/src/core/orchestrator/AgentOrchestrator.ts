@@ -733,14 +733,16 @@ export class AgentOrchestrator {
     const envConfig = getAIConfig(env);
     const modelOverride = payload.llmModelOverride as string | undefined;
 
-    // Non-scribe jobs use global AIService (env-configured)
-    if (jobType !== 'scribe') {
-      console.log(`[resolveAiServiceForJob] jobType=${jobType}, using global AIService`);
+    // Non-scribe jobs without userId: use global AIService (env-configured).
+    // Non-scribe WITH userId: fall through to user key resolution below,
+    // so Trace/Proto can also use user-provided API keys (same as Scribe).
+    if (jobType !== 'scribe' && !payload.userId) {
+      console.log(`[resolveAiServiceForJob] jobType=${jobType}, no userId, using global AIService`);
       const resolution: AIResolution = {
         provider: envConfig.provider,
         model: modelOverride || envConfig.modelDefault,
         keySource: 'env',
-        fallbackReason: 'NON_SCRIBE_JOB',
+        fallbackReason: 'NON_SCRIBE_NO_USER',
       };
       return { aiService: this.aiService, metrics, resolution };
     }

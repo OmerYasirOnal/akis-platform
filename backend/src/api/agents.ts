@@ -520,7 +520,7 @@ export async function agentsRoutes(fastify: FastifyInstance) {
         // Track userId for billing (extracted outside if block for scope)
         let userId: string | undefined;
         
-        // For non-scribe agents, inject userId from auth session
+        // For non-scribe agents, inject userId and AI provider config from auth session
         if (body.type !== 'scribe') {
           try {
             const user = await requireAuth(request);
@@ -530,7 +530,22 @@ export async function agentsRoutes(fastify: FastifyInstance) {
           }
 
           if (userId && enrichedPayload && typeof enrichedPayload === 'object') {
-            enrichedPayload = { ...(enrichedPayload as Record<string, unknown>), userId };
+            const payloadObj = enrichedPayload as Record<string, unknown>;
+            enrichedPayload = { ...payloadObj, userId };
+
+            // Map frontend AI config fields so orchestrator can resolve user keys
+            // Frontend sends modelId but orchestrator reads llmModelOverride
+            if (payloadObj.modelId && !payloadObj.llmModelOverride) {
+              (enrichedPayload as Record<string, unknown>).llmModelOverride = payloadObj.modelId;
+            }
+            // Propagate aiProvider from frontend to top-level for job record
+            if (payloadObj.aiProvider && !aiProvider) {
+              aiProvider = payloadObj.aiProvider as string;
+            }
+            // Propagate model for job record
+            if (payloadObj.modelId && !aiModel) {
+              aiModel = payloadObj.modelId as string;
+            }
           } else if (userId && !enrichedPayload) {
             enrichedPayload = { userId };
           }
