@@ -19,6 +19,18 @@ docs/NEXT.md                                             (this file — immediat
 
 ---
 
+## Staging Status
+
+| Field | Value |
+|-------|-------|
+| URL | https://staging.akisflow.com |
+| Deployed Commit | `4af307e` (2026-02-09 07:14 UTC) |
+| Smoke Tests | 8/8 pass |
+| Encryption | Not configured (env var needed) |
+| Email | Mock provider (SMTP env vars needed) |
+
+---
+
 ## Current Focus: S0.5 — Pilot Demo (Target: 28 Subat 2026)
 
 ### Phase A (7-9 Sub) — STAGING FIX (P0 BLOCKER)
@@ -76,13 +88,13 @@ docs/NEXT.md                                             (this file — immediat
 
 ## M1 Definition of Done (28 Subat 2026)
 
-- [ ] `staging.akisflow.com` uzerinde hic `localhost` referansi yok
-- [ ] `/health`, `/ready`, `/version` 200 donuyor
-- [ ] Email/password signup + login calisiyor (staging)
-- [ ] OAuth redirect'leri staging domain'inde calisiyor
-- [ ] Scribe/Trace/Proto golden path'leri calisiyor
-- [ ] Hata durumlarinda anlasilir mesaj
-- [ ] Pilot onboarding akisi calisiyor
+- [x] `staging.akisflow.com` uzerinde hic `localhost` referansi yok (smoke test 2026-02-09)
+- [x] `/health`, `/ready`, `/version` 200 donuyor (commit `4af307e` dogrulandi)
+- [ ] Email/password signup + login calisiyor (staging) — SMTP env vars gerekli
+- [ ] OAuth redirect'leri staging domain'inde calisiyor — Google OAuth env vars gerekli
+- [ ] Scribe/Trace/Proto golden path'leri calisiyor — AI key + encryption env var gerekli
+- [x] Hata durumlarinda anlasilir mesaj (AGT-6 standard error envelope, 39 unit test)
+- [ ] Pilot onboarding akisi calisiyor — WL-2 bekleniyor
 - [ ] Demo scripti yazilmis ve prova edilmis
 - [ ] QA evidence dokumani mevcut
 
