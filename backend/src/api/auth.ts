@@ -10,6 +10,7 @@ import { getEnv } from '../config/env.js';
 import { createEmailService } from '../services/email/index.js';
 import { registerMultiStepAuthRoutes } from './auth.multi-step.js';
 import { registerOAuthRoutes } from './auth.oauth.js';
+import { registerInviteRoutes } from './auth.invite.js';
 import { sendError } from '../utils/errorHandler.js';
 
 type User = typeof users.$inferSelect;
@@ -62,6 +63,9 @@ export async function authRoutes(fastify: FastifyInstance) {
 
   // Register OAuth routes (S0.4.2)
   await registerOAuthRoutes(fastify);
+
+  // Register invite routes (WL-1)
+  await registerInviteRoutes(fastify, emailService);
 
   // Legacy routes (deprecated - kept for backwards compatibility)
   fastify.get(

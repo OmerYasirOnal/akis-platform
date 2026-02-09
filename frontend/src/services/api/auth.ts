@@ -83,6 +83,19 @@ export type VerifyEmailResponse = {
   message: string;
 };
 
+export type InviteValidateResponse = {
+  valid: boolean;
+  email?: string;
+  inviterName?: string;
+  expiresAt?: string;
+  existingUser?: boolean;
+};
+
+export type InviteAcceptResponse = {
+  user: AuthUser;
+  message: string;
+};
+
 export const AuthAPI = {
   // Legacy single-step methods (deprecated)
   signup: (data: { name: string; email: string; password: string }) =>
@@ -143,6 +156,15 @@ export const AuthAPI = {
     request<{ ok: boolean }>('/auth/logout', {
       method: 'POST',
       // No body - server accepts empty POST for logout
+    }),
+
+  // Invite flow (WL-1)
+  validateInvite: (token: string) =>
+    request<InviteValidateResponse>(`/auth/invite/validate?token=${encodeURIComponent(token)}`),
+  acceptInvite: (data: { token: string; firstName: string; lastName: string; password: string }) =>
+    request<InviteAcceptResponse>('/auth/invite/accept', {
+      method: 'POST',
+      body: JSON.stringify(data),
     }),
 };
 

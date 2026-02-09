@@ -17,6 +17,7 @@ import SignupPassword from './pages/auth/SignupPassword';
 import SignupVerifyEmail from './pages/auth/SignupVerifyEmail';
 import WelcomeBeta from './pages/auth/WelcomeBeta';
 import PrivacyConsent from './pages/auth/PrivacyConsent';
+import InviteAccept from './pages/auth/InviteAccept';
 import DashboardOverviewPage from './pages/dashboard/DashboardOverviewPage';
 import DashboardAgentScribePage from './pages/dashboard/agents/DashboardAgentScribePage';
 import DashboardSettingsProfilePage from './pages/dashboard/settings/DashboardSettingsProfilePage';
@@ -104,6 +105,7 @@ function App() {
             <Route path="auth">
               <Route path="welcome-beta" element={<WelcomeBeta />} />
               <Route path="privacy-consent" element={<PrivacyConsent />} />
+              <Route path="invite/:token" element={<InviteAccept />} />
             </Route>
           </Route>
 
