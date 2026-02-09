@@ -14,7 +14,7 @@ export function ErrorToast({ error, onClose }: ErrorToastProps) {
   }, [onClose]);
 
   return (
-    <div className="fixed right-4 top-4 z-50 max-w-md rounded-xl border border-ak-border bg-ak-surface-2 p-4 shadow-lg shadow-black/40">
+    <div role="alert" aria-live="assertive" className="fixed right-4 top-4 z-50 max-w-md rounded-xl border border-ak-border bg-ak-surface-2 p-4 shadow-lg shadow-black/40">
       <div className="flex items-start justify-between">
         <div className="flex-1">
           <h3 className="text-xs font-semibold uppercase tracking-[0.2em] text-ak-text-secondary/80">

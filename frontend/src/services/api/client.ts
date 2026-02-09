@@ -81,4 +81,9 @@ export const api = {
   getDashboardMetrics: async (period: '7d' | '30d' = '7d'): Promise<DashboardMetrics> => {
     return httpClient.get<DashboardMetrics>(`/api/dashboard/metrics?period=${period}`);
   },
+
+  // POST /api/feedback
+  submitFeedback: async (data: { rating: number; message: string; page?: string }): Promise<{ id: string; createdAt: string }> => {
+    return httpClient.post('/api/feedback', data);
+  },
 };

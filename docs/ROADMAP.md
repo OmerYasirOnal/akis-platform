@@ -2,7 +2,7 @@
 
 > **Kanonik Plan:** [`docs/planning/DELIVERY_PLAN_S0.5_FEB_TO_GRADUATION.md`](planning/DELIVERY_PLAN_S0.5_FEB_TO_GRADUATION.md)  
 > **Anlık Eylemler:** [`docs/NEXT.md`](NEXT.md)  
-> **Son Güncelleme:** 2026-02-09
+> **Son Güncelleme:** 2026-02-10
 
 ---
 
@@ -22,7 +22,7 @@
 
 | Kilometre Taşı | Hedef Tarih | Odak | Durum |
 |-----------------|-------------|------|-------|
-| **M1: Pilot Demo** | 28 Şubat 2026 | Staging düzeltme + Scribe/Trace/Proto golden path + pilot katılım | **Devam Ediyor** |
+| **M1: Pilot Demo** | 28 Şubat 2026 | Staging düzeltme + Scribe/Trace/Proto golden path + pilot katılım | **Devam Ediyor** (30/30 görev, 1,344 test, staging deploy bekliyor) |
 | **M2: Stabilizasyon** | 31 Mart 2026 | Hata düzeltme, pilot geri bildirim, pg_trgm prototip, tez taslağı | Başlanmadı |
 | **M3: Mezuniyet** | Mayıs 2026 | Final rapor, sunum, demo video, teslim paketi | Başlanmadı |
 
@@ -53,9 +53,9 @@
 | Sprint | Tarihler | Odak | İş Akışları | İlerleme |
 |--------|----------|------|-------------|----------|
 | S0.5.0 | 7-9 Şub | Staging base URL düzeltme + trust-proxy + deploy | WS-OPS | ✅ 8/8 görev tamamlandı |
-| S0.5.1 | 10-21 Şub | Pilot erişim + agent güvenilirliği | WS-WAITLIST, WS-AGENTS | 🔄 8/10 görev tamamlandı |
-| S0.5.2 | 10-23 Şub | Demo UX + RAG araştırma | WS-UX, WS-RAG | 🔄 4/6 görev tamamlandı |
-| S0.5.3 | 24-28 Şub | KG kanıt + demo senaryosu + M1 | WS-QA | ⏳ 0/4 görev |
+| S0.5.1 | 10-21 Şub | Pilot erişim + agent güvenilirliği | WS-WAITLIST, WS-AGENTS | ✅ 11/11 görev tamamlandı |
+| S0.5.2 | 10-23 Şub | Demo UX + RAG araştırma | WS-UX, WS-RAG | ✅ 7/7 görev tamamlandı |
+| S0.5.3 | 24-28 Şub | KG kanıt + demo senaryosu + M1 | WS-QA | ✅ 4/4 görev tamamlandı |
 
 ### Gelecek Fazlar
 
@@ -78,9 +78,9 @@
 - [ ] Scribe golden path çalışıyor (kuru çalışma)
 - [ ] Trace golden path çalışıyor
 - [ ] Proto golden path çalışıyor
-- [ ] Pilot katılım akışı çalışıyor
-- [ ] Demo senaryosu yazılmış ve prova edilmiş
-- [ ] KG kanıt dokümanı mevcut
+- [x] Pilot katılım akışı çalışıyor (2026-02-09)
+- [x] Demo senaryosu yazılmış (2026-02-09) — prova bekliyor
+- [x] KG kanıt dokümanı mevcut (2026-02-09)
 
 ---
 

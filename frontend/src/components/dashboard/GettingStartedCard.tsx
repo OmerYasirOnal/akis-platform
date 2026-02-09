@@ -1,5 +1,5 @@
 /**
- * Getting Started Card (S0.5.2-UX-3)
+ * Getting Started Card (S0.5.2-UX-3 + S0.5.1-WL-2)
  *
  * Guides new users through a 3-step onboarding checklist:
  *  1. Configure AI provider keys
@@ -8,12 +8,14 @@
  *
  * The card is dismissible (persisted to localStorage).
  * Step 1 completion is determined by the AI keys status API.
- * Steps 2–3 are placeholder checks wired to job count (future).
+ * Steps 2–3 are wired to the job list endpoint (hasRanJob).
  */
 import { useEffect, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import Card from '../common/Card';
 import { aiKeysApi } from '../../services/api/ai-keys';
+import { agentsApi } from '../../services/api/agents';
+import { useI18n } from '../../i18n/useI18n';
 
 /* ---------- constants ---------- */
 const STORAGE_KEY = 'akis-getting-started-dismissed';
@@ -46,6 +48,8 @@ const CloseIcon = () => (
 
 /* ---------- component ---------- */
 export function GettingStartedCard() {
+  const { t } = useI18n();
+
   const [dismissed, setDismissed] = useState(() => {
     try {
       return localStorage.getItem(STORAGE_KEY) === 'true';
@@ -55,17 +59,28 @@ export function GettingStartedCard() {
   });
 
   const [aiKeysConfigured, setAiKeysConfigured] = useState(false);
+  const [hasRanJob, setHasRanJob] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  const fetchAiKeysStatus = useCallback(async () => {
+  const fetchOnboardingStatus = useCallback(async () => {
     try {
-      const status = await aiKeysApi.getStatus();
-      const hasKey =
-        status.providers.openai.configured || status.providers.openrouter.configured;
-      setAiKeysConfigured(hasKey);
+      const [status, jobList] = await Promise.allSettled([
+        aiKeysApi.getStatus(),
+        agentsApi.listJobs({ limit: 1 }),
+      ]);
+
+      if (status.status === 'fulfilled') {
+        const hasKey =
+          status.value.providers.openai.configured ||
+          status.value.providers.openrouter.configured;
+        setAiKeysConfigured(hasKey);
+      }
+
+      if (jobList.status === 'fulfilled') {
+        setHasRanJob(jobList.value.items.length > 0);
+      }
     } catch {
-      // API not available or user not yet set up — assume unconfigured
-      setAiKeysConfigured(false);
+      // API not available — assume unconfigured
     } finally {
       setLoading(false);
     }
@@ -73,9 +88,9 @@ export function GettingStartedCard() {
 
   useEffect(() => {
     if (!dismissed) {
-      void fetchAiKeysStatus();
+      void fetchOnboardingStatus();
     }
-  }, [dismissed, fetchAiKeysStatus]);
+  }, [dismissed, fetchOnboardingStatus]);
 
   const handleDismiss = () => {
     setDismissed(true);
@@ -91,27 +106,27 @@ export function GettingStartedCard() {
   const steps: Step[] = [
     {
       id: 'ai-keys',
-      title: 'Configure AI Provider',
-      description: 'Add your OpenAI or OpenRouter API key to enable AI agents.',
+      title: t('onboarding.step1.title'),
+      description: t('onboarding.step1.description'),
       href: '/dashboard/settings/ai-keys',
-      linkLabel: 'Set up AI Keys',
+      linkLabel: t('onboarding.step1.link'),
       done: aiKeysConfigured,
     },
     {
       id: 'first-run',
-      title: 'Run Your First Agent',
-      description: 'Try Scribe to generate documentation, or Trace to create test plans.',
+      title: t('onboarding.step2.title'),
+      description: t('onboarding.step2.description'),
       href: '/agents',
-      linkLabel: 'Open Agents Hub',
-      done: false, // TODO: wire to job count API
+      linkLabel: t('onboarding.step2.link'),
+      done: hasRanJob,
     },
     {
       id: 'explore',
-      title: 'Explore Results',
-      description: 'View generated artifacts, logs, and job history.',
+      title: t('onboarding.step3.title'),
+      description: t('onboarding.step3.description'),
       href: '/dashboard/jobs',
-      linkLabel: 'View Jobs',
-      done: false, // TODO: wire to job count API
+      linkLabel: t('onboarding.step3.link'),
+      done: hasRanJob,
     },
   ];
 
@@ -130,9 +145,9 @@ export function GettingStartedCard() {
 
       {/* Header */}
       <div className="mb-5">
-        <h2 className="text-lg font-semibold text-ak-text-primary">Getting Started</h2>
+        <h2 className="text-lg font-semibold text-ak-text-primary">{t('onboarding.title')}</h2>
         <p className="mt-1 text-sm text-ak-text-secondary">
-          Complete these steps to start using AKIS agents.
+          {t('onboarding.subtitle')}
         </p>
         {/* Progress bar */}
         <div className="mt-3 flex items-center gap-3">

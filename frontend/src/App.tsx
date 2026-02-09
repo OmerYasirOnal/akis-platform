@@ -7,27 +7,34 @@ import { ProtectedRoute, RequireRole } from './app/RouteGuards';
 import { AuthProvider } from './contexts/AuthContext';
 import { useI18n } from './i18n/useI18n';
 import LandingPage from './pages/LandingPage';
-import AboutAKIS from './pages/about/AboutAKIS';
-import LegalTermsPage from './pages/legal/LegalTermsPage';
-import LegalPrivacyPage from './pages/legal/LegalPrivacyPage';
-import LoginEmail from './pages/auth/LoginEmail';
-import LoginPassword from './pages/auth/LoginPassword';
-import SignupEmail from './pages/auth/SignupEmail';
-import SignupPassword from './pages/auth/SignupPassword';
-import SignupVerifyEmail from './pages/auth/SignupVerifyEmail';
-import WelcomeBeta from './pages/auth/WelcomeBeta';
-import PrivacyConsent from './pages/auth/PrivacyConsent';
-import InviteAccept from './pages/auth/InviteAccept';
-import DashboardOverviewPage from './pages/dashboard/DashboardOverviewPage';
-import DashboardAgentScribePage from './pages/dashboard/agents/DashboardAgentScribePage';
-import DashboardSettingsProfilePage from './pages/dashboard/settings/DashboardSettingsProfilePage';
-import DashboardSettingsWorkspacePage from './pages/dashboard/settings/DashboardSettingsWorkspacePage';
-import DashboardSettingsApiKeysPage from './pages/dashboard/settings/DashboardSettingsApiKeysPage';
-import DashboardSettingsBillingPage from './pages/dashboard/settings/DashboardSettingsBillingPage';
-import DashboardSettingsNotificationsPage from './pages/dashboard/settings/DashboardSettingsNotificationsPage';
-import JobsListPage from './pages/JobsListPage';
-import JobDetailPage from './pages/JobDetailPage';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import FeedbackWidget from './components/feedback/FeedbackWidget';
+
+// Auth pages — lazy (only needed on login/signup flows)
+const LoginEmail = lazy(() => import('./pages/auth/LoginEmail'));
+const LoginPassword = lazy(() => import('./pages/auth/LoginPassword'));
+const SignupEmail = lazy(() => import('./pages/auth/SignupEmail'));
+const SignupPassword = lazy(() => import('./pages/auth/SignupPassword'));
+const SignupVerifyEmail = lazy(() => import('./pages/auth/SignupVerifyEmail'));
+const WelcomeBeta = lazy(() => import('./pages/auth/WelcomeBeta'));
+const PrivacyConsent = lazy(() => import('./pages/auth/PrivacyConsent'));
+const InviteAccept = lazy(() => import('./pages/auth/InviteAccept'));
+
+// Public pages — lazy (rarely visited on first load)
+const AboutAKIS = lazy(() => import('./pages/about/AboutAKIS'));
+const LegalTermsPage = lazy(() => import('./pages/legal/LegalTermsPage'));
+const LegalPrivacyPage = lazy(() => import('./pages/legal/LegalPrivacyPage'));
+
+// Dashboard pages — lazy (behind auth, not needed on initial load)
+const DashboardOverviewPage = lazy(() => import('./pages/dashboard/DashboardOverviewPage'));
+const DashboardAgentScribePage = lazy(() => import('./pages/dashboard/agents/DashboardAgentScribePage'));
+const DashboardSettingsProfilePage = lazy(() => import('./pages/dashboard/settings/DashboardSettingsProfilePage'));
+const DashboardSettingsWorkspacePage = lazy(() => import('./pages/dashboard/settings/DashboardSettingsWorkspacePage'));
+const DashboardSettingsApiKeysPage = lazy(() => import('./pages/dashboard/settings/DashboardSettingsApiKeysPage'));
+const DashboardSettingsBillingPage = lazy(() => import('./pages/dashboard/settings/DashboardSettingsBillingPage'));
+const DashboardSettingsNotificationsPage = lazy(() => import('./pages/dashboard/settings/DashboardSettingsNotificationsPage'));
+const JobsListPage = lazy(() => import('./pages/JobsListPage'));
+const JobDetailPage = lazy(() => import('./pages/JobDetailPage'));
 
 const PricingPage = lazy(() => import('./pages/public/PricingPage'));
 const BlogIndexPage = lazy(() => import('./pages/public/BlogIndexPage'));
@@ -82,7 +89,7 @@ function App() {
           {/* Public Routes */}
           <Route element={<AppShell />}>
             <Route index element={<LandingPage />} />
-            <Route path="about" element={<AboutAKIS />} />
+            <Route path="about" element={<Suspense fallback={<PageLoader />}><AboutAKIS /></Suspense>} />
             <Route path="pricing" element={<Suspense fallback={<PageLoader />}><PricingPage /></Suspense>} />
             <Route path="blog" element={<Suspense fallback={<PageLoader />}><BlogIndexPage /></Suspense>} />
             <Route path="learn" element={<Suspense fallback={<PageLoader />}><LearnLandingPage /></Suspense>} />
@@ -90,22 +97,22 @@ function App() {
             <Route path="contact" element={<Suspense fallback={<PageLoader />}><ContactPage /></Suspense>} />
             <Route path="iletisim" element={<Suspense fallback={<PageLoader />}><ContactPage /></Suspense>} />
             <Route path="legal">
-              <Route path="terms" element={<LegalTermsPage />} />
-              <Route path="privacy" element={<LegalPrivacyPage />} />
+              <Route path="terms" element={<Suspense fallback={<PageLoader />}><LegalTermsPage /></Suspense>} />
+              <Route path="privacy" element={<Suspense fallback={<PageLoader />}><LegalPrivacyPage /></Suspense>} />
             </Route>
             <Route path="login">
-              <Route index element={<LoginEmail />} />
-              <Route path="password" element={<LoginPassword />} />
+              <Route index element={<Suspense fallback={<PageLoader />}><LoginEmail /></Suspense>} />
+              <Route path="password" element={<Suspense fallback={<PageLoader />}><LoginPassword /></Suspense>} />
             </Route>
             <Route path="signup">
-              <Route index element={<SignupEmail />} />
-              <Route path="password" element={<SignupPassword />} />
-              <Route path="verify-email" element={<SignupVerifyEmail />} />
+              <Route index element={<Suspense fallback={<PageLoader />}><SignupEmail /></Suspense>} />
+              <Route path="password" element={<Suspense fallback={<PageLoader />}><SignupPassword /></Suspense>} />
+              <Route path="verify-email" element={<Suspense fallback={<PageLoader />}><SignupVerifyEmail /></Suspense>} />
             </Route>
             <Route path="auth">
-              <Route path="welcome-beta" element={<WelcomeBeta />} />
-              <Route path="privacy-consent" element={<PrivacyConsent />} />
-              <Route path="invite/:token" element={<InviteAccept />} />
+              <Route path="welcome-beta" element={<Suspense fallback={<PageLoader />}><WelcomeBeta /></Suspense>} />
+              <Route path="privacy-consent" element={<Suspense fallback={<PageLoader />}><PrivacyConsent /></Suspense>} />
+              <Route path="invite/:token" element={<Suspense fallback={<PageLoader />}><InviteAccept /></Suspense>} />
             </Route>
           </Route>
 
@@ -126,7 +133,7 @@ function App() {
                 </Suspense>
               }
             />
-            <Route path="scribe" element={<DashboardAgentScribePage />} />
+            <Route path="scribe" element={<Suspense fallback={<PageLoader />}><DashboardAgentScribePage /></Suspense>} />
             <Route path="trace" element={<Suspense fallback={<PageLoader />}><DashboardAgentTracePage /></Suspense>} />
             <Route path="proto" element={<Suspense fallback={<PageLoader />}><DashboardAgentProtoPage /></Suspense>} />
           </Route>
@@ -162,19 +169,19 @@ function App() {
               </ProtectedRoute>
             }
           >
-            <Route index element={<DashboardOverviewPage />} />
+            <Route index element={<Suspense fallback={<PageLoader />}><DashboardOverviewPage /></Suspense>} />
             {/* Legacy agent routes — redirect to /agents/* (backwards compat) */}
             <Route path="scribe" element={<Navigate to="/agents/scribe" replace />} />
             <Route path="trace" element={<Navigate to="/agents/trace" replace />} />
             <Route path="proto" element={<Navigate to="/agents/proto" replace />} />
             <Route path="jobs">
-              <Route index element={<JobsListPage />} />
+              <Route index element={<Suspense fallback={<PageLoader />}><JobsListPage /></Suspense>} />
               <Route path="new" element={<Navigate to="/agents/scribe" replace />} />
               <Route
                 path=":id"
                 element={
                   <ErrorBoundary fallbackPath="/dashboard/jobs" fallbackLabel="Jobs">
-                    <JobDetailPage />
+                    <Suspense fallback={<PageLoader />}><JobDetailPage /></Suspense>
                   </ErrorBoundary>
                 }
               />
@@ -192,9 +199,9 @@ function App() {
             />
             <Route path="settings">
               <Route index element={<Navigate to="profile" replace />} />
-              <Route path="profile" element={<DashboardSettingsProfilePage />} />
-              <Route path="workspace" element={<DashboardSettingsWorkspacePage />} />
-              <Route path="api-keys" element={<DashboardSettingsApiKeysPage />} />
+              <Route path="profile" element={<Suspense fallback={<PageLoader />}><DashboardSettingsProfilePage /></Suspense>} />
+              <Route path="workspace" element={<Suspense fallback={<PageLoader />}><DashboardSettingsWorkspacePage /></Suspense>} />
+              <Route path="api-keys" element={<Suspense fallback={<PageLoader />}><DashboardSettingsApiKeysPage /></Suspense>} />
               <Route
                 path="ai-keys"
                 element={
@@ -207,11 +214,11 @@ function App() {
                 path="billing"
                 element={
                   <RequireRole roles={['admin']}>
-                    <DashboardSettingsBillingPage />
+                    <Suspense fallback={<PageLoader />}><DashboardSettingsBillingPage /></Suspense>
                   </RequireRole>
                 }
               />
-              <Route path="notifications" element={<DashboardSettingsNotificationsPage />} />
+              <Route path="notifications" element={<Suspense fallback={<PageLoader />}><DashboardSettingsNotificationsPage /></Suspense>} />
             </Route>
           </Route>
 
@@ -241,6 +248,7 @@ function App() {
 
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
+        <FeedbackWidget />
       </AuthProvider>
     </BrowserRouter>
   );

@@ -3,7 +3,7 @@
 > **Kanonik Plan:** [`docs/planning/DELIVERY_PLAN_S0.5_FEB_TO_GRADUATION.md`](planning/DELIVERY_PLAN_S0.5_FEB_TO_GRADUATION.md)  
 > **WBS Tablosu:** [`docs/planning/WBS_EXPORT_S0.5.xlsx_compatible.md`](planning/WBS_EXPORT_S0.5.xlsx_compatible.md)  
 > **Araştırma Notu:** [`docs/planning/RESEARCH_BRIEF_S0.5_STAGING_RAG_AGENTS.md`](planning/RESEARCH_BRIEF_S0.5_STAGING_RAG_AGENTS.md)  
-> **Son Güncelleme:** 2026-02-09
+> **Son Güncelleme:** 2026-02-10
 
 ---
 
@@ -25,7 +25,9 @@ docs/NEXT.md                                             (bu dosya — anlık ey
 |------|-------|
 | URL | https://staging.akisflow.com |
 | Deploy Edilen Commit | `c3ead3c` (PR #246 + #247 merge) |
+| S0.5 PR | [#265](https://github.com/OmerYasirOnal/akis-platform-devolopment/pull/265) — onboarding, feedback, context packs, QA docs, 750+ yeni test |
 | Smoke Testleri | 10/10 otomatik test tanımlı (`staging_smoke.sh`) |
+| Test Sayısı | Backend: 797 + Frontend: 547 = **1,344 toplam** (Phase 1-8 test kampanyası, 2026-02-10) |
 | Kod Düzeltmeleri | MCP `/ready` durumu, OAuth hoşgeldin e-postası, agents yönlendirme `/agents/*`, logo güncelleme, güvenlik temizliği, E2E test hizalama |
 | Şifreleme | Staging'de yapılandırıldı (`/ready` → `encryption.configured: true`) |
 | E-posta | SMTP şablonu hazır (`/ready` → `email.configured`, `email.host`, `email.port`, `email.from`); OAuth hoşgeldin e-postası eklendi |
@@ -57,8 +59,8 @@ docs/NEXT.md                                             (bu dosya — anlık ey
 |----|-------|-------|--------|
 | S0.5.1-WL-1 | Davet stratejisi (e-posta + açık kayıt) | Tamamlandı | SMTP aktarım + Türkçe şablonlar (PR #238) |
 | S0.5.1-WL-1b | Doğrulama sonrası hoşgeldin e-postası | Tamamlandı | `sendWelcomeEmail` + 4 birim testi |
-| S0.5.1-WL-2 | Katılım akışı (kayıt → AI anahtarı → ilk iş) | Başlanmadı | Getting Started kartı |
-| S0.5.1-WL-3 | Geri bildirim yakalama (FeedbackTab entegrasyonu) | Başlanmadı | Bağımlılık: WL-2 |
+| S0.5.1-WL-2 | Katılım akışı (kayıt → AI anahtarı → ilk iş) | Tamamlandı | i18n + job API wiring (2026-02-09) |
+| S0.5.1-WL-3 | Geri bildirim yakalama (FeedbackTab entegrasyonu) | Tamamlandı | Feedback table + POST /api/feedback + FeedbackWidget + 16 test (2026-02-09) |
 | S0.5.2-UX-1 | Trace konsol sayfası | Tamamlandı | PR #236 |
 | S0.5.2-UX-2 | Proto konsol sayfası | Tamamlandı | PR #236 |
 | S0.5.2-UX-3 | Dashboard Getting Started kartı | Tamamlandı | 3 adımlı kart + 6 birim + 5 E2E test |
@@ -79,17 +81,17 @@ docs/NEXT.md                                             (bu dosya — anlık ey
 
 | ID | Görev | Durum | Notlar |
 |----|-------|-------|--------|
-| S0.5.2-RAG-1 | Araştırma notu + karar kilitleme | Başlanmadı | Bağlam paketleri Şub, pg_trgm Mart |
-| S0.5.2-RAG-2 | Bağlam paketi mekanizması doğrulama | Başlanmadı | Bağımlılık: AGT-3 |
+| S0.5.2-RAG-1 | Araştırma notu + karar kilitleme | Tamamlandı | `docs/agents/CONTEXT_PACKS.md` (2026-02-09) |
+| S0.5.2-RAG-2 | Bağlam paketi mekanizması doğrulama | Tamamlandı | contextPacks.ts + 19 doğrulama testi (2026-02-09) |
 
 ### Faz E (24-28 Şub) — KG + M1 PİLOT DEMO
 
 | ID | Görev | Durum | Notlar |
 |----|-------|-------|--------|
-| S0.5.3-QA-1 | Regresyon kontrol listesi | Başlanmadı | Bağımlılık: AGT-3~5 |
-| S0.5.3-QA-2 | Demo senaryosu (15 dk) | Başlanmadı | Bağımlılık: QA-1 |
-| S0.5.3-QA-3 | KG kanıt dokümanı | Başlanmadı | Bağımlılık: QA-2 |
-| S0.5.3-QA-4 | Tez hazırlık notu (taslak) | Başlanmadı | |
+| S0.5.3-QA-1 | Regresyon kontrol listesi | Tamamlandı | `docs/qa/REGRESSION_CHECKLIST.md` (2026-02-09) |
+| S0.5.3-QA-2 | Demo senaryosu (15 dk) | Tamamlandı | `docs/qa/DEMO_SCRIPT_15MIN.md` (2026-02-09) |
+| S0.5.3-QA-3 | KG kanıt dokümanı | Tamamlandı | `docs/qa/GRADUATION_EVIDENCE.md` (2026-02-09) |
+| S0.5.3-QA-4 | Tez hazırlık notu (taslak) | Tamamlandı | `docs/qa/THESIS_PREP_NOTE.md` (2026-02-09) |
 
 ---
 
@@ -150,9 +152,9 @@ docs/NEXT.md                                             (bu dosya — anlık ey
 - [ ] OAuth yönlendirmeleri staging alanında çalışıyor — Google OAuth env değişkenleri gerekli
 - [ ] Scribe/Trace/Proto golden path'leri çalışıyor — AI anahtar + şifreleme + MCP env değişken gerekli
 - [x] Hata durumlarında anlaşılır mesaj (AGT-6 standart hata zarfı, 39 birim testi)
-- [ ] Pilot katılım akışı çalışıyor — WL-2 bekleniyor
-- [ ] Demo senaryosu yazılmış ve prova edilmiş
-- [ ] KG kanıt dokümanı mevcut
+- [x] Pilot katılım akışı çalışıyor — WL-2 tamamlandı (2026-02-09)
+- [x] Demo senaryosu yazılmış (2026-02-09) — prova bekliyor
+- [x] KG kanıt dokümanı mevcut (2026-02-09)
 
 ---
 
@@ -175,7 +177,7 @@ docs/NEXT.md                                             (bu dosya — anlık ey
 | 1 | MCP Gateway Docker image CI build pipeline yok | P1 | GHCR'a image push edilmeli; `profiles: [mcp]` kaldırılana kadar agent'lar staging'de MCP kullanamazlar |
 | 2 | SMTP deliverability (SPF/DKIM/DMARC) | P1 | güzelhosting DNS yapılandırması gerekli — `OCI_STAGING_RUNBOOK.md` Bölüm 3.7 |
 | 3 | Staging VM `.env` güncelleme | P0 | MCP, SMTP, OAuth, logo URL değişkenleri güncellenmeli |
-| 4 | Onboarding akışı (WL-2) | P2 | Getting Started kartı mevcut; tam akış henüz bağlanmamış |
+| 4 | ~~Onboarding akışı (WL-2)~~ | ~~P2~~ | Tamamlandı (2026-02-09): i18n + job API wiring |
 
 ---
 
@@ -210,6 +212,8 @@ docs/NEXT.md                                             (bu dosya — anlık ey
 | [`docs/ROADMAP.md`](ROADMAP.md) | Kilometre taşları genel bakış |
 | [`docs/deploy/OCI_STAGING_RUNBOOK.md`](deploy/OCI_STAGING_RUNBOOK.md) | Staging operasyonları |
 | [`docs/deploy/STAGING_SMOKE_TEST_CHECKLIST.md`](deploy/STAGING_SMOKE_TEST_CHECKLIST.md) | Smoke test kontrol listesi |
+| [`docs/qa/REGRESSION_CHECKLIST.md`](qa/REGRESSION_CHECKLIST.md) | Pilot demo regresyon kontrol listesi |
+| [`docs/agents/CONTEXT_PACKS.md`](agents/CONTEXT_PACKS.md) | Bağlam paketleri mimari kararı |
 
 ---
 

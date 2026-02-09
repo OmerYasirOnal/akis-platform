@@ -32,6 +32,11 @@ export interface QualityInput {
   totalTokens?: number | null;
 }
 
+/**
+ * Computes a 0–100 quality score for a completed job based on execution metrics.
+ * @param input - Job metrics (targets, files, depth, multi-pass, state)
+ * @returns Score with detailed breakdown and version tag
+ */
 export function computeQualityScore(input: QualityInput): QualityResult {
   const breakdown: QualityBreakdownItem[] = [];
   let score = 0;
@@ -105,6 +110,12 @@ export function computeQualityScore(input: QualityInput): QualityResult {
   };
 }
 
+/**
+ * Generates up to 2 actionable improvement suggestions based on a quality result.
+ * @param result - The computed quality result
+ * @param input - The original quality input for context
+ * @returns Array of suggestion strings (max 2)
+ */
 export function generateQualitySuggestions(result: QualityResult, input: QualityInput): string[] {
   const suggestions: string[] = [];
 

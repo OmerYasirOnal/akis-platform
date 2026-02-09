@@ -118,7 +118,8 @@ export default function CreateAutomationModal({ onClose, onSuccess }: Props) {
       await smartAutomationsApi.create(data);
       onSuccess();
     } catch (err) {
-      setError('Otomasyon oluşturulamadı');
+      const message = err instanceof Error ? err.message : 'Bilinmeyen hata';
+      setError(`Otomasyon oluşturulamadı: ${message}`);
       console.error('Failed to create automation:', err);
     } finally {
       setLoading(false);

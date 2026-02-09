@@ -508,6 +508,31 @@ export const MESSAGE_KEYS = [
   'auth.oauth.error.tryAgain',
   'auth.oauth.error.dismiss',
 
+  // Onboarding
+  'onboarding.title',
+  'onboarding.subtitle',
+  'onboarding.step1.title',
+  'onboarding.step1.description',
+  'onboarding.step1.link',
+  'onboarding.step2.title',
+  'onboarding.step2.description',
+  'onboarding.step2.link',
+  'onboarding.step3.title',
+  'onboarding.step3.description',
+  'onboarding.step3.link',
+
+  // Feedback
+  'feedback.trigger',
+  'feedback.title',
+  'feedback.subtitle',
+  'feedback.placeholder',
+  'feedback.send',
+  'feedback.sending',
+  'feedback.cancel',
+  'feedback.thanks',
+  'feedback.thanksDetail',
+  'feedback.error',
+
   // Waitlist
   'waitlist.cta',
   'waitlist.ctaShort',
