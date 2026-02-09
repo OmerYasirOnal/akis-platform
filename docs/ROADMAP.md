@@ -1,154 +1,155 @@
-# AKIS Platform — Roadmap & Milestones
+# AKIS Platform — Yol Haritası ve Kilometre Taşları
 
-> **Canonical Plan:** [`docs/planning/DELIVERY_PLAN_S0.5_FEB_TO_GRADUATION.md`](planning/DELIVERY_PLAN_S0.5_FEB_TO_GRADUATION.md)  
-> **Immediate Actions:** [`docs/NEXT.md`](NEXT.md)  
-> **Last Updated:** 2026-02-07
-
----
-
-## Current Status
-
-| Item | Value |
-|------|-------|
-| **Active Phase** | S0.5 — Staging Fix + Pilot Demo |
-| **Next Milestone** | M1: Pilot Demo (28 Subat 2026) |
-| **Scope** | Scribe / Trace / Proto agents only |
-| **Environment** | Staging (staging.akisflow.com) — OCI Free Tier |
-| **Status Vocabulary** | Done / In Progress / Not Started / Blocked (per PM_NAMING_SYSTEM) |
+> **Kanonik Plan:** [`docs/planning/DELIVERY_PLAN_S0.5_FEB_TO_GRADUATION.md`](planning/DELIVERY_PLAN_S0.5_FEB_TO_GRADUATION.md)  
+> **Anlık Eylemler:** [`docs/NEXT.md`](NEXT.md)  
+> **Son Güncelleme:** 2026-02-09
 
 ---
 
-## Milestones
+## Güncel Durum
 
-| Milestone | Target Date | Focus | Status |
-|-----------|-------------|-------|--------|
-| **M1: Pilot Demo** | 28 Subat 2026 | Staging fix + Scribe/Trace/Proto golden paths + pilot onboarding | **In Progress** |
-| **M2: Stabilization** | 31 Mart 2026 | Bug fix, pilot feedback, pg_trgm prototype, tez taslagi | Not Started |
-| **M3: Graduation** | Mayis 2026 | Final rapor, sunum, demo video, teslim paketi | Not Started |
-
----
-
-## Phase Overview
-
-### Completed Phases
-
-| Phase | Name | Date Range | Status |
-|-------|------|------------|--------|
-| 0.1 | Foundation Setup | Nov 1-7, 2025 | Done |
-| 0.2 | Architecture Definition | Nov 8-17, 2025 | Done |
-| 0.3 | Core Engine Scaffold | Nov 18-27, 2025 | Done |
-| 0.4 | Web Shell + Basic Engine | Nov 28 - Dec 4, 2025 | Done |
-| 1 | Scribe/Trace/Proto Early Access | Dec 13-25, 2025 | Done |
-| 1.5 | Logging + Observability Layer | Dec 26, 2025 - Jan 9, 2026 | Done |
-| 2 | Cursor-Inspired UI + Scribe Console | Jan 10 - Feb 6, 2026 | Done |
-
-### Active Phase
-
-| Phase | Name | Date Range | Status |
-|-------|------|------------|--------|
-| **S0.5** | **Staging Fix + Pilot Demo** | **Feb 7-28, 2026** | **In Progress** |
-
-**S0.5 Sprints:**
-
-| Sprint | Dates | Focus | Workstreams |
-|--------|-------|-------|-------------|
-| S0.5.0 | Feb 7-9 | Staging base URL fix + trust-proxy + deploy | WS-OPS |
-| S0.5.1 | Feb 10-21 | Pilot access + agent reliability | WS-WAITLIST, WS-AGENTS |
-| S0.5.2 | Feb 10-23 | Demo UX + RAG research | WS-UX, WS-RAG |
-| S0.5.3 | Feb 24-28 | QA evidence + demo script + M1 | WS-QA |
-
-### Future Phases
-
-| Phase | Name | Date Range | Status |
-|-------|------|------------|--------|
-| M2 | Stabilization + Academic Prep | Mar 1-31, 2026 | Not Started |
-| M3 | Graduation Delivery | Apr-May 2026 | Not Started |
+| Öğe | Değer |
+|-----|-------|
+| **Aktif Faz** | S0.5 — Staging Düzeltme + Pilot Demo |
+| **Sonraki Kilometre Taşı** | M1: Pilot Demo (28 Şubat 2026) |
+| **Kapsam** | Scribe / Trace / Proto agent'ları |
+| **Ortam** | Staging (staging.akisflow.com) — OCI Free Tier |
+| **Durum Sözlüğü** | Tamamlandı / Devam Ediyor / Başlanmadı / Engellendi |
 
 ---
 
-## M1: Pilot Demo — Definition of Done (28 Subat 2026)
+## Kilometre Taşları
 
-- [ ] Staging'de localhost referansi sifir (bundle grep check)
-- [ ] Health/ready/version endpoint'leri 200 donuyor
-- [ ] Email/password signup + login calisiyor
-- [ ] OAuth redirect'leri staging domain'inde calisiyor
-- [ ] Scribe golden path calisiyor (dry-run)
-- [ ] Trace golden path calisiyor
-- [ ] Proto golden path calisiyor
-- [ ] Hata durumlarinda kullaniciya anlasilir mesaj
-- [ ] Pilot onboarding akisi calisiyor
-- [ ] Demo scripti yazilmis ve prova edilmis
-- [ ] QA evidence dokumani mevcut
+| Kilometre Taşı | Hedef Tarih | Odak | Durum |
+|-----------------|-------------|------|-------|
+| **M1: Pilot Demo** | 28 Şubat 2026 | Staging düzeltme + Scribe/Trace/Proto golden path + pilot katılım | **Devam Ediyor** |
+| **M2: Stabilizasyon** | 31 Mart 2026 | Hata düzeltme, pilot geri bildirim, pg_trgm prototip, tez taslağı | Başlanmadı |
+| **M3: Mezuniyet** | Mayıs 2026 | Final rapor, sunum, demo video, teslim paketi | Başlanmadı |
 
 ---
 
-## M2: Stabilization — Definition of Done (31 Mart 2026)
+## Faz Genel Bakış
 
-- [ ] Pilot geri bildirimleri toplanmis ve triajlanmis
-- [ ] P0/P1 buglar sifir
-- [ ] Golden path basari orani %90+
-- [ ] pg_trgm retrieval prototype (opsiyonel)
-- [ ] Tez taslagi: giris + literatur + yontem
-- [ ] Demo videosu kaydedilmis (5-10 dk)
+### Tamamlanmış Fazlar
+
+| Faz | İsim | Tarih Aralığı | Durum |
+|-----|------|---------------|-------|
+| 0.1 | Temel Kurulum | 1-7 Kasım 2025 | Tamamlandı |
+| 0.2 | Mimari Tanımlama | 8-17 Kasım 2025 | Tamamlandı |
+| 0.3 | Çekirdek Motor İskelesi | 18-27 Kasım 2025 | Tamamlandı |
+| 0.4 | Web Shell + Temel Motor | 28 Kasım - 4 Aralık 2025 | Tamamlandı |
+| 1 | Scribe/Trace/Proto Erken Erişim | 13-25 Aralık 2025 | Tamamlandı |
+| 1.5 | Loglama + Gözlemlenebilirlik Katmanı | 26 Aralık 2025 - 9 Ocak 2026 | Tamamlandı |
+| 2 | Cursor-Esinli UI + Scribe Konsolu | 10 Ocak - 6 Şubat 2026 | Tamamlandı |
+
+### Aktif Faz
+
+| Faz | İsim | Tarih Aralığı | Durum |
+|-----|------|---------------|-------|
+| **S0.5** | **Staging Düzeltme + Pilot Demo** | **7-28 Şubat 2026** | **Devam Ediyor** |
+
+**S0.5 Sprint'leri:**
+
+| Sprint | Tarihler | Odak | İş Akışları | İlerleme |
+|--------|----------|------|-------------|----------|
+| S0.5.0 | 7-9 Şub | Staging base URL düzeltme + trust-proxy + deploy | WS-OPS | ✅ 8/8 görev tamamlandı |
+| S0.5.1 | 10-21 Şub | Pilot erişim + agent güvenilirliği | WS-WAITLIST, WS-AGENTS | 🔄 8/10 görev tamamlandı |
+| S0.5.2 | 10-23 Şub | Demo UX + RAG araştırma | WS-UX, WS-RAG | 🔄 4/6 görev tamamlandı |
+| S0.5.3 | 24-28 Şub | KG kanıt + demo senaryosu + M1 | WS-QA | ⏳ 0/4 görev |
+
+### Gelecek Fazlar
+
+| Faz | İsim | Tarih Aralığı | Durum |
+|-----|------|---------------|-------|
+| M2 | Stabilizasyon + Akademik Hazırlık | 1-31 Mart 2026 | Başlanmadı |
+| M3 | Mezuniyet Teslimi | Nisan-Mayıs 2026 | Başlanmadı |
 
 ---
 
-## M3: Graduation — Definition of Done (Mayis 2026)
+## M1: Pilot Demo — Tamamlanma Kriterleri (28 Şubat 2026)
 
-- [ ] Final rapor tamamlanmis ve onaylanmis
-- [ ] Sunum slaytlari (15-20 slayt)
+- [x] Staging'de localhost referansı sıfır (bundle grep kontrolü)
+- [x] Health/ready/version endpoint'leri 200 dönüyor
+- [x] Agent yönlendirme: `/agents/*` kanonik, eski rotalar yönlendiriliyor
+- [x] Hata durumlarında kullanıcıya anlaşılır mesaj
+- [x] Logo tüm yüzeylerde güncel
+- [ ] E-posta/şifre kayıt + giriş çalışıyor (staging)
+- [ ] OAuth yönlendirmeleri staging alanında çalışıyor
+- [ ] Scribe golden path çalışıyor (kuru çalışma)
+- [ ] Trace golden path çalışıyor
+- [ ] Proto golden path çalışıyor
+- [ ] Pilot katılım akışı çalışıyor
+- [ ] Demo senaryosu yazılmış ve prova edilmiş
+- [ ] KG kanıt dokümanı mevcut
+
+---
+
+## M2: Stabilizasyon — Tamamlanma Kriterleri (31 Mart 2026)
+
+- [ ] Pilot geri bildirimleri toplanmış ve sınıflandırılmış
+- [ ] P0/P1 hatalar sıfır
+- [ ] Golden path başarı oranı %90+
+- [ ] pg_trgm retrieval prototip (opsiyonel)
+- [ ] Tez taslağı: giriş + literatür + yöntem
+- [ ] Demo videosu kaydedilmiş (5-10 dk)
+
+---
+
+## M3: Mezuniyet — Tamamlanma Kriterleri (Mayıs 2026)
+
+- [ ] Final rapor tamamlanmış ve onaylanmış
+- [ ] Sunum slaytları (15-20 slayt)
 - [ ] Demo videosu final versiyonu
-- [ ] Canli demo en az 2 kez prova edilmis
-- [ ] Teslim paketi: kod + dokumanlar + video + sunum
+- [ ] Canlı demo en az 2 kez prova edilmiş
+- [ ] Teslim paketi: kod + dokümanlar + video + sunum
 
 ---
 
-## Scope Rules
+## Kapsam Kuralları
 
-### In-Scope (S0.5)
-- Scribe, Trace, Proto agents
-- Staging reliability + base URL correctness
-- Pilot onboarding UX (minimal)
-- Feedback capture
-- Lightweight RAG (context packs; pg_trgm March)
+### Kapsam İçi (S0.5)
+- Scribe, Trace, Proto agent'ları
+- Staging güvenilirliği + base URL doğruluğu
+- Pilot katılım UX (minimal)
+- Geri bildirim yakalama
+- Hafif RAG (bağlam paketleri; pg_trgm Mart)
 
-### Out-of-Scope
+### Kapsam Dışı
 - Developer / Coder agent
-- New integrations (Slack, Teams)
-- RBAC / admin panel
-- Pricing/billing implementation
-- Auth redesign
-- Heavy vector DB / external RAG services
-- Production environment (staging sufficient)
-- Mobile native
+- Yeni entegrasyonlar (Slack, Teams)
+- RBAC / yönetici paneli
+- Fiyatlandırma/faturalandırma uygulaması
+- Auth yeniden tasarımı
+- Ağır vector DB / harici RAG servisleri
+- Üretim ortamı (staging yeterli)
+- Mobil uygulama
 
 ---
 
-## Architecture Constraints (Non-Negotiable)
+## Mimari Kısıtlamalar (Pazarlık Edilemez)
 
-| Component | Technology | Rule |
-|-----------|-----------|------|
-| Backend | Fastify + TypeScript + Drizzle | No Express/Nest/Prisma |
-| Frontend | React + Vite + Tailwind | No SSR/Next.js |
-| Database | PostgreSQL 16 | OCI Free Tier |
-| Integrations | MCP adapters only | No direct vendor SDKs |
-| Auth | Existing JWT + email/password + OAuth | Do not redesign |
-| Deployment | OCI VM + Caddy + Docker Compose | Single VM staging |
-
----
-
-## Reference Documents
-
-| Document | Purpose |
-|----------|---------|
-| [`docs/planning/DELIVERY_PLAN_S0.5_FEB_TO_GRADUATION.md`](planning/DELIVERY_PLAN_S0.5_FEB_TO_GRADUATION.md) | Canonical plan (single source of truth) |
-| [`docs/planning/WBS_EXPORT_S0.5.xlsx_compatible.md`](planning/WBS_EXPORT_S0.5.xlsx_compatible.md) | WBS + CSV for Excel |
-| [`docs/planning/RESEARCH_BRIEF_S0.5_STAGING_RAG_AGENTS.md`](planning/RESEARCH_BRIEF_S0.5_STAGING_RAG_AGENTS.md) | Research brief |
-| [`docs/NEXT.md`](NEXT.md) | Immediate action items |
-| [`docs/PROJECT_TRACKING_BASELINE.md`](PROJECT_TRACKING_BASELINE.md) | Historical schedule anchor |
-| [`.cursor/context/CONTEXT_SCOPE.md`](../.cursor/context/CONTEXT_SCOPE.md) | Scope & requirements |
-| [`.cursor/context/CONTEXT_ARCHITECTURE.md`](../.cursor/context/CONTEXT_ARCHITECTURE.md) | Technical architecture |
+| Bileşen | Teknoloji | Kural |
+|---------|-----------|-------|
+| Backend | Fastify + TypeScript + Drizzle | Express/Nest/Prisma yasak |
+| Frontend | React + Vite + Tailwind | SSR/Next.js yok |
+| Veritabanı | PostgreSQL 16 | OCI Free Tier |
+| Entegrasyonlar | Sadece MCP adaptörleri | Doğrudan vendor SDK yok |
+| Kimlik Doğrulama | Mevcut JWT + e-posta/şifre + OAuth | Yeniden tasarlanmayacak |
+| Dağıtım | OCI VM + Caddy + Docker Compose | Tek VM staging |
 
 ---
 
-*Roadmap, canonical plan ile senkronize tutulur. Detay ve gorev takibi icin NEXT.md ve WBS Export'a basvurun.*
+## Referans Dokümanlar
+
+| Doküman | Amaç |
+|---------|------|
+| [`docs/planning/DELIVERY_PLAN_S0.5_FEB_TO_GRADUATION.md`](planning/DELIVERY_PLAN_S0.5_FEB_TO_GRADUATION.md) | Kanonik plan (tek doğru kaynak) |
+| [`docs/planning/WBS_EXPORT_S0.5.xlsx_compatible.md`](planning/WBS_EXPORT_S0.5.xlsx_compatible.md) | WBS + CSV |
+| [`docs/planning/RESEARCH_BRIEF_S0.5_STAGING_RAG_AGENTS.md`](planning/RESEARCH_BRIEF_S0.5_STAGING_RAG_AGENTS.md) | Araştırma notu |
+| [`docs/NEXT.md`](NEXT.md) | Anlık eylem öğeleri |
+| [`docs/PROJECT_TRACKING_BASELINE.md`](PROJECT_TRACKING_BASELINE.md) | Geçmiş takvim çapası |
+| [`docs/deploy/OCI_STAGING_RUNBOOK.md`](deploy/OCI_STAGING_RUNBOOK.md) | Staging operasyonları |
+
+---
+
+*Yol haritası, kanonik plan ile senkronize tutulur. Detay ve görev takibi için NEXT.md ve WBS tablosuna başvurun.*
