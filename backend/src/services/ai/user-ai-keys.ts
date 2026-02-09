@@ -21,6 +21,7 @@ export type MultiProviderStatus = {
   };
 };
 
+/** Trims whitespace from an API key string. */
 export function normalizeApiKey(key: string): string {
   return key.trim();
 }
@@ -29,6 +30,12 @@ function buildScope(userId: string, provider: AIKeyProvider): string {
   return `${userId}:${provider}`;
 }
 
+/**
+ * Retrieves the AI key status for a user-provider pair.
+ * @param userId - The user's ID
+ * @param provider - The AI provider (openai or openrouter)
+ * @returns Status including whether configured, last 4 chars, and update time
+ */
 export async function getUserAiKeyStatus(
   userId: string,
   provider: AIKeyProvider
@@ -45,6 +52,13 @@ export async function getUserAiKeyStatus(
   };
 }
 
+/**
+ * Creates or updates an encrypted AI key for a user-provider pair.
+ * @param userId - The user's ID
+ * @param provider - The AI provider (openai or openrouter)
+ * @param apiKey - The raw API key to encrypt and store
+ * @returns Updated key status
+ */
 export async function upsertUserAiKey(
   userId: string,
   provider: AIKeyProvider,
@@ -88,6 +102,11 @@ export async function upsertUserAiKey(
   };
 }
 
+/**
+ * Removes an AI key for a user-provider pair.
+ * @param userId - The user's ID
+ * @param provider - The AI provider to delete the key for
+ */
 export async function deleteUserAiKey(
   userId: string,
   provider: AIKeyProvider
@@ -97,6 +116,12 @@ export async function deleteUserAiKey(
     .where(and(eq(userAiKeys.userId, userId), eq(userAiKeys.provider, provider)));
 }
 
+/**
+ * Retrieves and decrypts a user's API key from the database.
+ * @param userId - The user's ID
+ * @param provider - The AI provider
+ * @returns Decrypted key and DB record, or null if not found
+ */
 export async function getDecryptedUserAiKey(
   userId: string,
   provider: AIKeyProvider
