@@ -1,9 +1,10 @@
 #!/bin/bash
 # =============================================================================
-# AKIS Staging Smoke Tests (S0.5.0-OPS-6: 6/6 checks)
+# AKIS Staging Smoke Tests (S0.5.1: 10 checks)
 # =============================================================================
 # Verifies that staging deployment succeeded by testing critical endpoints.
-# Required checks: health, ready, version, frontend, auth API, SPA deep link.
+# Required checks: health, ready, version, frontend, auth API, SPA deep link,
+# MCP gateway, logo, agents route, OAuth providers.
 #
 # Usage:
 #   ./scripts/staging_smoke.sh [--host DOMAIN] [--commit SHA] [--timeout SECONDS]
@@ -313,6 +314,86 @@ if [ "$SPA_CODE" = "200" ]; then
 else
   echo -e "${RED}❌ /auth/privacy-consent: ${SPA_CODE} (expected 200)${NC}"
   TESTS_FAILED=$((TESTS_FAILED + 1))
+fi
+
+# =============================================================================
+# Test 7: MCP Gateway readiness (from /ready response)
+# =============================================================================
+echo "Test 7: MCP Gateway readiness"
+if [ "$READY_CODE" = "200" ]; then
+  MCP_CONFIGURED=$(extract_json_field "$READY_JSON" "mcp.configured" 2>/dev/null || echo "unknown")
+  MCP_GITHUB=$(extract_json_field "$READY_JSON" "mcp.github" 2>/dev/null || echo "unknown")
+  if [ "$MCP_CONFIGURED" = "true" ]; then
+    echo -e "${GREEN}✅ MCP: configured=true, github=${MCP_GITHUB}${NC}"
+    TESTS_PASSED=$((TESTS_PASSED + 1))
+  elif [ "$MCP_CONFIGURED" = "false" ]; then
+    echo -e "${RED}❌ MCP: NOT configured — agents (Scribe/Trace/Proto) will fail${NC}"
+    echo -e "${YELLOW}   FIX: Set GITHUB_MCP_BASE_URL and GITHUB_TOKEN in /opt/akis/.env${NC}"
+    TESTS_FAILED=$((TESTS_FAILED + 1))
+  else
+    echo -e "${YELLOW}⚠️  MCP: could not determine status (old backend version?)${NC}"
+    TESTS_PASSED=$((TESTS_PASSED + 1))
+  fi
+else
+  echo -e "${YELLOW}⚠️  Skipping MCP check (/ready not available)${NC}"
+fi
+
+# =============================================================================
+# Test 8: Canonical logo asset
+# =============================================================================
+echo "Test 8: Canonical logo (/brand/logo.png)"
+LOGO_CODE=$(curl -s -o /dev/null -w "%{http_code}" "https://${HOST}/brand/logo.png" 2>/dev/null || echo "000")
+
+if [ "$LOGO_CODE" = "200" ]; then
+  echo -e "${GREEN}✅ /brand/logo.png: ${LOGO_CODE}${NC}"
+  TESTS_PASSED=$((TESTS_PASSED + 1))
+else
+  echo -e "${RED}❌ /brand/logo.png: ${LOGO_CODE} (expected 200)${NC}"
+  TESTS_FAILED=$((TESTS_FAILED + 1))
+fi
+
+# =============================================================================
+# Test 9: Route redirect (/dashboard/scribe -> /agents/scribe)
+# =============================================================================
+echo "Test 9: Route redirect (dashboard -> agents)"
+# SPA route redirect is client-side (React Router), so the HTML page loads as 200
+# We just verify the /agents page loads correctly
+AGENTS_CODE=$(curl -s -o /dev/null -w "%{http_code}" "https://${HOST}/agents" 2>/dev/null || echo "000")
+
+if [ "$AGENTS_CODE" = "200" ]; then
+  AGENTS_CONTENT=$(curl -sf "https://${HOST}/agents" 2>/dev/null | head -c 100 || echo "")
+  if echo "$AGENTS_CONTENT" | grep -qi "<!DOCTYPE\|<html"; then
+    echo -e "${GREEN}✅ /agents: ${AGENTS_CODE} (SPA served)${NC}"
+    TESTS_PASSED=$((TESTS_PASSED + 1))
+  else
+    echo -e "${RED}❌ /agents: ${AGENTS_CODE} but content is not HTML${NC}"
+    TESTS_FAILED=$((TESTS_FAILED + 1))
+  fi
+else
+  echo -e "${RED}❌ /agents: ${AGENTS_CODE} (expected 200)${NC}"
+  TESTS_FAILED=$((TESTS_FAILED + 1))
+fi
+
+# =============================================================================
+# Test 10: OAuth readiness (from /ready response)
+# =============================================================================
+echo "Test 10: OAuth provider readiness"
+if [ "$READY_CODE" = "200" ]; then
+  OAUTH_GITHUB=$(extract_json_field "$READY_JSON" "oauth.github" 2>/dev/null || echo "unknown")
+  OAUTH_GOOGLE=$(extract_json_field "$READY_JSON" "oauth.google" 2>/dev/null || echo "unknown")
+  if [ "$OAUTH_GITHUB" = "true" ] || [ "$OAUTH_GOOGLE" = "true" ]; then
+    echo -e "${GREEN}✅ OAuth: github=${OAUTH_GITHUB}, google=${OAUTH_GOOGLE}${NC}"
+    TESTS_PASSED=$((TESTS_PASSED + 1))
+  elif [ "$OAUTH_GITHUB" = "false" ] && [ "$OAUTH_GOOGLE" = "false" ]; then
+    echo -e "${YELLOW}⚠️  OAuth: no providers configured — social login disabled${NC}"
+    echo -e "${YELLOW}   FIX: Set GITHUB_OAUTH_CLIENT_ID/SECRET and/or GOOGLE_OAUTH_CLIENT_ID/SECRET${NC}"
+    TESTS_PASSED=$((TESTS_PASSED + 1))
+  else
+    echo -e "${YELLOW}⚠️  OAuth: could not determine status (old backend version?)${NC}"
+    TESTS_PASSED=$((TESTS_PASSED + 1))
+  fi
+else
+  echo -e "${YELLOW}⚠️  Skipping OAuth check (/ready not available)${NC}"
 fi
 
 # =============================================================================

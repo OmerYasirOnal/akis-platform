@@ -1,7 +1,7 @@
 # Staging Smoke Test Checklist
 
-**Version**: 1.0.0
-**Last Updated**: 2026-02-07
+**Version**: 2.0.0
+**Last Updated**: 2026-02-09
 **Automation**: `scripts/staging_smoke.sh`
 
 > This checklist mirrors the automated smoke script. Use it for manual verification or when the script is not available.
@@ -28,21 +28,34 @@
 
 ---
 
+## Automated Tests (New — added in v2.0.0)
+
+| # | Test | Command | Expected | Pass/Fail | Exit Code |
+|---|------|---------|----------|-----------|-----------|
+| 6 | SPA deep link | `curl -sf https://staging.akisflow.com/auth/privacy-consent \| head -c 50` | HTML (SPA served, HTTP 200) | | 4 |
+| 7 | MCP Gateway readiness | `curl -sf https://staging.akisflow.com/ready \| jq .mcp` | `configured: true, github: true` | | — |
+| 8 | Canonical logo | `curl -sI https://staging.akisflow.com/brand/logo.png \| head -5` | HTTP 200 | | — |
+| 9 | Agents hub route | `curl -sf https://staging.akisflow.com/agents \| head -c 50` | HTML (SPA served, HTTP 200) | | — |
+| 10 | OAuth providers | `curl -sf https://staging.akisflow.com/ready \| jq .oauth` | `github: true` and/or `google: true` | | — |
+
 ## Extended Tests (Manual)
 
 | # | Test | How to Verify | Expected |
 |---|------|---------------|----------|
-| 6 | TLS certificate | Browser padlock icon or `curl -vI https://staging.akisflow.com 2>&1 \| grep 'SSL certificate'` | Valid Let's Encrypt cert, not expired |
-| 7 | OAuth redirect | `curl -sI https://staging.akisflow.com/auth/oauth/github \| head -3` | HTTP 302 to `github.com/login/oauth/authorize` (or 503 if not configured) |
-| 8 | Jobs API guard | `curl -sf -o /dev/null -w '%{http_code}' https://staging.akisflow.com/api/agents/jobs` | HTTP 401 |
-| 9 | CORS headers | `curl -sI -H 'Origin: https://staging.akisflow.com' https://staging.akisflow.com/health \| grep -i 'access-control'` | Correct CORS headers present |
-| 10 | Security headers | `curl -sI https://staging.akisflow.com/ \| grep -iE '(x-content-type|x-frame|strict-transport)'` | X-Content-Type-Options, X-Frame-Options headers present |
+| 11 | TLS certificate | Browser padlock icon or `curl -vI https://staging.akisflow.com 2>&1 \| grep 'SSL certificate'` | Valid Let's Encrypt cert, not expired |
+| 12 | OAuth redirect | `curl -sI https://staging.akisflow.com/auth/oauth/github \| head -3` | HTTP 302 to `github.com/login/oauth/authorize` (or 503 if not configured) |
+| 13 | Jobs API guard | `curl -sf -o /dev/null -w '%{http_code}' https://staging.akisflow.com/api/agents/jobs` | HTTP 401 |
+| 14 | CORS headers | `curl -sI -H 'Origin: https://staging.akisflow.com' https://staging.akisflow.com/health \| grep -i 'access-control'` | Correct CORS headers present |
+| 15 | Security headers | `curl -sI https://staging.akisflow.com/ \| grep -iE '(x-content-type\|x-frame\|strict-transport)'` | X-Content-Type-Options, X-Frame-Options headers present |
+| 16 | Route redirect (browser) | Navigate to `/dashboard/scribe` in browser | Redirects to `/agents/scribe` |
+| 17 | OAuth welcome email | Sign in with new Google/GitHub account | Welcome email arrives (check inbox + backend logs for `SmtpEmailService`) |
+| 18 | Agent job MCP | Run Scribe dry-run job from `/agents/scribe` | No `MISSING_DEPENDENCY` error; job completes or produces expected output |
 
 ---
 
 ## Pass/Fail Criteria
 
-- **ALL PASS**: Tests 1-5 must return expected results.
+- **ALL PASS**: Tests 1-10 must return expected results (automated).
 - **CRITICAL FAIL (Exit 1)**: Version mismatch (Test 3) — indicates wrong image deployed. **Rollback immediately**.
 - **SERVICE FAIL (Exit 2)**: Health/Ready failing — backend not running. Check container status and logs.
 - **FRONTEND FAIL (Exit 3)**: Frontend not loading — check Caddy config and static file serving.
