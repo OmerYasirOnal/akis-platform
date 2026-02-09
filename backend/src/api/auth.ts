@@ -61,8 +61,8 @@ export async function authRoutes(fastify: FastifyInstance) {
   // Register multi-step auth routes
   await registerMultiStepAuthRoutes(fastify, emailService);
 
-  // Register OAuth routes (S0.4.2)
-  await registerOAuthRoutes(fastify);
+  // Register OAuth routes (S0.4.2) — inject emailService for welcome emails
+  await registerOAuthRoutes(fastify, emailService);
 
   // Register invite routes (WL-1)
   await registerInviteRoutes(fastify, emailService);

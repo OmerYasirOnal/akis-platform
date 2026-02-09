@@ -630,7 +630,7 @@ export default function AgentsHubPage() {
                 {userConfigs.map((config) => (
                   <Link
                     key={config.id}
-                    to="/dashboard/scribe"
+                    to="/agents/scribe"
                     className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-ak-text-secondary hover:bg-ak-surface-2/50 hover:text-ak-text-primary transition-all"
                   >
                     <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-ak-bg text-ak-text-secondary">
@@ -697,7 +697,7 @@ export default function AgentsHubPage() {
 
             {selectedAgent.id === 'scribe' && (
               <Link
-                to="/dashboard/scribe"
+                to="/agents/scribe"
                 className="text-xs font-medium text-ak-text-secondary hover:text-ak-primary transition-colors px-2 py-1 rounded hover:bg-ak-surface-2"
               >
                 Advanced Console

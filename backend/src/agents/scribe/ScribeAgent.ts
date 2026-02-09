@@ -698,7 +698,7 @@ export class ScribeAgent extends BaseAgent {
         'GitHubMCPService not injected into ScribeAgent. ' +
         'This usually means: 1) GitHub OAuth is not connected for this user, or ' +
         '2) GITHUB_MCP_BASE_URL is not configured. ' +
-        'Please connect GitHub at /dashboard/agents/scribe or check your environment configuration.'
+        'Please connect GitHub at /agents/scribe or check your environment configuration.'
       );
     }
     if (!this.aiService) {

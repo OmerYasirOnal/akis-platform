@@ -101,8 +101,8 @@ export function GettingStartedCard() {
       id: 'first-run',
       title: 'Run Your First Agent',
       description: 'Try Scribe to generate documentation, or Trace to create test plans.',
-      href: '/dashboard/scribe',
-      linkLabel: 'Open Scribe',
+      href: '/agents',
+      linkLabel: 'Open Agents Hub',
       done: false, // TODO: wire to job count API
     },
     {

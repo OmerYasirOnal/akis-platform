@@ -12,6 +12,7 @@ import { sign } from '../services/auth/jwt.js';
 import { cookieOpts, env } from '../lib/env.js';
 import { getEnv } from '../config/env.js';
 import { HttpClient } from '../services/http/HttpClient.js';
+import type { EmailService } from '../services/email/EmailService.js';
 
 // PostgreSQL error codes for constraint violations
 const PG_UNIQUE_VIOLATION = '23505';
@@ -257,7 +258,7 @@ function redirect(reply: FastifyReply, url: string) {
   return reply.header('Location', url).code(302).send();
 }
 
-export async function registerOAuthRoutes(fastify: FastifyInstance) {
+export async function registerOAuthRoutes(fastify: FastifyInstance, emailService?: EmailService) {
   const httpClient = new HttpClient({ timeout: 10000, retries: 2 });
   const config = getEnv();
 
@@ -606,6 +607,14 @@ export async function registerOAuthRoutes(fastify: FastifyInstance) {
       }
       
       console.log(`[OAuth] Login successful for user ${user.id}, isNewUser: ${isNewUser}, redirecting to: ${redirectPath}`);
+      
+      // Send welcome email for new OAuth users (fire-and-forget)
+      if (isNewUser && emailService) {
+        const loginUrl = `${frontendUrl}/login`;
+        emailService.sendWelcomeEmail(user.email, user.name ?? undefined, loginUrl).catch((err) => {
+          console.error(`[OAuth] Failed to send welcome email for new user ${user.id}:`, err);
+        });
+      }
       
       return redirect(reply, `${frontendUrl}${redirectPath}`);
       
