@@ -2,6 +2,7 @@ import { FastifyInstance } from 'fastify';
 import { db } from '../db/client.js';
 import { sql } from 'drizzle-orm';
 import { isEncryptionConfigured } from '../utils/crypto.js';
+import { isEmailConfigured } from '../services/email/index.js';
 
 // Build info - set at Docker build time via ARG/ENV
 const BUILD_INFO = {
@@ -70,6 +71,13 @@ export async function healthRoutes(fastify: FastifyInstance) {
                   configured: { type: 'boolean', example: true },
                 },
               },
+              email: {
+                type: 'object',
+                properties: {
+                  configured: { type: 'boolean', example: true },
+                  provider: { type: 'string', example: 'smtp' },
+                },
+              },
               timestamp: { type: 'string', example: '2026-01-09T12:00:00.000Z' },
             },
           },
@@ -85,6 +93,13 @@ export async function healthRoutes(fastify: FastifyInstance) {
                   configured: { type: 'boolean', example: false },
                 },
               },
+              email: {
+                type: 'object',
+                properties: {
+                  configured: { type: 'boolean', example: false },
+                  provider: { type: 'string', example: 'mock' },
+                },
+              },
               error: { type: 'string' },
               timestamp: { type: 'string', example: '2026-01-09T12:00:00.000Z' },
             },
@@ -95,6 +110,8 @@ export async function healthRoutes(fastify: FastifyInstance) {
     async (_request, reply) => {
       const timestamp = new Date().toISOString();
       const encryptionStatus = { configured: isEncryptionConfigured() };
+      const emailProvider = process.env.EMAIL_PROVIDER || 'mock';
+      const emailStatus = { configured: isEmailConfigured(emailProvider), provider: emailProvider };
       try {
         // Test database connectivity and verify core schema exists
         const result = await db.execute(
@@ -107,6 +124,7 @@ export async function healthRoutes(fastify: FastifyInstance) {
           database: 'connected',
           migrations: migrated ? 'ok' : 'pending',
           encryption: encryptionStatus,
+          email: emailStatus,
           timestamp,
         };
       } catch (error) {
@@ -116,6 +134,7 @@ export async function healthRoutes(fastify: FastifyInstance) {
           database: 'disconnected',
           migrations: 'unknown',
           encryption: encryptionStatus,
+          email: emailStatus,
           error: errorMessage,
           timestamp,
         });

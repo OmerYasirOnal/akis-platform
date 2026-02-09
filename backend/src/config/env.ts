@@ -57,10 +57,23 @@ const envSchema = z
     AUTH_COOKIE_DOMAIN: z.string().optional(),
     AUTH_JWT_SECRET: z.string().min(32, 'AUTH_JWT_SECRET must be at least 32 characters long').optional(),
     // Email configuration
-    EMAIL_PROVIDER: z.enum(['mock', 'resend']).default('mock'),
+    EMAIL_PROVIDER: z.enum(['mock', 'resend', 'smtp']).default('mock'),
     RESEND_API_KEY: z.string().optional(),
     RESEND_FROM_EMAIL: z.string().email().optional(),
     EMAIL_VERIFICATION_TOKEN_TTL_MINUTES: z.coerce.number().default(15),
+    // SMTP configuration (used when EMAIL_PROVIDER=smtp)
+    SMTP_HOST: z.string().optional(),
+    SMTP_PORT: z.coerce.number().default(587),
+    SMTP_USER: z.string().optional(),
+    SMTP_PASS: z.string().optional(),
+    SMTP_SECURE: z
+      .enum(['true', 'false'])
+      .default('false')
+      .transform((value) => value === 'true'),
+    SMTP_FROM_NAME: z.string().default('AKIS Platform'),
+    SMTP_FROM_EMAIL: z.string().optional(),
+    SMTP_REPLY_TO: z.string().optional(),
+    PUBLIC_LOGO_URL: z.string().optional(),
     // OAuth Configuration (S0.4.2)
     // OAuth credentials for user login (separate from GitHub App credentials)
     GITHUB_OAUTH_CLIENT_ID: z.string().optional(),
@@ -204,6 +217,37 @@ const envSchema = z
           code: z.ZodIssueCode.custom,
           message: 'RESEND_FROM_EMAIL is required when EMAIL_PROVIDER=resend',
           path: ['RESEND_FROM_EMAIL'],
+        });
+      }
+    }
+
+    if (data.EMAIL_PROVIDER === 'smtp') {
+      if (!data.SMTP_HOST) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'SMTP_HOST is required when EMAIL_PROVIDER=smtp',
+          path: ['SMTP_HOST'],
+        });
+      }
+      if (!data.SMTP_USER) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'SMTP_USER is required when EMAIL_PROVIDER=smtp',
+          path: ['SMTP_USER'],
+        });
+      }
+      if (!data.SMTP_PASS) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'SMTP_PASS is required when EMAIL_PROVIDER=smtp',
+          path: ['SMTP_PASS'],
+        });
+      }
+      if (!data.SMTP_FROM_EMAIL) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'SMTP_FROM_EMAIL is required when EMAIL_PROVIDER=smtp',
+          path: ['SMTP_FROM_EMAIL'],
         });
       }
     }

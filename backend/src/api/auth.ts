@@ -39,8 +39,21 @@ export async function authRoutes(fastify: FastifyInstance) {
   const config = getEnv();
   const emailService = createEmailService({
     provider: config.EMAIL_PROVIDER,
+    // Resend
     apiKey: config.RESEND_API_KEY,
     fromEmail: config.RESEND_FROM_EMAIL,
+    // SMTP
+    smtpHost: config.SMTP_HOST,
+    smtpPort: config.SMTP_PORT,
+    smtpSecure: config.SMTP_SECURE,
+    smtpUser: config.SMTP_USER,
+    smtpPass: config.SMTP_PASS,
+    smtpFromName: config.SMTP_FROM_NAME,
+    smtpFromEmail: config.SMTP_FROM_EMAIL,
+    smtpReplyTo: config.SMTP_REPLY_TO,
+    // Shared
+    publicLogoUrl: config.PUBLIC_LOGO_URL,
+    ttlMinutes: config.EMAIL_VERIFICATION_TOKEN_TTL_MINUTES,
   });
 
   // Register multi-step auth routes
