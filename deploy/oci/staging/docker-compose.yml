@@ -183,13 +183,15 @@ services:
   # MCP Gateway - GitHub/Jira/Confluence Integration Bridge
   # =========================================================================
   # Handles: HTTP-to-stdio bridge for MCP protocol
-  # Always-on in staging (agents require MCP for GitHub operations).
-  # If GITHUB_TOKEN is empty, the gateway will start but GitHub calls will fail.
+  # Requires: Docker image must be built first (see issue for CI pipeline).
+  # Enable with: docker compose --profile mcp up -d
   # Backend connects via: GITHUB_MCP_BASE_URL=http://mcp-gateway:4010/mcp
   # =========================================================================
   mcp-gateway:
     image: ghcr.io/${GITHUB_REPOSITORY:-omeryasironal/akis-platform-devolopment}/akis-mcp-gateway:${MCP_VERSION:-latest}
     container_name: akis-staging-mcp
+    profiles:
+      - mcp
     restart: unless-stopped
     expose:
       - "4010"
