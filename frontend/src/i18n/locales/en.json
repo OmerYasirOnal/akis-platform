@@ -499,6 +499,18 @@
   "issueReport.gitHubConnected": "Connected to GitHub - you can create an issue directly",
   "issueReport.gitHubNotConnected": "Copy the markdown and paste it into a new GitHub issue",
 
+  "onboarding.title": "Getting Started",
+  "onboarding.subtitle": "Complete these steps to start using AKIS agents.",
+  "onboarding.step1.title": "Configure AI Provider",
+  "onboarding.step1.description": "Add your OpenAI or OpenRouter API key to enable AI agents.",
+  "onboarding.step1.link": "Set up AI Keys",
+  "onboarding.step2.title": "Run Your First Agent",
+  "onboarding.step2.description": "Try Scribe to generate documentation, or Trace to create test plans.",
+  "onboarding.step2.link": "Open Agents Hub",
+  "onboarding.step3.title": "Explore Results",
+  "onboarding.step3.description": "View generated artifacts, logs, and job history.",
+  "onboarding.step3.link": "View Jobs",
+
   "waitlist.cta": "Join Waitlist",
   "waitlist.ctaShort": "Waitlist",
   "waitlist.page.title": "Join the AKIS Waitlist",

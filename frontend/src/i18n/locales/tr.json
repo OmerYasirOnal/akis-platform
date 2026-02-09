@@ -499,6 +499,18 @@
   "issueReport.gitHubConnected": "GitHub'a bağlı - doğrudan bir issue oluşturabilirsiniz",
   "issueReport.gitHubNotConnected": "Markdown'u kopyalayın ve yeni bir GitHub issue'ya yapıştırın",
 
+  "onboarding.title": "Baslangic",
+  "onboarding.subtitle": "AKIS ajanlarini kullanmaya baslamak icin bu adimlari tamamlayin.",
+  "onboarding.step1.title": "AI Saglayiciyi Yapilandir",
+  "onboarding.step1.description": "AI ajanlari etkinlestirmek icin OpenAI veya OpenRouter API anahtarinizi ekleyin.",
+  "onboarding.step1.link": "AI Anahtarlarini Ayarla",
+  "onboarding.step2.title": "Ilk Ajaninizi Calistirin",
+  "onboarding.step2.description": "Dokumantasyon olusturmak icin Scribe'i veya test planlari icin Trace'i deneyin.",
+  "onboarding.step2.link": "Ajanlar Hub'ini Ac",
+  "onboarding.step3.title": "Sonuclari Kesfedin",
+  "onboarding.step3.description": "Olusturulan artifaktlari, loglari ve is gecmisini goruntuleyin.",
+  "onboarding.step3.link": "Isleri Goruntule",
+
   "waitlist.cta": "Bekleme Listesine Katıl",
   "waitlist.ctaShort": "Bekleme Listesi",
   "waitlist.page.title": "AKIS Bekleme Listesine Katılın",
