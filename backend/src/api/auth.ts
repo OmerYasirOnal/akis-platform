@@ -10,6 +10,7 @@ import { getEnv } from '../config/env.js';
 import { createEmailService } from '../services/email/index.js';
 import { registerMultiStepAuthRoutes } from './auth.multi-step.js';
 import { registerOAuthRoutes } from './auth.oauth.js';
+import { sendError } from '../utils/errorHandler.js';
 
 type User = typeof users.$inferSelect;
 
@@ -96,7 +97,7 @@ export async function authRoutes(fastify: FastifyInstance) {
     });
 
     if (existing) {
-      return reply.code(409).send({ error: 'Email in use' });
+      return sendError(reply, request, 'EMAIL_IN_USE', 'Email in use');
     }
 
     const passwordHash = await hashPassword(body.password);
@@ -124,12 +125,12 @@ export async function authRoutes(fastify: FastifyInstance) {
     });
 
     if (!user) {
-      return reply.code(401).send({ error: 'Invalid credentials' });
+      return sendError(reply, request, 'INVALID_CREDENTIALS', 'Invalid credentials');
     }
 
     const isValid = await verifyPassword(body.password, user.passwordHash);
     if (!isValid) {
-      return reply.code(401).send({ error: 'Invalid credentials' });
+      return sendError(reply, request, 'INVALID_CREDENTIALS', 'Invalid credentials');
     }
 
     const jwt = await sign({ sub: user.id, email: user.email, name: user.name });

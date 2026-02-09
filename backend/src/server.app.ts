@@ -30,6 +30,8 @@ import { createAIService } from './services/ai/AIService.js';
 import type { MCPTools } from './services/mcp/adapters/index.js';
 import { StaleJobWatchdog } from './core/watchdog/StaleJobWatchdog.js';
 import { startAutomationScheduler } from './services/smart-automations/index.js';
+import { formatErrorResponse, getStatusCodeForError, type ErrorCode } from './utils/errorHandler.js';
+import { ZodError } from 'zod';
 
 const QUIET_ROUTES = new Set([
   '/api/agents/jobs/running',
@@ -197,11 +199,53 @@ export async function buildApp() {
     return app.swagger();
   });
 
-  // 404 handler (must be registered after all routes)
+  // ── AGT-6: Global error handler ──
+  // Catches unhandled errors and formats them using the standard error envelope.
+  // Route handlers that use sendError() directly do NOT trigger this handler.
+  app.setErrorHandler((error: Error, request: FastifyRequest, reply: FastifyReply) => {
+    // ZodError → VALIDATION_ERROR (400)
+    if (error instanceof ZodError) {
+      return reply.code(400).send({
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Request validation failed',
+          details: error.errors,
+        },
+        requestId: request.id,
+      });
+    }
+
+    // Fastify validation errors (from JSON schema)
+    if ('validation' in error && Array.isArray((error as { validation?: unknown[] }).validation)) {
+      return reply.code(400).send({
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: error.message || 'Request validation failed',
+          details: (error as { validation: unknown[] }).validation,
+        },
+        requestId: request.id,
+      });
+    }
+
+    // Known application errors → standard envelope
+    const envelope = formatErrorResponse(request, error);
+    const statusCode = getStatusCodeForError(envelope.error.code as ErrorCode);
+
+    if (statusCode >= 500 && app.log) {
+      app.log.error({ err: error, requestId: request.id }, 'Unhandled server error');
+    }
+
+    return reply.code(statusCode).send(envelope);
+  });
+
+  // 404 handler — standard error envelope (must be registered after all routes)
   app.setNotFoundHandler((request: FastifyRequest, reply: FastifyReply) => {
     reply.code(404).send({
-      error: 'Not Found',
-      message: `Route ${request.method} ${request.url} not found`,
+      error: {
+        code: 'NOT_FOUND',
+        message: `Route ${request.method} ${request.url} not found`,
+      },
+      requestId: request.id,
     });
   });
 

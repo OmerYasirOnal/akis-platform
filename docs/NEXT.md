@@ -54,7 +54,7 @@ docs/NEXT.md                                             (this file — immediat
 | S0.5.1-AGT-3 | Scribe golden path dogrulama | Done | `SCRIBE_GOLDEN_PATH.md` + 12 E2E tests (`scribe-console.spec.ts`) + shared GitHub mocks (2026-02-09) |
 | S0.5.1-AGT-4 | Trace golden path dogrulama | Done | `TRACE_GOLDEN_PATH.md` + 10 E2E tests (`trace-console.spec.ts`) — mevcut (2026-02-09) |
 | S0.5.1-AGT-5 | Proto golden path dogrulama | Done | `PROTO_GOLDEN_PATH.md` + 12 E2E tests (`proto-console.spec.ts`) — mevcut (2026-02-09) |
-| S0.5.1-AGT-6 | Hata handling standardizasyonu | Not Started | Dep: AGT-1 |
+| S0.5.1-AGT-6 | Hata handling standardizasyonu | Done | Standard error envelope (`sendError`), global error handler, 404 fix, auth/settings migration, 39 unit tests, contracts doc v1.1 (2026-02-09) |
 
 ### Phase D (17-23 Sub) — RAG (PARALEL)
 
