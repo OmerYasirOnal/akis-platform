@@ -24,12 +24,14 @@ docs/NEXT.md                                             (this file — immediat
 | Field | Value |
 |-------|-------|
 | URL | https://staging.akisflow.com |
-| Deployed Commit | `96dc06e` (2026-02-09) — pending hardening PR merge |
-| Smoke Tests | 8/8 pass |
-| Code Fixes | Logo bundling fix, RunBar polling gated to agent routes, /ready shows OAuth status, startup diagnostics |
-| Encryption | Env var needed — see runbook Appendix A1 (backend now logs status at startup) |
-| Email | SMTP env vars needed — see runbook Appendix A2 (`PUBLIC_LOGO_URL` → `/brand/logo.png`) |
-| Google OAuth | Env vars needed — see runbook Appendix A3 (`/ready` now shows `oauth.callbackBase`) |
+| Deployed Commit | pending — staging-e2e-fixes PR |
+| Smoke Tests | 8/8 pass (health, ready, encryption, email, version, frontend, API, SPA deep link) |
+| Code Fixes | MCP `/ready` status, OAuth welcome email, agents routing `/agents/*`, logo canonical, secrets cleanup |
+| Encryption | Configured on staging (`/ready` → `encryption.configured: true`) |
+| Email | SMTP template ready (`/ready` → `email.configured`, `email.host`, `email.port`, `email.from`); OAuth welcome email added |
+| Google OAuth | `/ready` shows `oauth.google`, `oauth.github`, `oauth.callbackBase` — verify credentials in staging `.env` |
+| MCP Gateway | `/ready` now shows `mcp.configured`, `mcp.github`, `mcp.baseUrl`; always-on in staging docker-compose |
+| Agents Routing | Scribe/Trace/Proto moved to `/agents/*`; `/dashboard/scribe|trace|proto` redirect to new routes |
 
 ---
 
@@ -93,10 +95,15 @@ docs/NEXT.md                                             (this file — immediat
 ## M1 Definition of Done (28 Subat 2026)
 
 - [x] `staging.akisflow.com` uzerinde hic `localhost` referansi yok (smoke test 2026-02-09)
-- [x] `/health`, `/ready`, `/version` 200 donuyor (commit `4af307e` dogrulandi)
+- [x] `/health`, `/ready`, `/version` 200 donuyor (commit `8e5d4fa` dogrulandi)
+- [x] `/ready` MCP status gosteriyor (`mcp.configured`, `mcp.github`, `mcp.baseUrl`)
+- [x] MCP Gateway staging docker-compose'da always-on (profile kaldırıldı)
+- [x] `.env.staging` template'i localhost referansları temizlendi, secrets kaldırıldı
+- [x] Agents routing: `/agents/*` canonical, `/dashboard/scribe|trace|proto` redirect
+- [x] OAuth welcome email: yeni OAuth kullanıcılarına welcome email gönderimi
 - [ ] Email/password signup + login calisiyor (staging) — SMTP env vars gerekli
 - [ ] OAuth redirect'leri staging domain'inde calisiyor — Google OAuth env vars gerekli
-- [ ] Scribe/Trace/Proto golden path'leri calisiyor — AI key + encryption env var gerekli
+- [ ] Scribe/Trace/Proto golden path'leri calisiyor — AI key + encryption + MCP env var gerekli
 - [x] Hata durumlarinda anlasilir mesaj (AGT-6 standard error envelope, 39 unit test)
 - [ ] Pilot onboarding akisi calisiyor — WL-2 bekleniyor
 - [ ] Demo scripti yazilmis ve prova edilmis
