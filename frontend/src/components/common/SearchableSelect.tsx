@@ -134,6 +134,8 @@ export default function SearchableSelect({
             type="button"
             onClick={() => !disabled && setIsOpen(!isOpen)}
             disabled={disabled}
+            aria-haspopup="listbox"
+            aria-expanded={isOpen}
             className={`flex w-full items-center justify-between rounded-lg border px-3 py-2 text-left text-sm ${
               disabled
                 ? 'cursor-not-allowed border-ak-border bg-ak-surface/50 opacity-50'
@@ -199,13 +201,14 @@ export default function SearchableSelect({
                   value={searchQuery}
                   onChange={e => setSearchQuery(e.target.value)}
                   placeholder="Search..."
+                  aria-label="Search options"
                   className="w-full rounded-lg border border-ak-border/50 bg-ak-bg/50 px-3 py-1.5 text-sm text-ak-text-primary placeholder-ak-text-secondary/50 focus:border-ak-primary focus:outline-none focus:ring-1 focus:ring-ak-primary/50"
                   autoFocus
                 />
               </div>
 
               {/* Options List */}
-              <div className="max-h-60 overflow-y-auto">
+              <div className="max-h-60 overflow-y-auto" role="listbox" aria-label={label}>
                 {filteredOptions.length === 0 ? (
                   <div className="px-3 py-4 text-center text-sm text-ak-text-secondary">
                     {searchQuery ? 'No matches found' : emptyMessage}
@@ -215,10 +218,12 @@ export default function SearchableSelect({
                     <button
                       key={option.value}
                       type="button"
+                      role="option"
+                      aria-selected={option.value === value}
                       onClick={() => handleSelect(option.value)}
                       className={`flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm transition-colors ${
-                        option.value === value 
-                          ? 'bg-ak-primary/15 text-ak-primary' 
+                        option.value === value
+                          ? 'bg-ak-primary/15 text-ak-primary'
                           : 'text-ak-text-primary hover:bg-ak-surface-2/80'
                       }`}
                     >
