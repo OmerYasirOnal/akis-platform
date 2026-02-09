@@ -348,3 +348,94 @@ describe('BaseEmailService.sendVerificationCode (via MockEmailService)', () => {
     );
   });
 });
+
+// ─── BaseEmailService.sendWelcomeEmail integration ────────────────────────────
+
+describe('BaseEmailService.sendWelcomeEmail (via MockEmailService)', () => {
+  test('sends Turkish welcome email with correct subject', async () => {
+    let capturedSubject = '';
+    let capturedHtml = '';
+    let capturedText = '';
+
+    const mock = new MockEmailService();
+    const origSend = mock.sendEmail.bind(mock);
+    mock.sendEmail = async (msg) => {
+      capturedSubject = msg.subject;
+      capturedHtml = msg.html ?? '';
+      capturedText = msg.text ?? '';
+      return origSend(msg);
+    };
+
+    await mock.sendWelcomeEmail('test@example.com', 'Ali');
+
+    assert.ok(
+      capturedSubject.includes('Hoş Geldiniz'),
+      `Subject should be Turkish welcome, got: ${capturedSubject}`,
+    );
+    assert.ok(
+      capturedHtml.includes('hoş geldiniz'),
+      'HTML should contain Turkish welcome message',
+    );
+    assert.ok(
+      capturedHtml.includes('Merhaba Ali,'),
+      'HTML should greet by name in Turkish',
+    );
+    assert.ok(
+      capturedText.includes('hoş geldiniz'),
+      'Text should contain Turkish welcome message',
+    );
+  });
+
+  test('includes default login URL', async () => {
+    let capturedHtml = '';
+
+    const mock = new MockEmailService();
+    const origSend = mock.sendEmail.bind(mock);
+    mock.sendEmail = async (msg) => {
+      capturedHtml = msg.html ?? '';
+      return origSend(msg);
+    };
+
+    await mock.sendWelcomeEmail('test@example.com');
+
+    assert.ok(
+      capturedHtml.includes('staging.akisflow.com/login'),
+      'HTML should contain default login URL',
+    );
+  });
+
+  test('uses custom login URL when provided', async () => {
+    let capturedHtml = '';
+
+    const mock = new MockEmailService();
+    const origSend = mock.sendEmail.bind(mock);
+    mock.sendEmail = async (msg) => {
+      capturedHtml = msg.html ?? '';
+      return origSend(msg);
+    };
+
+    await mock.sendWelcomeEmail('test@example.com', 'Test', 'https://app.akisflow.com/login');
+
+    assert.ok(
+      capturedHtml.includes('https://app.akisflow.com/login'),
+      'HTML should contain custom login URL',
+    );
+  });
+
+  test('mentions Scribe, Trace, Proto agents', async () => {
+    let capturedHtml = '';
+
+    const mock = new MockEmailService();
+    const origSend = mock.sendEmail.bind(mock);
+    mock.sendEmail = async (msg) => {
+      capturedHtml = msg.html ?? '';
+      return origSend(msg);
+    };
+
+    await mock.sendWelcomeEmail('test@example.com');
+
+    assert.ok(capturedHtml.includes('Scribe'), 'Should mention Scribe');
+    assert.ok(capturedHtml.includes('Trace'), 'Should mention Trace');
+    assert.ok(capturedHtml.includes('Proto'), 'Should mention Proto');
+  });
+});

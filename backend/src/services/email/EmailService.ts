@@ -6,6 +6,8 @@
 import {
   verificationCodeHtml,
   verificationCodeText,
+  welcomeHtml,
+  welcomeText,
 } from './templates.js';
 
 export interface EmailMessage {
@@ -24,6 +26,7 @@ export interface EmailServiceConfig {
 export interface EmailService {
   sendEmail(message: EmailMessage): Promise<{ success: boolean; messageId?: string; error?: string }>;
   sendVerificationCode(to: string, code: string, name?: string): Promise<void>;
+  sendWelcomeEmail(to: string, name?: string, loginUrl?: string): Promise<void>;
 }
 
 export abstract class BaseEmailService implements EmailService {
@@ -51,6 +54,21 @@ export abstract class BaseEmailService implements EmailService {
 
     if (!result.success) {
       throw new Error(`Failed to send verification email: ${result.error || 'Unknown error'}`);
+    }
+  }
+
+  async sendWelcomeEmail(to: string, name?: string, loginUrl?: string): Promise<void> {
+    const templateParams = { name, loginUrl, logoUrl: this.logoUrl };
+
+    const result = await this.sendEmail({
+      to,
+      subject: 'AKIS Platform — Hoş Geldiniz!',
+      text: welcomeText(templateParams),
+      html: welcomeHtml(templateParams),
+    });
+
+    if (!result.success) {
+      throw new Error(`Failed to send welcome email: ${result.error || 'Unknown error'}`);
     }
   }
 }
