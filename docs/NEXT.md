@@ -24,11 +24,12 @@ docs/NEXT.md                                             (this file — immediat
 | Field | Value |
 |-------|-------|
 | URL | https://staging.akisflow.com |
-| Deployed Commit | `4af307e` (2026-02-09 07:14 UTC) |
+| Deployed Commit | `96dc06e` (2026-02-09) — pending hardening PR merge |
 | Smoke Tests | 8/8 pass |
-| Encryption | Not configured (env var needed) — see runbook Appendix A1 |
-| Email | Mock provider (SMTP env vars needed) — see runbook Appendix A2 |
-| Google OAuth | Needs Google Cloud Console setup — see runbook Appendix A3 |
+| Code Fixes | Logo bundling fix, RunBar polling gated to agent routes, /ready shows OAuth status, startup diagnostics |
+| Encryption | Env var needed — see runbook Appendix A1 (backend now logs status at startup) |
+| Email | SMTP env vars needed — see runbook Appendix A2 (`PUBLIC_LOGO_URL` → `/brand/logo.png`) |
+| Google OAuth | Env vars needed — see runbook Appendix A3 (`/ready` now shows `oauth.callbackBase`) |
 
 ---
 

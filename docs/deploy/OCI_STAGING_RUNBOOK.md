@@ -243,7 +243,7 @@ EMAIL_PROVIDER=mock
 # SMTP_FROM_NAME=AKIS Platform
 # SMTP_FROM_EMAIL=noreply@akisflow.com
 # SMTP_REPLY_TO=support@akisflow.com
-# PUBLIC_LOGO_URL=https://staging.akisflow.com/assets/logo-transparent.png
+# PUBLIC_LOGO_URL=https://staging.akisflow.com/brand/logo.png
 
 # AI (optional)
 AI_PROVIDER=mock
@@ -991,7 +991,7 @@ SMTP_SECURE=false                  # false for STARTTLS on 587; true for implici
 SMTP_FROM_NAME=AKIS Platform
 SMTP_FROM_EMAIL=noreply@akisflow.com
 SMTP_REPLY_TO=support@akisflow.com
-PUBLIC_LOGO_URL=https://staging.akisflow.com/assets/logo-transparent.png
+PUBLIC_LOGO_URL=https://staging.akisflow.com/brand/logo.png
 ```
 
 **Verify**: `curl -s https://staging.akisflow.com/ready | jq .email`
@@ -1023,6 +1023,32 @@ docker compose restart backend
 # Wait 10s then verify:
 curl -s https://staging.akisflow.com/ready | jq .
 ```
+
+**Expected `/ready` response with all services configured:**
+```json
+{
+  "ready": true,
+  "database": "connected",
+  "migrations": "ok",
+  "encryption": { "configured": true },
+  "email": { "configured": true, "provider": "smtp" },
+  "oauth": { "google": true, "github": true, "callbackBase": "https://staging.akisflow.com/auth/oauth" },
+  "timestamp": "..."
+}
+```
+
+### A5. Troubleshooting Checklist
+
+| Symptom | Cause | Fix |
+|---------|-------|-----|
+| `encryption.configured: false` | `AI_KEY_ENCRYPTION_KEY` missing or wrong length | Regenerate: `openssl rand -base64 32` → add to `.env` → restart |
+| `email.configured: false` | Missing SMTP vars or `EMAIL_PROVIDER` not set to `smtp` | Ensure all 4 required SMTP vars + `EMAIL_PROVIDER=smtp` in `.env` |
+| `oauth.google: false` | `GOOGLE_OAUTH_CLIENT_ID` or secret missing | Add both to `.env` → restart |
+| AI keys return 503 | Encryption not configured (see above) | Check `curl /ready \| jq .encryption` |
+| Google OAuth `invalid_client` | Client ID/Secret wrong or redirect URI mismatch | Verify Google Console redirect URI matches `callbackBase`/google/callback |
+| SMTP emails not arriving | Wrong SMTP credentials or port/TLS mismatch | Check `docker compose logs backend` for `[SmtpEmailService]` errors |
+| Logo missing in emails | `PUBLIC_LOGO_URL` not set or points to wrong path | Set to `https://staging.akisflow.com/brand/logo.png` |
+| Duplicate `.env` keys | Last occurrence wins; can cause confusing behavior | Run `sort .env \| uniq -d` to find duplicates |
 
 ---
 
@@ -1075,3 +1101,4 @@ free -h
 | 1.4.0 | 2026-02-07 | Auto | Consolidated from RUNBOOK_OCI.md + ops/STAGING_RUNBOOK.md; added smoke/rollback doc refs |
 | 1.5.0 | 2026-02-09 | Auto | Added SMTP email configuration to VM env template + docker-compose passthrough |
 | 1.6.0 | 2026-02-09 | Auto | Added Operator Actions checklist for staging secrets (encryption, SMTP, Google OAuth) |
+| 1.7.0 | 2026-02-09 | Auto | Fixed PUBLIC_LOGO_URL to /brand/logo.png, added /ready OAuth field, troubleshooting table |

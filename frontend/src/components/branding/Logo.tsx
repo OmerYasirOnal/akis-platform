@@ -26,10 +26,8 @@ interface LogoProps {
   className?: string;
 }
 
-const LOGO_SRC_1X = new URL(LOGO_PNG_1X, import.meta.url).href;
-const LOGO_SRC_2X = new URL(LOGO_PNG_2X, import.meta.url).href;
-const LOGO_SRC_3X = new URL(LOGO_PNG_3X, import.meta.url).href;
-const LOGO_SRCSET = `${LOGO_SRC_1X} 1x, ${LOGO_SRC_2X} 2x, ${LOGO_SRC_3X} 3x`;
+// LOGO_PNG_* are already resolved URLs (via import.meta.url in brand.ts)
+const LOGO_SRCSET = `${LOGO_PNG_1X} 1x, ${LOGO_PNG_2X} 2x, ${LOGO_PNG_3X} 3x`;
 
 export default function Logo({
   size = "nav",
@@ -44,7 +42,7 @@ export default function Logo({
 
   const logoElement = (
     <img
-      src={LOGO_SRC_1X}
+      src={LOGO_PNG_1X}
       srcSet={LOGO_SRCSET}
       alt={LOGO_ALT}
       className={cn("w-auto", className)}
