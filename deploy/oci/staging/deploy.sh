@@ -187,24 +187,57 @@ echo "Migration step done."
 echo ""
 
 # -----------------------------------------------------------------------------
-# Step 5: Deploy with rolling update (CRITICAL - must run even if migration failed)
+# Step 5: Deploy backend with targeted recreation
+# IMPORTANT: We do NOT --force-recreate all services. Only backend is recreated
+# to avoid killing Caddy (which also serves classcheck.site and other co-hosted
+# services on this VM). Caddy config is reloaded separately if changed.
 # -----------------------------------------------------------------------------
 echo ">>> Step 5: Starting services (CRITICAL STEP)..."
+
+# 5a: Ensure infrastructure services (db, caddy) are up without force-recreating them.
+#     docker compose up -d (without --force-recreate) only recreates containers
+#     whose config/image has changed. This is safe for Caddy and DB.
+echo "Ensuring infrastructure services are running..."
 if [ "$PULL_SUCCESS" = "false" ]; then
-    echo "Using locally built image (--pull never)"
-    if docker compose up -d --remove-orphans --pull never --force-recreate 2>&1; then
-        echo "docker compose up completed successfully"
+    docker compose up -d --no-recreate --pull never db caddy 2>&1 || true
+else
+    docker compose up -d --no-recreate db caddy 2>&1 || true
+fi
+
+# 5b: Force-recreate ONLY the backend container (new image, new config)
+echo "Force-recreating backend with new image..."
+if [ "$PULL_SUCCESS" = "false" ]; then
+    if docker compose up -d --force-recreate --no-deps --pull never backend 2>&1; then
+        echo "Backend recreated successfully"
     else
-        echo "ERROR: docker compose up FAILED"
+        echo "ERROR: Backend recreation FAILED"
         DEPLOY_EXIT=1
     fi
 else
-    if docker compose up -d --remove-orphans --force-recreate 2>&1; then
-        echo "docker compose up completed successfully"
+    if docker compose up -d --force-recreate --no-deps backend 2>&1; then
+        echo "Backend recreated successfully"
     else
-        echo "ERROR: docker compose up FAILED"
+        echo "ERROR: Backend recreation FAILED"
         DEPLOY_EXIT=1
     fi
+fi
+
+# 5c: Reload Caddy config (in case Caddyfile changed) — zero-downtime reload
+echo "Reloading Caddy configuration (zero-downtime)..."
+if docker exec akis-staging-caddy caddy reload --config /etc/caddy/Caddyfile --adapter caddyfile 2>&1; then
+    echo "Caddy config reloaded successfully"
+else
+    echo "⚠️ Caddy reload failed (may need container restart if Caddyfile format changed)"
+    # Fallback: recreate Caddy only if reload fails
+    docker compose up -d --force-recreate caddy 2>&1 || true
+fi
+
+# 5d: Final ensure — bring up any remaining services (remove orphans from THIS project only)
+echo "Final service check..."
+if [ "$PULL_SUCCESS" = "false" ]; then
+    docker compose up -d --remove-orphans --pull never 2>&1 || true
+else
+    docker compose up -d --remove-orphans 2>&1 || true
 fi
 echo ""
 
@@ -246,9 +279,48 @@ fi
 echo ""
 
 # -----------------------------------------------------------------------------
-# Step 7: Prune old images
+# Step 7: Verify classcheck.site is still accessible
 # -----------------------------------------------------------------------------
-echo ">>> Step 7: Pruning old images..."
+echo ">>> Step 7: Verifying co-hosted services..."
+if docker exec akis-staging-caddy wget --no-verbose --tries=2 --spider --timeout=5 \
+    "http://host.docker.internal:${CLASSCHECK_PORT:-3001}/" 2>&1; then
+    echo "✅ classcheck.site backend is reachable on port ${CLASSCHECK_PORT:-3001}"
+else
+    echo "⚠️ classcheck.site backend not reachable on port ${CLASSCHECK_PORT:-3001}"
+    echo "   This may be expected if classcheck is not running yet."
+    echo "   Ensure classcheck's Docker container exposes port ${CLASSCHECK_PORT:-3001} to host."
+fi
+echo ""
+
+# -----------------------------------------------------------------------------
+# Step 8: Clean up pm2 if no longer used
+# -----------------------------------------------------------------------------
+echo ">>> Step 8: Cleaning up pm2 (if present)..."
+if command -v pm2 >/dev/null 2>&1; then
+    echo "pm2 found, checking for running processes..."
+    PM2_LIST=$(pm2 jlist 2>/dev/null || echo "[]")
+    if [ "$PM2_LIST" != "[]" ] && [ -n "$PM2_LIST" ]; then
+        echo "⚠️ pm2 has running processes. Listing them:"
+        pm2 list 2>/dev/null || true
+        echo ""
+        echo "Stopping all pm2 processes..."
+        pm2 kill 2>/dev/null || true
+        echo "pm2 processes stopped."
+    else
+        echo "No pm2 processes running."
+    fi
+    # Remove pm2 startup hook if it exists
+    pm2 unstartup 2>/dev/null || true
+    echo "pm2 cleanup done."
+else
+    echo "pm2 not installed, nothing to clean up."
+fi
+echo ""
+
+# -----------------------------------------------------------------------------
+# Step 9: Prune old images
+# -----------------------------------------------------------------------------
+echo ">>> Step 9: Pruning old images..."
 docker image prune -f 2>/dev/null || true
 echo ""
 
