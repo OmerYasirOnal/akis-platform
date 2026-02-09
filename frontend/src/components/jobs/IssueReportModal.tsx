@@ -117,18 +117,20 @@ ${additionalContext ? `### Additional Context\n${additionalContext}` : ''}
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       {/* Backdrop */}
-      <div 
+      <div
         className="absolute inset-0 bg-ak-bg/80 backdrop-blur-sm"
         onClick={onClose}
+        aria-hidden="true"
       />
-      
+
       {/* Modal */}
-      <div className="relative z-10 w-full max-w-2xl max-h-[90vh] overflow-hidden rounded-2xl border border-ak-border bg-ak-surface shadow-ak-xl">
+      <div role="dialog" aria-labelledby="issue-report-title" className="relative z-10 w-full max-w-2xl max-h-[90vh] overflow-hidden rounded-2xl border border-ak-border bg-ak-surface shadow-ak-xl">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-ak-border px-6 py-4">
-          <h2 className="text-lg font-semibold text-ak-text-primary">Report Issue</h2>
+          <h2 id="issue-report-title" className="text-lg font-semibold text-ak-text-primary">Report Issue</h2>
           <button
             onClick={onClose}
+            aria-label="Close dialog"
             className="rounded-lg p-1 text-ak-text-secondary hover:bg-ak-surface-2 hover:text-ak-text-primary transition-colors"
           >
             <CloseIcon />

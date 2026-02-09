@@ -108,6 +108,7 @@ export default function FeedbackWidget() {
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
                 placeholder={t('feedback.placeholder')}
+                aria-label={t('feedback.placeholder')}
                 maxLength={2000}
                 rows={3}
                 className="mt-3 w-full resize-none rounded-lg border border-white/[0.06] bg-white/[0.03] p-3 text-sm text-[var(--ak-text-primary)] placeholder:text-[var(--ak-text-secondary)]/50 focus:border-ak-primary/40 focus:outline-none"
