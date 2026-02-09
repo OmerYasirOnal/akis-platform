@@ -73,6 +73,9 @@ declare module 'fastify' {
       onConstructorPoisoning?: 'error' | 'remove' | 'ignore'
     ): (...args: unknown[]) => unknown;
     setNotFoundHandler(handler: FastifyHandler): void;
+    setErrorHandler(
+      handler: (error: Error, request: FastifyRequest, reply: FastifyReply) => unknown | Promise<unknown>
+    ): FastifyInstance;
     swagger(): unknown;
     listen(
       opts: { port: number; host?: string },

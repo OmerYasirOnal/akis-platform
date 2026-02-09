@@ -13,6 +13,7 @@ import { sign } from '../services/auth/jwt.js';
 import { cookieOpts, env } from '../lib/env.js';
 import { VerificationService } from '../services/auth/verification.js';
 import type { EmailService } from '../services/email/index.js';
+import { sendError } from '../utils/errorHandler.js';
 
 type User = typeof users.$inferSelect;
 
@@ -90,10 +91,7 @@ export async function registerMultiStepAuthRoutes(
     });
 
     if (existing) {
-      return reply.code(409).send({
-        error: 'Email already registered',
-        code: 'EMAIL_IN_USE',
-      });
+      return sendError(reply, request, 'EMAIL_IN_USE', 'Email already registered');
     }
 
     // Create user in pending state (no password yet)
@@ -116,10 +114,7 @@ export async function registerMultiStepAuthRoutes(
       console.error('[Auth] Failed to send verification email:', error);
       
       if (error instanceof Error && error.message === 'TOO_MANY_ATTEMPTS') {
-        return reply.code(429).send({
-          error: 'Too many verification attempts. Please wait 15 minutes.',
-          code: 'RATE_LIMITED',
-        });
+        return sendError(reply, request, 'RATE_LIMITED', 'Too many verification attempts. Please wait 15 minutes.');
       }
     }
 
@@ -141,17 +136,11 @@ export async function registerMultiStepAuthRoutes(
     });
 
     if (!user) {
-      return reply.code(404).send({
-        error: 'User not found',
-        code: 'USER_NOT_FOUND',
-      });
+      return sendError(reply, request, 'USER_NOT_FOUND', 'User not found');
     }
 
     if (user.status !== 'pending_verification') {
-      return reply.code(403).send({
-        error: 'User already verified',
-        code: 'ALREADY_VERIFIED',
-      });
+      return sendError(reply, request, 'ALREADY_VERIFIED', 'User already verified');
     }
 
     // Hash and store password
@@ -179,10 +168,7 @@ export async function registerMultiStepAuthRoutes(
       const isValid = await verificationService.verifyCode(body.userId, body.code);
 
       if (!isValid) {
-        return reply.code(400).send({
-          error: 'Invalid or expired verification code',
-          code: 'INVALID_CODE',
-        });
+        return sendError(reply, request, 'INVALID_CODE', 'Invalid or expired verification code');
       }
 
       // Get updated user
@@ -191,10 +177,7 @@ export async function registerMultiStepAuthRoutes(
       });
 
       if (!user) {
-        return reply.code(404).send({
-          error: 'User not found',
-          code: 'USER_NOT_FOUND',
-        });
+        return sendError(reply, request, 'USER_NOT_FOUND', 'User not found');
       }
 
       // Generate JWT and set cookie
@@ -212,11 +195,7 @@ export async function registerMultiStepAuthRoutes(
       };
     } catch (error) {
       console.error('[Auth] Verification error:', error);
-      
-      return reply.code(500).send({
-        error: 'Failed to verify email',
-        code: 'INTERNAL_ERROR',
-      });
+      return sendError(reply, request, 'INTERNAL_ERROR', 'Failed to verify email');
     }
   });
 
@@ -229,17 +208,11 @@ export async function registerMultiStepAuthRoutes(
     });
 
     if (!user) {
-      return reply.code(404).send({
-        error: 'User not found',
-        code: 'USER_NOT_FOUND',
-      });
+      return sendError(reply, request, 'USER_NOT_FOUND', 'User not found');
     }
 
     if (user.emailVerified) {
-      return reply.code(403).send({
-        error: 'Email already verified',
-        code: 'ALREADY_VERIFIED',
-      });
+      return sendError(reply, request, 'ALREADY_VERIFIED', 'Email already verified');
     }
 
     try {
@@ -251,18 +224,11 @@ export async function registerMultiStepAuthRoutes(
       };
     } catch (error) {
       if (error instanceof Error && error.message === 'TOO_MANY_ATTEMPTS') {
-        return reply.code(429).send({
-          error: 'Too many attempts. Please wait 15 minutes.',
-          code: 'RATE_LIMITED',
-        });
+        return sendError(reply, request, 'RATE_LIMITED', 'Too many attempts. Please wait 15 minutes.');
       }
 
       console.error('[Auth] Failed to resend code:', error);
-      
-      return reply.code(500).send({
-        error: 'Failed to send verification code',
-        code: 'INTERNAL_ERROR',
-      });
+      return sendError(reply, request, 'INTERNAL_ERROR', 'Failed to send verification code');
     }
   });
 
@@ -280,32 +246,19 @@ export async function registerMultiStepAuthRoutes(
     });
 
     if (!user) {
-      return reply.code(404).send({
-        error: 'No account found with this email',
-        code: 'USER_NOT_FOUND',
-      });
+      return sendError(reply, request, 'USER_NOT_FOUND', 'No account found with this email');
     }
 
     if (user.status === 'pending_verification' || !user.emailVerified) {
-      return reply.code(403).send({
-        error: 'Email not verified',
-        code: 'EMAIL_NOT_VERIFIED',
-        userId: user.id,
-      });
+      return sendError(reply, request, 'EMAIL_NOT_VERIFIED', 'Email not verified', { userId: user.id });
     }
 
     if (user.status === 'disabled') {
-      return reply.code(403).send({
-        error: 'Account suspended',
-        code: 'USER_DISABLED',
-      });
+      return sendError(reply, request, 'USER_DISABLED', 'Account suspended');
     }
 
     if (user.status === 'deleted') {
-      return reply.code(404).send({
-        error: 'No account found with this email',
-        code: 'USER_NOT_FOUND',
-      });
+      return sendError(reply, request, 'USER_NOT_FOUND', 'No account found with this email');
     }
 
     return {
@@ -325,20 +278,14 @@ export async function registerMultiStepAuthRoutes(
     });
 
     if (!user) {
-      return reply.code(404).send({
-        error: 'User not found',
-        code: 'USER_NOT_FOUND',
-      });
+      return sendError(reply, request, 'USER_NOT_FOUND', 'User not found');
     }
 
     // Verify password
     const isValid = await verifyPassword(body.password, user.passwordHash);
     
     if (!isValid) {
-      return reply.code(401).send({
-        error: 'Incorrect password',
-        code: 'INVALID_CREDENTIALS',
-      });
+      return sendError(reply, request, 'INVALID_CREDENTIALS', 'Incorrect password');
     }
 
     // Generate JWT and set cookie
@@ -367,10 +314,7 @@ export async function registerMultiStepAuthRoutes(
       const token = request.cookies?.[env.AUTH_COOKIE_NAME];
       
       if (!token) {
-        return reply.code(401).send({
-          error: 'Unauthorized',
-          code: 'UNAUTHORIZED',
-        });
+        return sendError(reply, request, 'UNAUTHORIZED', 'Authentication required');
       }
 
       // Attach userId to request for handler
@@ -380,10 +324,7 @@ export async function registerMultiStepAuthRoutes(
         request.userId = payload.sub;
       } catch {
         clearSessionCookie(reply);
-        return reply.code(401).send({
-          error: 'Invalid session',
-          code: 'UNAUTHORIZED',
-        });
+        return sendError(reply, request, 'UNAUTHORIZED', 'Invalid session');
       }
     },
   }, async (request: FastifyRequest & { userId?: string }, _reply) => {

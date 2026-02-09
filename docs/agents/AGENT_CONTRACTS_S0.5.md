@@ -1,8 +1,8 @@
 # Agent Contracts — S0.5
 
-> **Task ID:** S0.5.1-AGT-1
-> **Version:** 1.0.0
-> **Date:** 2026-02-08
+> **Task ID:** S0.5.1-AGT-1 (updated by AGT-6)
+> **Version:** 1.1.0
+> **Date:** 2026-02-09
 > **Source of truth:** Backend agent implementations in `backend/src/agents/`
 
 This document specifies the input/output schemas and error taxonomy for the three AKIS agents: **Scribe**, **Trace**, and **Proto**. Each section includes the API-level payload schema, the agent-level result schema, and shared error codes.
@@ -342,20 +342,82 @@ When AI generation fails or is unavailable, Proto produces a minimal scaffold:
 
 ## 5. Error Taxonomy
 
-### 5.1 Error Codes
+### 5.0 Standard Error Envelope (AGT-6)
+
+**All** backend error responses MUST use this shape:
+
+```json
+{
+  "error": {
+    "code": "ERROR_CODE",
+    "message": "Human-readable message",
+    "details": {}
+  },
+  "requestId": "uuid"
+}
+```
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `error.code` | `string` | yes | Machine-readable error code (see tables below) |
+| `error.message` | `string` | yes | Human-readable description |
+| `error.details` | `unknown` | no | Structured extra data (Zod issues, provider info, etc.) |
+| `requestId` | `string` | yes | Correlation ID from `request-id` header or auto-generated UUID |
+
+**Backend helper:** `sendError(reply, request, code, message, details?)` in `backend/src/utils/errorHandler.ts`.
+
+**Frontend consumer:** `HttpClient.parseErrorResponse()` reads `error.code`, `error.message`, `error.details` from response JSON and `requestId` from the `request-id` response header.
+
+**Global error handler:** Registered in `server.app.ts`. Catches unhandled `ZodError` (→ `VALIDATION_ERROR`), Fastify schema validation errors, and known application errors. Unknown errors map to `INTERNAL_ERROR` with no internal detail leakage.
+
+### 5.1 Error Codes — AI / Agent
 
 All agents use structured error codes stored in `job.errorCode`:
 
-| Code | Source | Description | User-Facing Message |
-|---|---|---|---|
-| `AI_RATE_LIMITED` | AI provider | Rate limit hit (429) | "The AI service is busy. Your job will retry automatically." |
-| `AI_PROVIDER_ERROR` | AI provider | Generic provider failure | "The AI service encountered an error. Please try again." |
-| `AI_INVALID_RESPONSE` | AI provider | Unparseable AI output | "The AI returned an unexpected response. Please retry." |
-| `AI_NETWORK_ERROR` | AI provider | Network timeout/failure | "Could not reach the AI service. Check your connection." |
-| `AI_AUTH_ERROR` | AI provider | Invalid API key | "AI authentication failed. Check your API key in Settings." |
-| `AI_KEY_MISSING` | Configuration | No API key configured | "No AI key configured. Add one in Settings → AI Keys." |
-| `AI_MODEL_NOT_FOUND` | Configuration | Model not available | "The requested model is not available." |
-| `MODEL_NOT_ALLOWED` | Configuration | Model not in allowlist | "This model is not allowed. Choose from the approved list." |
+| Code | Source | HTTP | Description | User-Facing Message |
+|---|---|---|---|---|
+| `AI_RATE_LIMITED` | AI provider | 429 | Rate limit hit | "The AI service is busy. Your job will retry automatically." |
+| `AI_PROVIDER_ERROR` | AI provider | 503 | Generic provider failure | "The AI service encountered an error. Please try again." |
+| `AI_INVALID_RESPONSE` | AI provider | 503 | Unparseable AI output | "The AI returned an unexpected response. Please retry." |
+| `AI_NETWORK_ERROR` | AI provider | 503 | Network timeout/failure | "Could not reach the AI service. Check your connection." |
+| `AI_AUTH_ERROR` | AI provider | 502 | Invalid API key | "AI authentication failed. Check your API key in Settings." |
+| `AI_KEY_MISSING` | Configuration | 412 | No API key configured | "No AI key configured. Add one in Settings > AI Keys." |
+| `AI_MODEL_NOT_FOUND` | Configuration | 404 | Model not available | "The requested model is not available." |
+| `MODEL_NOT_ALLOWED` | Configuration | 400 | Model not in allowlist | "This model is not allowed. Choose from the approved list." |
+
+### 5.1b Error Codes — Auth
+
+| Code | HTTP | Description |
+|---|---|---|
+| `UNAUTHORIZED` | 401 | Missing or invalid session |
+| `INVALID_CREDENTIALS` | 401 | Wrong password |
+| `EMAIL_IN_USE` | 409 | Email already registered |
+| `USER_NOT_FOUND` | 404 | No account with this email/ID |
+| `EMAIL_NOT_VERIFIED` | 403 | Email not yet verified |
+| `ALREADY_VERIFIED` | 403 | Email already verified |
+| `INVALID_CODE` | 400 | Wrong or expired verification code |
+| `RATE_LIMITED` | 429 | Too many attempts |
+| `USER_DISABLED` | 403 | Account suspended |
+| `INVALID_PROVIDER` | 400 | Unknown OAuth provider |
+| `OAUTH_NOT_CONFIGURED` | 503 | OAuth provider not configured on server |
+
+### 5.1c Error Codes — Settings / Config
+
+| Code | HTTP | Description |
+|---|---|---|
+| `ENCRYPTION_NOT_CONFIGURED` | 503 | `AI_KEY_ENCRYPTION_KEY` not set on server |
+| `DUPLICATE_KEY` | 409 | API key already exists for this provider |
+| `FORBIDDEN` | 403 | Insufficient permissions |
+
+### 5.1d Error Codes — Core
+
+| Code | HTTP | Description |
+|---|---|---|
+| `VALIDATION_ERROR` | 400 | Request body/params failed Zod or JSON schema validation |
+| `NOT_FOUND` | 404 | Resource not found (job, route, etc.) |
+| `INVALID_STATE` | 409 | Invalid state transition (e.g. running -> pending) |
+| `DATABASE_ERROR` | 500 | Database operation failure (details not leaked) |
+| `INTERNAL_ERROR` | 500 | Catch-all for unknown errors (details not leaked) |
 
 ### 5.2 Error Classes (Backend)
 
