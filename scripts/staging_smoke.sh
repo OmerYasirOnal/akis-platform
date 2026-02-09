@@ -192,6 +192,31 @@ else
 fi
 
 # =============================================================================
+# Test 2c: Email configuration (from /ready response)
+# =============================================================================
+echo "Test 2c: Email configuration"
+if [ "$READY_CODE" = "200" ]; then
+  EMAIL_STATUS=$(extract_json_field "$READY_JSON" "email.configured" 2>/dev/null || echo "unknown")
+  EMAIL_PROVIDER=$(extract_json_field "$READY_JSON" "email.provider" 2>/dev/null || echo "unknown")
+  if [ "$EMAIL_STATUS" = "true" ]; then
+    echo -e "${GREEN}✅ Email: configured (provider=${EMAIL_PROVIDER})${NC}"
+    TESTS_PASSED=$((TESTS_PASSED + 1))
+  elif [ "$EMAIL_PROVIDER" = "mock" ]; then
+    echo -e "${YELLOW}⚠️  Email: mock provider — verification emails logged to console only${NC}"
+    TESTS_PASSED=$((TESTS_PASSED + 1))
+  elif [ "$EMAIL_STATUS" = "false" ]; then
+    echo -e "${RED}❌ Email: NOT configured (provider=${EMAIL_PROVIDER})${NC}"
+    echo -e "${YELLOW}   FIX: Set SMTP_* vars in /opt/akis/.env or switch EMAIL_PROVIDER=mock${NC}"
+    TESTS_FAILED=$((TESTS_FAILED + 1))
+  else
+    echo -e "${YELLOW}⚠️  Email: could not determine status (old backend version?)${NC}"
+    TESTS_PASSED=$((TESTS_PASSED + 1))
+  fi
+else
+  echo -e "${YELLOW}⚠️  Skipping email check (/ready not available)${NC}"
+fi
+
+# =============================================================================
 # Test 3: Version Endpoint with Commit Verification (CRITICAL)
 # =============================================================================
 echo "Test 3: Version endpoint (CRITICAL)"
