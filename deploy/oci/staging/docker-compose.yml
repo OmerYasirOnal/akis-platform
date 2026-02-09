@@ -126,8 +126,8 @@ services:
       ATLASSIAN_OAUTH_CLIENT_ID: ${ATLASSIAN_OAUTH_CLIENT_ID:-}
       ATLASSIAN_OAUTH_CLIENT_SECRET: ${ATLASSIAN_OAUTH_CLIENT_SECRET:-}
       
-      # MCP Gateway
-      GITHUB_MCP_BASE_URL: ${GITHUB_MCP_BASE_URL:-}
+      # MCP Gateway (default: Docker internal service name for staging)
+      GITHUB_MCP_BASE_URL: ${GITHUB_MCP_BASE_URL:-http://mcp-gateway:4010/mcp}
       MCP_ATLASSIAN_ENABLED: ${MCP_ATLASSIAN_ENABLED:-false}
       
     networks:
@@ -183,18 +183,22 @@ services:
   # MCP Gateway - GitHub/Jira/Confluence Integration Bridge
   # =========================================================================
   # Handles: HTTP-to-stdio bridge for MCP protocol
-  # Profile: mcp (optional, enable with --profile mcp)
+  # Always-on in staging (agents require MCP for GitHub operations).
+  # If GITHUB_TOKEN is empty, the gateway will start but GitHub calls will fail.
+  # Backend connects via: GITHUB_MCP_BASE_URL=http://mcp-gateway:4010/mcp
   # =========================================================================
   mcp-gateway:
     image: ghcr.io/${GITHUB_REPOSITORY:-omeryasironal/akis-platform-devolopment}/akis-mcp-gateway:${MCP_VERSION:-latest}
     container_name: akis-staging-mcp
     restart: unless-stopped
-    profiles:
-      - mcp
     expose:
       - "4010"
     environment:
       PORT: "4010"
+      MCP_GATEWAY_PORT: "4010"
+      MCP_GATEWAY_HOST: "0.0.0.0"
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      NODE_ENV: production
       GITHUB_TOKEN: ${GITHUB_TOKEN:-}
     networks:
       - akis-staging

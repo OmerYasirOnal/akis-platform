@@ -4,6 +4,7 @@ import { sql } from 'drizzle-orm';
 import { isEncryptionConfigured } from '../utils/crypto.js';
 import { isEmailConfigured } from '../services/email/index.js';
 import { getEnv } from '../config/env.js';
+import { checkMcpHealth } from '../services/mcp/health.js';
 
 // Build info - set at Docker build time via ARG/ENV
 const BUILD_INFO = {
@@ -128,7 +129,18 @@ export async function healthRoutes(fastify: FastifyInstance) {
       const timestamp = new Date().toISOString();
       const encryptionStatus = { configured: isEncryptionConfigured() };
       const emailProvider = process.env.EMAIL_PROVIDER || 'mock';
-      const emailStatus = { configured: isEmailConfigured(emailProvider), provider: emailProvider };
+      const emailStatus: Record<string, unknown> = {
+        configured: isEmailConfigured(emailProvider),
+        provider: emailProvider,
+      };
+
+      // Add SMTP details when provider is smtp (no secrets, just host/port/from)
+      if (emailProvider === 'smtp') {
+        emailStatus.host = process.env.SMTP_HOST || null;
+        emailStatus.port = process.env.SMTP_PORT ? Number(process.env.SMTP_PORT) : 587;
+        emailStatus.from = process.env.SMTP_FROM_EMAIL || null;
+        emailStatus.secure = process.env.SMTP_SECURE === 'true';
+      }
 
       // OAuth provider readiness (no secrets, just configured/not)
       let oauthStatus: Record<string, unknown> = {};
@@ -141,6 +153,22 @@ export async function healthRoutes(fastify: FastifyInstance) {
         };
       } catch {
         oauthStatus = { google: false, github: false, callbackBase: 'env_error' };
+      }
+
+      // MCP Gateway readiness (non-blocking, never leaks tokens)
+      let mcpStatus: Record<string, unknown> = {};
+      try {
+        const mcpHealth = await checkMcpHealth();
+        mcpStatus = {
+          configured: !!mcpHealth.gatewayUrl,
+          github: mcpHealth.healthy,
+          baseUrl: mcpHealth.gatewayUrl || null,
+        };
+        if (!mcpHealth.healthy && mcpHealth.error) {
+          mcpStatus.error = mcpHealth.error;
+        }
+      } catch {
+        mcpStatus = { configured: false, github: false, baseUrl: null };
       }
 
       try {
@@ -157,6 +185,7 @@ export async function healthRoutes(fastify: FastifyInstance) {
           encryption: encryptionStatus,
           email: emailStatus,
           oauth: oauthStatus,
+          mcp: mcpStatus,
           timestamp,
         };
       } catch (error) {
@@ -168,6 +197,7 @@ export async function healthRoutes(fastify: FastifyInstance) {
           encryption: encryptionStatus,
           email: emailStatus,
           oauth: oauthStatus,
+          mcp: mcpStatus,
           error: errorMessage,
           timestamp,
         });
