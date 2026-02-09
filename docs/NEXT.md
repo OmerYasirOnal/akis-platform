@@ -50,7 +50,7 @@ docs/NEXT.md                                             (this file — immediat
 
 | ID | Task | Status | Notes |
 |----|------|--------|-------|
-| S0.5.1-WL-1 | Invite stratejisi (email + acik signup) | In Progress | SMTP transport + Turkish templates + invite stub + signup verification E2E (8 tests) done (2026-02-09); invite endpoint not yet implemented |
+| S0.5.1-WL-1 | Invite stratejisi (email + acik signup) | Done | SMTP transport + Turkish templates (PR #238), invite endpoint + accept flow + InviteAccept page + 26 unit + 6 E2E tests (2026-02-09) |
 | S0.5.1-WL-2 | Onboarding flow (signup -> AI key -> first job) | Not Started | Getting Started karti |
 | S0.5.1-WL-3 | Feedback capture (FeedbackTab entegrasyonu) | Not Started | Dep: WL-2 |
 | S0.5.2-UX-1 | Trace console sayfasi | Done | PR #236: DashboardAgentTracePage + useAgentStatus hook + sidebar nav (2026-02-08) |
