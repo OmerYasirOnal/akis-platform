@@ -186,8 +186,13 @@ export async function registerMultiStepAuthRoutes(
         email: user.email,
         name: user.name,
       });
-      
+
       reply.setCookie(env.AUTH_COOKIE_NAME, jwt, cookieOpts);
+
+      // Send welcome email (fire-and-forget — don't block verification)
+      emailService.sendWelcomeEmail(user.email, user.name ?? undefined).catch((err) => {
+        console.error('[Auth] Failed to send welcome email:', err);
+      });
 
       return {
         user: sanitizeUser(user),

@@ -963,6 +963,69 @@ Before promoting to production, verify:
 
 ---
 
+## Appendix: Operator Actions — Staging Secrets Checklist
+
+The following env vars must be set on the staging VM (`/opt/akis/.env`) for full functionality. **Never commit these values to git.**
+
+### A1. AI Key Encryption (required for saving user AI keys)
+
+```bash
+# Generate and add to /opt/akis/.env:
+AI_KEY_ENCRYPTION_KEY=$(openssl rand -base64 32)
+AI_KEY_ENCRYPTION_KEY_VERSION=v1
+```
+
+**Verify**: `curl -s https://staging.akisflow.com/ready | jq .encryption`
+→ Expected: `{ "configured": true }`
+
+### A2. SMTP Email (required for verification codes, welcome + invite emails)
+
+```bash
+# Add to /opt/akis/.env:
+EMAIL_PROVIDER=smtp
+SMTP_HOST=smtp.gmail.com          # or your SMTP relay
+SMTP_PORT=587
+SMTP_USER=noreply@akisflow.com
+SMTP_PASS=<app_password>
+SMTP_SECURE=false                  # false for STARTTLS on 587; true for implicit TLS on 465
+SMTP_FROM_NAME=AKIS Platform
+SMTP_FROM_EMAIL=noreply@akisflow.com
+SMTP_REPLY_TO=support@akisflow.com
+PUBLIC_LOGO_URL=https://staging.akisflow.com/assets/logo-transparent.png
+```
+
+**Verify**: `curl -s https://staging.akisflow.com/ready | jq .email`
+→ Expected: `{ "configured": true, "provider": "smtp" }`
+
+### A3. Google OAuth (required for "Continue with Google" login)
+
+1. Go to https://console.cloud.google.com/apis/credentials
+2. Create **OAuth 2.0 Client ID** (type: Web application)
+3. Set these exact values:
+   - **Authorized JavaScript origins**: `https://staging.akisflow.com`
+   - **Authorized redirect URIs**: `https://staging.akisflow.com/auth/oauth/google/callback`
+4. Copy credentials to `/opt/akis/.env`:
+
+```bash
+GOOGLE_OAUTH_CLIENT_ID=<from_google_cloud_console>
+GOOGLE_OAUTH_CLIENT_SECRET=<from_google_cloud_console>
+```
+
+**Verify**: `curl -s -o /dev/null -w "%{http_code}" https://staging.akisflow.com/auth/oauth/google`
+→ Expected: `302` (redirect to Google login page)
+
+### A4. After Setting Env Vars — Restart
+
+```bash
+ssh <staging-vm>
+cd /opt/akis
+docker compose restart backend
+# Wait 10s then verify:
+curl -s https://staging.akisflow.com/ready | jq .
+```
+
+---
+
 ## Appendix A: Quick Reference Commands
 
 **SSH to VM**:
@@ -1011,3 +1074,4 @@ free -h
 | 1.3.0 | 2026-02-03 | Auto | Added reference to Staging Release Checklist |
 | 1.4.0 | 2026-02-07 | Auto | Consolidated from RUNBOOK_OCI.md + ops/STAGING_RUNBOOK.md; added smoke/rollback doc refs |
 | 1.5.0 | 2026-02-09 | Auto | Added SMTP email configuration to VM env template + docker-compose passthrough |
+| 1.6.0 | 2026-02-09 | Auto | Added Operator Actions checklist for staging secrets (encryption, SMTP, Google OAuth) |

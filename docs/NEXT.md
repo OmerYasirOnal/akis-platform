@@ -26,8 +26,9 @@ docs/NEXT.md                                             (this file — immediat
 | URL | https://staging.akisflow.com |
 | Deployed Commit | `4af307e` (2026-02-09 07:14 UTC) |
 | Smoke Tests | 8/8 pass |
-| Encryption | Not configured (env var needed) |
-| Email | Mock provider (SMTP env vars needed) |
+| Encryption | Not configured (env var needed) — see runbook Appendix A1 |
+| Email | Mock provider (SMTP env vars needed) — see runbook Appendix A2 |
+| Google OAuth | Needs Google Cloud Console setup — see runbook Appendix A3 |
 
 ---
 
@@ -51,11 +52,13 @@ docs/NEXT.md                                             (this file — immediat
 | ID | Task | Status | Notes |
 |----|------|--------|-------|
 | S0.5.1-WL-1 | Invite stratejisi (email + acik signup) | Done | SMTP transport + Turkish templates (PR #238), invite endpoint + accept flow + InviteAccept page + 26 unit + 6 E2E tests (2026-02-09) |
+| S0.5.1-WL-1b | Welcome email after verification | Done | `sendWelcomeEmail` in BaseEmailService, fired after verify-email (fire-and-forget), 4 unit tests (2026-02-09) |
 | S0.5.1-WL-2 | Onboarding flow (signup -> AI key -> first job) | Not Started | Getting Started karti |
 | S0.5.1-WL-3 | Feedback capture (FeedbackTab entegrasyonu) | Not Started | Dep: WL-2 |
 | S0.5.2-UX-1 | Trace console sayfasi | Done | PR #236: DashboardAgentTracePage + useAgentStatus hook + sidebar nav (2026-02-08) |
 | S0.5.2-UX-2 | Proto console sayfasi | Done | DashboardAgentProtoPage + sidebar nav + E2E tests (2026-02-08) |
 | S0.5.2-UX-3 | Dashboard Getting Started karti | Done | 3-step onboarding card (AI keys, first run, explore) + 6 unit + 5 E2E (2026-02-09) |
+| S0.5.2-UX-4 | Agents Hub sidebar entrypoint | Done | "Agents Hub" link in sidebar → /agents, E2E test updated (2026-02-09) |
 
 ### Phase C (14-21 Sub) — AGENT RELIABILITY
 
