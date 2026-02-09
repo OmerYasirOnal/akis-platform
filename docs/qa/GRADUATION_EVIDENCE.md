@@ -1,7 +1,7 @@
 # Graduation Evidence Document — AKIS Platform
 
 > **Task:** S0.5.3-QA-3
-> **Date:** 2026-02-09
+> **Date:** 2026-02-10
 > **Student:** Ömer Yasir Onal
 > **Project:** AKIS Platform — AI Agent Orchestration System
 > **Milestone:** M1 Pilot Demo (28 February 2026)
@@ -88,17 +88,17 @@
 
 | Category | Count | Notes |
 |----------|-------|-------|
-| Unit Tests | 382 | `node:test` runner |
-| Test Suites | 100 | |
-| Key Areas | AI Service, Agent FSM, Scribe, Error Handling, Crypto, SSE, Trust Proxy, Email, Invite, Feedback, Context Packs, Prompt Determinism | |
+| Unit Tests | 797 | `node:test` runner |
+| Test Suites | 184 | |
+| Key Areas | AI Service, Agent FSM, Scribe, Error Handling, Crypto, SSE, Trust Proxy, Email, Invite, Feedback, Context Packs, Prompt Determinism, Model Catalog, Session Service, Stream Events, HTTP Client, User AI Keys, Agent Config Schemas, Health Routes, Dashboard Metrics, Config Validation, Agent API Schemas | |
 
 ### Frontend Tests
 
 | Category | Count | Notes |
 |----------|-------|-------|
-| Component Tests (Vitest) | 94 | 14 test files |
+| Component Tests (Vitest) | 547 | 48 test files |
 | E2E Tests (Playwright) | 14 specs | Golden paths for Scribe/Trace/Proto |
-| Key Areas | Dashboard, Layout, Jobs, Scribe Console, Health, API Client, Branding, Feedback, Getting Started | |
+| Key Areas | Dashboard, Layout, Jobs, Scribe Console, Health, API Client, Branding, Feedback, Getting Started, UI Components (Badge, Pill, Skeleton, Pagination, Button, Input), Hooks (useAgentStatus, useJobs, useCreateJob), Timeline Helpers, Artifact Preview, Job Stream, Pricing, API Config, Error Boundary, Profile Menu, Footer | |
 
 ### Quality Gates (CI)
 
@@ -108,7 +108,7 @@ All quality gates pass on every commit:
 pnpm -r typecheck   → 0 errors
 pnpm -r lint        → 0 errors
 pnpm -r build       → clean build
-pnpm -r test        → 382 backend + 94 frontend = 476 tests
+pnpm -r test        → 797 backend + 547 frontend = 1,344 tests
 ```
 
 ---
@@ -148,9 +148,9 @@ pnpm -r test        → 382 backend + 94 frontend = 476 tests
 | S0.5.0 | 7-9 Feb | Staging base URL + deploy | 8/8 complete |
 | S0.5.1 | 10-21 Feb | Pilot access + agent reliability | 11/11 complete |
 | S0.5.2 | 10-23 Feb | Demo UX + RAG | 6/6 complete |
-| S0.5.3 | 24-28 Feb | QA + demo + graduation | 3/4 complete |
+| S0.5.3 | 24-28 Feb | QA + demo + graduation | 4/4 complete |
 
-**Total: 28/29 tasks complete (96.5%)**
+**Total: 30/30 tasks complete (100%)**
 
 ---
 
