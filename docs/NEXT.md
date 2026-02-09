@@ -57,7 +57,7 @@ docs/NEXT.md                                             (bu dosya — anlık ey
 |----|-------|-------|--------|
 | S0.5.1-WL-1 | Davet stratejisi (e-posta + açık kayıt) | Tamamlandı | SMTP aktarım + Türkçe şablonlar (PR #238) |
 | S0.5.1-WL-1b | Doğrulama sonrası hoşgeldin e-postası | Tamamlandı | `sendWelcomeEmail` + 4 birim testi |
-| S0.5.1-WL-2 | Katılım akışı (kayıt → AI anahtarı → ilk iş) | Başlanmadı | Getting Started kartı |
+| S0.5.1-WL-2 | Katılım akışı (kayıt → AI anahtarı → ilk iş) | Tamamlandı | i18n + job API wiring (2026-02-09) |
 | S0.5.1-WL-3 | Geri bildirim yakalama (FeedbackTab entegrasyonu) | Başlanmadı | Bağımlılık: WL-2 |
 | S0.5.2-UX-1 | Trace konsol sayfası | Tamamlandı | PR #236 |
 | S0.5.2-UX-2 | Proto konsol sayfası | Tamamlandı | PR #236 |
@@ -79,7 +79,7 @@ docs/NEXT.md                                             (bu dosya — anlık ey
 
 | ID | Görev | Durum | Notlar |
 |----|-------|-------|--------|
-| S0.5.2-RAG-1 | Araştırma notu + karar kilitleme | Başlanmadı | Bağlam paketleri Şub, pg_trgm Mart |
+| S0.5.2-RAG-1 | Araştırma notu + karar kilitleme | Tamamlandı | `docs/agents/CONTEXT_PACKS.md` (2026-02-09) |
 | S0.5.2-RAG-2 | Bağlam paketi mekanizması doğrulama | Başlanmadı | Bağımlılık: AGT-3 |
 
 ### Faz E (24-28 Şub) — KG + M1 PİLOT DEMO
@@ -150,7 +150,7 @@ docs/NEXT.md                                             (bu dosya — anlık ey
 - [ ] OAuth yönlendirmeleri staging alanında çalışıyor — Google OAuth env değişkenleri gerekli
 - [ ] Scribe/Trace/Proto golden path'leri çalışıyor — AI anahtar + şifreleme + MCP env değişken gerekli
 - [x] Hata durumlarında anlaşılır mesaj (AGT-6 standart hata zarfı, 39 birim testi)
-- [ ] Pilot katılım akışı çalışıyor — WL-2 bekleniyor
+- [x] Pilot katılım akışı çalışıyor — WL-2 tamamlandı (2026-02-09)
 - [ ] Demo senaryosu yazılmış ve prova edilmiş
 - [ ] KG kanıt dokümanı mevcut
 
@@ -175,7 +175,7 @@ docs/NEXT.md                                             (bu dosya — anlık ey
 | 1 | MCP Gateway Docker image CI build pipeline yok | P1 | GHCR'a image push edilmeli; `profiles: [mcp]` kaldırılana kadar agent'lar staging'de MCP kullanamazlar |
 | 2 | SMTP deliverability (SPF/DKIM/DMARC) | P1 | güzelhosting DNS yapılandırması gerekli — `OCI_STAGING_RUNBOOK.md` Bölüm 3.7 |
 | 3 | Staging VM `.env` güncelleme | P0 | MCP, SMTP, OAuth, logo URL değişkenleri güncellenmeli |
-| 4 | Onboarding akışı (WL-2) | P2 | Getting Started kartı mevcut; tam akış henüz bağlanmamış |
+| 4 | ~~Onboarding akışı (WL-2)~~ | ~~P2~~ | Tamamlandı (2026-02-09): i18n + job API wiring |
 
 ---
 
