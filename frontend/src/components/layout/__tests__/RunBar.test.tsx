@@ -38,14 +38,14 @@ describe('RunBar', () => {
     });
   });
 
-  it('renders when running jobs exist from API', async () => {
+  it('renders when running jobs exist from API (agent route)', async () => {
     (agentsApi.getRunningJobs as ReturnType<typeof vi.fn>).mockResolvedValue({
       jobs: [
         { id: 'j1', type: 'scribe', state: 'running', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
       ],
     });
 
-    renderAt('/dashboard');
+    renderAt('/dashboard/scribe');
 
     await waitFor(() => {
       expect(screen.getByText('scribe')).toBeInTheDocument();
@@ -73,7 +73,7 @@ describe('RunBar', () => {
       jobs: [{ id: 'j3', type: 'scribe', state: 'running', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }],
     });
 
-    renderAt('/dashboard');
+    renderAt('/dashboard/scribe');
 
     // Initially empty before event
     await waitFor(() => {
@@ -142,7 +142,7 @@ describe('RunBar', () => {
     // API returns empty (job finished between polls)
     (agentsApi.getRunningJobs as ReturnType<typeof vi.fn>).mockResolvedValue({ jobs: [] });
 
-    renderAt('/dashboard');
+    renderAt('/dashboard/jobs');
 
     await waitFor(() => {
       expect(screen.getByText('completed')).toBeInTheDocument();
@@ -154,11 +154,37 @@ describe('RunBar', () => {
       { id: 'abc-123', type: 'scribe', state: 'running', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
     ]));
 
-    renderAt('/dashboard');
+    renderAt('/dashboard/jobs');
 
     await waitFor(() => {
       const viewLink = screen.getByText('View');
       expect(viewLink.closest('a')).toHaveAttribute('href', '/dashboard/jobs/abc-123');
+    });
+  });
+
+  it('does NOT poll on non-agent dashboard routes (e.g., /dashboard/settings)', async () => {
+    renderAt('/dashboard/settings');
+
+    // Wait for a tick so any polling would have fired
+    await new Promise(r => setTimeout(r, 50));
+
+    // API should not be called on non-agent routes
+    expect(agentsApi.getRunningJobs).not.toHaveBeenCalled();
+  });
+
+  it('polls on agent-related dashboard routes (e.g., /dashboard/scribe)', async () => {
+    renderAt('/dashboard/scribe');
+
+    await waitFor(() => {
+      expect(agentsApi.getRunningJobs).toHaveBeenCalled();
+    });
+  });
+
+  it('polls on /agents route', async () => {
+    renderAt('/agents');
+
+    await waitFor(() => {
+      expect(agentsApi.getRunningJobs).toHaveBeenCalled();
     });
   });
 });

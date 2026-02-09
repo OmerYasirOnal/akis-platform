@@ -40,6 +40,7 @@ export function RunBar() {
   const [jobs, setJobs] = useState<RunningJob[]>(loadStoredJobs);
   const [expanded, setExpanded] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const location = useLocation();
 
   const reconcile = useCallback(async () => {
     try {
@@ -78,12 +79,20 @@ export function RunBar() {
     }
   }, []);
 
-  // Poll for running jobs
+  // Only poll on agent-related pages (scribe, trace, proto, jobs)
+  const isAgentRoute =
+    location.pathname.startsWith('/dashboard/scribe') ||
+    location.pathname.startsWith('/dashboard/trace') ||
+    location.pathname.startsWith('/dashboard/proto') ||
+    location.pathname.startsWith('/dashboard/jobs') ||
+    location.pathname.startsWith('/agents');
+
   useEffect(() => {
+    if (!isAgentRoute) return;
     reconcile();
     pollRef.current = setInterval(reconcile, 8000);
     return () => { if (pollRef.current) clearInterval(pollRef.current); };
-  }, [reconcile]);
+  }, [reconcile, isAgentRoute]);
 
   // Listen for custom "job-started" event (dispatched from Scribe page etc.)
   useEffect(() => {
@@ -102,7 +111,6 @@ export function RunBar() {
     return () => window.removeEventListener('akis-job-started', handler);
   }, [reconcile]);
 
-  const location = useLocation();
   // Only offset for dashboard sidebar (not agents or other full-width layouts)
   const hasSidebar = location.pathname.startsWith('/dashboard');
 
