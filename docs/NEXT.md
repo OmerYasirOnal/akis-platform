@@ -151,8 +151,8 @@ docs/NEXT.md                                             (bu dosya — anlık ey
 - [ ] Scribe/Trace/Proto golden path'leri çalışıyor — AI anahtar + şifreleme + MCP env değişken gerekli
 - [x] Hata durumlarında anlaşılır mesaj (AGT-6 standart hata zarfı, 39 birim testi)
 - [x] Pilot katılım akışı çalışıyor — WL-2 tamamlandı (2026-02-09)
-- [ ] Demo senaryosu yazılmış ve prova edilmiş
-- [ ] KG kanıt dokümanı mevcut
+- [x] Demo senaryosu yazılmış (2026-02-09) — prova bekliyor
+- [x] KG kanıt dokümanı mevcut (2026-02-09)
 
 ---
 
