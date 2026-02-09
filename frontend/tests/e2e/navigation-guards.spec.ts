@@ -2,9 +2,9 @@
  * Navigation & Route Guard E2E (mocked backend)
  *
  * Verifies:
- * - Sidebar navigation links for Agents group (Scribe, Trace, Proto)
+ * - Sidebar shows only Agents Hub (no individual Scribe/Trace/Proto links)
  * - ProtectedRoute redirects unauthenticated users to /login
- * - Deep links to dashboard pages work for authenticated users
+ * - /dashboard/* routes redirect to /agents/* for authenticated users
  *
  * Run: npx playwright test navigation-guards
  */
@@ -16,13 +16,13 @@ import {
 
 test.describe('Sidebar Navigation', () => {
   /* ------------------------------------------------------------------ */
-  /* N1 — Sidebar Agents group shows Hub, Scribe, Trace, Proto links     */
+  /* N1 — Sidebar Agents group shows only Agents Hub link                */
   /* ------------------------------------------------------------------ */
-  test('N1: Sidebar shows Agents group with Hub, Scribe, Trace, Proto', async ({ page }) => {
+  test('N1: Sidebar shows Agents Hub link (no individual agent links)', async ({ page }) => {
     await mockDashboardApis(page);
 
-    // Navigate to a known stable page within dashboard layout
-    await page.goto('/dashboard/trace');
+    // Navigate to agents trace page
+    await page.goto('/agents/trace');
     await expect(page.getByRole('heading', { name: /trace console/i })).toBeVisible();
 
     // Scope to the <nav> inside the visible desktop sidebar
@@ -33,54 +33,38 @@ test.describe('Sidebar Navigation', () => {
     await expect(hubLink).toBeVisible();
     await expect(hubLink).toHaveAttribute('href', '/agents');
 
-    // Each agent link should be visible in sidebar
-    const scribeLink = sidebarNav.getByRole('link', { name: 'Scribe' });
-    const traceLink = sidebarNav.getByRole('link', { name: 'Trace' });
-    const protoLink = sidebarNav.getByRole('link', { name: 'Proto' });
-
-    await expect(scribeLink).toBeVisible();
-    await expect(traceLink).toBeVisible();
-    await expect(protoLink).toBeVisible();
-
-    await expect(scribeLink).toHaveAttribute('href', '/dashboard/scribe');
-    await expect(traceLink).toHaveAttribute('href', '/dashboard/trace');
-    await expect(protoLink).toHaveAttribute('href', '/dashboard/proto');
+    // Individual Scribe/Trace/Proto links should NOT be in sidebar
+    await expect(sidebarNav.getByRole('link', { name: 'Scribe' })).not.toBeVisible();
+    await expect(sidebarNav.getByRole('link', { name: 'Trace' })).not.toBeVisible();
+    await expect(sidebarNav.getByRole('link', { name: 'Proto' })).not.toBeVisible();
   });
 
   /* ------------------------------------------------------------------ */
-  /* N2 — Clicking Trace in sidebar navigates to /dashboard/trace         */
+  /* N2 — Clicking Agents Hub navigates to /agents                       */
   /* ------------------------------------------------------------------ */
-  test('N2: Clicking Trace in sidebar navigates to Trace console', async ({ page }) => {
+  test('N2: Clicking Agents Hub in sidebar navigates to Agents page', async ({ page }) => {
     await mockDashboardApis(page);
 
-    // Start at Proto so we can click to Trace
-    await page.goto('/dashboard/proto');
-    await expect(page.getByRole('heading', { name: /proto console/i })).toBeVisible();
+    // Start at a dashboard page
+    await page.goto('/dashboard');
+    await expect(page.getByRole('heading', { name: /dashboard/i })).toBeVisible({ timeout: 10_000 });
 
-    // Click Trace in the sidebar nav
+    // Click Agents Hub in the sidebar nav
     const sidebarNav = page.locator('aside nav').first();
-    await sidebarNav.getByRole('link', { name: 'Trace' }).click();
+    await sidebarNav.getByRole('link', { name: 'Agents Hub' }).click();
 
-    await expect(page).toHaveURL(/\/dashboard\/trace$/);
-    await expect(page.getByRole('heading', { name: /trace console/i })).toBeVisible();
+    await expect(page).toHaveURL(/\/agents$/);
   });
 
   /* ------------------------------------------------------------------ */
-  /* N3 — Clicking Proto in sidebar navigates to /dashboard/proto         */
+  /* N3 — Direct navigation to /agents/scribe loads Scribe page          */
   /* ------------------------------------------------------------------ */
-  test('N3: Clicking Proto in sidebar navigates to Proto console', async ({ page }) => {
+  test('N3: Direct navigation to /agents/scribe loads correctly', async ({ page }) => {
     await mockDashboardApis(page);
 
-    // Start at Trace so we can click to Proto
-    await page.goto('/dashboard/trace');
-    await expect(page.getByRole('heading', { name: /trace console/i })).toBeVisible();
-
-    // Click Proto in the sidebar nav
-    const sidebarNav = page.locator('aside nav').first();
-    await sidebarNav.getByRole('link', { name: 'Proto' }).click();
-
-    await expect(page).toHaveURL(/\/dashboard\/proto$/);
-    await expect(page.getByRole('heading', { name: /proto console/i })).toBeVisible();
+    await page.goto('/agents/scribe');
+    await expect(page.getByRole('heading', { name: /scribe console/i })).toBeVisible({ timeout: 15_000 });
+    expect(page.url()).toContain('/agents/scribe');
   });
 });
 
@@ -131,35 +115,32 @@ test.describe('Route Guards', () => {
   });
 
   /* ------------------------------------------------------------------ */
-  /* G4 — Authenticated deep link to /dashboard/trace works               */
+  /* G4 — /dashboard/trace redirects to /agents/trace                     */
   /* ------------------------------------------------------------------ */
-  test('G4: Authenticated deep link /dashboard/trace loads correctly', async ({ page }) => {
+  test('G4: /dashboard/trace redirects to /agents/trace', async ({ page }) => {
     await mockDashboardApis(page);
 
     const response = await page.goto('/dashboard/trace');
     expect(response).not.toBeNull();
     expect(response!.status()).toBe(200);
 
-    // Content-Type is HTML (not JSON 404)
-    const ct = response!.headers()['content-type'] ?? '';
-    expect(ct).toContain('text/html');
-
+    // Should redirect to /agents/trace
+    await expect(page).toHaveURL(/\/agents\/trace/, { timeout: 10_000 });
     await expect(page.getByRole('heading', { name: /trace console/i })).toBeVisible();
   });
 
   /* ------------------------------------------------------------------ */
-  /* G5 — Authenticated deep link to /dashboard/proto works               */
+  /* G5 — /dashboard/proto redirects to /agents/proto                     */
   /* ------------------------------------------------------------------ */
-  test('G5: Authenticated deep link /dashboard/proto loads correctly', async ({ page }) => {
+  test('G5: /dashboard/proto redirects to /agents/proto', async ({ page }) => {
     await mockDashboardApis(page);
 
     const response = await page.goto('/dashboard/proto');
     expect(response).not.toBeNull();
     expect(response!.status()).toBe(200);
 
-    const ct = response!.headers()['content-type'] ?? '';
-    expect(ct).toContain('text/html');
-
+    // Should redirect to /agents/proto
+    await expect(page).toHaveURL(/\/agents\/proto/, { timeout: 10_000 });
     await expect(page.getByRole('heading', { name: /proto console/i })).toBeVisible();
   });
 });

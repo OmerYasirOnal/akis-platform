@@ -187,8 +187,8 @@ test.describe('Getting Started Card', () => {
     const aiKeysLink = page.getByRole('link', { name: 'Set up AI Keys' });
     await expect(aiKeysLink).toHaveAttribute('href', '/dashboard/settings/ai-keys');
 
-    const scribeLink = page.getByRole('link', { name: 'Open Scribe' });
-    await expect(scribeLink).toHaveAttribute('href', '/dashboard/scribe');
+    const agentsLink = page.getByRole('link', { name: 'Open Agents Hub' });
+    await expect(agentsLink).toHaveAttribute('href', '/agents');
 
     const jobsLink = page.getByRole('link', { name: 'View Jobs' });
     await expect(jobsLink).toHaveAttribute('href', '/dashboard/jobs');

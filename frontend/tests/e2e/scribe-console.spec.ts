@@ -34,7 +34,7 @@ async function gotoScribeConsole(page: Page) {
   await mockDashboardApis(page);
   await mockAiKeysStatus(page);
   await mockGitHubConnected(page);
-  await page.goto('/dashboard/scribe');
+  await page.goto('/agents/scribe');
   await expect(
     page.getByRole('heading', { name: 'Scribe Console' })
   ).toBeVisible({ timeout: 15_000 });
@@ -258,11 +258,11 @@ test.describe('Scribe Console — Golden Path', () => {
     await expect(reRunBtn).toBeEnabled({ timeout: 5_000 });
   });
 
-  test('SC11: correct route /dashboard/scribe renders page', async ({ page }) => {
+  test('SC11: correct route /agents/scribe renders page', async ({ page }) => {
     await gotoScribeConsole(page);
 
     // URL should be correct
-    expect(page.url()).toContain('/dashboard/scribe');
+    expect(page.url()).toContain('/agents/scribe');
 
     // Page should have rendered correctly
     await expect(page.getByRole('heading', { name: 'Scribe Console' })).toBeVisible();
