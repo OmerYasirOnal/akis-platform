@@ -318,7 +318,14 @@ const DashboardIntegrationsPage = () => {
 
   // Load all statuses on mount
   useEffect(() => {
-    loadAllStatuses();
+    const loadAll = async () => {
+      await Promise.all([
+        loadGitHubStatus(),
+        loadJiraStatus(),
+        loadConfluenceStatus(),
+      ]);
+    };
+    loadAll();
 
     // Handle OAuth callback params
     const githubParam = searchParams.get('github');
@@ -339,14 +346,6 @@ const DashboardIntegrationsPage = () => {
       return () => clearTimeout(timer);
     }
   }, [notification]);
-
-  const loadAllStatuses = async () => {
-    await Promise.all([
-      loadGitHubStatus(),
-      loadJiraStatus(),
-      loadConfluenceStatus(),
-    ]);
-  };
 
   const loadGitHubStatus = async () => {
     setLoadingGitHub(true);
