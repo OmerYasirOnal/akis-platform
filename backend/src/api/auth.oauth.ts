@@ -287,8 +287,8 @@ export async function registerOAuthRoutes(fastify: FastifyInstance) {
     // Validate provider
     if (provider !== 'github' && provider !== 'google') {
       return reply.code(400).send({
-        error: 'Invalid OAuth provider',
-        code: 'INVALID_PROVIDER',
+        error: { code: 'INVALID_PROVIDER', message: 'Invalid OAuth provider' },
+        requestId: request.id,
       });
     }
     
@@ -296,8 +296,8 @@ export async function registerOAuthRoutes(fastify: FastifyInstance) {
     const providerConfig = getProviderConfig(provider);
     if (!providerConfig) {
       return reply.code(503).send({
-        error: `${provider} OAuth is not configured`,
-        code: 'OAUTH_NOT_CONFIGURED',
+        error: { code: 'OAUTH_NOT_CONFIGURED', message: `${provider} OAuth is not configured` },
+        requestId: request.id,
       });
     }
     

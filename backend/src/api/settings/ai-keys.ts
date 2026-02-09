@@ -9,6 +9,7 @@ import {
   upsertUserAiKey,
   type AIKeyProvider,
 } from '../../services/ai/user-ai-keys.js';
+import { sendError } from '../../utils/errorHandler.js';
 
 const providerSchema = z.enum(['openai', 'openrouter']);
 
@@ -78,22 +79,12 @@ export async function aiKeysRoutes(fastify: FastifyInstance) {
         return reply.code(200).send(status);
       } catch (err: unknown) {
         if (err instanceof Error && err.message === 'UNAUTHORIZED') {
-          return reply.code(401).send({
-            error: {
-              code: 'UNAUTHORIZED',
-              message: 'Authentication required',
-            },
-          });
+          return sendError(reply, request, 'UNAUTHORIZED', 'Authentication required');
         }
         if (err instanceof Error && err.message.includes('AI_KEY_ENCRYPTION_KEY')) {
           fastify.log.error('Encryption configuration error');
-          return reply.code(503).send({
-            error: {
-              code: 'ENCRYPTION_NOT_CONFIGURED',
-              message: 'Server encryption is not properly configured. Contact administrator.',
-              hint: 'Set AI_KEY_ENCRYPTION_KEY in the server environment. See docs/deploy/OCI_STAGING_RUNBOOK.md.',
-            },
-          });
+          return sendError(reply, request, 'ENCRYPTION_NOT_CONFIGURED',
+            'Server encryption is not properly configured. Contact administrator.');
         }
         throw err;
       }
@@ -146,39 +137,18 @@ export async function aiKeysRoutes(fastify: FastifyInstance) {
         return reply.code(200).send(status);
       } catch (err: unknown) {
         if (err instanceof Error && err.message === 'UNAUTHORIZED') {
-          return reply.code(401).send({
-            error: {
-              code: 'UNAUTHORIZED',
-              message: 'Authentication required',
-            },
-          });
+          return sendError(reply, request, 'UNAUTHORIZED', 'Authentication required');
         }
         if (err instanceof z.ZodError) {
-          return reply.code(400).send({
-            error: {
-              code: 'VALIDATION_ERROR',
-              message: 'Invalid API key payload',
-              details: err.errors,
-            },
-          });
+          return sendError(reply, request, 'VALIDATION_ERROR', 'Invalid API key payload', err.errors);
         }
         if (err instanceof Error && err.message.includes('AI_KEY_ENCRYPTION_KEY')) {
           fastify.log.error('Encryption configuration error');
-          return reply.code(503).send({
-            error: {
-              code: 'ENCRYPTION_NOT_CONFIGURED',
-              message: 'Server encryption is not properly configured. Contact administrator.',
-              hint: 'Set AI_KEY_ENCRYPTION_KEY in the server environment. See docs/deploy/OCI_STAGING_RUNBOOK.md.',
-            },
-          });
+          return sendError(reply, request, 'ENCRYPTION_NOT_CONFIGURED',
+            'Server encryption is not properly configured. Contact administrator.');
         }
         if (err instanceof Error && 'code' in err && (err as { code: string }).code === '23505') {
-          return reply.code(409).send({
-            error: {
-              code: 'DUPLICATE_KEY',
-              message: 'API key already exists for this provider',
-            },
-          });
+          return sendError(reply, request, 'DUPLICATE_KEY', 'API key already exists for this provider');
         }
         throw err;
       }
@@ -248,31 +218,15 @@ export async function aiKeysRoutes(fastify: FastifyInstance) {
         return reply.code(200).send(status);
       } catch (err: unknown) {
         if (err instanceof Error && err.message === 'UNAUTHORIZED') {
-          return reply.code(401).send({
-            error: {
-              code: 'UNAUTHORIZED',
-              message: 'Authentication required',
-            },
-          });
+          return sendError(reply, request, 'UNAUTHORIZED', 'Authentication required');
         }
         if (err instanceof z.ZodError) {
-          return reply.code(400).send({
-            error: {
-              code: 'VALIDATION_ERROR',
-              message: 'Invalid provider',
-              details: err.errors,
-            },
-          });
+          return sendError(reply, request, 'VALIDATION_ERROR', 'Invalid provider', err.errors);
         }
         if (err instanceof Error && err.message.includes('AI_KEY_ENCRYPTION_KEY')) {
           fastify.log.error('Encryption configuration error');
-          return reply.code(503).send({
-            error: {
-              code: 'ENCRYPTION_NOT_CONFIGURED',
-              message: 'Server encryption is not properly configured. Contact administrator.',
-              hint: 'Set AI_KEY_ENCRYPTION_KEY in the server environment. See docs/deploy/OCI_STAGING_RUNBOOK.md.',
-            },
-          });
+          return sendError(reply, request, 'ENCRYPTION_NOT_CONFIGURED',
+            'Server encryption is not properly configured. Contact administrator.');
         }
         throw err;
       }
@@ -320,31 +274,15 @@ export async function aiKeysRoutes(fastify: FastifyInstance) {
         return reply.code(200).send({ ok: true });
       } catch (err: unknown) {
         if (err instanceof Error && err.message === 'UNAUTHORIZED') {
-          return reply.code(401).send({
-            error: {
-              code: 'UNAUTHORIZED',
-              message: 'Authentication required',
-            },
-          });
+          return sendError(reply, request, 'UNAUTHORIZED', 'Authentication required');
         }
         if (err instanceof z.ZodError) {
-          return reply.code(400).send({
-            error: {
-              code: 'VALIDATION_ERROR',
-              message: 'Invalid request',
-              details: err.errors,
-            },
-          });
+          return sendError(reply, request, 'VALIDATION_ERROR', 'Invalid request', err.errors);
         }
         if (err instanceof Error && err.message.includes('AI_KEY_ENCRYPTION_KEY')) {
           fastify.log.error('Encryption configuration error');
-          return reply.code(503).send({
-            error: {
-              code: 'ENCRYPTION_NOT_CONFIGURED',
-              message: 'Server encryption is not properly configured. Contact administrator.',
-              hint: 'Set AI_KEY_ENCRYPTION_KEY in the server environment. See docs/deploy/OCI_STAGING_RUNBOOK.md.',
-            },
-          });
+          return sendError(reply, request, 'ENCRYPTION_NOT_CONFIGURED',
+            'Server encryption is not properly configured. Contact administrator.');
         }
         throw err;
       }
