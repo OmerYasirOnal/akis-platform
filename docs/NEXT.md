@@ -80,7 +80,7 @@ docs/NEXT.md                                             (bu dosya — anlık ey
 | ID | Görev | Durum | Notlar |
 |----|-------|-------|--------|
 | S0.5.2-RAG-1 | Araştırma notu + karar kilitleme | Tamamlandı | `docs/agents/CONTEXT_PACKS.md` (2026-02-09) |
-| S0.5.2-RAG-2 | Bağlam paketi mekanizması doğrulama | Başlanmadı | Bağımlılık: AGT-3 |
+| S0.5.2-RAG-2 | Bağlam paketi mekanizması doğrulama | Tamamlandı | contextPacks.ts + 19 doğrulama testi (2026-02-09) |
 
 ### Faz E (24-28 Şub) — KG + M1 PİLOT DEMO
 
