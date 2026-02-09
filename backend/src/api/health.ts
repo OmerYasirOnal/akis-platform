@@ -79,6 +79,14 @@ export async function healthRoutes(fastify: FastifyInstance) {
                   provider: { type: 'string', example: 'smtp' },
                 },
               },
+              oauth: {
+                type: 'object',
+                properties: {
+                  google: { type: 'boolean', example: true },
+                  github: { type: 'boolean', example: true },
+                  callbackBase: { type: 'string', example: 'https://staging.akisflow.com/auth/oauth' },
+                },
+              },
               timestamp: { type: 'string', example: '2026-01-09T12:00:00.000Z' },
             },
           },
@@ -99,6 +107,14 @@ export async function healthRoutes(fastify: FastifyInstance) {
                 properties: {
                   configured: { type: 'boolean', example: false },
                   provider: { type: 'string', example: 'mock' },
+                },
+              },
+              oauth: {
+                type: 'object',
+                properties: {
+                  google: { type: 'boolean', example: false },
+                  github: { type: 'boolean', example: false },
+                  callbackBase: { type: 'string' },
                 },
               },
               error: { type: 'string' },
