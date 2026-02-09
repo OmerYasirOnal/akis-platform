@@ -1,7 +1,7 @@
 # AKIS Platform - OCI Staging Runbook
 
-**Version**: 1.3.0  
-**Last Updated**: 2026-02-03  
+**Version**: 1.5.0  
+**Last Updated**: 2026-02-09  
 **Scope**: Staging Environment (pilot-grade)  
 **Target**: OCI Free Tier (single VM)
 
@@ -232,8 +232,18 @@ LOG_LEVEL=debug
 # Reverse proxy (required behind Caddy)
 TRUST_PROXY=true
 
-# Email (mock for staging, resend for production-like)
+# Email (mock for staging; use smtp or resend for real delivery)
 EMAIL_PROVIDER=mock
+# For SMTP delivery, set EMAIL_PROVIDER=smtp and:
+# SMTP_HOST=smtp.gmail.com
+# SMTP_PORT=587
+# SMTP_USER=noreply@akisflow.com
+# SMTP_PASS=<app_password>
+# SMTP_SECURE=false
+# SMTP_FROM_NAME=AKIS Platform
+# SMTP_FROM_EMAIL=noreply@akisflow.com
+# SMTP_REPLY_TO=support@akisflow.com
+# PUBLIC_LOGO_URL=https://staging.akisflow.com/assets/logo-transparent.png
 
 # AI (optional)
 AI_PROVIDER=mock
@@ -1000,3 +1010,4 @@ free -h
 | 1.2.0 | 2026-02-03 | Auto | Added deploy script architecture, migration idempotency docs |
 | 1.3.0 | 2026-02-03 | Auto | Added reference to Staging Release Checklist |
 | 1.4.0 | 2026-02-07 | Auto | Consolidated from RUNBOOK_OCI.md + ops/STAGING_RUNBOOK.md; added smoke/rollback doc refs |
+| 1.5.0 | 2026-02-09 | Auto | Added SMTP email configuration to VM env template + docker-compose passthrough |

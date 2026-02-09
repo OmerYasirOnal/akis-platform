@@ -3,7 +3,7 @@
 > **Canonical Plan:** [`docs/planning/DELIVERY_PLAN_S0.5_FEB_TO_GRADUATION.md`](planning/DELIVERY_PLAN_S0.5_FEB_TO_GRADUATION.md)  
 > **WBS Export:** [`docs/planning/WBS_EXPORT_S0.5.xlsx_compatible.md`](planning/WBS_EXPORT_S0.5.xlsx_compatible.md)  
 > **Research Brief:** [`docs/planning/RESEARCH_BRIEF_S0.5_STAGING_RAG_AGENTS.md`](planning/RESEARCH_BRIEF_S0.5_STAGING_RAG_AGENTS.md)  
-> **Last Updated:** 2026-02-08
+> **Last Updated:** 2026-02-09
 
 ---
 
@@ -38,7 +38,7 @@ docs/NEXT.md                                             (this file — immediat
 
 | ID | Task | Status | Notes |
 |----|------|--------|-------|
-| S0.5.1-WL-1 | Invite stratejisi (email + acik signup) | Not Started | Dep: OPS-6 |
+| S0.5.1-WL-1 | Invite stratejisi (email + acik signup) | In Progress | SMTP transport + Turkish templates + invite stub done (2026-02-09); invite endpoint not yet implemented |
 | S0.5.1-WL-2 | Onboarding flow (signup -> AI key -> first job) | Not Started | Getting Started karti |
 | S0.5.1-WL-3 | Feedback capture (FeedbackTab entegrasyonu) | Not Started | Dep: WL-2 |
 | S0.5.2-UX-1 | Trace console sayfasi | Done | PR #236: DashboardAgentTracePage + useAgentStatus hook + sidebar nav (2026-02-08) |
