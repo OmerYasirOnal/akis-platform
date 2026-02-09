@@ -112,19 +112,15 @@ staging.akisflow.com {
     }
 }
 
-# HTTP → HTTPS redirect
-http://staging.akisflow.com {
-    redir https://{host}{uri} permanent
-}
-
 # =========================================================================
 # classcheck.site - Co-hosted QR Service (DO NOT REMOVE)
 # =========================================================================
 # This site runs in a separate Docker container on the same VM.
 # Caddy reverse_proxies to it via host.docker.internal.
 # The port is configured via CLASSCHECK_PORT env var (default: 3001).
+# NOTE: Caddy handles HTTP→HTTPS redirect automatically for all sites.
 # =========================================================================
-classcheck.site, www.classcheck.site {
+classcheck.site {
     encode gzip zstd
 
     header {
@@ -136,8 +132,4 @@ classcheck.site, www.classcheck.site {
     }
 
     reverse_proxy host.docker.internal:{$CLASSCHECK_PORT:3001}
-}
-
-http://classcheck.site, http://www.classcheck.site {
-    redir https://{host}{uri} permanent
 }
