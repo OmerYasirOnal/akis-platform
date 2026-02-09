@@ -664,20 +664,6 @@ class RealAIService implements AIService {
   }
 
   /**
-   * Legacy fallback parser - used only for non-critical parsing
-   * @deprecated Use parseWithSchema for structured responses
-   */
-  private parseJsonResponseLegacy<T>(response: string, fallback: T): T {
-    try {
-      const jsonStr = this.extractJsonString(response);
-      return JSON.parse(jsonStr) as T;
-    } catch {
-      console.warn('[AIService] Legacy JSON parse failed, using fallback');
-      return fallback;
-    }
-  }
-
-  /**
    * Plan a task - uses AI_MODEL_PLANNER with strict JSON schema validation
    */
   async planTask(input: PlanInput): Promise<Plan> {
