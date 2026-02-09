@@ -3,6 +3,7 @@ import { db } from '../db/client.js';
 import { sql } from 'drizzle-orm';
 import { isEncryptionConfigured } from '../utils/crypto.js';
 import { isEmailConfigured } from '../services/email/index.js';
+import { getEnv } from '../config/env.js';
 
 // Build info - set at Docker build time via ARG/ENV
 const BUILD_INFO = {
@@ -112,6 +113,20 @@ export async function healthRoutes(fastify: FastifyInstance) {
       const encryptionStatus = { configured: isEncryptionConfigured() };
       const emailProvider = process.env.EMAIL_PROVIDER || 'mock';
       const emailStatus = { configured: isEmailConfigured(emailProvider), provider: emailProvider };
+
+      // OAuth provider readiness (no secrets, just configured/not)
+      let oauthStatus: Record<string, unknown> = {};
+      try {
+        const cfg = getEnv();
+        oauthStatus = {
+          google: !!(cfg.GOOGLE_OAUTH_CLIENT_ID && cfg.GOOGLE_OAUTH_CLIENT_SECRET),
+          github: !!(cfg.GITHUB_OAUTH_CLIENT_ID && cfg.GITHUB_OAUTH_CLIENT_SECRET),
+          callbackBase: cfg.BACKEND_URL ? `${cfg.BACKEND_URL}/auth/oauth` : 'NOT_SET',
+        };
+      } catch {
+        oauthStatus = { google: false, github: false, callbackBase: 'env_error' };
+      }
+
       try {
         // Test database connectivity and verify core schema exists
         const result = await db.execute(
@@ -125,6 +140,7 @@ export async function healthRoutes(fastify: FastifyInstance) {
           migrations: migrated ? 'ok' : 'pending',
           encryption: encryptionStatus,
           email: emailStatus,
+          oauth: oauthStatus,
           timestamp,
         };
       } catch (error) {
@@ -135,6 +151,7 @@ export async function healthRoutes(fastify: FastifyInstance) {
           migrations: 'unknown',
           encryption: encryptionStatus,
           email: emailStatus,
+          oauth: oauthStatus,
           error: errorMessage,
           timestamp,
         });

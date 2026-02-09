@@ -5,6 +5,8 @@ import Fastify from 'fastify';
 import type { FastifyRequest, FastifyReply } from 'fastify';
 import { randomUUID } from 'crypto';
 import { getEnv, getAIConfig } from './config/env.js';
+import { isEncryptionConfigured } from './utils/crypto.js';
+import { isEmailConfigured } from './services/email/index.js';
 import { registerAgents } from './core/agents/registry.js';
 import swagger from '@fastify/swagger';
 import swaggerUi from '@fastify/swagger-ui';
@@ -64,6 +66,14 @@ export async function buildApp() {
   console.log(`[buildApp] AI Models: default=${configSummary.models.default}, planner=${configSummary.models.planner}, validation=${configSummary.models.validation}`);
   console.log(`[buildApp] AI Base URL: ${configSummary.baseUrl}`);
   console.log(`[buildApp] AI API Key: ${configSummary.hasApiKey ? 'configured' : 'NOT CONFIGURED'}`);
+
+  // Startup diagnostics for encryption, email, and OAuth (no secrets)
+  console.log(`[buildApp] Encryption: ${isEncryptionConfigured() ? 'configured' : 'NOT CONFIGURED — AI key save will return 503'}`);
+  console.log(`[buildApp] Email: provider=${env.EMAIL_PROVIDER}, configured=${isEmailConfigured(env.EMAIL_PROVIDER)}`);
+  console.log(`[buildApp] OAuth: google=${env.GOOGLE_OAUTH_CLIENT_ID ? 'configured' : 'NOT SET'}, github=${env.GITHUB_OAUTH_CLIENT_ID ? 'configured' : 'NOT SET'}`);
+  if (env.GOOGLE_OAUTH_CLIENT_ID || env.GITHUB_OAUTH_CLIENT_ID) {
+    console.log(`[buildApp] OAuth callback base: ${env.BACKEND_URL}/auth/oauth/<provider>/callback`);
+  }
 
   // Phase 5.D: Create MCPTools (signature-only adapters for now)
   // In production, these would be initialized with real tokens/baseUrls
