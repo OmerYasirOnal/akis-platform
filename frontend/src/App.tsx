@@ -28,6 +28,7 @@ import DashboardSettingsNotificationsPage from './pages/dashboard/settings/Dashb
 import JobsListPage from './pages/JobsListPage';
 import JobDetailPage from './pages/JobDetailPage';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import FeedbackWidget from './components/feedback/FeedbackWidget';
 
 const PricingPage = lazy(() => import('./pages/public/PricingPage'));
 const BlogIndexPage = lazy(() => import('./pages/public/BlogIndexPage'));
@@ -241,6 +242,7 @@ function App() {
 
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
+        <FeedbackWidget />
       </AuthProvider>
     </BrowserRouter>
   );

@@ -511,6 +511,17 @@
   "onboarding.step3.description": "Olusturulan artifaktlari, loglari ve is gecmisini goruntuleyin.",
   "onboarding.step3.link": "Isleri Goruntule",
 
+  "feedback.trigger": "Geri Bildirim Gonder",
+  "feedback.title": "Geri Bildirim Gonder",
+  "feedback.subtitle": "AKIS'i gelistirmemize yardimci olun. Geri bildiriminiz onemli.",
+  "feedback.placeholder": "Neleri daha iyi yapabiliriz?",
+  "feedback.send": "Gonder",
+  "feedback.sending": "Gonderiliyor...",
+  "feedback.cancel": "Iptal",
+  "feedback.thanks": "Tesekkurler!",
+  "feedback.thanksDetail": "Geri bildiriminiz gelistirmemize yardimci oluyor.",
+  "feedback.error": "Geri bildirim gonderilemedi. Lutfen tekrar deneyin.",
+
   "waitlist.cta": "Bekleme Listesine Katıl",
   "waitlist.ctaShort": "Bekleme Listesi",
   "waitlist.page.title": "AKIS Bekleme Listesine Katılın",

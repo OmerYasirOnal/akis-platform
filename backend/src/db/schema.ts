@@ -978,3 +978,22 @@ export const knowledgeChunksRelations = relations(knowledgeChunks, ({ one }) => 
     references: [knowledgeDocuments.id],
   }),
 }));
+
+/**
+ * Platform feedback - pilot user feedback capture
+ * S0.5.1-WL-3: Floating feedback widget for pilot demo
+ */
+export const feedback = pgTable('feedback', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  rating: integer('rating').notNull(),
+  message: text('message').notNull(),
+  page: varchar('page', { length: 500 }),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  userIdIdx: index('idx_feedback_user_id').on(table.userId),
+  createdAtIdx: index('idx_feedback_created_at').on(table.createdAt),
+}));
+
+export type Feedback = typeof feedback.$inferSelect;
+export type NewFeedback = typeof feedback.$inferInsert;

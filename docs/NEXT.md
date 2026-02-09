@@ -58,7 +58,7 @@ docs/NEXT.md                                             (bu dosya — anlık ey
 | S0.5.1-WL-1 | Davet stratejisi (e-posta + açık kayıt) | Tamamlandı | SMTP aktarım + Türkçe şablonlar (PR #238) |
 | S0.5.1-WL-1b | Doğrulama sonrası hoşgeldin e-postası | Tamamlandı | `sendWelcomeEmail` + 4 birim testi |
 | S0.5.1-WL-2 | Katılım akışı (kayıt → AI anahtarı → ilk iş) | Tamamlandı | i18n + job API wiring (2026-02-09) |
-| S0.5.1-WL-3 | Geri bildirim yakalama (FeedbackTab entegrasyonu) | Başlanmadı | Bağımlılık: WL-2 |
+| S0.5.1-WL-3 | Geri bildirim yakalama (FeedbackTab entegrasyonu) | Tamamlandı | Feedback table + POST /api/feedback + FeedbackWidget + 16 test (2026-02-09) |
 | S0.5.2-UX-1 | Trace konsol sayfası | Tamamlandı | PR #236 |
 | S0.5.2-UX-2 | Proto konsol sayfası | Tamamlandı | PR #236 |
 | S0.5.2-UX-3 | Dashboard Getting Started kartı | Tamamlandı | 3 adımlı kart + 6 birim + 5 E2E test |

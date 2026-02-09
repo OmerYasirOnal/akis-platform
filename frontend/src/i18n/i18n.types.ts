@@ -521,6 +521,18 @@ export const MESSAGE_KEYS = [
   'onboarding.step3.description',
   'onboarding.step3.link',
 
+  // Feedback
+  'feedback.trigger',
+  'feedback.title',
+  'feedback.subtitle',
+  'feedback.placeholder',
+  'feedback.send',
+  'feedback.sending',
+  'feedback.cancel',
+  'feedback.thanks',
+  'feedback.thanksDetail',
+  'feedback.error',
+
   // Waitlist
   'waitlist.cta',
   'waitlist.ctaShort',

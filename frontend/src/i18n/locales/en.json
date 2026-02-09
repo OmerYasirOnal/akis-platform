@@ -511,6 +511,17 @@
   "onboarding.step3.description": "View generated artifacts, logs, and job history.",
   "onboarding.step3.link": "View Jobs",
 
+  "feedback.trigger": "Send Feedback",
+  "feedback.title": "Send Feedback",
+  "feedback.subtitle": "Help us improve AKIS. Your feedback matters.",
+  "feedback.placeholder": "What can we do better?",
+  "feedback.send": "Send",
+  "feedback.sending": "Sending...",
+  "feedback.cancel": "Cancel",
+  "feedback.thanks": "Thank you!",
+  "feedback.thanksDetail": "Your feedback helps us improve.",
+  "feedback.error": "Could not send feedback. Please try again.",
+
   "waitlist.cta": "Join Waitlist",
   "waitlist.ctaShort": "Waitlist",
   "waitlist.page.title": "Join the AKIS Waitlist",
