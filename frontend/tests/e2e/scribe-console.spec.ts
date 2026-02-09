@@ -129,10 +129,8 @@ test.describe('Scribe Console — Golden Path', () => {
     await expect(page.getByText('Cloning repository...')).toBeVisible();
     await expect(page.getByText('Generating documentation...')).toBeVisible();
 
-    // RunBar at the bottom shows "completed" badge
-    await expect(page.getByText('completed', { exact: true })).toBeVisible();
-
     // After completion, "Run Scribe" button is re-enabled (isPolling=false → isIdle=true)
+    // Note: RunBar lives in DashboardLayout only, not AgentsLayout
     const reRunButton = page.getByRole('button', { name: /Run Scribe/i });
     await reRunButton.scrollIntoViewIfNeeded();
     await expect(reRunButton).toBeEnabled();

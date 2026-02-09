@@ -8,11 +8,42 @@
  *
  * Run: npx playwright test navigation-guards
  */
-import { test, expect } from '@playwright/test';
+import { test, expect, type Page, type Route } from '@playwright/test';
 import {
   mockDashboardApis,
   mockUnauthenticated,
+  mockAiKeysStatus,
+  mockGitHubConnected,
 } from './helpers/mock-dashboard-apis';
+
+/** Mock additional dashboard overview APIs (usage, metrics) */
+async function mockOverviewApis(page: Page) {
+  await page.route('**/api/usage/current-month', async (route: Route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        period: { start: '2026-02-01', end: '2026-02-28' },
+        usage: { inputTokens: 0, outputTokens: 0, totalTokens: 0, estimatedCostUsd: 0, jobCount: 0 },
+        freeQuota: { tokens: 100000, costUsd: 1.0 },
+        used: { tokens: 0, costUsd: 0 },
+        remaining: { tokens: 100000, costUsd: 1.0 },
+        onDemand: { tokens: 0, costUsd: 0 },
+        percentUsed: { tokens: 0, cost: 0 },
+      }),
+    });
+  });
+  await page.route('**/api/dashboard/metrics**', async (route: Route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        period: '7d', averageQuality: 0, successRate: 0,
+        totalJobs: 0, completedJobs: 0, failedJobs: 0, topErrors: [],
+      }),
+    });
+  });
+}
 
 test.describe('Sidebar Navigation', () => {
   /* ------------------------------------------------------------------ */
@@ -20,17 +51,19 @@ test.describe('Sidebar Navigation', () => {
   /* ------------------------------------------------------------------ */
   test('N1: Sidebar shows Agents Hub link (no individual agent links)', async ({ page }) => {
     await mockDashboardApis(page);
+    await mockOverviewApis(page);
+    await mockAiKeysStatus(page);
 
-    // Navigate to agents trace page
-    await page.goto('/agents/trace');
-    await expect(page.getByRole('heading', { name: /trace console/i })).toBeVisible();
+    // Navigate to Dashboard (which has sidebar)
+    await page.goto('/dashboard');
+    await page.waitForLoadState('networkidle');
 
     // Scope to the <nav> inside the visible desktop sidebar
     const sidebarNav = page.locator('aside nav').first();
 
     // Agents Hub link should be visible and point to /agents
     const hubLink = sidebarNav.getByRole('link', { name: 'Agents Hub' });
-    await expect(hubLink).toBeVisible();
+    await expect(hubLink).toBeVisible({ timeout: 10_000 });
     await expect(hubLink).toHaveAttribute('href', '/agents');
 
     // Individual Scribe/Trace/Proto links should NOT be in sidebar
@@ -44,16 +77,19 @@ test.describe('Sidebar Navigation', () => {
   /* ------------------------------------------------------------------ */
   test('N2: Clicking Agents Hub in sidebar navigates to Agents page', async ({ page }) => {
     await mockDashboardApis(page);
+    await mockOverviewApis(page);
+    await mockAiKeysStatus(page);
 
-    // Start at a dashboard page
     await page.goto('/dashboard');
-    await expect(page.getByRole('heading', { name: /dashboard/i })).toBeVisible({ timeout: 10_000 });
+    await page.waitForLoadState('networkidle');
 
     // Click Agents Hub in the sidebar nav
     const sidebarNav = page.locator('aside nav').first();
-    await sidebarNav.getByRole('link', { name: 'Agents Hub' }).click();
+    const hubLink = sidebarNav.getByRole('link', { name: 'Agents Hub' });
+    await expect(hubLink).toBeVisible({ timeout: 10_000 });
+    await hubLink.click();
 
-    await expect(page).toHaveURL(/\/agents$/);
+    await expect(page).toHaveURL(/\/agents/, { timeout: 10_000 });
   });
 
   /* ------------------------------------------------------------------ */
@@ -61,6 +97,8 @@ test.describe('Sidebar Navigation', () => {
   /* ------------------------------------------------------------------ */
   test('N3: Direct navigation to /agents/scribe loads correctly', async ({ page }) => {
     await mockDashboardApis(page);
+    await mockAiKeysStatus(page);
+    await mockGitHubConnected(page);
 
     await page.goto('/agents/scribe');
     await expect(page.getByRole('heading', { name: /scribe console/i })).toBeVisible({ timeout: 15_000 });

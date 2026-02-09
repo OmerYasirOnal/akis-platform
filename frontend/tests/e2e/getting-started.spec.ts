@@ -187,7 +187,8 @@ test.describe('Getting Started Card', () => {
     const aiKeysLink = page.getByRole('link', { name: 'Set up AI Keys' });
     await expect(aiKeysLink).toHaveAttribute('href', '/dashboard/settings/ai-keys');
 
-    const agentsLink = page.getByRole('link', { name: 'Open Agents Hub' });
+    // "Open Agents Hub" appears twice (step card + CTA button); use first()
+    const agentsLink = page.getByRole('link', { name: 'Open Agents Hub' }).first();
     await expect(agentsLink).toHaveAttribute('href', '/agents');
 
     const jobsLink = page.getByRole('link', { name: 'View Jobs' });
