@@ -16,9 +16,9 @@ import {
 
 test.describe('Sidebar Navigation', () => {
   /* ------------------------------------------------------------------ */
-  /* N1 — Sidebar Agents group shows Scribe, Trace, Proto links          */
+  /* N1 — Sidebar Agents group shows Hub, Scribe, Trace, Proto links     */
   /* ------------------------------------------------------------------ */
-  test('N1: Sidebar shows Agents group with Scribe, Trace, Proto', async ({ page }) => {
+  test('N1: Sidebar shows Agents group with Hub, Scribe, Trace, Proto', async ({ page }) => {
     await mockDashboardApis(page);
 
     // Navigate to a known stable page within dashboard layout
@@ -27,6 +27,11 @@ test.describe('Sidebar Navigation', () => {
 
     // Scope to the <nav> inside the visible desktop sidebar
     const sidebarNav = page.locator('aside nav').first();
+
+    // Agents Hub link should be visible and point to /agents
+    const hubLink = sidebarNav.getByRole('link', { name: 'Agents Hub' });
+    await expect(hubLink).toBeVisible();
+    await expect(hubLink).toHaveAttribute('href', '/agents');
 
     // Each agent link should be visible in sidebar
     const scribeLink = sidebarNav.getByRole('link', { name: 'Scribe' });
@@ -80,6 +85,17 @@ test.describe('Sidebar Navigation', () => {
 });
 
 test.describe('Route Guards', () => {
+  /* ------------------------------------------------------------------ */
+  /* G0 — Unauthenticated /agents redirects to /login                     */
+  /* ------------------------------------------------------------------ */
+  test('G0: /agents redirects to /login when not authenticated', async ({ page }) => {
+    await mockUnauthenticated(page);
+
+    await page.goto('/agents');
+
+    await expect(page).toHaveURL(/\/login/, { timeout: 10_000 });
+  });
+
   /* ------------------------------------------------------------------ */
   /* G1 — Unauthenticated /dashboard redirects to /login                  */
   /* ------------------------------------------------------------------ */
