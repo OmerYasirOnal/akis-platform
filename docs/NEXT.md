@@ -92,6 +92,7 @@ docs/NEXT.md                                             (bu dosya — anlık ey
 | S0.5.3-QA-2 | Demo senaryosu (15 dk) | Tamamlandı | `docs/qa/DEMO_SCRIPT_15MIN.md` (2026-02-09) |
 | S0.5.3-QA-3 | KG kanıt dokümanı | Tamamlandı | `docs/qa/GRADUATION_EVIDENCE.md` (2026-02-09) |
 | S0.5.3-QA-4 | Tez hazırlık notu (taslak) | Tamamlandı | `docs/qa/THESIS_PREP_NOTE.md` (2026-02-09) |
+| S0.5.3-DOC-1 | Public portfolio export akışı | Tamamlandı | `scripts/public-repo/export.sh` + `docs/public/` (2026-02-10) |
 
 ---
 

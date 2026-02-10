@@ -1,7 +1,9 @@
 # AKIS Platform — Public Portfolio README
 
-> **This file is a template for the public portfolio repository.**
-> Copy this content to the README.md of your public repo (e.g., `github.com/OmerYasirOnal/akis-platform`).
+> **This file is the template for the public portfolio repository.**
+> Run `./scripts/public-repo/export.sh` to generate a sanitized public repo snapshot.
+> See `docs/public/PUBLIC_REPO_SCOPE.md` for what's included/excluded.
+> See `docs/public/PUBLIC_REPO_CHECKLIST.md` for step-by-step creation guide.
 > It contains no secrets, internal paths, or private infrastructure details.
 
 ---
@@ -199,6 +201,38 @@ Built by **Ömer Yasir Önal** as a senior thesis project at Istanbul Fatih Sult
 - Iterative development with 7 phases over 4 months
 - Pilot evaluation with real users on staging environment
 - Quantitative metrics: task completion time, output quality scores, test coverage
+
+---
+
+## Repository Structure
+
+This public repository contains selected source code and documentation showcasing the platform's architecture:
+
+```
+├── README.md                            # This file
+├── LICENSE                              # MIT
+├── SECURITY.md                          # Vulnerability reporting
+├── backend/
+│   ├── docs/                            # API spec, auth flow, agent workflows
+│   └── src/
+│       ├── core/                        # Orchestrator, FSM, events, tracing
+│       ├── agents/{scribe,trace,proto}/ # Agent implementations
+│       └── services/
+│           ├── mcp/adapters/            # MCP protocol adapters
+│           └── quality/                 # Quality scoring engine
+├── frontend/src/
+│   ├── pages/dashboard/                 # Dashboard + agent console pages
+│   └── components/
+│       ├── agents/                      # Agent UI components
+│       ├── jobs/                        # Job management UI
+│       └── dashboard/                   # Dashboard widgets
+└── docs/
+    ├── agents/                          # Agent contracts, context packs
+    ├── UI_DESIGN_SYSTEM.md              # Design system documentation
+    └── public/assets/                   # Screenshots and demo GIFs
+```
+
+> **Note:** This is a curated showcase — not the full private repository. The complete codebase includes 322+ source files, 106 test files, CI/CD pipelines, deployment infrastructure, and internal planning documents.
 
 ---
 
