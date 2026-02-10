@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../theme/useTheme';
+import { useScreenshotMode } from '../../hooks/useScreenshotMode';
 import { cn } from '../../utils/cn';
 
 type ThemeOption = 'system' | 'dark' | 'light';
@@ -36,6 +37,7 @@ export function ProfileMenu() {
   const { user, logout } = useAuth();
   const { setTheme } = useTheme();
   const navigate = useNavigate();
+  const shotMode = useScreenshotMode();
   const [open, setOpen] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -78,9 +80,11 @@ export function ProfileMenu() {
     }
   };
 
-  const initials = user?.name
-    ? user.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
-    : 'U';
+  const initials = shotMode
+    ? 'A'
+    : user?.name
+      ? user.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
+      : 'U';
 
   return (
     <div className="relative" ref={menuRef}>
@@ -96,9 +100,11 @@ export function ProfileMenu() {
         <div className="absolute right-0 top-full mt-2 w-56 rounded-xl border border-ak-border bg-ak-surface shadow-ak-elevation-2 z-50 overflow-hidden">
           <div className="px-4 py-3 border-b border-ak-border">
             <p className="text-sm font-medium text-ak-text-primary truncate">
-              {user?.name || 'User'}
+              {shotMode ? 'AKIS User' : (user?.name || 'User')}
             </p>
-            <p className="text-xs text-ak-text-secondary truncate">{user?.email}</p>
+            <p className="text-xs text-ak-text-secondary truncate">
+              {shotMode ? 'user@example.com' : user?.email}
+            </p>
           </div>
 
           <div className="p-1.5">
