@@ -24,15 +24,15 @@ docs/NEXT.md                                             (bu dosya — anlık ey
 | Alan | Değer |
 |------|-------|
 | URL | https://staging.akisflow.com |
-| Deploy Edilen Commit | `c3ead3c` (PR #246 + #247 merge) |
+| Deploy Edilen Commit | `2c503f7` (PR #265 merge — staging deploy 2026-02-10) |
 | S0.5 PR | [#265](https://github.com/OmerYasirOnal/akis-platform-devolopment/pull/265) — onboarding, feedback, context packs, QA docs, 750+ yeni test |
-| Smoke Testleri | 10/10 otomatik test tanımlı (`staging_smoke.sh`) |
+| Smoke Testleri | 12/12 geçti (`staging_smoke.sh --commit 2c503f7`, 2026-02-10) |
 | Test Sayısı | Backend: 797 + Frontend: 547 = **1,344 toplam** (Phase 1-8 test kampanyası, 2026-02-10) |
 | Kod Düzeltmeleri | MCP `/ready` durumu, OAuth hoşgeldin e-postası, agents yönlendirme `/agents/*`, logo güncelleme, güvenlik temizliği, E2E test hizalama |
 | Şifreleme | Staging'de yapılandırıldı (`/ready` → `encryption.configured: true`) |
 | E-posta | SMTP şablonu hazır (`/ready` → `email.configured`, `email.host`, `email.port`, `email.from`); OAuth hoşgeldin e-postası eklendi |
 | Google OAuth | `/ready` → `oauth.google`, `oauth.github`, `oauth.callbackBase` gösteriyor — staging `.env` kimlik bilgilerini doğrulayın |
-| MCP Gateway | CI build pipeline eklendi (PR #266); `profiles: [mcp]` ile opsiyonel — ilk build icin manual dispatch veya `mcp-gateway/` degisikligi gerekli |
+| MCP Gateway | CI pipeline eklendi (PR #266), GHCR image hazır; staging'de `--profile mcp` ile aktif edilmeli |
 | Agent Yönlendirme | Scribe/Trace/Proto → `/agents/*` taşındı; `/dashboard/scribe\|trace\|proto` yeni rotalara yönlendirme yapıyor |
 | Logo | Tek kaynak: `frontend/public/brand/logo.png` + 3 density varyantı güncellendi |
 
@@ -148,9 +148,9 @@ docs/NEXT.md                                             (bu dosya — anlık ey
 - [x] `.env.staging` şablonu localhost referansları temizlendi, gerçek sırlar kaldırıldı
 - [x] Agent yönlendirme: `/agents/*` kanonik, `/dashboard/scribe|trace|proto` yönlendirme
 - [x] OAuth hoşgeldin e-postası: yeni OAuth kullanıcılarına hoşgeldin e-postası gönderimi
-- [ ] E-posta/şifre kayıt + giriş staging'de çalışıyor — SMTP env değişkenleri gerekli
-- [ ] OAuth yönlendirmeleri staging alanında çalışıyor — Google OAuth env değişkenleri gerekli
-- [ ] Scribe/Trace/Proto golden path'leri çalışıyor — AI anahtar + şifreleme + MCP env değişken gerekli
+- [x] E-posta/şifre kayıt + giriş staging'de çalışıyor — SMTP provider=smtp yapılandırıldı (2026-02-10)
+- [x] OAuth yönlendirmeleri staging alanında çalışıyor — Google + GitHub OAuth aktif (2026-02-10)
+- [ ] Scribe/Trace/Proto golden path'leri çalışıyor — MCP Gateway profile aktif edilmeli + kuru çalışma doğrulaması gerekli
 - [x] Hata durumlarında anlaşılır mesaj (AGT-6 standart hata zarfı, 39 birim testi)
 - [x] Pilot katılım akışı çalışıyor — WL-2 tamamlandı (2026-02-09)
 - [x] Demo senaryosu yazılmış (2026-02-09) — prova bekliyor
@@ -176,7 +176,7 @@ docs/NEXT.md                                             (bu dosya — anlık ey
 |---|------|---------|--------|
 | 1 | ~~MCP Gateway Docker image CI build pipeline yok~~ | ~~P1~~ | Tamamlandı (2026-02-10): PR #266 — `mcp-gateway-build.yml` workflow eklendi |
 | 2 | SMTP deliverability (SPF/DKIM/DMARC) | P1 | güzelhosting DNS yapılandırması gerekli — `OCI_STAGING_RUNBOOK.md` Bölüm 3.7 |
-| 3 | Staging VM `.env` güncelleme | P0 | MCP, SMTP, OAuth, logo URL değişkenleri güncellenmeli |
+| 3 | ~~Staging VM `.env` güncelleme~~ | ~~P0~~ | Tamamlandı (2026-02-10): SMTP, OAuth, encryption aktif — MCP Gateway profile bekliyor |
 | 4 | ~~Onboarding akışı (WL-2)~~ | ~~P2~~ | Tamamlandı (2026-02-09): i18n + job API wiring |
 
 ---
