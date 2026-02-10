@@ -76,6 +76,7 @@ docs/NEXT.md                                             (bu dosya — anlık ey
 | S0.5.1-AGT-4 | Trace golden path doğrulama | Tamamlandı | 10 E2E test |
 | S0.5.1-AGT-5 | Proto golden path doğrulama | Tamamlandı | 12 E2E test |
 | S0.5.1-AGT-6 | Hata işleme standardizasyonu | Tamamlandı | Standart hata zarfı + 39 birim testi |
+| S0.5.1-AGT-7 | Scribe explicit skill contracts (DocPack/ReleaseNotes/Checklist) + deterministic schema tests | Tamamlandı | `ScribeSkillContracts.ts` + `scribe-skills.contract.test.ts` (2026-02-10) |
 
 ### Faz D (17-23 Şub) — RAG (PARALEL)
 
