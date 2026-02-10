@@ -99,6 +99,7 @@ docs/NEXT.md                                             (bu dosya — anlık ey
 | S0.5.3-UX-2 | Screenshot mode (`?shot=1`) — PII maskeleme | Tamamlandı | `useScreenshotMode` hook + ProfileMenu/AppHeader/FeedbackWidget (2026-02-10) |
 | S0.5.3-UX-3 | Button kontrast WCAG AA — tüm CTA'larda `text-ak-bg` → `text-[#111418]` | Tamamlandı | 13 dosyada fix, opacity hover → brightness (2026-02-10) |
 | S0.5.3-UX-4 | Automations sidebar + smart-automations erişilebilirliği | Tamamlandı | Sidebar nav item, i18n keys, Web IA güncelleme (2026-02-10) |
+| S0.5.3-UX-5 | Logo PNG transparency + duplicate cleanup | Tamamlandı | RGBA transparent logolar, `public/assets/branding/` + `logo.png` silindi (2026-02-10) |
 
 ---
 
