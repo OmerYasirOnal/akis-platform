@@ -1,0 +1,29 @@
+{
+  "traceId": "scribe-docpack-v1",
+  "skill": "DocPackFromRepo",
+  "input": {
+    "repository": { "owner": "akis", "repo": "platform", "branch": "main" },
+    "objective": "Generate docpack",
+    "files": [
+      { "path": "src/z.ts", "summary": "z file", "constraints": ["no hallucination"] },
+      { "path": "src/a.ts", "summary": "a file", "constraints": ["no hallucination", "stable headings"] }
+    ]
+  },
+  "expected": {
+    "orderedPaths": ["src/a.ts", "src/z.ts"],
+    "constraints": ["no hallucination", "stable headings"],
+    "fsmPath": ["pending", "running", "awaiting_approval", "running", "completed"],
+    "qualityInput": {
+      "jobType": "scribe",
+      "state": "completed",
+      "targetsConfigured": ["README.md", "docs/overview.md"],
+      "targetsProduced": ["README.md", "docs/overview.md"],
+      "documentsRead": 12,
+      "filesProduced": 4,
+      "docDepth": "standard",
+      "multiPass": true,
+      "totalTokens": 4500
+    },
+    "minQualityScore": 60
+  }
+}
