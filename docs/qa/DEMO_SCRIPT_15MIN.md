@@ -22,15 +22,27 @@
 
 ---
 
+## Pilot Golden Paths (Mandatory)
+
+| Path | Exact URL | Acceptance Criteria |
+|---|---|---|
+| GP-1 Auth signup/login | `https://staging.akisflow.com/auth/signup` + `https://staging.akisflow.com/auth/login` | Signup/login works, redirect to `/dashboard` |
+| GP-2 /ready + MCP | `https://staging.akisflow.com/ready` | `ready=true`, `mcp.configured=true`, `mcp.gatewayReachable=true` |
+| GP-3 Scribe docpack | `https://staging.akisflow.com/agents/scribe` | Job completes, doc output visible |
+| GP-4 Trace test plan | `https://staging.akisflow.com/agents/trace` | Job completes, test plan output visible |
+| GP-5 SSE + RunSummary | `https://staging.akisflow.com/api/agents/jobs/<jobId>/stream` + `https://staging.akisflow.com/dashboard/jobs/<jobId>` | Live events stream and RunSummary panel renders |
+
+---
+
 ## Timeline
 
 | Time | Section | Duration |
 |------|---------|----------|
-| 0:00 | Introduction & Context | 2 min |
-| 2:00 | Platform Walkthrough | 3 min |
-| 5:00 | Scribe Agent Demo | 5 min |
-| 10:00 | Architecture Overview | 3 min |
-| 13:00 | Q&A | 2 min |
+| 0:00 | Introduction & Context | 1 min |
+| 1:00 | GP-1 Auth + GP-2 /ready | 5 min |
+| 6:00 | GP-3 Scribe docpack | 4 min |
+| 10:00 | GP-4 Trace + GP-5 SSE/RunSummary | 3 min |
+| 13:00 | Architecture + Q&A buffer | 2 min |
 
 ---
 
@@ -125,6 +137,19 @@ If job execution fails:
 - Show the Logs tab to demonstrate the trace system works
 - Show a pre-recorded screenshot/video of a successful Scribe run
 - Explain: "In a production setup with all environment variables configured, this completes in ~60 seconds."
+
+### GP-4 Trace Demo (Quick)
+
+1. Navigate to `https://staging.akisflow.com/agents/trace`
+2. Enter a short spec and click **"Run Trace"**
+3. Verify status reaches `completed`
+4. Confirm Results tab shows generated test plan
+
+### GP-5 SSE + RunSummary Demo (Quick)
+
+1. Open `https://staging.akisflow.com/dashboard/jobs/<jobId>` for the running/completed job
+2. Verify Logs/Timeline receives live events
+3. Verify RunSummary panel shows AI totals and execution summary
 
 ---
 
