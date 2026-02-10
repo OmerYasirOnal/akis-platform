@@ -532,5 +532,11 @@
   "waitlist.page.benefits.3": "Ekibe doğrudan hat",
   "waitlist.page.benefits.4": "Ürün yol haritasını şekillendirin",
   "waitlist.page.cta": "Bekleme Listesine Katıl",
-  "waitlist.page.privacy": "Gizliliğinize saygı duyuyoruz. Asla spam göndermiyoruz."
+  "waitlist.page.privacy": "Gizliliğinize saygı duyuyoruz. Asla spam göndermiyoruz.",
+  "automations.sidebar.label": "Otomasyonlar",
+  "automations.page.title": "Akıllı Otomasyonlar",
+  "automations.page.subtitle": "Tekrarlayan iş akışlarını zamanlanmış ajan çalıştırmalarıyla otomatikleştirin",
+  "automations.page.empty": "Henüz otomasyon yok",
+  "automations.page.emptyDescription": "RSS kaynaklarından içerik toplayıp LinkedIn taslağı oluşturan otomasyonlar oluşturun.",
+  "automations.page.createFirst": "İlk Otomasyonu Oluştur"
 }
