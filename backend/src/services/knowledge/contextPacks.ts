@@ -52,6 +52,7 @@ const AGENT_PACK_PROFILES: Record<string, string[]> = {
   trace: ['default', 'tests', 'risk'],
   proto: ['default', 'api', 'scaffold'],
 };
+export const CONTEXT_PACK_OVERFLOW_STRATEGY = 'truncation';
 
 function simpleHash(input: string): string {
   let hash = 2166136261;
@@ -150,7 +151,12 @@ export function assembleContextPack(
 ): ContextPack {
   const limits = getPackLimits(agentType);
   const profiles = listPackProfiles(agentType);
-  const profile = selection.profile && profiles.includes(selection.profile) ? selection.profile : 'default';
+  if (selection.profile && !profiles.includes(selection.profile)) {
+    throw new Error(
+      `Invalid context pack profile "${selection.profile}" for ${agentType}. Allowed: ${profiles.join(', ')}`
+    );
+  }
+  const profile = selection.profile ?? 'default';
   const packVersion = selection.packVersion && selection.packVersion.length > 0 ? selection.packVersion : 'v1';
 
   let totalBytes = 0;

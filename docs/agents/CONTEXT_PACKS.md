@@ -18,6 +18,11 @@
 **February (S0.5):** Context packs — static, pre-assembled context bundles.
 **March (M2):** Evaluate `pg_trgm` for lightweight retrieval if needed.
 
+Research alignment:
+- "Everything is Context" (Ref 4): packs are first-class auditable artifacts (`packId`, `packVersion`, `profile`, `selectedBy`).
+- Token overflow strategy for S0.5 is `truncation`; re-ranking is deferred to M2.
+- Contracts-first enforcement: invalid profile/schema is rejected (no silent fallback).
+
 ---
 
 ## Context

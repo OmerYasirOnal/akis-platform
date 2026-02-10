@@ -6,6 +6,7 @@ import assert from 'node:assert';
 import {
   getPackLimits,
   listPackProfiles,
+  CONTEXT_PACK_OVERFLOW_STRATEGY,
   detectLanguage,
   validatePack,
   assembleContextPack,
@@ -58,6 +59,12 @@ describe('listPackProfiles', () => {
 
   test('returns default profile for unknown agents', () => {
     assert.deepStrictEqual(listPackProfiles('unknown-agent'), ['default']);
+  });
+});
+
+describe('overflow strategy', () => {
+  test('is truncation for S0.5', () => {
+    assert.strictEqual(CONTEXT_PACK_OVERFLOW_STRATEGY, 'truncation');
   });
 });
 
@@ -209,5 +216,15 @@ describe('assembleContextPack', () => {
     assert.strictEqual(pack.metadata.profile, 'docs');
     assert.strictEqual(pack.metadata.packVersion, 'v2');
     assert.strictEqual(pack.metadata.selectedBy, 'job-123');
+  });
+
+  test('rejects invalid selected profile (contracts-first)', () => {
+    assert.throws(
+      () =>
+        assembleContextPack('scribe', 'acme/repo', 'main', [{ path: 'docs/README.md', content: '# Docs' }], {
+          profile: 'unknown-profile',
+        }),
+      /Invalid context pack profile/
+    );
   });
 });
