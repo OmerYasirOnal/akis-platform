@@ -98,7 +98,11 @@ After all 3 golden paths pass:
    - `/agents/scribe?shot=1` — completed Scribe job
    - `/agents/trace?shot=1` — completed Trace job
    - `/agents/proto?shot=1` — completed Proto job
-3. **Save `/ready` output** showing `mcp.configured: true, mcp.github: true`
+3. **Save `/ready` output** showing:
+   - `mcp.configured: true`
+   - `mcp.gatewayReachable: true`
+   - `mcp.missingEnv: []`
+   - `mcp.error: null`
 4. **Update docs:**
    - `docs/NEXT.md` — check off the M1 golden path item
    - `docs/qa/GRADUATION_EVIDENCE.md` — add run IDs/dates if needed

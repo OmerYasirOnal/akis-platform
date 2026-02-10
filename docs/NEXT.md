@@ -153,7 +153,7 @@ docs/NEXT.md                                             (bu dosya — anlık ey
 
 - [x] `staging.akisflow.com` üzerinde hiç `localhost` referansı yok
 - [x] `/health`, `/ready`, `/version` 200 dönüyor
-- [x] `/ready` MCP durumu gösteriyor (`mcp.configured`, `mcp.github`, `mcp.baseUrl`)
+- [x] `/ready` MCP durumu gösteriyor (`mcp.configured`, `mcp.gatewayReachable`, `mcp.baseUrl`, `mcp.missingEnv`, `mcp.error`)
 - [x] `.env.staging` şablonu localhost referansları temizlendi, gerçek sırlar kaldırıldı
 - [x] Agent yönlendirme: `/agents/*` kanonik, `/dashboard/scribe|trace|proto` yönlendirme
 - [x] OAuth hoşgeldin e-postası: yeni OAuth kullanıcılarına hoşgeldin e-postası gönderimi
