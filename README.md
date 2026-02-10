@@ -1,161 +1,250 @@
 # AKIS Platform
 
-**AI Agent Workflow Engine** — Tekrarlayan yazilim gelistirme gorevlerini otonom ajanlarla otomatiklestirin.
+**AI Agent Orchestration System** — Automate repetitive software development tasks with autonomous AI agents.
 
-AKIS Platform, AI destekli ajanlari orkestra ederek dokumantasyon guncellemesi, test uretimi ve MVP prototipleme islerini yonetir. Boylece gelistiriciler asil ise odaklanabilir.
+AKIS Platform orchestrates specialized AI agents to handle documentation updates, test plan generation, and rapid prototyping — so developers can focus on what matters.
 
----
-
-## AKIS Nedir?
-
-AKIS, yazilim gelistirme sureclerindeki tekrarlayan gorevleri otomatiklestiren bir **AI ajan platformudur**. Uc temel ajan sunar:
-
-- **Scribe** — Kod degisikliklerinde teknik dokumantasyonu otomatik gunceller
-- **Trace** — Spesifikasyon ve kod analizinden test senaryolari uretir
-- **Proto** — AI destekli hizli MVP prototipleme
-
-Platform, OCI Free Tier uzerinde calisacak sekilde optimize edilmis **modular monolith** mimarisine sahiptir.
+> **Live staging:** [staging.akisflow.com](https://staging.akisflow.com) | **Status:** All systems operational
 
 ---
 
-## Mimari Ozet
+## What It Does
 
-| Katman | Teknoloji |
-|--------|-----------|
-| Backend | Fastify + TypeScript (Node 20+) |
-| Veritabani | PostgreSQL + Drizzle ORM |
-| Frontend | React + Vite SPA + Tailwind CSS |
-| Entegrasyonlar | MCP (Model Context Protocol) adapterleri |
-| Edge Proxy | Caddy (staging/production, auto-HTTPS) |
-| Konteyner | Docker Compose (backend + postgres) |
+AKIS runs three specialized AI agents through a structured orchestration pipeline:
+
+| Agent | Purpose | How It Works |
+|-------|---------|-------------|
+| **Scribe** | Documentation generation | Analyzes source code via GitHub → generates Markdown docs → creates a PR |
+| **Trace** | Test plan generation | Reads code structure → produces test cases with edge cases and coverage recommendations |
+| **Proto** | Rapid prototyping | Takes a spec/idea → scaffolds working code → commits to a new branch |
+
+Each agent follows a **Plan → Execute → Reflect** pipeline with deterministic prompts, quality scoring (0-100), and full trace logging.
+
+---
+
+## Architecture
 
 ```
-Frontend (React SPA)  →  Caddy (edge proxy)  →  Backend (Fastify)  →  MCP Gateway
-                                                       ↓
-                                                  PostgreSQL
+                    ┌─────────────────────┐
+                    │   React SPA (Vite)  │
+                    │   Tailwind CSS      │
+                    │   i18n (EN/TR)      │
+                    └────────┬────────────┘
+                             │ HTTPS
+                    ┌────────▼────────────┐
+                    │   Caddy (Edge Proxy) │
+                    │   Auto-TLS, Static  │
+                    └────────┬────────────┘
+                             │
+              ┌──────────────▼──────────────┐
+              │     Fastify Backend (TS)     │
+              │  ┌─────────────────────────┐ │
+              │  │   AgentOrchestrator     │ │
+              │  │   FSM: pending→running  │ │
+              │  │   →completed|failed     │ │
+              │  ├─────────────────────────┤ │
+              │  │ Auth │ Jobs │ SSE │ API │ │
+              │  └─────────────────────────┘ │
+              └──────┬──────────────┬────────┘
+                     │              │
+              ┌──────▼──────┐ ┌────▼───────┐
+              │ PostgreSQL  │ │MCP Gateway │
+              │ Drizzle ORM │ │ GitHub API │
+              └─────────────┘ └────────────┘
 ```
 
-> **Onemli:** Dis servis entegrasyonlari yalnizca MCP adapterleri uzerinden yapilir (`backend/src/services/mcp/`). Dogrudan REST SDK kullanimi yasaktir.
+### Tech Stack
+
+| Layer | Technology | Notes |
+|-------|-----------|-------|
+| **Frontend** | React 19, Vite 7, Tailwind 4 | SPA with lazy loading, vendor chunking |
+| **Backend** | Fastify 4, TypeScript (strict) | Modular monolith, pino logging |
+| **Database** | PostgreSQL 16, Drizzle ORM | 12+ tables, migration system |
+| **AI Integration** | OpenAI / OpenRouter | User-provided keys, AES-256-GCM encrypted |
+| **External Services** | MCP Protocol adapters | No direct vendor SDKs — all via MCP |
+| **Auth** | JWT in HTTP-only cookie | Email/password (multi-step) + OAuth (GitHub, Google) |
+| **Deployment** | OCI Free Tier, Docker Compose, Caddy | Single ARM64 VM, auto-HTTPS |
+| **CI/CD** | GitHub Actions | Typecheck + lint + build + test on every PR |
+
+### Key Design Decisions
+
+- **MCP-only integrations** — External services accessed only through Model Context Protocol adapters. No Octokit, no jira-client.
+- **Orchestrator pattern** — `AgentOrchestrator` owns the full agent lifecycle. Agents never call each other.
+- **FSM state machine** — Jobs follow `pending → running → completed | failed | awaiting_approval`
+- **Contract-first agents** — Each agent has a `Contract` + `Playbook`. Prompts are deterministic (temp=0).
+- **Context packs** — Static, deterministic file bundles per agent. Debuggable, token-efficient.
 
 ---
 
-## Planlama Zinciri (Kanonik)
+## Project Metrics
 
+| Metric | Value |
+|--------|-------|
+| **Test count** | 1,344 (797 backend + 547 frontend) |
+| **Test files** | 106 across unit, component, and E2E |
+| **Source files** | 322 TypeScript/TSX files |
+| **Lines of code** | ~58,000 TS/TSX |
+| **API endpoints** | ~89 |
+| **i18n keys** | ~500 (English + Turkish) |
+| **Git commits** | 369+ |
+| **CI quality gates** | typecheck, lint, build, test — all green |
+
+---
+
+## Staging Environment
+
+**URL:** [staging.akisflow.com](https://staging.akisflow.com)
+
+| Check | Status |
+|-------|--------|
+| `/health` | `{"status":"ok"}` |
+| `/ready` | DB connected, encryption configured, SMTP active, OAuth (Google + GitHub) |
+| `/version` | Commit SHA, build time, semver |
+| Smoke tests | 12/12 passing |
+| Frontend | Lazy-loaded SPA, 276 kB main chunk |
+| TLS | Auto-provisioned via Caddy (Let's Encrypt) |
+
+**Infrastructure:** Single OCI ARM64 VM (24GB RAM) → Caddy → Docker Compose (backend + postgres + MCP gateway)
+
+---
+
+## Features
+
+### Platform
+- Multi-step email/password authentication with 6-digit verification codes
+- OAuth login (GitHub, Google) with welcome email
+- Dashboard with 3-step onboarding (connect GitHub → add AI key → run first agent)
+- Job history with pagination, filtering, and real-time SSE streaming
+- Agents Hub — central discovery page for all agents
+- Feedback capture widget (floating button, rating + message)
+- i18n support (English + Turkish, ~500 keys)
+- Standardized error handling with error envelope pattern
+
+### Agent System
+- AgentOrchestrator with FSM lifecycle management
+- Factory + Registry pattern for agent instantiation
+- Playbook system with phase definitions per agent
+- Plan → Execute → Reflect/Critique pipeline
+- Quality scoring (0-100) post-completion
+- TraceRecorder for full observability
+- JobEventBus → SSE for real-time updates
+- StaleJobWatchdog for hung job detection
+- Context packs with per-agent token/file limits
+
+### Security
+- JWT in HTTP-only, Secure, SameSite cookies (7-day expiry)
+- AES-256-GCM encryption for user AI keys
+- bcrypt password hashing
+- Rate limiting (env-configurable)
+- Helmet security headers
+- API key masking in UI (last 4 chars only)
+- Sensitive data redaction in SSE streams
+
+### DevOps
+- GitHub Actions CI/CD with quality gates on every PR
+- Docker multi-arch builds (amd64 + arm64)
+- Staging deploy with health check, version verification, auto-rollback
+- MCP Gateway always-on in staging (no manual profile activation)
+- Smoke test script with 12 automated checks
+- Database migration with benign error handling
+
+---
+
+## Quick Start (Local Development)
+
+```bash
+# Clone
+git clone https://github.com/OmerYasirOnal/akis-platform-devolopment.git
+cd akis-platform-devolopment/devagents
+
+# Install dependencies
+pnpm install
+
+# Backend
+cp backend/.env.example backend/.env
+# Edit backend/.env with your database URL and secrets
+pnpm -C backend dev
+
+# Frontend (separate terminal)
+pnpm -C frontend dev
+# → http://localhost:5173 (proxies /api to backend:3000)
 ```
-docs/planning/DELIVERY_PLAN_S0.5_FEB_TO_GRADUATION.md   (kanonik plan — tek kaynak)
-          |
-docs/ROADMAP.md                                          (milestone gorunumu)
-          |
-docs/NEXT.md                                             (anlik aksiyonlar)
+
+For detailed setup: [`docs/local-dev/LOCAL_DEV_QUICKSTART.md`](docs/local-dev/LOCAL_DEV_QUICKSTART.md)
+
+---
+
+## Running Tests
+
+```bash
+# All quality gates (what CI runs)
+pnpm -r typecheck && pnpm -r lint && pnpm -r build && pnpm -r test
+
+# Backend only (797 tests, node:test runner)
+pnpm -C backend test:unit
+
+# Frontend only (547 tests, Vitest + Testing Library)
+pnpm -C frontend test
+
+# E2E (Playwright — auth flows, agent consoles, navigation)
+pnpm -C frontend test:e2e
 ```
 
-| Dokuman | Amac |
-|---------|------|
-| [`docs/NEXT.md`](docs/NEXT.md) | Simdiki sprint gorevleri ve durumlari |
-| [`docs/ROADMAP.md`](docs/ROADMAP.md) | Milestone ozeti ve kabul kriterleri |
-| [`docs/planning/`](docs/planning/) | Kanonik teslimat plani ve WBS |
+---
+
+## Documentation
+
+| Topic | Link |
+|-------|------|
+| Current sprint status | [`docs/NEXT.md`](docs/NEXT.md) |
+| Roadmap & milestones | [`docs/ROADMAP.md`](docs/ROADMAP.md) |
+| Local dev quickstart | [`docs/local-dev/LOCAL_DEV_QUICKSTART.md`](docs/local-dev/LOCAL_DEV_QUICKSTART.md) |
+| Environment variables | [`docs/ENV_SETUP.md`](docs/ENV_SETUP.md) |
+| API specification | [`backend/docs/API_SPEC.md`](backend/docs/API_SPEC.md) |
+| Agent contracts | [`docs/agents/AGENT_CONTRACTS_S0.5.md`](docs/agents/AGENT_CONTRACTS_S0.5.md) |
+| Agent workflows | [`backend/docs/AGENT_WORKFLOWS.md`](backend/docs/AGENT_WORKFLOWS.md) |
+| Context packs design | [`docs/agents/CONTEXT_PACKS.md`](docs/agents/CONTEXT_PACKS.md) |
+| Staging runbook | [`docs/deploy/OCI_STAGING_RUNBOOK.md`](docs/deploy/OCI_STAGING_RUNBOOK.md) |
+| Smoke test checklist | [`docs/deploy/STAGING_SMOKE_TEST_CHECKLIST.md`](docs/deploy/STAGING_SMOKE_TEST_CHECKLIST.md) |
+| Regression checklist | [`docs/qa/REGRESSION_CHECKLIST.md`](docs/qa/REGRESSION_CHECKLIST.md) |
+| Graduation evidence | [`docs/qa/GRADUATION_EVIDENCE.md`](docs/qa/GRADUATION_EVIDENCE.md) |
 
 ---
 
-## S0.5 Calisma Bicimi
+## Project Status
 
-> **Hedef:** 28 Subat 2026 — Pilot Demo (M1)  
-> **Scope freeze:** 21 Subat 2026 sonrasi yeni feature yok
+| Phase | Status | Description |
+|-------|--------|-------------|
+| 0.1–0.3 | Completed | Foundation, architecture, core engine (Nov 2025) |
+| 0.4 | Completed | Web shell, basic engine (Dec 2025) |
+| 1.0 | Completed | Scribe/Trace/Proto early access (Dec 2025) |
+| 1.5 | Completed | Logging + observability layer (Jan 2026) |
+| 2.0 | Completed | Cursor-inspired UI + Scribe console (Jan 2026) |
+| **S0.5** | **Active** | **Pilot demo — staging, UX, agent reliability, 1,344 tests** |
 
-### Kurallar
+**Current milestone:** M1 Pilot Demo → 28 February 2026
 
-- Her gorev bir **Task ID** ile tanimlanir (ornek: `S0.5.0-OPS-2`)
-- Her gorev icin **GitHub Issue** zorunludur
-- PR'lar kucuk tutulur (≤ 300 LoC), **Squash & Merge** kullanilir
-- **Conventional Commits:** `feat|fix|chore|docs(scope): mesaj`
-- Kritik kararlar `docs/NEXT.md` § Critical Decisions altinda kilitlidir
-
-### Kritik Kararlar (Ozet)
-
-- `TRUST_PROXY=true` staging `.env`'de (Caddy proxy)
-- `VITE_BACKEND_URL` staging/production build'de set edilmez
-- `AUTH_COOKIE_DOMAIN` bos birakilir
-- GitHub OAuth callback: `https://staging.akisflow.com/auth/oauth/github/callback`
-
----
-
-## Staging / Deploy Gercekligi
-
-AKIS, tek bir OCI ARM64 VM uzerinde calisir:
-
-- **Caddy** — Edge proxy, otomatik HTTPS, statik frontend servisi
-- **Docker Compose** — Backend + PostgreSQL + opsiyonel MCP Gateway
-- **Frontend** — Vite ile statik build, Caddy tarafindan sunulur
-
-| Kaynak | Aciklama |
-|--------|----------|
-| [`docs/deploy/OCI_STAGING_RUNBOOK.md`](docs/deploy/OCI_STAGING_RUNBOOK.md) | Staging operasyonlari (SSOT) |
-| [`docs/deploy/STAGING_SMOKE_TEST_CHECKLIST.md`](docs/deploy/STAGING_SMOKE_TEST_CHECKLIST.md) | Smoke test kontrol listesi |
-| [`docs/deploy/STAGING_ROLLBACK_RUNBOOK.md`](docs/deploy/STAGING_ROLLBACK_RUNBOOK.md) | Geri alma proseduru |
-
-> Detayli prosedurler icin yukaridaki kanonik dokumanlara basvurun. Bu README'de uzun komut bloklari tekrarlanmaz.
+| Milestone | Target | Focus |
+|-----------|--------|-------|
+| **M1: Pilot Demo** | Feb 2026 | Live staging, golden paths, 30/30 tasks complete |
+| M2: Stabilization | Mar 2026 | Bug fixes, pilot feedback, pg_trgm, thesis draft |
+| M3: Graduation | May 2026 | Final report, presentation, defense |
 
 ---
 
-## Guvenlik Notlari
+## Contributing
 
-- **Gercek secret'lar asla git'e commit edilmez** — Yalnizca `.env.example` dosyalari commit edilir
-- API anahtarlari UI'da maskelenir (son 4 karakter gorunur)
-- Session tabanli kimlik dogrulama: HttpOnly, Secure, SameSite cookie'ler
-- Staging erisim bilgileri (IP, SSH key, token) yalnizca yerel ortam, GitHub Secrets veya password manager'da bulunur
-
-Detaylar icin: [`docs/deploy/OCI_STAGING_RUNBOOK.md`](docs/deploy/OCI_STAGING_RUNBOOK.md) § Security.
+- Branch naming: `feat/S0.5.X-short-desc` or `fix/S0.5.X-short-desc`
+- Conventional Commits: `feat|fix|chore|docs(scope): message`
+- PRs: small (≤ 300 LoC), squash merge, linked to GitHub issue
+- CI must pass: typecheck + lint + build + test
 
 ---
 
-## Katki ve PR Akisi
+## License
 
-### Zorunlu Issue/PR Yasam Dongusu
-
-1. **Baslamadan once:** Gorev icin GitHub Issue olustur (veya mevcut olani dogrula)
-   - Task ID baslika ekle, `scope:S0.5` + `status:Not Started` + alan etiketleri ata
-2. **PR actiginda:** Issue'yu PR description'da bagla: `Closes #123` veya `Fixes #123`
-   - Issue durumunu `status:In Progress` yap
-3. **PR merge edildikten sonra:** Issue otomatik kapanir (closing keyword ile)
-   - Issue etiketini `status:Done` yap
-   - `docs/NEXT.md` gorev durumunu guncelle
-4. **Kapsam genislerse:** Orijinal issue'yu sisirme, yeni issue olustur ve bagla
-
-### Teknik Kontrol Listesi
-
-- Conventional Commits: `feat:`, `fix:`, `docs:`, `chore:`
-- CI gecmeli: `pnpm -r typecheck && pnpm -r lint && pnpm -r build && pnpm -r test`
-- Detayli kurallar: [`.cursor/rules/rules.mdc`](.cursor/rules/rules.mdc)
+MIT License — see [LICENSE](LICENSE)
 
 ---
 
-## Dokumantasyon
-
-| Konu | Baglanti |
-|------|----------|
-| Yerel gelistirme | [`docs/local-dev/LOCAL_DEV_QUICKSTART.md`](docs/local-dev/LOCAL_DEV_QUICKSTART.md) |
-| Ortam degiskenleri | [`docs/ENV_SETUP.md`](docs/ENV_SETUP.md) |
-| API spesifikasyonu | [`backend/docs/API_SPEC.md`](backend/docs/API_SPEC.md) |
-| Ajan is akislari | [`backend/docs/AGENT_WORKFLOWS.md`](backend/docs/AGENT_WORKFLOWS.md) |
-| MCP kurulumu | [`docs/GITHUB_MCP_SETUP.md`](docs/GITHUB_MCP_SETUP.md) |
-| Tam dokumantasyon indeksi | [`docs/README.md`](docs/README.md) |
-
----
-
-## Proje Durumu
-
-| Faz | Durum | Aciklama |
-|-----|-------|----------|
-| 0.1–0.4 | ✅ Tamamlandi | Temel altyapi, Web Shell |
-| 1.0–2.0 | ✅ Tamamlandi | Scribe MVP, Cursor-Inspired UI |
-| S0.5 | 🔄 Devam Ediyor | Pilot Demo — Staging fix, UX, Agent reliability |
-
-**Guncel milestone:** S0.5 — Pilot Demo (Hedef: 28 Subat 2026)
-
-Detaylar icin: [`docs/NEXT.md`](docs/NEXT.md)
-
----
-
-## Lisans
-
-MIT License — bkz. [LICENSE](LICENSE)
+**Built by [Ömer Yasir Önal](https://github.com/OmerYasirOnal)** as a senior thesis project at Istanbul Fatih Sultan Mehmet University.
