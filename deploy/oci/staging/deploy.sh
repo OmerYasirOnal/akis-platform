@@ -254,6 +254,24 @@ echo "--- Container Status ---"
 docker compose ps
 echo ""
 
+echo "--- MCP Gateway Container Details ---"
+MCP_CONTAINER="akis-staging-mcp"
+if docker inspect "$MCP_CONTAINER" > /dev/null 2>&1; then
+    MCP_STATE=$(docker inspect "$MCP_CONTAINER" --format '{{.State.Status}}' 2>/dev/null || echo "unknown")
+    MCP_HEALTH=$(docker inspect "$MCP_CONTAINER" --format '{{.State.Health.Status}}' 2>/dev/null || echo "no healthcheck")
+    echo "Container: $MCP_CONTAINER"
+    echo "  State:   $MCP_STATE"
+    echo "  Health:  $MCP_HEALTH"
+    if [ "$MCP_STATE" = "running" ]; then
+        echo "  ✅ MCP Gateway is running"
+    else
+        echo "  ⚠️ MCP Gateway state: $MCP_STATE"
+    fi
+else
+    echo "  ⚠️ MCP Gateway container not found (GITHUB_TOKEN may be missing from .env)"
+fi
+echo ""
+
 echo "--- Backend Container Details ---"
 BACKEND_CONTAINER="akis-staging-backend"
 if docker inspect "$BACKEND_CONTAINER" > /dev/null 2>&1; then

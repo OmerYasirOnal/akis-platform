@@ -4,8 +4,7 @@
 # Single VM deployment for OCI Free Tier staging environment
 #
 # Usage:
-#   docker compose up -d                    # Start core services
-#   docker compose --profile mcp up -d      # Start with MCP gateway
+#   docker compose up -d                    # Start all services (incl. MCP gateway)
 #   docker compose logs -f                  # View logs
 #   docker compose down                     # Stop services
 #
@@ -137,6 +136,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      mcp-gateway:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/health"]
       interval: 30s
@@ -182,18 +183,15 @@ services:
           memory: 256M
 
   # =========================================================================
-  # MCP Gateway - GitHub/Jira/Confluence Integration Bridge
+  # MCP Gateway - GitHub Integration Bridge (always-on in staging)
   # =========================================================================
   # Handles: HTTP-to-stdio bridge for MCP protocol
-  # Requires: Docker image must be built first (see issue for CI pipeline).
-  # Enable with: docker compose --profile mcp up -d
   # Backend connects via: GITHUB_MCP_BASE_URL=http://mcp-gateway:4010/mcp
+  # Requires: GITHUB_TOKEN in .env (PAT with repo + read:org scopes)
   # =========================================================================
   mcp-gateway:
     image: ghcr.io/${GITHUB_REPOSITORY:-omeryasironal/akis-platform-devolopment}/akis-mcp-gateway:${MCP_VERSION:-latest}
     container_name: akis-staging-mcp
-    profiles:
-      - mcp
     restart: unless-stopped
     expose:
       - "4010"

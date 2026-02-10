@@ -32,7 +32,7 @@ docs/NEXT.md                                             (bu dosya — anlık ey
 | Şifreleme | Staging'de yapılandırıldı (`/ready` → `encryption.configured: true`) |
 | E-posta | SMTP şablonu hazır (`/ready` → `email.configured`, `email.host`, `email.port`, `email.from`); OAuth hoşgeldin e-postası eklendi |
 | Google OAuth | `/ready` → `oauth.google`, `oauth.github`, `oauth.callbackBase` gösteriyor — staging `.env` kimlik bilgilerini doğrulayın |
-| MCP Gateway | CI pipeline eklendi (PR #266), GHCR image hazır; staging'de `--profile mcp` ile aktif edilmeli |
+| MCP Gateway | Always-on staging stack'te (profile kaldırıldı); CI pipeline (PR #266); `GITHUB_TOKEN` env gerekli |
 | Agent Yönlendirme | Scribe/Trace/Proto → `/agents/*` taşındı; `/dashboard/scribe\|trace\|proto` yeni rotalara yönlendirme yapıyor |
 | Logo | Tek kaynak: `frontend/public/brand/logo.png` + 3 density varyantı güncellendi |
 
@@ -150,7 +150,7 @@ docs/NEXT.md                                             (bu dosya — anlık ey
 - [x] OAuth hoşgeldin e-postası: yeni OAuth kullanıcılarına hoşgeldin e-postası gönderimi
 - [x] E-posta/şifre kayıt + giriş staging'de çalışıyor — SMTP provider=smtp yapılandırıldı (2026-02-10)
 - [x] OAuth yönlendirmeleri staging alanında çalışıyor — Google + GitHub OAuth aktif (2026-02-10)
-- [ ] Scribe/Trace/Proto golden path'leri çalışıyor — MCP Gateway profile aktif edilmeli + kuru çalışma doğrulaması gerekli
+- [ ] Scribe/Trace/Proto golden path'leri çalışıyor — MCP Gateway always-on (profile kaldırıldı), `GITHUB_TOKEN` env gerekli + kuru çalışma doğrulaması
 - [x] Hata durumlarında anlaşılır mesaj (AGT-6 standart hata zarfı, 39 birim testi)
 - [x] Pilot katılım akışı çalışıyor — WL-2 tamamlandı (2026-02-09)
 - [x] Demo senaryosu yazılmış (2026-02-09) — prova bekliyor
@@ -176,7 +176,7 @@ docs/NEXT.md                                             (bu dosya — anlık ey
 |---|------|---------|--------|
 | 1 | ~~MCP Gateway Docker image CI build pipeline yok~~ | ~~P1~~ | Tamamlandı (2026-02-10): PR #266 — `mcp-gateway-build.yml` workflow eklendi |
 | 2 | SMTP deliverability (SPF/DKIM/DMARC) | P1 | güzelhosting DNS yapılandırması gerekli — `OCI_STAGING_RUNBOOK.md` Bölüm 3.7 |
-| 3 | ~~Staging VM `.env` güncelleme~~ | ~~P0~~ | Tamamlandı (2026-02-10): SMTP, OAuth, encryption aktif — MCP Gateway profile bekliyor |
+| 3 | ~~Staging VM `.env` güncelleme~~ | ~~P0~~ | Tamamlandı (2026-02-10): SMTP, OAuth, encryption aktif — MCP Gateway always-on (profile kaldırıldı), `GITHUB_TOKEN` env gerekli |
 | 4 | ~~Onboarding akışı (WL-2)~~ | ~~P2~~ | Tamamlandı (2026-02-09): i18n + job API wiring |
 
 ---

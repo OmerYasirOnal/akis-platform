@@ -75,9 +75,9 @@
 - [x] Logo tüm yüzeylerde güncel
 - [x] E-posta/şifre kayıt + giriş çalışıyor (staging) — SMTP provider aktif (2026-02-10)
 - [x] OAuth yönlendirmeleri staging alanında çalışıyor — Google + GitHub (2026-02-10)
-- [ ] Scribe golden path çalışıyor (kuru çalışma) — MCP Gateway profile aktif edilmeli
-- [ ] Trace golden path çalışıyor — MCP Gateway profile aktif edilmeli
-- [ ] Proto golden path çalışıyor — MCP Gateway profile aktif edilmeli
+- [ ] Scribe golden path çalışıyor (kuru çalışma) — MCP always-on, `GITHUB_TOKEN` env + redeploy gerekli
+- [ ] Trace golden path çalışıyor — aynı
+- [ ] Proto golden path çalışıyor — aynı
 - [x] Pilot katılım akışı çalışıyor (2026-02-09)
 - [x] Demo senaryosu yazılmış (2026-02-09) — prova bekliyor
 - [x] KG kanıt dokümanı mevcut (2026-02-09)
