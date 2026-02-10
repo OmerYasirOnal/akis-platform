@@ -1,7 +1,8 @@
 import { useMemo } from 'react';
-import { useSearchParams } from 'react-router-dom';
 
 export function useScreenshotMode(): boolean {
-  const [searchParams] = useSearchParams();
-  return useMemo(() => searchParams.get('shot') === '1', [searchParams]);
+  return useMemo(() => {
+    if (typeof window === 'undefined') return false;
+    return new URLSearchParams(window.location.search).get('shot') === '1';
+  }, []);
 }
