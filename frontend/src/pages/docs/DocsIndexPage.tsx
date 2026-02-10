@@ -210,7 +210,7 @@ export default function DocsIndexPage() {
           </div>
           <Link
             to="/docs/getting-started"
-            className="inline-flex items-center gap-2 rounded-full bg-ak-primary px-5 py-2.5 text-sm font-medium text-ak-bg hover:bg-ak-primary/90 transition-colors whitespace-nowrap"
+            className="inline-flex items-center gap-2 rounded-full bg-ak-primary px-5 py-2.5 text-sm font-semibold text-[#111418] hover:brightness-110 active:brightness-95 transition-colors whitespace-nowrap"
           >
             Get Started
             <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>

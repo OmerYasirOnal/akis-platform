@@ -96,6 +96,8 @@ docs/NEXT.md                                             (bu dosya — anlık ey
 | S0.5.3-UX-1 | Landing page CTA kontrast + sahte metrikler düzeltme | Tamamlandı | Button contrast fix + capability cards (2026-02-10) |
 | S0.5.3-DOC-2 | Screenshot shot list + portfolio referansları | Tamamlandı | `docs/public/assets/SHOTLIST.md` (2026-02-10) |
 | S0.5.3-DOC-3 | Public dokümanlar Türkçe-öncelikli + TR özet başlıkları | Tamamlandı | README.md TR, README.en.md EN, teknik doc'lara TR özet (2026-02-10) |
+| S0.5.3-UX-2 | Screenshot mode (`?shot=1`) — PII maskeleme | Tamamlandı | `useScreenshotMode` hook + ProfileMenu/AppHeader/FeedbackWidget (2026-02-10) |
+| S0.5.3-UX-3 | Button kontrast WCAG AA — tüm CTA'larda `text-ak-bg` → `text-[#111418]` | Tamamlandı | 13 dosyada fix, opacity hover → brightness (2026-02-10) |
 
 ---
 
