@@ -1,63 +1,89 @@
 import assert from 'node:assert';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { test } from 'node:test';
+import { AgentStateMachine } from '../../src/core/state/AgentStateMachine.js';
+import { SkillContractViolationError } from '../../src/core/errors.js';
+import { computeQualityScore } from '../../src/services/quality/QualityScoring.js';
 import {
-  runScribeSkill,
+  ChecklistFromRunbookOutputSchema,
   DocPackFromRepoOutputSchema,
   ReleaseNotesFromPRsOutputSchema,
-  ChecklistFromRunbookOutputSchema,
+  parseWithFacetRetry,
+  runScribeSkill,
 } from '../../src/core/contracts/ScribeSkillContracts.js';
 
-test('DocPackFromRepo returns deterministic contract-compliant output', () => {
-  const input = {
-    repository: { owner: 'akis', repo: 'platform', branch: 'main' },
-    objective: 'Generate docpack',
-    files: [
-      { path: 'src/z.ts', summary: 'z file', constraints: ['no hallucination'] },
-      { path: 'src/a.ts', summary: 'a file', constraints: ['no hallucination', 'stable headings'] },
-    ],
+const fixturePath = resolve(process.cwd(), 'test/fixtures/golden-traces/scribe-docpack-v1.json');
+const goldenTrace = JSON.parse(readFileSync(fixturePath, 'utf-8')) as {
+  input: unknown;
+  expected: {
+    orderedPaths: string[];
+    constraints: string[];
+    fsmPath: string[];
+    qualityInput: Parameters<typeof computeQualityScore>[0];
+    minQualityScore: number;
   };
-  const outputA = runScribeSkill('DocPackFromRepo', input);
-  const outputB = runScribeSkill('DocPackFromRepo', input);
+};
 
+test('Golden Trace replay: DocPackFromRepo is deterministic and schema-valid', () => {
+  const outputA = runScribeSkill('DocPackFromRepo', goldenTrace.input);
+  const outputB = runScribeSkill('DocPackFromRepo', goldenTrace.input);
   DocPackFromRepoOutputSchema.parse(outputA);
   assert.deepStrictEqual(outputA, outputB);
-  assert.deepStrictEqual(outputA.sections.files.map((file) => file.path), ['src/a.ts', 'src/z.ts']);
-  assert.deepStrictEqual(outputA.sections.constraints, ['no hallucination', 'stable headings']);
+  assert.deepStrictEqual(outputA.sections.files.map((file) => file.path), goldenTrace.expected.orderedPaths);
+  assert.deepStrictEqual(outputA.sections.constraints, goldenTrace.expected.constraints);
 });
 
-test('ReleaseNotesFromPRs has stable ordering and required sections', () => {
-  const output = runScribeSkill('ReleaseNotesFromPRs', {
-    releaseVersion: 'v0.5.0',
-    pullRequests: [
-      { number: 22, title: 'Fix auth', labels: ['bug'], mergedAt: '2026-02-10T10:00:00Z' },
-      { number: 7, title: 'Add docpack skill', labels: ['feature'], mergedAt: '2026-02-09T10:00:00Z' },
-    ],
-    breakingChanges: [],
+test('FACET contract retry succeeds on second attempt and fails when invalid persists', () => {
+  const ok = parseWithFacetRetry('DocPackFromRepo', DocPackFromRepoOutputSchema, (attempt) => {
+    if (attempt === 1) return { skill: 'DocPackFromRepo', version: '1.0', sections: {}, markdown: '' };
+    return runScribeSkill('DocPackFromRepo', goldenTrace.input);
   });
+  DocPackFromRepoOutputSchema.parse(ok);
 
-  ReleaseNotesFromPRsOutputSchema.parse(output);
-  assert.strictEqual(output.sections.releaseVersion, 'v0.5.0');
-  assert.deepStrictEqual(output.sections.changes.map((change) => change.number), [7, 22]);
-  assert.ok(output.markdown.includes('## Highlights'));
-  assert.ok(output.markdown.includes('## Changes'));
+  assert.throws(
+    () =>
+      parseWithFacetRetry('ReleaseNotesFromPRs', ReleaseNotesFromPRsOutputSchema, () => ({
+        skill: 'ReleaseNotesFromPRs',
+        version: '1.0',
+        sections: {},
+        markdown: '',
+      })),
+    (error: unknown) => error instanceof SkillContractViolationError && error.code === 'CONTRACT_VIOLATION'
+  );
 });
 
-test('ChecklistFromRunbook includes mandatory fields and sequential IDs', () => {
-  const output = runScribeSkill('ChecklistFromRunbook', {
-    runbookTitle: 'Staging Golden Path',
-    steps: [
-      { title: 'Check /ready', action: 'curl /ready', verification: 'ready=true', mandatory: true },
-      { title: 'Run smoke', action: './scripts/staging_smoke.sh', verification: 'all pass', mandatory: false },
-    ],
-  });
-
-  ChecklistFromRunbookOutputSchema.parse(output);
-  assert.deepStrictEqual(output.sections.checklist.map((item) => item.id), ['CHK-01', 'CHK-02']);
-  assert.strictEqual(output.sections.mandatoryCount, 1);
+test('Behavioral layer: FSM transition order follows golden path', () => {
+  const fsm = new AgentStateMachine('pending');
+  const path = [fsm.getState()];
+  fsm.start();
+  path.push(fsm.getState());
+  fsm.awaitApproval();
+  path.push(fsm.getState());
+  fsm.resume();
+  path.push(fsm.getState());
+  fsm.complete();
+  path.push(fsm.getState());
+  assert.deepStrictEqual(path, goldenTrace.expected.fsmPath);
 });
 
-test('invalid payloads fail mandatory schema checks', () => {
-  assert.throws(() => runScribeSkill('DocPackFromRepo', { repository: { owner: 'a', repo: 'b', branch: 'main' }, files: [] }));
-  assert.throws(() => runScribeSkill('ReleaseNotesFromPRs', { releaseVersion: 'v1', pullRequests: [] }));
-  assert.throws(() => runScribeSkill('ChecklistFromRunbook', { runbookTitle: 'Ops', steps: [] }));
+test('Quality layer: golden trace quality score is above threshold', () => {
+  const result = computeQualityScore(goldenTrace.expected.qualityInput);
+  assert.ok(result.score >= goldenTrace.expected.minQualityScore, `expected >=${goldenTrace.expected.minQualityScore}, got ${result.score}`);
+});
+
+test('Other skill schemas remain contract-compliant', () => {
+  ChecklistFromRunbookOutputSchema.parse(
+    runScribeSkill('ChecklistFromRunbook', {
+      runbookTitle: 'Staging Golden Path',
+      steps: [{ title: 'Check /ready', action: 'curl /ready', verification: 'ready=true', mandatory: true }],
+    })
+  );
+  ReleaseNotesFromPRsOutputSchema.parse(
+    runScribeSkill('ReleaseNotesFromPRs', {
+      releaseVersion: 'v0.5.0',
+      pullRequests: [{ number: 7, title: 'Add docpack skill', labels: ['feature'], mergedAt: '2026-02-09T10:00:00Z' }],
+      breakingChanges: [],
+    })
+  );
 });

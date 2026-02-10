@@ -24,6 +24,23 @@ export class DatabaseError extends Error {
   }
 }
 
+export class SkillContractViolationError extends Error {
+  readonly code = 'CONTRACT_VIOLATION' as const;
+  readonly skill: string;
+  readonly issues: string;
+  readonly attempts: number;
+  readonly retryable: boolean;
+
+  constructor(skill: string, issues: string, attempts: number, retryable = true) {
+    super(`Skill ${skill} contract violation after ${attempts} attempt(s): ${issues}`);
+    this.name = 'SkillContractViolationError';
+    this.skill = skill;
+    this.issues = issues;
+    this.attempts = attempts;
+    this.retryable = retryable;
+  }
+}
+
 /**
  * AI-related error codes for job error classification
  */

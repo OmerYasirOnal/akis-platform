@@ -4,7 +4,7 @@ import { db } from '../../db/client.js';
 import { jobs, jobPlans, jobAudits, oauthAccounts, type NewJob, type NewJobPlan, type NewJobAudit } from '../../db/schema.js';
 import { eq, and } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
-import { JobNotFoundError, InvalidStateTransitionError, DatabaseError, AIProviderError, MissingAIKeyError } from '../errors.js';
+import { JobNotFoundError, InvalidStateTransitionError, DatabaseError, AIProviderError, MissingAIKeyError, SkillContractViolationError } from '../errors.js';
 import { createAIService, type AIService, type AIServiceObserver } from '../../services/ai/AIService.js';
 import type { Plan, Critique } from '../../services/ai/AIService.js';
 import { AICallMetricsCollector } from '../../services/ai/ai-metrics.js';
@@ -617,6 +617,7 @@ export class AgentOrchestrator {
                        error instanceof McpError ? error.code :
                        error instanceof GitHubNotConnectedError ? error.code :
                        error instanceof MissingDependencyError ? error.code :
+                       error instanceof SkillContractViolationError ? error.code :
                        error instanceof MissingAIKeyError ? error.code :
                        undefined;
       const errorScope = error instanceof McpConnectionError || error instanceof McpError ? 'mcp' :
@@ -1119,6 +1120,18 @@ export class AgentOrchestrator {
         `[AgentOrchestrator] Job ${jobId} failed with MCP error [${error.correlationId}] ` +
           `code=${error.mcpCode} method=${error.mcpMethod}: ${error.message}`
       );
+    } else if (error instanceof SkillContractViolationError) {
+      errorCode = error.code;
+      errorMsg = error.message;
+      rawError = `${error.message} [skill=${error.skill} attempts=${error.attempts}]`;
+      rawErrorPayload = JSON.stringify({
+        type: error.name,
+        code: error.code,
+        skill: error.skill,
+        attempts: error.attempts,
+        issues: error.issues,
+        retryable: error.retryable,
+      });
     } else {
       rawError = error instanceof Error ? error.message : String(error);
       // Generic error - capture basic structure
