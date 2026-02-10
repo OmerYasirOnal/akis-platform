@@ -1,5 +1,11 @@
 # Context Packs — Architecture Decision Record
 
+> ## Özet (TR)
+> Bu belge bağlam paketleri (context packs) mimari kararını belgeler. RAG stratejisi olarak
+> Şubat'ta statik dosya paketleri, Mart'ta pg_trgm arama seçilmiştir. Token/dosya limitleri,
+> katman montajı, ajan başına özelleştirme ve hata ayıklama yaklaşımı tanımlanmıştır.
+> Teknik detaylar aşağıda İngilizce olarak sunulmaktadır.
+
 > **Task:** S0.5.2-RAG-1
 > **Status:** LOCKED
 > **Date:** 2026-02-09
