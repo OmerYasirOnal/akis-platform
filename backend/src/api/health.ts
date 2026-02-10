@@ -88,6 +88,16 @@ export async function healthRoutes(fastify: FastifyInstance) {
                   callbackBase: { type: 'string', example: 'https://staging.akisflow.com/auth/oauth' },
                 },
               },
+              mcp: {
+                type: 'object',
+                properties: {
+                  configured: { type: 'boolean', example: true },
+                  gatewayReachable: { type: 'boolean', example: true },
+                  baseUrl: { type: 'string', nullable: true, example: 'http://mcp-gateway:4010/mcp' },
+                  missingEnv: { type: 'array', items: { type: 'string' }, example: [] },
+                  error: { type: 'string', nullable: true },
+                },
+              },
               timestamp: { type: 'string', example: '2026-01-09T12:00:00.000Z' },
             },
           },
@@ -116,6 +126,16 @@ export async function healthRoutes(fastify: FastifyInstance) {
                   google: { type: 'boolean', example: false },
                   github: { type: 'boolean', example: false },
                   callbackBase: { type: 'string' },
+                },
+              },
+              mcp: {
+                type: 'object',
+                properties: {
+                  configured: { type: 'boolean', example: false },
+                  gatewayReachable: { type: 'boolean', example: false },
+                  baseUrl: { type: 'string', nullable: true },
+                  missingEnv: { type: 'array', items: { type: 'string' } },
+                  error: { type: 'string', nullable: true },
                 },
               },
               error: { type: 'string' },
@@ -156,19 +176,27 @@ export async function healthRoutes(fastify: FastifyInstance) {
       }
 
       // MCP Gateway readiness (non-blocking, never leaks tokens)
-      let mcpStatus: Record<string, unknown> = {};
+      let mcpStatus: Record<string, unknown>;
       try {
         const mcpHealth = await checkMcpHealth();
+        const missingEnv: string[] = [];
+        if (!mcpHealth.gatewayUrl) missingEnv.push('GITHUB_MCP_BASE_URL');
+        if (!process.env.GITHUB_TOKEN) missingEnv.push('GITHUB_TOKEN');
         mcpStatus = {
-          configured: !!mcpHealth.gatewayUrl,
-          github: mcpHealth.healthy,
+          configured: !!mcpHealth.gatewayUrl && !!process.env.GITHUB_TOKEN,
+          gatewayReachable: mcpHealth.healthy,
           baseUrl: mcpHealth.gatewayUrl || null,
+          missingEnv,
+          error: (!mcpHealth.healthy && mcpHealth.error) ? mcpHealth.error : null,
         };
-        if (!mcpHealth.healthy && mcpHealth.error) {
-          mcpStatus.error = mcpHealth.error;
-        }
       } catch {
-        mcpStatus = { configured: false, github: false, baseUrl: null };
+        mcpStatus = {
+          configured: false,
+          gatewayReachable: false,
+          baseUrl: null,
+          missingEnv: ['GITHUB_MCP_BASE_URL', 'GITHUB_TOKEN'],
+          error: 'MCP health check failed unexpectedly',
+        };
       }
 
       try {
