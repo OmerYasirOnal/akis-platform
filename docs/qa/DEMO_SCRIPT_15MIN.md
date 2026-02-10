@@ -22,15 +22,27 @@
 
 ---
 
+## Pilot Golden Paths (Mandatory)
+
+| Path | Exact URL | Acceptance Criteria |
+|---|---|---|
+| GP-1 Auth signup/login | `https://staging.akisflow.com/auth/signup` + `https://staging.akisflow.com/auth/login` | Signup/login works, user lands on `/dashboard` |
+| GP-2 /ready + MCP | `https://staging.akisflow.com/ready` | `ready=true`, `mcp` object present, `mcp.configured=true` |
+| GP-3 Scribe docpack | `https://staging.akisflow.com/agents/scribe` | Job completes, doc preview and diff visible |
+| GP-4 Trace test plan | `https://staging.akisflow.com/agents/trace` | Job completes, generated test plan visible |
+| GP-5 SSE + RunSummary | `https://staging.akisflow.com/api/agents/jobs/<jobId>/stream` + `https://staging.akisflow.com/dashboard/jobs/<jobId>` | job/task/agent/tool events stream and RunSummary renders |
+
+---
+
 ## Timeline
 
 | Time | Section | Duration |
 |------|---------|----------|
-| 0:00 | Introduction & Context | 2 min |
-| 2:00 | Platform Walkthrough | 3 min |
-| 5:00 | Scribe Agent Demo | 5 min |
-| 10:00 | Architecture Overview | 3 min |
-| 13:00 | Q&A | 2 min |
+| 0:00 | Introduction & Context | 1 min |
+| 1:00 | GP-1 Auth + GP-2 /ready | 5 min |
+| 6:00 | GP-3 Scribe docpack | 4 min |
+| 10:00 | GP-4 Trace + GP-5 SSE/RunSummary | 3 min |
+| 13:00 | Architecture + Q&A buffer | 2 min |
 
 ---
 
@@ -62,7 +74,7 @@
 ### Step-by-step
 
 1. **Login flow:**
-   - Navigate to `https://staging.akisflow.com/login`
+   - Navigate to `https://staging.akisflow.com/auth/login`
    - Enter test account email → password
    - Show successful login redirect to `/dashboard`
 

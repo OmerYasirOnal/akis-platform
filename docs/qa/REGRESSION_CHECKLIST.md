@@ -6,6 +6,18 @@
 
 ---
 
+## Golden Path Acceptance Matrix (Demo-Critical)
+
+| Path | Exact URL | Pass Criteria | Fail Criteria |
+|---|---|---|---|
+| GP-1 Auth signup/login | `https://staging.akisflow.com/auth/signup` and `https://staging.akisflow.com/auth/login` | Signup and login complete, session established, redirect to `/dashboard` | 4xx/5xx, stuck flow, no authenticated session |
+| GP-2 Ready + MCP | `https://staging.akisflow.com/ready` | `ready=true`, `mcp` object present, `mcp.configured=true`, `mcp.gatewayReachable=true`, `mcp.missingEnv=[]` | `mcp` missing or any required MCP field invalid |
+| GP-3 Scribe docpack | `https://staging.akisflow.com/agents/scribe` | Job reaches `completed`, preview and diff rendered | Job `failed/stuck`, missing output sections |
+| GP-4 Trace test plan | `https://staging.akisflow.com/agents/trace` | Job reaches `completed`, test plan output visible | Job `failed/stuck`, missing output |
+| GP-5 SSE + RunSummary | `https://staging.akisflow.com/api/agents/jobs/<jobId>/stream` and `https://staging.akisflow.com/dashboard/jobs/<jobId>` | SSE stream emits job/task/agent/tool-level events, RunSummary panel renders totals | Stream missing levels/events or RunSummary empty |
+
+---
+
 ## 1. Infrastructure & Health
 
 | # | Check | Expected | Pass |

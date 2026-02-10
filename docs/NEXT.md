@@ -3,6 +3,7 @@
 > **Kanonik Plan:** [`docs/planning/DELIVERY_PLAN_S0.5_FEB_TO_GRADUATION.md`](planning/DELIVERY_PLAN_S0.5_FEB_TO_GRADUATION.md)  
 > **WBS Tablosu:** [`docs/planning/WBS_EXPORT_S0.5.xlsx_compatible.md`](planning/WBS_EXPORT_S0.5.xlsx_compatible.md)  
 > **Araştırma Notu:** [`docs/planning/RESEARCH_BRIEF_S0.5_STAGING_RAG_AGENTS.md`](planning/RESEARCH_BRIEF_S0.5_STAGING_RAG_AGENTS.md)  
+> **Araştırma Temeli:** `docs/planning/RESEARCH_DEEP_DIVE_AGENT_ARCHITECTURE.md`  
 > **Son Güncelleme:** 2026-02-10
 
 ---
@@ -94,6 +95,7 @@ docs/NEXT.md                                             (bu dosya — anlık ey
 | S0.5.3-QA-2 | Demo senaryosu (15 dk) | Tamamlandı | `docs/qa/DEMO_SCRIPT_15MIN.md` (2026-02-09) |
 | S0.5.3-QA-3 | KG kanıt dokümanı | Tamamlandı | `docs/qa/GRADUATION_EVIDENCE.md` (2026-02-09) |
 | S0.5.3-QA-4 | Tez hazırlık notu (taslak) | Tamamlandı | `docs/qa/THESIS_PREP_NOTE.md` (2026-02-09) |
+| S0.5.3-QA-5 | 5 golden path için exact URL + pass/fail acceptance matrix + 15dk demo hizası | Tamamlandı | `docs/qa/REGRESSION_CHECKLIST.md` + `docs/qa/DEMO_SCRIPT_15MIN.md` (2026-02-10) |
 | S0.5.3-DOC-1 | Public portfolio export akışı | Tamamlandı | `scripts/public-repo/export.sh` + `docs/public/` (2026-02-10) |
 | S0.5.3-UX-1 | Landing page CTA kontrast + sahte metrikler düzeltme | Tamamlandı | Button contrast fix + capability cards (2026-02-10) |
 | S0.5.3-DOC-2 | Screenshot shot list + portfolio referansları | Tamamlandı | `docs/public/assets/SHOTLIST.md` (2026-02-10) |
