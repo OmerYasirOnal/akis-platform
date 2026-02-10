@@ -129,6 +129,7 @@ services:
       
       # MCP Gateway (default: Docker internal service name for staging)
       GITHUB_MCP_BASE_URL: ${GITHUB_MCP_BASE_URL:-http://mcp-gateway:4010/mcp}
+      GITHUB_TOKEN: ${GITHUB_TOKEN:-}
       MCP_ATLASSIAN_ENABLED: ${MCP_ATLASSIAN_ENABLED:-false}
       
     networks:
