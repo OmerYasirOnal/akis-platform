@@ -157,7 +157,7 @@ export default function BlogIndexPage() {
               placeholder="Enter your email"
               className="rounded-xl border border-ak-border bg-ak-surface-2 px-4 py-3 text-ak-text-primary placeholder:text-ak-text-secondary focus:border-ak-primary focus:outline-none focus:ring-2 focus:ring-ak-primary/20"
             />
-            <button className="rounded-xl bg-ak-primary px-6 py-3 font-semibold text-ak-bg transition-colors hover:bg-ak-primary/90">
+            <button className="rounded-xl bg-ak-primary px-6 py-3 font-semibold text-[#111418] transition-colors hover:brightness-110 active:brightness-95">
               Subscribe
             </button>
           </div>

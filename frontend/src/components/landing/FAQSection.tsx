@@ -24,7 +24,7 @@ function FAQItem({ question, answer, isOpen, onToggle }: FAQItemProps) {
         <span
           className={cn(
             'flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full border border-ak-border bg-ak-surface-2 transition-all duration-300',
-            isOpen && 'rotate-180 border-ak-primary bg-ak-primary text-ak-bg'
+            isOpen && 'rotate-180 border-ak-primary bg-ak-primary text-[#111418]'
           )}
         >
           <svg
