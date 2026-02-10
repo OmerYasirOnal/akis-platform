@@ -17,6 +17,12 @@ AKIS, tekrarlayan yazılım mühendisliği görevlerini — dokümantasyon, test
 
 **Canlı Demo:** [staging.akisflow.com](https://staging.akisflow.com)
 
+### Ekran Görüntüleri
+
+| Landing Sayfası | Giriş (OAuth) | Kayıt |
+|:---:|:---:|:---:|
+| ![Landing](docs/public/assets/landing-hero.png) | ![Login](docs/public/assets/oauth-login.png) | ![Signup](docs/public/assets/signup-onboarding.png) |
+
 ---
 
 ## Problem

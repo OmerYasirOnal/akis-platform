@@ -16,6 +16,12 @@ AKIS automates repetitive software engineering tasks — documentation, test pla
 
 **Live Demo:** [staging.akisflow.com](https://staging.akisflow.com)
 
+### Screenshots
+
+| Landing Page | Login (OAuth) | Sign Up |
+|:---:|:---:|:---:|
+| ![Landing](docs/public/assets/landing-hero.png) | ![Login](docs/public/assets/oauth-login.png) | ![Signup](docs/public/assets/signup-onboarding.png) |
+
 ---
 
 ## The Problem
