@@ -100,7 +100,7 @@ export default function PricingPage() {
               }`}
             >
               {tier.highlighted && (
-                <div className="absolute -top-4 left-1/2 -translate-x-1/2 rounded-full bg-ak-primary px-4 py-1 text-sm font-semibold text-ak-bg">
+                <div className="absolute -top-4 left-1/2 -translate-x-1/2 rounded-full bg-ak-primary px-4 py-1 text-sm font-semibold text-[#111418]">
                   Most Popular
                 </div>
               )}
@@ -128,7 +128,7 @@ export default function PricingPage() {
                   href={tier.ctaLink}
                   className={`block w-full rounded-xl py-3 text-center font-semibold transition-all ${
                     tier.highlighted
-                      ? 'bg-ak-primary text-ak-bg hover:bg-ak-primary/90'
+                      ? 'bg-ak-primary text-[#111418] hover:brightness-110 active:brightness-95'
                       : 'border border-ak-border bg-ak-surface-2 text-ak-text-primary hover:bg-ak-surface'
                   }`}
                 >
@@ -139,7 +139,7 @@ export default function PricingPage() {
                   to={tier.ctaLink}
                   className={`block w-full rounded-xl py-3 text-center font-semibold transition-all ${
                     tier.highlighted
-                      ? 'bg-ak-primary text-ak-bg hover:bg-ak-primary/90'
+                      ? 'bg-ak-primary text-[#111418] hover:brightness-110 active:brightness-95'
                       : 'border border-ak-border bg-ak-surface-2 text-ak-text-primary hover:bg-ak-surface'
                   }`}
                 >

@@ -172,7 +172,7 @@ export default function DocsLayout() {
             />
             <NavLink
               to="/dashboard"
-              className="hidden sm:inline-flex items-center gap-2 rounded-full bg-ak-primary px-4 py-2 text-sm font-medium text-ak-bg hover:bg-ak-primary/90 transition-colors"
+              className="hidden sm:inline-flex items-center gap-2 rounded-full bg-ak-primary px-4 py-2 text-sm font-semibold text-[#111418] hover:brightness-110 active:brightness-95 transition-colors"
             >
               Dashboard
               <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
