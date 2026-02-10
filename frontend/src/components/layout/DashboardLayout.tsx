@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Outlet, Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { useScreenshotMode } from '../../hooks/useScreenshotMode';
 import { cn } from '../../utils/cn';
 import DashboardSidebar from './DashboardSidebar';
 import { ProfileMenu } from './ProfileMenu';
@@ -21,6 +22,7 @@ const CloseIcon = () => (
 
 export function DashboardLayout() {
   const { user } = useAuth();
+  const shotMode = useScreenshotMode();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
@@ -44,7 +46,7 @@ export function DashboardLayout() {
       {/* Desktop Sidebar */}
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-56 border-r border-ak-border bg-ak-surface lg:block">
         <DashboardSidebar
-          workspaceName={user?.name || 'AKIS Workspace'}
+          workspaceName={shotMode ? 'AKIS Workspace' : (user?.name || 'AKIS Workspace')}
         />
       </aside>
 
@@ -66,7 +68,7 @@ export function DashboardLayout() {
         )}
       >
         <DashboardSidebar
-          workspaceName={user?.name || 'AKIS Workspace'}
+          workspaceName={shotMode ? 'AKIS Workspace' : (user?.name || 'AKIS Workspace')}
           onNavClick={closeMobileMenu}
         />
         <button
