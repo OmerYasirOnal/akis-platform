@@ -33,6 +33,8 @@ const scribePayloadSchema = z.object({
   analyzeLastNCommits: z.number().int().min(1).max(100).optional(),
   maxOutputTokens: z.number().int().min(1000).max(64000).optional(),
   passes: z.number().int().min(1).max(2).optional(),
+  skill: z.enum(['DocPackFromRepo', 'ReleaseNotesFromPRs', 'ChecklistFromRunbook']).optional(),
+  skillInput: z.unknown().optional(),
 });
 
 // Config-aware payload schema (S0.4.6)
