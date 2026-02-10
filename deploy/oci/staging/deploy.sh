@@ -301,16 +301,16 @@ fi
 echo ""
 
 # -----------------------------------------------------------------------------
-# Step 7: Verify co-hosted services (managed by docker-compose.override.yml)
+# Step 7: Verify Caddy health (staging canonical stack)
 # -----------------------------------------------------------------------------
-echo ">>> Step 7: Verifying co-hosted services..."
-echo "   Co-hosted sites (classcheck.site, etc.) are managed via docker-compose.override.yml"
-echo "   and caddy-sites/*.caddy on the VM. No action needed from deploy script."
-# Quick check: if Caddy is healthy, co-hosted sites should also work
+echo ">>> Step 7: Verifying Caddy health..."
+echo "   Staging deploy uses canonical /opt/akis/docker-compose.yml + /opt/akis/.env."
+echo "   No manual docker-compose.override.yml edits are required for AKIS staging."
+# Quick check: if Caddy is healthy, routing should be operational
 if docker compose ps caddy 2>/dev/null | grep -q "healthy"; then
-    echo "✅ Caddy is healthy — co-hosted sites should be operational"
+    echo "✅ Caddy is healthy — staging routing should be operational"
 else
-    echo "⚠️ Caddy is not yet healthy — co-hosted sites may be starting up"
+    echo "⚠️ Caddy is not yet healthy — staging routing may still be starting up"
 fi
 echo ""
 

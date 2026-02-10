@@ -10,6 +10,7 @@
 - [ ] Staging deploy completed successfully (check GitHub Actions: OCI Staging Deploy)
 - [ ] `GITHUB_TOKEN` configured in staging `.env` (verify via `/ready` → `mcp.configured: true`)
 - [ ] MCP Gateway container running (no manual profile — always-on in default stack)
+- [ ] Canonical staging stack kullanılıyor (`/opt/akis/docker-compose.yml` + `/opt/akis/.env`), manual `docker-compose.override.yml` edit yok
 - [ ] At least one user account with an active AI key on staging
 
 ---
@@ -37,6 +38,9 @@ curl -s https://staging.akisflow.com/ready | jq '.mcp'
 # 3. Version check
 curl -s https://staging.akisflow.com/version | jq .
 # Record version for evidence
+
+# 4. Canonical smoke script (validates mcp.gatewayReachable + mcp.missingEnv)
+./scripts/staging_smoke.sh --host staging.akisflow.com
 ```
 
 ---

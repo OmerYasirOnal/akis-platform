@@ -364,7 +364,7 @@ docker compose ps mcp-gateway
 | Symptom | Cause | Fix |
 |---------|-------|-----|
 | `MISSING_DEPENDENCY: GITHUB_MCP_BASE_URL` | Env var not set in `.env` | Add `GITHUB_MCP_BASE_URL=http://mcp-gateway:4010/mcp` to `.env` |
-| `mcp.github: false` in `/ready` | MCP gateway not reachable | Check `docker compose ps mcp-gateway` + logs |
+| `mcp.gatewayReachable: false` in `/ready` | MCP gateway not reachable | Check `docker compose ps mcp-gateway` + logs |
 | `MCP_UNAUTHORIZED` | Invalid or expired `GITHUB_TOKEN` | Regenerate PAT with `repo` + `read:org` scopes |
 
 ### 3.7 Email Deliverability (DNS Records)

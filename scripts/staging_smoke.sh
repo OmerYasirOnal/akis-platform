@@ -322,25 +322,30 @@ fi
 echo "Test 7: MCP Gateway readiness"
 if [ "$READY_CODE" = "200" ]; then
   MCP_CONFIGURED=$(extract_json_field "$READY_JSON" "mcp.configured" 2>/dev/null || echo "unknown")
-  MCP_GITHUB=$(extract_json_field "$READY_JSON" "mcp.github" 2>/dev/null || echo "unknown")
+  MCP_GATEWAY_REACHABLE=$(extract_json_field "$READY_JSON" "mcp.gatewayReachable" 2>/dev/null || echo "unknown")
   MCP_BASE_URL=$(extract_json_field "$READY_JSON" "mcp.baseUrl" 2>/dev/null || echo "unknown")
-  if [ "$MCP_CONFIGURED" = "true" ] && [ "$MCP_GITHUB" = "true" ]; then
-    echo -e "${GREEN}✅ MCP: configured=true, github=true, baseUrl=${MCP_BASE_URL}${NC}"
+  MCP_MISSING_ENV=$(extract_json_field "$READY_JSON" "mcp.missingEnv" 2>/dev/null || echo "unknown")
+  MCP_ERROR=$(extract_json_field "$READY_JSON" "mcp.error" 2>/dev/null || echo "unknown")
+
+  if [ "$MCP_CONFIGURED" = "true" ] && [ "$MCP_GATEWAY_REACHABLE" = "true" ]; then
+    echo -e "${GREEN}✅ MCP: configured=true, gatewayReachable=true, baseUrl=${MCP_BASE_URL}${NC}"
     TESTS_PASSED=$((TESTS_PASSED + 1))
-  elif [ "$MCP_CONFIGURED" = "true" ] && [ "$MCP_GITHUB" != "true" ]; then
-    echo -e "${YELLOW}⚠️  MCP: configured but gateway not healthy (github=${MCP_GITHUB})${NC}"
-    echo -e "${YELLOW}   Gateway may still be starting. Check: docker compose logs mcp-gateway${NC}"
-    TESTS_PASSED=$((TESTS_PASSED + 1))
+  elif [ "$MCP_CONFIGURED" = "true" ] && [ "$MCP_GATEWAY_REACHABLE" = "false" ]; then
+    echo -e "${RED}❌ MCP: configured but gatewayReachable=false${NC}"
+    echo -e "${YELLOW}   Error: ${MCP_ERROR}${NC}"
+    echo -e "${YELLOW}   Check: docker compose logs mcp-gateway${NC}"
+    TESTS_FAILED=$((TESTS_FAILED + 1))
   elif [ "$MCP_CONFIGURED" = "false" ]; then
     echo -e "${RED}❌ MCP: NOT configured — agents (Scribe/Trace/Proto) will fail${NC}"
     echo -e "${YELLOW}   FIX: Set GITHUB_MCP_BASE_URL and GITHUB_TOKEN in /opt/akis/.env${NC}"
     echo -e "${YELLOW}   MCP Gateway is always-on in staging docker-compose. Ensure .env has:${NC}"
     echo -e "${YELLOW}     GITHUB_MCP_BASE_URL=http://mcp-gateway:4010/mcp${NC}"
     echo -e "${YELLOW}     GITHUB_TOKEN=ghp_xxxxx (repo + read:org scopes)${NC}"
+    echo -e "${YELLOW}   missingEnv=${MCP_MISSING_ENV}${NC}"
     TESTS_FAILED=$((TESTS_FAILED + 1))
   else
     echo -e "${RED}❌ MCP: could not determine status from /ready response${NC}"
-    echo -e "${YELLOW}   Expected mcp.configured field in /ready JSON${NC}"
+    echo -e "${YELLOW}   Expected mcp fields: configured, gatewayReachable, baseUrl, missingEnv, error${NC}"
     TESTS_FAILED=$((TESTS_FAILED + 1))
   fi
 else
