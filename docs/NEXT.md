@@ -101,6 +101,7 @@ docs/NEXT.md                                             (bu dosya — anlık ey
 | S0.5.3-UX-4 | Automations sidebar + smart-automations erişilebilirliği | Tamamlandı | Sidebar nav item, i18n keys, Web IA güncelleme (2026-02-10) |
 | S0.5.3-UX-5 | Logo PNG transparency + duplicate cleanup | Tamamlandı | RGBA transparent logolar, `public/assets/branding/` + `logo.png` silindi (2026-02-10) |
 | S0.5.3-OPS-1 | `/ready` MCP diagnostics — her zaman `mcp` objesi + `missingEnv` dizisi | Tamamlandı | Schema fix + diagnostik alanlar + test (2026-02-10) |
+| S0.5.3-OPS-2 | Staging smoke + deploy docs contract drift fix (`mcp.github` → `mcp.gatewayReachable`) | Tamamlandı | `scripts/staging_smoke.sh`, OCI workflow metinleri ve staging deploy/checklist dokümanları güncellendi (2026-02-10) |
 
 ---
 

@@ -489,7 +489,7 @@ jobs:
             exit 1
           fi
 
-      - name: Post-deploy smoke test (6/6 checks)
+      - name: Post-deploy smoke test (scripts/staging_smoke.sh)
         if: steps.health.outputs.health_status == 'success'
         run: |
           chmod +x ./scripts/staging_smoke.sh

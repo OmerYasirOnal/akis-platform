@@ -129,10 +129,9 @@ staging.akisflow.com {
 # =========================================================================
 # CO-HOSTED SITES (classcheck.site, unisum.duckdns.org, etc.)
 # =========================================================================
-# Co-hosted services are NOT defined here. They are managed on the VM via:
-#   - docker-compose.override.yml (adds volume mounts for wrapper Caddyfile)
-#   - Caddyfile.wrapper (imports this file + caddy-sites/*.caddy)
-#   - caddy-sites/classcheck.caddy, caddy-sites/unisum.caddy
+# AKIS staging deploy is canonical with this file + deploy/oci/staging/docker-compose.yml.
+# If co-hosted sites are used on the same VM, manage them in a separate Caddy include
+# workflow without editing AKIS compose files manually.
 #
 # DO NOT add site blocks here for co-hosted services — it will cause
 # "ambiguous site definition" errors when the override merges them.

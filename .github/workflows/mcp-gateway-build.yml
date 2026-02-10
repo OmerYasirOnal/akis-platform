@@ -8,7 +8,7 @@
 # Image: ghcr.io/<owner>/akis-platform-devolopment/akis-mcp-gateway:<tag>
 # Tags: latest, <commit-sha>
 #
-# Related: deploy/oci/staging/docker-compose.yml (profiles: [mcp])
+# Related: deploy/oci/staging/docker-compose.yml (always-on mcp-gateway service)
 # Issue: #249
 # =============================================================================
 
