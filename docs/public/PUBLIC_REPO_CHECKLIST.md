@@ -4,7 +4,7 @@
 
 ## Prerequisites
 
-- [ ] `docs/public/assets/` contains at least: `dashboard.png`, `agent-console.png`
+- [ ] `docs/public/assets/` contains screenshots per [`SHOTLIST.md`](assets/SHOTLIST.md)
 - [ ] `docs/PUBLIC_PORTFOLIO.md` is up to date with current metrics
 - [ ] Main branch is clean (`git status` shows no uncommitted changes)
 
@@ -61,16 +61,14 @@ git push -u origin main --force
 
 ## Step 4: Add Screenshots
 
-After pushing, add screenshots to the repo:
+> **Note:** Cursor/AI cannot take screenshots. This must be done manually.
+> See the full shot list: [`docs/public/assets/SHOTLIST.md`](assets/SHOTLIST.md)
 
-1. Take screenshots from [staging.akisflow.com](https://staging.akisflow.com):
-   - Dashboard overview (logged in)
-   - Agent console (Scribe running)
-   - Job detail with SSE timeline
-   - Onboarding flow
-2. Save as `docs/public/assets/<name>.png` in the **private** repo
-3. Re-run export to include them in the public repo
-4. Reference in README with relative paths
+1. Open [staging.akisflow.com](https://staging.akisflow.com) (viewport 1440×900)
+2. Capture the 8 shots listed in `SHOTLIST.md` (landing hero, capabilities, signup, login, dashboard, agent console, job detail, agents hub)
+3. Save as PNG (< 500KB each) to `docs/public/assets/` in the **private** repo
+4. Re-run `./scripts/public-repo/export.sh` to include them in the public snapshot
+5. Push the updated public repo
 
 ## Step 5: Verify Public Repo
 

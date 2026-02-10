@@ -77,18 +77,18 @@ export const MESSAGE_KEYS = [
   'landing.cta.createAccount',
   'landing.cta.signIn',
 
-  // Landing Stats
-  'landing.stats.label',
-  'landing.stats.title',
-  'landing.stats.subtitle',
-  'landing.stats.hoursSaved',
-  'landing.stats.hoursSavedDesc',
-  'landing.stats.teamsUsing',
-  'landing.stats.teamsUsingDesc',
-  'landing.stats.jobsRun',
-  'landing.stats.jobsRunDesc',
-  'landing.stats.uptime',
-  'landing.stats.uptimeDesc',
+  // Landing Capabilities
+  'landing.capabilities.label',
+  'landing.capabilities.title',
+  'landing.capabilities.subtitle',
+  'landing.capabilities.agents.title',
+  'landing.capabilities.agents.desc',
+  'landing.capabilities.orchestrator.title',
+  'landing.capabilities.orchestrator.desc',
+  'landing.capabilities.quality.title',
+  'landing.capabilities.quality.desc',
+  'landing.capabilities.mcp.title',
+  'landing.capabilities.mcp.desc',
 
   // Landing Features
   'landing.features.label',
