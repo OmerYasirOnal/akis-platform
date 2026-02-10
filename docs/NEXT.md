@@ -32,7 +32,7 @@ docs/NEXT.md                                             (bu dosya — anlık ey
 | Şifreleme | Staging'de yapılandırıldı (`/ready` → `encryption.configured: true`) |
 | E-posta | SMTP şablonu hazır (`/ready` → `email.configured`, `email.host`, `email.port`, `email.from`); OAuth hoşgeldin e-postası eklendi |
 | Google OAuth | `/ready` → `oauth.google`, `oauth.github`, `oauth.callbackBase` gösteriyor — staging `.env` kimlik bilgilerini doğrulayın |
-| MCP Gateway | Docker image henüz GHCR'da yok; `profiles: [mcp]` ile opsiyonel — CI build pipeline gerekli |
+| MCP Gateway | CI build pipeline eklendi (PR #266); `profiles: [mcp]` ile opsiyonel — ilk build icin manual dispatch veya `mcp-gateway/` degisikligi gerekli |
 | Agent Yönlendirme | Scribe/Trace/Proto → `/agents/*` taşındı; `/dashboard/scribe\|trace\|proto` yeni rotalara yönlendirme yapıyor |
 | Logo | Tek kaynak: `frontend/public/brand/logo.png` + 3 density varyantı güncellendi |
 
@@ -174,7 +174,7 @@ docs/NEXT.md                                             (bu dosya — anlık ey
 
 | # | Konu | Öncelik | Notlar |
 |---|------|---------|--------|
-| 1 | MCP Gateway Docker image CI build pipeline yok | P1 | GHCR'a image push edilmeli; `profiles: [mcp]` kaldırılana kadar agent'lar staging'de MCP kullanamazlar |
+| 1 | ~~MCP Gateway Docker image CI build pipeline yok~~ | ~~P1~~ | Tamamlandı (2026-02-10): PR #266 — `mcp-gateway-build.yml` workflow eklendi |
 | 2 | SMTP deliverability (SPF/DKIM/DMARC) | P1 | güzelhosting DNS yapılandırması gerekli — `OCI_STAGING_RUNBOOK.md` Bölüm 3.7 |
 | 3 | Staging VM `.env` güncelleme | P0 | MCP, SMTP, OAuth, logo URL değişkenleri güncellenmeli |
 | 4 | ~~Onboarding akışı (WL-2)~~ | ~~P2~~ | Tamamlandı (2026-02-09): i18n + job API wiring |
