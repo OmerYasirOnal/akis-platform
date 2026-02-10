@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useI18n } from '../../i18n/useI18n';
+import { useScreenshotMode } from '../../hooks/useScreenshotMode';
 import { api } from '../../services/api/client';
 
 const STAR_COUNT = 5;
@@ -46,7 +47,9 @@ export default function FeedbackWidget() {
     }
   }, [rating, message, t, reset]);
 
-  if (!user) return null;
+  const shotMode = useScreenshotMode();
+
+  if (!user || shotMode) return null;
 
   return (
     <>

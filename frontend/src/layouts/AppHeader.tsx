@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
 
 import { useAuth } from '../contexts/AuthContext';
+import { useScreenshotMode } from '../hooks/useScreenshotMode';
 import Logo from '../components/branding/Logo';
 import Button from '../components/common/Button';
 import ThemeToggle from '../components/ThemeToggle';
@@ -21,6 +22,7 @@ const primaryLinks = [
 
 const AppHeader = () => {
   const { user, logout } = useAuth();
+  const shotMode = useScreenshotMode();
   const navigate = useNavigate();
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -86,7 +88,7 @@ const AppHeader = () => {
                 </Button>
                 {user ? (
                   <span className="rounded-full border border-ak-border bg-ak-surface-2 px-3 py-1 text-xs text-ak-text-secondary">
-                    {user.email}
+                    {shotMode ? 'user@example.com' : user.email}
                   </span>
                 ) : null}
                 <Button variant="outline" onClick={handleLogout} disabled={isLoggingOut}>
@@ -174,7 +176,7 @@ const AppHeader = () => {
 
           {user ? (
             <div className="rounded-xl border border-ak-border bg-ak-surface px-4 py-3 text-xs text-ak-text-secondary">
-              Signed in as <span className="text-ak-text-primary">{user.email}</span>
+              Signed in as <span className="text-ak-text-primary">{shotMode ? 'user@example.com' : user.email}</span>
             </div>
           ) : null}
         </div>
