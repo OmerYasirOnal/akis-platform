@@ -61,6 +61,21 @@ describe('Health Endpoints', async () => {
         assert.ok('error' in body, 'Should have error field');
       }
     });
+
+    test('should always include mcp object with diagnostic fields', async () => {
+      const response = await app.inject({
+        method: 'GET',
+        url: '/ready',
+      });
+
+      const body = JSON.parse(response.body);
+      assert.ok(body.mcp, '/ready must always include mcp object');
+      assert.strictEqual(typeof body.mcp.configured, 'boolean', 'mcp.configured must be boolean');
+      assert.strictEqual(typeof body.mcp.gatewayReachable, 'boolean', 'mcp.gatewayReachable must be boolean');
+      assert.ok(Array.isArray(body.mcp.missingEnv), 'mcp.missingEnv must be an array');
+      assert.ok('baseUrl' in body.mcp, 'mcp.baseUrl must be present (string or null)');
+      assert.ok('error' in body.mcp, 'mcp.error must be present (string or null)');
+    });
   });
 
   describe('GET /version', () => {
