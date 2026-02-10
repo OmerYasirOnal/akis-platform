@@ -1,42 +1,42 @@
-# Screenshot Shot List
+# Ekran Görüntüsü Listesi
 
-> Recommended screenshots for the public portfolio repo.
-> Cursor cannot capture these — take them manually from staging.akisflow.com.
+> Public portfolio deposu için önerilen ekran görüntüleri.
+> Cursor bunları alamaz — staging.akisflow.com adresinden manuel olarak çekin.
 
-## How to capture
+## Nasıl Çekilir
 
-1. Open [staging.akisflow.com](https://staging.akisflow.com) in Chrome
-2. Set viewport to **1440×900** (desktop) for consistency
-3. Use DevTools → Device toolbar for mobile shots if needed
-4. Save as PNG, max width 1200px, < 500KB per file
-5. Place files in `docs/public/assets/` in the **private** repo
-6. Run `./scripts/public-repo/export.sh` to include them in the public snapshot
+1. [staging.akisflow.com](https://staging.akisflow.com) adresini Chrome'da aç
+2. Tutarlılık için viewport'u **1440×900** (masaüstü) olarak ayarla
+3. Mobil çekimler için DevTools → Device toolbar kullan
+4. PNG olarak kaydet, maksimum genişlik 1200px, dosya başına < 500KB
+5. **Private** depodaki `docs/public/assets/` dizinine yerleştir
+6. Public snapshot'a dahil etmek için `./scripts/public-repo/export.sh` çalıştır
 
-## Shot List
+## Çekim Listesi
 
-| # | Filename | What to Capture | Page/Route |
-|---|----------|----------------|------------|
-| 1 | `landing-hero.png` | Landing page hero section with logo, headline, and CTA buttons | `/` |
-| 2 | `landing-capabilities.png` | Capabilities cards section (4 cards: Agents, Orchestration, Quality, MCP) | `/` (scroll down) |
-| 3 | `signup-onboarding.png` | Signup form or onboarding first step | `/signup` |
-| 4 | `oauth-login.png` | Login page showing GitHub + Google OAuth buttons | `/login` |
-| 5 | `dashboard-overview.png` | Main dashboard with Getting Started card and recent jobs | `/dashboard` |
-| 6 | `agent-console-scribe.png` | Scribe agent console — ideally mid-run with SSE timeline | `/agents/scribe` |
-| 7 | `job-detail-timeline.png` | Job detail page showing step timeline + plan view | `/dashboard/jobs/:id` |
-| 8 | `agent-hub.png` | Agents Hub page showing all 3 agent cards | `/agents` |
+| # | Dosya Adı | Ne Çekilecek | Sayfa/Rota |
+|---|-----------|-------------|------------|
+| 1 | `landing-hero.png` | Landing sayfa hero bölümü: logo, başlık ve CTA butonları | `/` |
+| 2 | `landing-capabilities.png` | Yetenek kartları bölümü (4 kart: Ajanlar, Orkestrasyon, Kalite, MCP) | `/` (aşağı kaydır) |
+| 3 | `signup-onboarding.png` | Kayıt formu veya onboarding ilk adımı | `/signup` |
+| 4 | `oauth-login.png` | GitHub + Google OAuth butonları ile giriş sayfası | `/login` |
+| 5 | `dashboard-overview.png` | Getting Started kartı ve son işlerle ana dashboard | `/dashboard` |
+| 6 | `agent-console-scribe.png` | Scribe ajan konsolu — tercihen SSE timeline ile çalışırken | `/agents/scribe` |
+| 7 | `job-detail-timeline.png` | Adım timeline'ı + plan görünümü ile iş detay sayfası | `/dashboard/jobs/:id` |
+| 8 | `agent-hub.png` | 3 ajan kartını gösteren Ajanlar Hub sayfası | `/agents` |
 
-## Optional (nice to have)
+## Opsiyonel (olsa iyi olur)
 
-| # | Filename | What to Capture |
-|---|----------|----------------|
-| 9 | `demo.gif` | Animated GIF: start Scribe → watch SSE → see PR link (~15s) |
-| 10 | `mobile-dashboard.png` | Dashboard on mobile viewport (375×812) |
-| 11 | `dark-light-comparison.png` | Side-by-side dark/light theme comparison |
+| # | Dosya Adı | Ne Çekilecek |
+|---|-----------|-------------|
+| 9 | `demo.gif` | Animasyonlu GIF: Scribe başlat → SSE izle → PR bağlantısı gör (~15sn) |
+| 10 | `mobile-dashboard.png` | Mobil viewport'ta (375×812) dashboard |
+| 11 | `dark-light-comparison.png` | Yan yana koyu/açık tema karşılaştırması |
 
-## After capturing
+## Çekimden Sonra
 
-1. Verify no sensitive data is visible (emails, tokens, private repos)
-2. Blur or crop any real user data if present
-3. Commit to private repo: `git add docs/public/assets/ && git commit -m "docs: add portfolio screenshots"`
-4. Re-run export: `./scripts/public-repo/export.sh`
-5. Push updated public repo
+1. Hassas veri görünmediğini doğrula (e-postalar, token'lar, özel depolar)
+2. Gerçek kullanıcı verisi varsa bulanıklaştır veya kırp
+3. Private depoya commit et: `git add docs/public/assets/ && git commit -m "docs: portföy ekran görüntüleri eklendi"`
+4. Export'u tekrar çalıştır: `./scripts/public-repo/export.sh`
+5. Güncellenmiş public depoyu push et

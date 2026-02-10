@@ -95,6 +95,7 @@ docs/NEXT.md                                             (bu dosya — anlık ey
 | S0.5.3-DOC-1 | Public portfolio export akışı | Tamamlandı | `scripts/public-repo/export.sh` + `docs/public/` (2026-02-10) |
 | S0.5.3-UX-1 | Landing page CTA kontrast + sahte metrikler düzeltme | Tamamlandı | Button contrast fix + capability cards (2026-02-10) |
 | S0.5.3-DOC-2 | Screenshot shot list + portfolio referansları | Tamamlandı | `docs/public/assets/SHOTLIST.md` (2026-02-10) |
+| S0.5.3-DOC-3 | Public dokümanlar Türkçe-öncelikli + TR özet başlıkları | Tamamlandı | README.md TR, README.en.md EN, teknik doc'lara TR özet (2026-02-10) |
 
 ---
 

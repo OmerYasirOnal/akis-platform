@@ -1,5 +1,11 @@
 # AKIS Backend API Specification
 
+> ## Özet (TR)
+> Bu belge AKIS Platform backend API'sinin tam spesifikasyonunu içerir. ~89 endpoint tanımı,
+> istek/yanıt şemaları, hata kodları, kimlik doğrulama gereksinimleri ve rate limit kurallarını
+> kapsar. Ajan işleri, kullanıcı yönetimi, OAuth akışları, webhook'lar ve dashboard metrikleri
+> dahildir. Tüm teknik detaylar aşağıdaki İngilizce içerikte yer almaktadır.
+
 **Version**: 0.1.0  
 **Base URL**: `http://localhost:3000`
 

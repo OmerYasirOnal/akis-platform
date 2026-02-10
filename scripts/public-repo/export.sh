@@ -109,15 +109,21 @@ for d in "${ASSET_ALLOWLIST[@]}"; do
 done
 
 echo ""
-echo "--- Phase 2: Generate README.md from portfolio template ---"
+echo "--- Phase 2: Generate README.md (TR) and README.en.md (EN) ---"
 
 if [ -f "$REPO_ROOT/docs/PUBLIC_PORTFOLIO.md" ]; then
-  # Strip the template header (first 6 lines) and use as README
-  tail -n +7 "$REPO_ROOT/docs/PUBLIC_PORTFOLIO.md" > "$OUTPUT_DIR/README.md"
-  echo "  + README.md (from docs/PUBLIC_PORTFOLIO.md)"
+  tail -n +8 "$REPO_ROOT/docs/PUBLIC_PORTFOLIO.md" > "$OUTPUT_DIR/README.md"
+  echo "  + README.md (TR, from docs/PUBLIC_PORTFOLIO.md)"
 else
   echo -e "  ${RED}ERROR: docs/PUBLIC_PORTFOLIO.md not found${NC}"
   exit 1
+fi
+
+if [ -f "$REPO_ROOT/docs/PUBLIC_PORTFOLIO_EN.md" ]; then
+  tail -n +7 "$REPO_ROOT/docs/PUBLIC_PORTFOLIO_EN.md" > "$OUTPUT_DIR/README.en.md"
+  echo "  + README.en.md (EN, from docs/PUBLIC_PORTFOLIO_EN.md)"
+else
+  echo -e "  ${YELLOW}SKIP: docs/PUBLIC_PORTFOLIO_EN.md not found — English README omitted${NC}"
 fi
 
 echo ""

@@ -1,109 +1,108 @@
-# Public Portfolio Repo — Scope & Rationale
+# Public Portfolio Deposu — Kapsam ve Gerekçe
 
-> What goes into the public `akis-platform` repo and why.
+> Public `akis-platform-portfolio` deposuna ne giriyor ve neden.
 
-## Strategy
+## Strateji
 
-**Allowlist-based export** — only explicitly approved paths are copied.
-A denylist scan runs after export to catch accidental secret leakage.
+**İzin listesi (allowlist) tabanlı export** — yalnızca açıkça onaylanan yollar kopyalanır.
+Export sonrasında gizli bilgi sızıntısını yakalamak için bir yasak listesi (denylist) taraması çalışır.
 
-## Included (Allowlist)
+## Dahil Edilen (İzin Listesi)
 
-### Documentation
-| Path | Why |
-|------|-----|
-| `README.md` | Generated from `docs/PUBLIC_PORTFOLIO.md` template |
-| `LICENSE` | MIT license |
-| `SECURITY.md` | Public-safe disclosure guidance |
-| `docs/agents/AGENT_CONTRACTS_S0.5.md` | Shows agent I/O design |
-| `docs/agents/CONTEXT_PACKS.md` | Shows RAG architecture decision |
-| `docs/UI_DESIGN_SYSTEM.md` | Shows frontend design system |
-| `docs/WEB_INFORMATION_ARCHITECTURE.md` | Shows UX thinking |
-| `backend/docs/API_SPEC.md` | Shows API design |
-| `backend/docs/Auth.md` | Shows auth flow design |
-| `backend/docs/AGENT_WORKFLOWS.md` | Shows agent pipeline |
+### Dokümantasyon
+| Yol | Neden |
+|-----|-------|
+| `README.md` | Türkçe README — `docs/PUBLIC_PORTFOLIO.md` şablonundan üretilir |
+| `README.en.md` | İngilizce README — `docs/PUBLIC_PORTFOLIO_EN.md` şablonundan üretilir |
+| `LICENSE` | MIT lisansı |
+| `SECURITY.md` | Güvenlik açığı bildirimi |
+| `docs/agents/AGENT_CONTRACTS_S0.5.md` | Ajan I/O tasarımını gösterir |
+| `docs/agents/CONTEXT_PACKS.md` | RAG mimari kararını gösterir |
+| `docs/UI_DESIGN_SYSTEM.md` | Frontend tasarım sistemi |
+| `docs/WEB_INFORMATION_ARCHITECTURE.md` | UX düşüncesi |
+| `backend/docs/API_SPEC.md` | API tasarımı |
+| `backend/docs/Auth.md` | Kimlik doğrulama akış tasarımı |
+| `backend/docs/AGENT_WORKFLOWS.md` | Ajan iş akışı hattı |
 
-### Source Code (Showcase)
-| Path | Why |
-|------|-----|
-| `backend/src/core/orchestrator/` | Central orchestration engine |
-| `backend/src/core/state/` | FSM state machine |
-| `backend/src/core/events/` | Event bus + SSE |
-| `backend/src/core/tracing/` | Trace recording |
-| `backend/src/core/contracts/` | Agent contract types |
-| `backend/src/core/planning/` | Plan generation |
-| `backend/src/services/quality/` | Quality scoring |
-| `backend/src/core/watchdog/` | Stale job detection |
-| `backend/src/agents/scribe/` | Scribe agent implementation |
-| `backend/src/agents/trace/` | Trace agent implementation |
-| `backend/src/agents/proto/` | Proto agent implementation |
-| `backend/src/services/mcp/adapters/` | MCP protocol adapters |
-| `frontend/src/pages/dashboard/` | Dashboard pages |
-| `frontend/src/pages/dashboard/agents/` | Agent console pages |
-| `frontend/src/components/agents/` | Agent UI components |
-| `frontend/src/components/jobs/` | Job management UI |
-| `frontend/src/components/dashboard/` | Dashboard widgets |
+### Kaynak Kod (Vitrin)
+| Yol | Neden |
+|-----|-------|
+| `backend/src/core/orchestrator/` | Merkezi orkestrasyon motoru |
+| `backend/src/core/state/` | FSM durum makinesi |
+| `backend/src/core/events/` | Olay veriyolu + SSE |
+| `backend/src/core/tracing/` | İz kaydı |
+| `backend/src/core/contracts/` | Ajan sözleşme tipleri |
+| `backend/src/core/planning/` | Plan üretimi |
+| `backend/src/services/quality/` | Kalite puanlaması |
+| `backend/src/core/watchdog/` | Askıda kalan iş tespiti |
+| `backend/src/agents/scribe/` | Scribe ajan implementasyonu |
+| `backend/src/agents/trace/` | Trace ajan implementasyonu |
+| `backend/src/agents/proto/` | Proto ajan implementasyonu |
+| `backend/src/services/mcp/adapters/` | MCP protokol adaptörleri |
+| `frontend/src/pages/dashboard/` | Dashboard sayfaları |
+| `frontend/src/pages/dashboard/agents/` | Ajan konsol sayfaları |
+| `frontend/src/components/agents/` | Ajan UI bileşenleri |
+| `frontend/src/components/jobs/` | İş yönetimi UI |
+| `frontend/src/components/dashboard/` | Dashboard widget'ları |
 
-### Assets
-| Path | Why |
-|------|-----|
-| `docs/public/assets/` | Screenshots, demo GIFs |
+### Görseller
+| Yol | Neden |
+|-----|-------|
+| `docs/public/assets/` | Ekran görüntüleri, demo GIF'leri |
 
-## Excluded (Denylist)
+## Hariç Tutulan (Yasak Listesi)
 
-### Always excluded — security risk
-- `.env*`, `*.env`, `.env.example` (even examples can hint at infrastructure)
+### Her zaman hariç — güvenlik riski
+- `.env*`, `*.env`, `.env.example` (örnekler bile altyapı ipucu verebilir)
 - `*key*`, `*secret*`, `*.pem`, `*.p12`, `*.pfx`
-- `deploy/` (staging/prod infrastructure details)
-- `.github/workflows/` (CI secrets references)
-- `scripts/` (operational scripts with internal hostnames)
-- `docs/deploy/` (runbooks with VM/SSH details)
-- `docs/planning/` (internal sprint planning)
-- `docs/qa/` (internal QA checklists)
-- `mcp-gateway/` (full service source — keep internal)
+- `deploy/` (staging/prod altyapı detayları)
+- `.github/workflows/` (CI gizli referansları)
+- `scripts/` (dahili hostname içeren operasyonel script'ler)
+- `docs/deploy/` (VM/SSH detaylı runbook'lar)
+- `docs/planning/` (dahili sprint planlaması)
+- `docs/qa/` (dahili KG kontrol listeleri)
+- `mcp-gateway/` (tam servis kaynağı — dahili tut)
 
-### Excluded — not useful for portfolio
+### Hariç — portföy için faydasız
 - `node_modules/`, `dist/`, `*.lock`, `pnpm-lock.yaml`
 - `.cursor/`, `.agent/`, `.codex/`
-- Test files (`*.test.*`, `__tests__/`)
-- `backend/test/` (full test suite — keep internal)
-- `backend/src/db/` (schema reveals internal structure)
-- `backend/src/config/` (env parsing)
-- `backend/src/api/` (route handlers — boring boilerplate)
-- `backend/migrations/` (SQL migration files)
-- `frontend/src/i18n/` (translation files)
-- `frontend/src/services/api/` (HTTP client internals)
+- Test dosyaları (`*.test.*`, `__tests__/`)
+- `backend/test/` (tam test paketi — dahili tut)
+- `backend/src/db/` (şema dahili yapıyı açıklar)
+- `backend/src/config/` (env ayrıştırma)
+- `backend/src/api/` (route handler'lar — sıradan boilerplate)
+- `backend/migrations/` (SQL migration dosyaları)
+- `frontend/src/i18n/` (çeviri dosyaları)
+- `frontend/src/services/api/` (HTTP istemci iç yapısı)
 
-## Denylist Scan Patterns
+## Yasak Listesi Tarama Kalıpları
 
-The export script scans all exported files for these patterns:
+Export script'i, dışa aktarılan tüm dosyaları şu kalıplara karşı tarar:
 
 ```
-# Tokens / API keys
+# Token / API anahtarları
 sk-[a-zA-Z0-9]{20,}
 ghp_[a-zA-Z0-9]{36}
 gho_[a-zA-Z0-9]{36}
 GOCSPX-[a-zA-Z0-9_-]+
-re_[a-zA-Z0-9]{20,}
 whsec_[a-zA-Z0-9]+
 xoxb-[a-zA-Z0-9-]+
 
-# Private IPs / hostnames
+# Özel IP / hostname'ler
 \b(?:10|172\.(?:1[6-9]|2\d|3[01])|192\.168)\.\d{1,3}\.\d{1,3}\b
-staging\.akisflow\.com/auth/oauth.*callback
 /opt/akis
 opc@
 
-# Internal filenames that should never appear
+# Asla görünmemesi gereken dahili dosya adları
 \.env\.staging
 STAGING_SSH_KEY
 STAGING_HOST
 ```
 
-## Verification
+## Doğrulama
 
-After export, run:
-1. `scripts/public-repo/export.sh` (creates `dist/public-repo/`)
-2. Script automatically runs denylist scan
-3. Manual review: `ls -la dist/public-repo/` and spot-check files
-4. Create public repo from the output directory
+Export sonrasında:
+1. `scripts/public-repo/export.sh` çalıştır (`dist/public-repo/` oluşturur)
+2. Script otomatik olarak yasak listesi taramasını çalıştırır
+3. Manuel inceleme: `ls -la dist/public-repo/` ile dosyaları kontrol et
+4. Çıktı dizininden public depoyu oluştur

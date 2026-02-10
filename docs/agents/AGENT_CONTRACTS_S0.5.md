@@ -1,5 +1,11 @@
 # Agent Contracts — S0.5
 
+> ## Özet (TR)
+> Bu belge Scribe, Trace ve Proto ajanlarının girdi/çıktı sözleşmelerini, hata kodlarını,
+> golden path senaryolarını ve kalite metriklerini tanımlar. Her ajanın typed Contract + Playbook
+> yapısı, deterministic prompt kuralları (temperature=0) ve standart hata zarfı burada belgelenmiştir.
+> Teknik detaylar aşağıda İngilizce olarak sunulmaktadır.
+
 > **Task ID:** S0.5.1-AGT-1 (updated by AGT-6)
 > **Version:** 1.1.0
 > **Date:** 2026-02-09

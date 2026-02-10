@@ -1,5 +1,11 @@
 # AKIS Agent Workflows
 
+> ## Özet (TR)
+> Bu belge AKIS Platform'un otonom ajan sistem mimarisini ve iş akışlarını açıklar.
+> AgentOrchestrator yaşam döngüsü, FSM durum geçişleri (pending → running → completed | failed),
+> Plan → Yürüt → Yansıt hattı, Factory + Registry kalıbı, MCP adaptör entegrasyonu, SSE gerçek
+> zamanlı akış ve kalite puanlamasını kapsar. Teknik detaylar aşağıda İngilizce olarak sunulmaktadır.
+
 This document describes the autonomous agent system architecture and workflows in the AKIS Platform backend.
 
 ## Overview

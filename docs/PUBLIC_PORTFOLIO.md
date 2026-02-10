@@ -1,167 +1,166 @@
-# AKIS Platform — Public Portfolio README
+# AKIS Platform — Public Portfolio README (Türkçe)
 
-> **This file is the template for the public portfolio repository.**
-> Run `./scripts/public-repo/export.sh` to generate a sanitized public repo snapshot.
-> See `docs/public/PUBLIC_REPO_SCOPE.md` for what's included/excluded.
-> See `docs/public/PUBLIC_REPO_CHECKLIST.md` for step-by-step creation guide.
-> It contains no secrets, internal paths, or private infrastructure details.
+> **Bu dosya public portfolio deposunun Türkçe README şablonudur.**
+> Export komutu: `./scripts/public-repo/export.sh`
+> Kapsam: `docs/public/PUBLIC_REPO_SCOPE.md` | Adımlar: `docs/public/PUBLIC_REPO_CHECKLIST.md`
+> Gizli bilgi, dahili yol veya altyapı detayı içermez.
 
 ---
 
 # AKIS Platform
 
-**AI Agent Orchestration System for Software Development**
+**Yazılım Geliştirme için Yapay Zeka Ajan Orkestrasyon Sistemi**
 
-AKIS automates repetitive software engineering tasks — documentation, test planning, and prototyping — through autonomous AI agents orchestrated via a web interface. Outputs are committed as GitHub pull requests.
+> 🌐 [English version → README.en.md](README.en.md)
 
-**Live Demo:** [staging.akisflow.com](https://staging.akisflow.com)
+AKIS, tekrarlayan yazılım mühendisliği görevlerini — dokümantasyon, test planlaması ve prototipleme — otonom yapay zeka ajanları aracılığıyla otomatikleştirir. Çıktılar GitHub pull request olarak teslim edilir.
 
----
-
-## The Problem
-
-Software teams spend significant time on repetitive tasks: keeping documentation in sync, writing test plans, and scaffolding boilerplate code. These tasks are well-defined, pattern-driven, and ripe for automation — yet most AI coding tools focus on inline code completion rather than end-to-end task automation.
-
-## The Solution
-
-AKIS provides a **structured agent orchestration framework** where each agent:
-1. **Plans** — Analyzes the codebase and creates an execution plan
-2. **Executes** — Performs the task with deterministic prompts
-3. **Reflects** — Reviews output quality with a critique step
-4. **Delivers** — Commits results as a GitHub pull request
-
-This produces predictable, reviewable outputs rather than ad-hoc suggestions.
+**Canlı Demo:** [staging.akisflow.com](https://staging.akisflow.com)
 
 ---
 
-## Agents
+## Problem
 
-| Agent | What It Does | Input | Output |
-|-------|-------------|-------|--------|
-| **Scribe** | Generates technical documentation | GitHub repo + branch | Markdown docs → PR |
-| **Trace** | Creates test plans with edge cases | Code module/directory | Test plan document → PR |
-| **Proto** | Scaffolds working prototypes | Spec/idea description | Code scaffold → PR |
+Yazılım ekipleri tekrarlayan görevlere önemli zaman harcıyor: dokümantasyonu güncel tutmak, test planları yazmak ve şablon kod oluşturmak. Bu görevler tanımlı, kalıp tabanlı ve otomasyona uygun — ancak mevcut yapay zeka araçlarının çoğu satır içi kod tamamlamaya odaklanıyor, uçtan uca görev otomasyonuna değil.
+
+## Çözüm
+
+AKIS, her ajanın şu adımları izlediği **yapısal bir ajan orkestrasyon çerçevesi** sunar:
+1. **Planla** — Kod tabanını analiz eder ve yürütme planı oluşturur
+2. **Yürüt** — Görevi belirleyici (deterministic) prompt'larla gerçekleştirir
+3. **Yansıt** — Çıktı kalitesini kritik adımıyla değerlendirir
+4. **Teslim et** — Sonucu GitHub pull request olarak commit eder
 
 ---
 
-## Architecture Highlights
+## Ajanlar
+
+| Ajan | Görevi | Girdi | Çıktı |
+|------|--------|-------|-------|
+| **Scribe** | Teknik dokümantasyon üretimi | GitHub repo + branch | Markdown belgeler → PR |
+| **Trace** | Edge case'li test planı oluşturma | Kod modülü/dizini | Test plan belgesi → PR |
+| **Proto** | Çalışan prototip iskelesi kurma | Spec/fikir açıklaması | Kod iskelesi → PR |
+
+---
+
+## Mimari
 
 ```
 React SPA → Caddy (auto-TLS) → Fastify API → PostgreSQL
                                      ↓
                               AgentOrchestrator
-                              (FSM lifecycle)
+                              (FSM yaşam döngüsü)
                                      ↓
                               MCP Gateway → GitHub API
 ```
 
-### Key Technical Decisions
+### Temel Teknik Kararlar
 
-- **Modular monolith** — Single deployable backend, optimized for constrained infrastructure (OCI Free Tier ARM64 VM)
-- **MCP Protocol** — All external service access through Model Context Protocol adapters. No direct vendor SDKs (Octokit, etc.)
-- **Orchestrator pattern** — Central `AgentOrchestrator` owns full agent lifecycle. Agents are isolated and never call each other.
-- **FSM state machine** — Every job follows `pending → running → completed | failed` with full trace logging
-- **Contract-first agents** — Each agent has a typed Contract + Playbook. Prompts are deterministic (temperature=0).
-- **Context packs** — Static file bundles assembled per agent with token/file limits. Debuggable and reproducible.
+- **Modüler monolit** — Kısıtlı altyapı için optimize edilmiş tek dağıtılabilir backend (OCI Free Tier ARM64 VM)
+- **MCP Protokolü** — Tüm harici servis erişimi Model Context Protocol adaptörleri üzerinden. Doğrudan vendor SDK'ları yok (Octokit vb.)
+- **Orkestratör kalıbı** — Merkezi `AgentOrchestrator` tüm ajan yaşam döngüsünü yönetir. Ajanlar izole çalışır, birbirini çağırmaz.
+- **FSM durum makinesi** — Her iş `pending → running → completed | failed` akışını izler, tam trace kaydıyla
+- **Sözleşme tabanlı ajanlar** — Her ajanın tipli Contract + Playbook'u var. Prompt'lar belirleyicidir (temperature=0).
+- **Bağlam paketleri** — Ajan başına token/dosya limitleriyle derlenen statik dosya paketleri. Hata ayıklanabilir ve tekrarlanabilir.
 
-### Stack
+### Teknoloji Yığını
 
-| Component | Technology |
-|-----------|-----------|
+| Bileşen | Teknoloji |
+|---------|-----------|
 | Frontend | React 19 + Vite + Tailwind CSS |
 | Backend | Fastify + TypeScript (strict mode) |
-| Database | PostgreSQL 16 + Drizzle ORM |
-| AI | OpenAI / OpenRouter (user-provided keys, AES-256-GCM encrypted) |
-| Auth | JWT (HTTP-only cookie) + Email/Password + OAuth (GitHub, Google) |
-| CI/CD | GitHub Actions (typecheck + lint + build + test on every PR) |
-| Deploy | Docker Compose + Caddy (auto-HTTPS) on OCI ARM64 |
+| Veritabanı | PostgreSQL 16 + Drizzle ORM |
+| AI | OpenAI / OpenRouter (kullanıcı anahtarları, AES-256-GCM şifreli) |
+| Kimlik Doğrulama | JWT (HTTP-only cookie) + Email/Şifre + OAuth (GitHub, Google) |
+| CI/CD | GitHub Actions (typecheck + lint + build + test her PR'da) |
+| Deploy | Docker Compose + Caddy (auto-HTTPS), OCI ARM64 |
 
 ---
 
-## Numbers
+## Proje Metrikleri
 
-| Metric | Value |
+| Metrik | Değer |
 |--------|-------|
-| Automated tests | **1,344** (797 backend + 547 frontend) |
-| Test files | 106 (unit, component, E2E) |
-| Source files | 322 TypeScript/TSX |
-| Lines of code | ~58,000 |
-| API endpoints | ~89 |
-| i18n translation keys | ~500 (English + Turkish) |
-| Quality gate checks | 4 (typecheck, lint, build, test) — all green |
-| Staging smoke tests | 12/12 passing |
+| Otomatik testler | **1.344** (797 backend + 547 frontend) |
+| Test dosyaları | 106 (birim, bileşen, E2E) |
+| Kaynak dosyalar | 322 TypeScript/TSX |
+| Kod satırı | ~58.000 |
+| API endpoint | ~89 |
+| i18n çeviri anahtarı | ~500 (İngilizce + Türkçe) |
+| Kalite kapısı | 4 (typecheck, lint, build, test) — hepsi yeşil |
+| Staging smoke testleri | 12/12 geçiyor |
 
 ---
 
-## What I Built (Engineering Highlights)
+## Ne İnşa Ettim (Mühendislik Vurguları)
 
-### Agent Orchestration Engine
-- Full FSM lifecycle management with state persistence
-- Factory + Registry pattern for dynamic agent instantiation
-- Plan → Execute → Reflect pipeline with quality scoring (0-100)
-- Real-time job streaming via Server-Sent Events (SSE)
-- Stale job detection with configurable watchdog
+### Ajan Orkestrasyon Motoru
+- Durum kalıcılığı ile tam FSM yaşam döngüsü yönetimi
+- Dinamik ajan örnekleme için Factory + Registry kalıbı
+- Plan → Yürüt → Yansıt hattı, kalite puanlaması (0-100)
+- Server-Sent Events (SSE) ile gerçek zamanlı iş akışı
+- Yapılandırılabilir watchdog ile askıda kalan iş tespiti
 
-### Authentication System
-- Multi-step email/password flow with 6-digit verification codes (15min expiry, bcrypt)
-- OAuth integration (GitHub + Google) with automatic welcome emails
-- JWT sessions in HTTP-only, Secure, SameSite cookies
+### Kimlik Doğrulama Sistemi
+- 6 haneli doğrulama kodlu çok adımlı email/şifre akışı (15dk süre, bcrypt)
+- OAuth entegrasyonu (GitHub + Google), otomatik hoşgeldin e-postası
+- HTTP-only, Secure, SameSite cookie'lerde JWT oturumları
 
-### Developer Experience
-- Cursor-inspired UI with lazy-loaded pages (50% bundle size reduction)
-- 3-step onboarding flow: connect GitHub → add AI key → run first agent
-- Bilingual interface (English/Turkish) with ~500 i18n keys
-- Standardized error handling with error envelope pattern
+### Geliştirici Deneyimi
+- Cursor esinli UI, lazy-load sayfalar (%50 bundle azaltma)
+- 3 adımlı onboarding: GitHub bağla → AI anahtarı ekle → ilk ajanı çalıştır
+- İki dilli arayüz (İngilizce/Türkçe), ~500 i18n anahtarı
+- Error envelope kalıbı ile standart hata işleme
 
-### Infrastructure & DevOps
-- Docker multi-arch builds (amd64 + arm64)
-- CI/CD pipeline: GitHub Actions with quality gates on every PR
-- Staging deploy with health verification, version check, and auto-rollback
-- 12-check automated smoke test suite
-- MCP Gateway always-on in staging (zero manual post-deploy steps)
+### Altyapı ve DevOps
+- Docker multi-arch build (amd64 + arm64)
+- CI/CD: Her PR'da kalite kapıları ile GitHub Actions
+- Health doğrulama, versiyon kontrolü ve otomatik rollback ile staging deploy
+- 12 kontrollü otomatik smoke test paketi
+- MCP Gateway staging'de her zaman aktif (sıfır manuel adım)
 
-### Security
-- AES-256-GCM encryption for user AI keys at rest
-- Sensitive data redaction in SSE streams (GitHub PATs, OAuth tokens, API keys)
-- Rate limiting, Helmet headers, CORS enforcement
-- API key masking in UI (last 4 characters only)
+### Güvenlik
+- Kullanıcı AI anahtarları için AES-256-GCM şifreleme
+- SSE akışlarında hassas veri redaksiyonu (GitHub PAT, OAuth token, API anahtarları)
+- Rate limiting, Helmet başlıkları, CORS uygulaması
+- UI'da API anahtarı maskeleme (yalnızca son 4 karakter)
 
 ---
 
-## Staging Environment
+## Staging Ortamı
 
-The platform runs on a single OCI Free Tier ARM64 VM:
+Platform tek bir OCI Free Tier ARM64 VM üzerinde çalışır:
 
-| Endpoint | Response |
-|----------|----------|
+| Endpoint | Yanıt |
+|----------|-------|
 | `/health` | `{"status":"ok"}` |
-| `/ready` | Database connected, encryption configured, email active, OAuth ready |
-| `/version` | Commit SHA + build time + semver |
+| `/ready` | Veritabanı bağlı, şifreleme yapılandırıldı, email aktif, OAuth hazır |
+| `/version` | Commit SHA + build zamanı + semver |
 
-All 12 automated smoke tests pass. TLS is auto-provisioned via Caddy + Let's Encrypt.
-
----
-
-## Development Timeline
-
-| Phase | Period | What Was Built |
-|-------|--------|---------------|
-| Foundation | Nov 2025 | Core architecture, modular monolith setup |
-| Web Shell | Dec 2025 | Basic UI, Fastify backend, auth system |
-| Agent EA | Dec 2025 | Scribe, Trace, Proto early access |
-| Observability | Jan 2026 | Logging, trace recording, SSE streaming |
-| UI Overhaul | Jan 2026 | Cursor-inspired dashboard, agent consoles |
-| Pilot Demo | Feb 2026 | Staging deployment, 1,344 tests, onboarding, feedback capture |
+12 otomatik smoke testinin tamamı geçiyor. TLS, Caddy + Let's Encrypt ile otomatik sağlanır.
 
 ---
 
-## Running Locally
+## Geliştirme Zaman Çizelgesi
+
+| Faz | Dönem | Ne İnşa Edildi |
+|-----|-------|---------------|
+| Temel | Kasım 2025 | Çekirdek mimari, modüler monolit kurulumu |
+| Web Shell | Aralık 2025 | Temel UI, Fastify backend, kimlik doğrulama |
+| Ajan EA | Aralık 2025 | Scribe, Trace, Proto erken erişim |
+| Gözlemlenebilirlik | Ocak 2026 | Loglama, trace kaydı, SSE akışı |
+| UI Yenileme | Ocak 2026 | Cursor esinli dashboard, ajan konsolları |
+| Pilot Demo | Şubat 2026 | Staging deploy, 1.344 test, onboarding, geri bildirim |
+
+---
+
+## Yerel Kurulum
 
 ```bash
-git clone https://github.com/OmerYasirOnal/akis-platform.git
-cd akis-platform
+git clone https://github.com/OmerYasirOnal/akis-platform-portfolio.git
+cd akis-platform-portfolio
 
-# Install
+# Kurulum
 pnpm install
 
 # Backend
@@ -175,67 +174,68 @@ pnpm -C frontend dev
 
 ---
 
-## Testing
+## Testler
 
 ```bash
-# Full quality gate (what CI runs on every PR)
+# Tam kalite kapısı (CI'ın her PR'da çalıştırdığı)
 pnpm -r typecheck && pnpm -r lint && pnpm -r build && pnpm -r test
 
-# 797 backend tests
+# 797 backend testi
 pnpm -C backend test:unit
 
-# 547 frontend tests
+# 547 frontend testi
 pnpm -C frontend test
 ```
 
 ---
 
-## About
+## Hakkında
 
-Built by **Ömer Yasir Önal** as a senior thesis project at Istanbul Fatih Sultan Mehmet University (2025-2026).
+**Ömer Yasir Önal** tarafından İstanbul Fatih Sultan Mehmet Vakıf Üniversitesi bitirme tezi olarak geliştirilmiştir (2025-2026).
 
-**Thesis:** *Can a structured AI agent orchestration framework improve developer productivity in documentation, testing, and prototyping tasks while maintaining output quality through automated review and critique pipelines?*
+**Tez Sorusu:** *Yapısal bir yapay zeka ajan orkestrasyon çerçevesi, otomatik inceleme ve kritik hatları aracılığıyla çıktı kalitesini korurken, dokümantasyon, test ve prototipleme görevlerinde geliştirici üretkenliğini artırabilir mi?*
 
-### Approach
-- **Design Science Research (DSR)** methodology
-- Iterative development with 7 phases over 4 months
-- Pilot evaluation with real users on staging environment
-- Quantitative metrics: task completion time, output quality scores, test coverage
+### Yaklaşım
+- **Tasarım Bilimi Araştırması (DSR)** metodolojisi
+- 4 ay boyunca 7 fazda iteratif geliştirme
+- Staging ortamında gerçek kullanıcılarla pilot değerlendirme
+- Nicel metrikler: görev tamamlanma süresi, çıktı kalite puanları, test kapsama oranı
 
 ---
 
-## Repository Structure
+## Depo Yapısı
 
-This public repository contains selected source code and documentation showcasing the platform's architecture:
+Bu public depo, platformun mimarisini sergileyen seçilmiş kaynak kodu ve dokümantasyon içerir:
 
 ```
-├── README.md                            # This file
+├── README.md                            # Bu dosya (Türkçe)
+├── README.en.md                         # English version
 ├── LICENSE                              # MIT
-├── SECURITY.md                          # Vulnerability reporting
+├── SECURITY.md                          # Güvenlik açığı bildirimi
 ├── backend/
-│   ├── docs/                            # API spec, auth flow, agent workflows
+│   ├── docs/                            # API spec, auth akışı, ajan iş akışları
 │   └── src/
-│       ├── core/                        # Orchestrator, FSM, events, tracing
-│       ├── agents/{scribe,trace,proto}/ # Agent implementations
+│       ├── core/                        # Orkestratör, FSM, olaylar, izleme
+│       ├── agents/{scribe,trace,proto}/ # Ajan implementasyonları
 │       └── services/
-│           ├── mcp/adapters/            # MCP protocol adapters
-│           └── quality/                 # Quality scoring engine
+│           ├── mcp/adapters/            # MCP protokol adaptörleri
+│           └── quality/                 # Kalite puanlama motoru
 ├── frontend/src/
-│   ├── pages/dashboard/                 # Dashboard + agent console pages
+│   ├── pages/dashboard/                 # Dashboard + ajan konsol sayfaları
 │   └── components/
-│       ├── agents/                      # Agent UI components
-│       ├── jobs/                        # Job management UI
-│       └── dashboard/                   # Dashboard widgets
+│       ├── agents/                      # Ajan UI bileşenleri
+│       ├── jobs/                        # İş yönetimi UI
+│       └── dashboard/                   # Dashboard widget'ları
 └── docs/
-    ├── agents/                          # Agent contracts, context packs
-    ├── UI_DESIGN_SYSTEM.md              # Design system documentation
-    └── public/assets/                   # Screenshots and demo GIFs
+    ├── agents/                          # Ajan sözleşmeleri, bağlam paketleri
+    ├── UI_DESIGN_SYSTEM.md              # Tasarım sistemi dokümantasyonu
+    └── public/assets/                   # Ekran görüntüleri ve demo GIF'leri
 ```
 
-> **Note:** This is a curated showcase — not the full private repository. The complete codebase includes 322+ source files, 106 test files, CI/CD pipelines, deployment infrastructure, and internal planning documents.
+> **Not:** Bu seçilmiş bir vitrin deposudur — tam private depo değildir. Tam kod tabanı 322+ kaynak dosyası, 106 test dosyası, CI/CD hatları, deployment altyapısı ve dahili planlama belgeleri içerir.
 
 ---
 
-## License
+## Lisans
 
 MIT

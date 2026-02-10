@@ -1,5 +1,11 @@
 # AKIS Backend – Authentication & Authorization
 
+> ## Özet (TR)
+> Bu belge AKIS Platform'un kimlik doğrulama mimarisini tanımlar. Email/şifre ile çok adımlı kayıt
+> (6 haneli doğrulama kodu, 15dk süre, bcrypt), OAuth entegrasyonu (GitHub + Google), JWT oturum
+> yönetimi (HTTP-only cookie, 7 gün), yetkilendirme modeli ve güvenlik önlemlerini (rate limiting,
+> CORS, şifreleme) kapsar. Tüm teknik detaylar aşağıdaki İngilizce içerikte yer almaktadır.
+
 **Version:** 1.0  
 **Last Updated:** 2025-12-06  
 **Purpose:** Define the authentication architecture, user lifecycle, and authorization model for AKIS Platform
