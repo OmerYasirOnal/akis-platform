@@ -5,10 +5,24 @@ import { describe, test } from 'node:test';
 import assert from 'node:assert';
 import {
   getPackLimits,
+  listPackProfiles,
   detectLanguage,
   validatePack,
   assembleContextPack,
 } from '../../src/services/knowledge/contextPacks.js';
+
+const baseMetadata = (overrides: Record<string, unknown> = {}) => ({
+  repo: 'acme/repo',
+  branch: 'main',
+  totalFiles: 1,
+  truncated: false,
+  assembledAt: '2026-02-10T10:00:00.000Z',
+  packId: 'cp_1234abcd',
+  packVersion: 'v1',
+  profile: 'default',
+  selectedBy: null,
+  ...overrides,
+});
 
 describe('getPackLimits', () => {
   test('returns scribe limits', () => {
@@ -33,6 +47,17 @@ describe('getPackLimits', () => {
     const limits = getPackLimits('unknown-agent');
     assert.strictEqual(limits.maxFiles, 30);
     assert.strictEqual(limits.maxTotalBytes, 150_000);
+  });
+});
+
+describe('listPackProfiles', () => {
+  test('returns deterministic profile list for known agents', () => {
+    assert.deepStrictEqual(listPackProfiles('scribe'), ['default', 'docs', 'release']);
+    assert.deepStrictEqual(listPackProfiles('trace'), ['default', 'tests', 'risk']);
+  });
+
+  test('returns default profile for unknown agents', () => {
+    assert.deepStrictEqual(listPackProfiles('unknown-agent'), ['default']);
   });
 });
 
@@ -63,7 +88,7 @@ describe('validatePack', () => {
   test('accepts valid pack', () => {
     const pack = {
       files: [{ path: 'README.md', content: '# Hello', language: 'markdown' }],
-      metadata: { repo: 'acme/repo', branch: 'main', totalFiles: 1, truncated: false, assembledAt: new Date().toISOString() },
+      metadata: baseMetadata(),
     };
     const result = validatePack(pack, 'scribe');
     assert.strictEqual(result.valid, true);
@@ -77,7 +102,7 @@ describe('validatePack', () => {
   });
 
   test('rejects pack without files array', () => {
-    const pack = { files: 'not-array', metadata: { repo: 'a/b', branch: 'main', totalFiles: 0, truncated: false, assembledAt: '' } };
+    const pack = { files: 'not-array', metadata: baseMetadata({ totalFiles: 0 }) };
     const result = validatePack(pack, 'scribe');
     assert.strictEqual(result.valid, false);
   });
@@ -86,7 +111,7 @@ describe('validatePack', () => {
     const files = Array.from({ length: 25 }, (_, i) => ({ path: `f${i}.ts`, content: 'x', language: 'typescript' }));
     const pack = {
       files,
-      metadata: { repo: 'a/b', branch: 'main', totalFiles: 25, truncated: false, assembledAt: '' },
+      metadata: baseMetadata({ totalFiles: 25 }),
     };
     const result = validatePack(pack, 'proto'); // proto limit = 20
     assert.strictEqual(result.valid, false);
@@ -98,7 +123,7 @@ describe('validatePack', () => {
     const files = [{ path: 'big.ts', content: bigContent, language: 'typescript' }];
     const pack = {
       files,
-      metadata: { repo: 'a/b', branch: 'main', totalFiles: 1, truncated: false, assembledAt: '' },
+      metadata: baseMetadata(),
     };
     const result = validatePack(pack, 'proto'); // proto limit = 100_000
     assert.strictEqual(result.valid, false);
@@ -108,11 +133,21 @@ describe('validatePack', () => {
   test('rejects invalid repo format', () => {
     const pack = {
       files: [],
-      metadata: { repo: 'noslash', branch: 'main', totalFiles: 0, truncated: false, assembledAt: '' },
+      metadata: baseMetadata({ repo: 'noslash', totalFiles: 0 }),
     };
     const result = validatePack(pack, 'scribe');
     assert.strictEqual(result.valid, false);
-    assert.ok(result.errors.some(e => e.includes('owner/repo')));
+    assert.ok(result.errors.some(e => e.includes('metadata.repo')));
+  });
+
+  test('rejects invalid profile for agent', () => {
+    const pack = {
+      files: [{ path: 'README.md', content: '# Hello', language: 'markdown' }],
+      metadata: baseMetadata({ profile: 'invalid' }),
+    };
+    const result = validatePack(pack, 'scribe');
+    assert.strictEqual(result.valid, false);
+    assert.ok(result.errors.some(e => e.includes('metadata.profile')));
   });
 });
 
@@ -130,6 +165,9 @@ describe('assembleContextPack', () => {
     assert.strictEqual(pack.metadata.repo, 'acme/repo');
     assert.strictEqual(pack.metadata.branch, 'main');
     assert.strictEqual(pack.metadata.truncated, false);
+    assert.strictEqual(pack.metadata.profile, 'default');
+    assert.strictEqual(pack.metadata.packVersion, 'v1');
+    assert.ok(pack.metadata.packId.startsWith('cp_'));
   });
 
   test('truncates files exceeding maxFiles', () => {
@@ -158,5 +196,18 @@ describe('assembleContextPack', () => {
     const pack = assembleContextPack('trace', 'acme/repo', 'main', files);
     const result = validatePack(pack, 'trace');
     assert.strictEqual(result.valid, true);
+  });
+
+  test('supports selectable profile and version metadata', () => {
+    const pack = assembleContextPack(
+      'scribe',
+      'acme/repo',
+      'main',
+      [{ path: 'docs/README.md', content: '# Docs' }],
+      { profile: 'docs', packVersion: 'v2', selectedBy: 'job-123' }
+    );
+    assert.strictEqual(pack.metadata.profile, 'docs');
+    assert.strictEqual(pack.metadata.packVersion, 'v2');
+    assert.strictEqual(pack.metadata.selectedBy, 'job-123');
   });
 });

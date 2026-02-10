@@ -4,6 +4,7 @@
  * Context packs are deterministic file bundles assembled from repository
  * content for agent consumption. See docs/agents/CONTEXT_PACKS.md.
  */
+import { contextPackSchema } from '../../core/contracts/ContextPackContract.js';
 
 export interface ContextPackFile {
   path: string;
@@ -17,6 +18,10 @@ export interface ContextPackMetadata {
   totalFiles: number;
   truncated: boolean;
   assembledAt: string;
+  packId: string;
+  packVersion: string;
+  profile: string;
+  selectedBy: string | null;
 }
 
 export interface ContextPack {
@@ -29,6 +34,12 @@ export interface PackLimits {
   maxTotalBytes: number;
 }
 
+export interface ContextPackSelection {
+  profile?: string;
+  packVersion?: string;
+  selectedBy?: string | null;
+}
+
 const AGENT_PACK_LIMITS: Record<string, PackLimits> = {
   scribe: { maxFiles: 50, maxTotalBytes: 200_000 },
   trace: { maxFiles: 30, maxTotalBytes: 150_000 },
@@ -36,9 +47,27 @@ const AGENT_PACK_LIMITS: Record<string, PackLimits> = {
 };
 
 const DEFAULT_LIMITS: PackLimits = { maxFiles: 30, maxTotalBytes: 150_000 };
+const AGENT_PACK_PROFILES: Record<string, string[]> = {
+  scribe: ['default', 'docs', 'release'],
+  trace: ['default', 'tests', 'risk'],
+  proto: ['default', 'api', 'scaffold'],
+};
+
+function simpleHash(input: string): string {
+  let hash = 2166136261;
+  for (let i = 0; i < input.length; i += 1) {
+    hash ^= input.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0).toString(16).padStart(8, '0');
+}
 
 export function getPackLimits(agentType: string): PackLimits {
   return AGENT_PACK_LIMITS[agentType] ?? DEFAULT_LIMITS;
+}
+
+export function listPackProfiles(agentType: string): string[] {
+  return AGENT_PACK_PROFILES[agentType] ?? ['default'];
 }
 
 export function detectLanguage(filePath: string): string {
@@ -62,25 +91,15 @@ export interface ValidatePackResult {
 
 export function validatePack(pack: unknown, agentType: string): ValidatePackResult {
   const errors: string[] = [];
-
-  if (!pack || typeof pack !== 'object') {
-    return { valid: false, errors: ['Pack must be an object'] };
+  const parsed = contextPackSchema.safeParse(pack);
+  if (!parsed.success) {
+    return {
+      valid: false,
+      errors: parsed.error.issues.map((issue) => `${issue.path.join('.') || 'pack'}: ${issue.message}`),
+    };
   }
 
-  const p = pack as Record<string, unknown>;
-
-  if (!Array.isArray(p.files)) {
-    errors.push('Pack must have a files array');
-  }
-
-  if (!p.metadata || typeof p.metadata !== 'object') {
-    errors.push('Pack must have a metadata object');
-  }
-
-  if (errors.length > 0) return { valid: false, errors };
-
-  const files = p.files as ContextPackFile[];
-  const metadata = p.metadata as ContextPackMetadata;
+  const { files, metadata } = parsed.data;
   const limits = getPackLimits(agentType);
 
   if (files.length > limits.maxFiles) {
@@ -110,6 +129,15 @@ export function validatePack(pack: unknown, agentType: string): ValidatePackResu
     errors.push('metadata.branch is required');
   }
 
+  if (metadata.totalFiles !== files.length) {
+    errors.push('metadata.totalFiles must match files.length');
+  }
+
+  const allowedProfiles = listPackProfiles(agentType);
+  if (!allowedProfiles.includes(metadata.profile)) {
+    errors.push(`metadata.profile must be one of: ${allowedProfiles.join(', ')}`);
+  }
+
   return { valid: errors.length === 0, errors };
 }
 
@@ -117,9 +145,13 @@ export function assembleContextPack(
   agentType: string,
   repo: string,
   branch: string,
-  files: Array<{ path: string; content: string }>
+  files: Array<{ path: string; content: string }>,
+  selection: ContextPackSelection = {}
 ): ContextPack {
   const limits = getPackLimits(agentType);
+  const profiles = listPackProfiles(agentType);
+  const profile = selection.profile && profiles.includes(selection.profile) ? selection.profile : 'default';
+  const packVersion = selection.packVersion && selection.packVersion.length > 0 ? selection.packVersion : 'v1';
 
   let totalBytes = 0;
   let truncated = false;
@@ -150,6 +182,9 @@ export function assembleContextPack(
     totalBytes += content.length;
   }
 
+  const signature = `${agentType}|${repo}|${branch}|${profile}|${packVersion}|${packFiles.map((f) => `${f.path}:${f.content.length}`).join(',')}`;
+  const packId = `cp_${simpleHash(signature)}`;
+
   return {
     files: packFiles,
     metadata: {
@@ -158,6 +193,10 @@ export function assembleContextPack(
       totalFiles: packFiles.length,
       truncated,
       assembledAt: new Date().toISOString(),
+      packId,
+      packVersion,
+      profile,
+      selectedBy: selection.selectedBy ?? null,
     },
   };
 }
