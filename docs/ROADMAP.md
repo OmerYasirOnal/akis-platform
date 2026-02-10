@@ -22,7 +22,7 @@
 
 | Kilometre Taşı | Hedef Tarih | Odak | Durum |
 |-----------------|-------------|------|-------|
-| **M1: Pilot Demo** | 28 Şubat 2026 | Staging düzeltme + Scribe/Trace/Proto golden path + pilot katılım | **Devam Ediyor** (30/30 görev, 1,344 test, staging deploy bekliyor) |
+| **M1: Pilot Demo** | 28 Şubat 2026 | Staging düzeltme + Scribe/Trace/Proto golden path + pilot katılım | **Devam Ediyor** (30/30 görev, 1,344 test, MCP CI eklendi, staging deploy bekliyor) |
 | **M2: Stabilizasyon** | 31 Mart 2026 | Hata düzeltme, pilot geri bildirim, pg_trgm prototip, tez taslağı | Başlanmadı |
 | **M3: Mezuniyet** | Mayıs 2026 | Final rapor, sunum, demo video, teslim paketi | Başlanmadı |
 
