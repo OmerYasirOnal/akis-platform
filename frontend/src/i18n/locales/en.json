@@ -532,5 +532,11 @@
   "waitlist.page.benefits.3": "Direct line to the team",
   "waitlist.page.benefits.4": "Shape the product roadmap",
   "waitlist.page.cta": "Join the Waitlist",
-  "waitlist.page.privacy": "We respect your privacy. No spam, ever."
+  "waitlist.page.privacy": "We respect your privacy. No spam, ever.",
+  "automations.sidebar.label": "Automations",
+  "automations.page.title": "Smart Automations",
+  "automations.page.subtitle": "Automate recurring workflows with scheduled agent runs",
+  "automations.page.empty": "No automations yet",
+  "automations.page.emptyDescription": "Create automations that aggregate content from RSS feeds and generate LinkedIn drafts.",
+  "automations.page.createFirst": "Create First Automation"
 }

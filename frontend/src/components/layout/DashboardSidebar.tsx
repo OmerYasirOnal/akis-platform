@@ -45,6 +45,12 @@ const AgentsHubIcon = () => (
   </svg>
 );
 
+const AutomationsIcon = () => (
+  <svg className="h-4.5 w-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" />
+  </svg>
+);
+
 interface NavItem {
   to: string;
   label: string;
@@ -70,6 +76,7 @@ const navGroups: NavGroup[] = [
     title: 'Agents',
     items: [
       { to: '/agents', label: 'Agents Hub', icon: <AgentsHubIcon /> },
+      { to: '/agents/smart-automations', label: 'Automations', icon: <AutomationsIcon /> },
     ],
   },
   {
