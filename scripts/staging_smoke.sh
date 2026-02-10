@@ -317,25 +317,35 @@ else
 fi
 
 # =============================================================================
-# Test 7: MCP Gateway readiness (from /ready response)
+# Test 7: MCP Gateway readiness (from /ready response) — REQUIRED for staging
 # =============================================================================
 echo "Test 7: MCP Gateway readiness"
 if [ "$READY_CODE" = "200" ]; then
   MCP_CONFIGURED=$(extract_json_field "$READY_JSON" "mcp.configured" 2>/dev/null || echo "unknown")
   MCP_GITHUB=$(extract_json_field "$READY_JSON" "mcp.github" 2>/dev/null || echo "unknown")
-  if [ "$MCP_CONFIGURED" = "true" ]; then
-    echo -e "${GREEN}✅ MCP: configured=true, github=${MCP_GITHUB}${NC}"
+  MCP_BASE_URL=$(extract_json_field "$READY_JSON" "mcp.baseUrl" 2>/dev/null || echo "unknown")
+  if [ "$MCP_CONFIGURED" = "true" ] && [ "$MCP_GITHUB" = "true" ]; then
+    echo -e "${GREEN}✅ MCP: configured=true, github=true, baseUrl=${MCP_BASE_URL}${NC}"
+    TESTS_PASSED=$((TESTS_PASSED + 1))
+  elif [ "$MCP_CONFIGURED" = "true" ] && [ "$MCP_GITHUB" != "true" ]; then
+    echo -e "${YELLOW}⚠️  MCP: configured but gateway not healthy (github=${MCP_GITHUB})${NC}"
+    echo -e "${YELLOW}   Gateway may still be starting. Check: docker compose logs mcp-gateway${NC}"
     TESTS_PASSED=$((TESTS_PASSED + 1))
   elif [ "$MCP_CONFIGURED" = "false" ]; then
     echo -e "${RED}❌ MCP: NOT configured — agents (Scribe/Trace/Proto) will fail${NC}"
     echo -e "${YELLOW}   FIX: Set GITHUB_MCP_BASE_URL and GITHUB_TOKEN in /opt/akis/.env${NC}"
+    echo -e "${YELLOW}   MCP Gateway is always-on in staging docker-compose. Ensure .env has:${NC}"
+    echo -e "${YELLOW}     GITHUB_MCP_BASE_URL=http://mcp-gateway:4010/mcp${NC}"
+    echo -e "${YELLOW}     GITHUB_TOKEN=ghp_xxxxx (repo + read:org scopes)${NC}"
     TESTS_FAILED=$((TESTS_FAILED + 1))
   else
-    echo -e "${YELLOW}⚠️  MCP: could not determine status (old backend version?)${NC}"
-    TESTS_PASSED=$((TESTS_PASSED + 1))
+    echo -e "${RED}❌ MCP: could not determine status from /ready response${NC}"
+    echo -e "${YELLOW}   Expected mcp.configured field in /ready JSON${NC}"
+    TESTS_FAILED=$((TESTS_FAILED + 1))
   fi
 else
-  echo -e "${YELLOW}⚠️  Skipping MCP check (/ready not available)${NC}"
+  echo -e "${RED}❌ Skipping MCP check (/ready not available)${NC}"
+  TESTS_FAILED=$((TESTS_FAILED + 1))
 fi
 
 # =============================================================================

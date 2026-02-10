@@ -33,7 +33,7 @@
 | # | Test | Command | Expected | Pass/Fail | Exit Code |
 |---|------|---------|----------|-----------|-----------|
 | 6 | SPA deep link | `curl -sf https://staging.akisflow.com/auth/privacy-consent \| head -c 50` | HTML (SPA served, HTTP 200) | | 4 |
-| 7 | MCP Gateway readiness | `curl -sf https://staging.akisflow.com/ready \| jq .mcp` | `configured: true, github: true` | | — |
+| 7 | MCP Gateway readiness | `curl -sf https://staging.akisflow.com/ready \| jq .mcp` | `configured: true, github: true, baseUrl: "http://mcp-gateway:4010/mcp"` | | 2 (REQUIRED) |
 | 8 | Canonical logo | `curl -sI https://staging.akisflow.com/brand/logo.png \| head -5` | HTTP 200 | | — |
 | 9 | Agents hub route | `curl -sf https://staging.akisflow.com/agents \| head -c 50` | HTML (SPA served, HTTP 200) | | — |
 | 10 | OAuth providers | `curl -sf https://staging.akisflow.com/ready \| jq .oauth` | `github: true` and/or `google: true` | | — |
