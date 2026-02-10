@@ -1,98 +1,97 @@
-# Public Portfolio Repo — Creation Checklist
+# Public Portfolio Deposu — Oluşturma Kontrol Listesi
 
-> Step-by-step guide to create and maintain the public `akis-platform` repo.
+> Public `akis-platform-portfolio` deposunu oluşturmak ve sürdürmek için adım adım kılavuz.
 
-## Prerequisites
+## Ön Koşullar
 
-- [ ] `docs/public/assets/` contains screenshots per [`SHOTLIST.md`](assets/SHOTLIST.md)
-- [ ] `docs/PUBLIC_PORTFOLIO.md` is up to date with current metrics
-- [ ] Main branch is clean (`git status` shows no uncommitted changes)
+- [ ] `docs/public/assets/` içinde [`SHOTLIST.md`](assets/SHOTLIST.md)'ye göre ekran görüntüleri var
+- [ ] `docs/PUBLIC_PORTFOLIO.md` (TR) ve `docs/PUBLIC_PORTFOLIO_EN.md` (EN) güncel
+- [ ] Main branch temiz (`git status` ile uncommitted değişiklik yok)
 
-## Step 1: Run Export Script
+## Adım 1: Export Script'i Çalıştır
 
 ```bash
-# From devagents/ root
+# devagents/ kök dizininden
 ./scripts/public-repo/export.sh
 ```
 
-This will:
-1. Create `dist/public-repo/` with allowlisted files
-2. Generate `README.md` from the public portfolio template
-3. Add `LICENSE` (MIT) and `SECURITY.md`
-4. Run denylist scan for secrets/internal details
-5. Print a summary of exported files
+Bu komut:
+1. `dist/public-repo/` dizinini izin listesindeki dosyalarla oluşturur
+2. `README.md` (Türkçe) ve `README.en.md` (İngilizce) üretir
+3. `LICENSE` (MIT) ve `SECURITY.md` ekler
+4. Gizli bilgi/dahili detaylar için yasak listesi taraması yapar
+5. Dışa aktarılan dosyaların özetini yazdırır
 
-**If the scan fails:** Fix the flagged file, then re-run.
+**Tarama başarısız olursa:** İşaretlenen dosyayı düzelt, tekrar çalıştır.
 
-## Step 2: Review Output
+## Adım 2: Çıktıyı İncele
 
 ```bash
-# Check what was exported
+# Neyin export edildiğini kontrol et
 find dist/public-repo -type f | head -50
 
-# Spot-check a few files for internal references
-grep -r "staging.akisflow.com" dist/public-repo/ || echo "Clean"
-grep -r "192.168\|10.0\|172.1[6-9]" dist/public-repo/ || echo "Clean"
-grep -r "STAGING_HOST\|STAGING_SSH" dist/public-repo/ || echo "Clean"
+# Dahili referanslar için birkaç dosyayı kontrol et
+grep -r "192.168\|10.0\|172.1[6-9]" dist/public-repo/ || echo "Temiz"
+grep -r "STAGING_HOST\|STAGING_SSH" dist/public-repo/ || echo "Temiz"
 ```
 
-## Step 3: Create Public Repo
+## Adım 3: Public Depoyu Oluştur
 
 ```bash
-# Option A: Fresh repo from export directory
+# Seçenek A: Export dizininden sıfırdan
 cd dist/public-repo
 git init
 git add .
 git commit -m "Initial commit — AKIS Platform portfolio showcase"
-gh repo create OmerYasirOnal/akis-platform --public \
-  --description "AI Agent Orchestration System for Software Development" \
+gh repo create OmerYasirOnal/akis-platform-portfolio --public \
+  --description "Yazılım Geliştirme için AI Ajan Orkestrasyon Sistemi" \
   --source . --push
 ```
 
 ```bash
-# Option B: Push to existing repo
+# Seçenek B: Mevcut repoya push et
 cd dist/public-repo
 git init
-git remote add origin https://github.com/OmerYasirOnal/akis-platform.git
+git remote add origin https://github.com/OmerYasirOnal/akis-platform-portfolio.git
 git add .
 git commit -m "Update portfolio snapshot"
 git push -u origin main --force
 ```
 
-## Step 4: Add Screenshots
+## Adım 4: Ekran Görüntüsü Ekle
 
-> **Note:** Cursor/AI cannot take screenshots. This must be done manually.
-> See the full shot list: [`docs/public/assets/SHOTLIST.md`](assets/SHOTLIST.md)
+> **Not:** Cursor/AI ekran görüntüsü alamaz. Bu adım manuel yapılmalıdır.
+> Tam liste: [`docs/public/assets/SHOTLIST.md`](assets/SHOTLIST.md)
 
-1. Open [staging.akisflow.com](https://staging.akisflow.com) (viewport 1440×900)
-2. Capture the 8 shots listed in `SHOTLIST.md` (landing hero, capabilities, signup, login, dashboard, agent console, job detail, agents hub)
-3. Save as PNG (< 500KB each) to `docs/public/assets/` in the **private** repo
-4. Re-run `./scripts/public-repo/export.sh` to include them in the public snapshot
-5. Push the updated public repo
+1. [staging.akisflow.com](https://staging.akisflow.com) adresini aç (viewport 1440×900)
+2. `SHOTLIST.md`'deki 8 görüntüyü yakala (landing hero, capabilities, signup, login, dashboard, ajan konsolu, iş detayı, ajanlar hub)
+3. PNG olarak (< 500KB) **private** depodaki `docs/public/assets/` dizinine kaydet
+4. `./scripts/public-repo/export.sh` ile public snapshot'a dahil et
+5. Güncellenmiş public depoyu push et
 
-## Step 5: Verify Public Repo
+## Adım 5: Public Depoyu Doğrula
 
-- [ ] Visit `github.com/OmerYasirOnal/akis-platform` — README renders correctly
-- [ ] Architecture diagram displays properly
-- [ ] No `.env`, secrets, or internal IPs visible in any file
-- [ ] Links to `staging.akisflow.com` work
-- [ ] "About" section has description + website URL + topics
+- [ ] `github.com/OmerYasirOnal/akis-platform-portfolio` adresinde README düzgün görünüyor
+- [ ] Dil değiştirici çalışıyor (README.md ↔ README.en.md)
+- [ ] Hiçbir dosyada `.env`, gizli bilgi veya dahili IP görünmüyor
+- [ ] `staging.akisflow.com` bağlantıları çalışıyor
+- [ ] "About" bölümünde açıklama + website URL + etiketler var
 
-### Recommended GitHub Topics
+### Önerilen GitHub Etiketleri
 `ai`, `agent`, `orchestration`, `typescript`, `react`, `fastify`, `mcp`, `devtools`, `automation`, `thesis`
 
-## Updating the Public Repo
+## Public Depoyu Güncelleme
 
-When the private repo has meaningful changes:
+Private depoda anlamlı değişiklikler olduğunda:
 
 ```bash
-# 1. Update docs/PUBLIC_PORTFOLIO.md with new metrics
-# 2. Re-run export
+# 1. docs/PUBLIC_PORTFOLIO.md ve docs/PUBLIC_PORTFOLIO_EN.md güncelle
+# 2. Export'u tekrar çalıştır
 ./scripts/public-repo/export.sh
-# 3. Push updated snapshot
+# 3. Güncellenmiş snapshot'ı push et
 cd dist/public-repo
-git add . && git commit -m "Update snapshot — <what changed>"
+git add . && git commit -m "Update snapshot — <ne değişti>"
 git push
 ```
 
-**Rule:** Never manually edit files in the public repo. Always export from private → public.
+**Kural:** Public depodaki dosyaları asla manuel düzenleme. Her zaman private → public export et.
