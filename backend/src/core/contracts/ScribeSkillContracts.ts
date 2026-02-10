@@ -1,6 +1,5 @@
 import { z } from 'zod';
 import { SkillContractViolationError } from '../errors.js';
-
 export const ScribeSkillNameSchema = z.enum(['DocPackFromRepo', 'ReleaseNotesFromPRs', 'ChecklistFromRunbook']);
 export type ScribeSkillName = z.infer<typeof ScribeSkillNameSchema>;
 const FACET_MAX_ATTEMPTS = 2;
