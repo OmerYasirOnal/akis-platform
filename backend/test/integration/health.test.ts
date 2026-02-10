@@ -6,10 +6,12 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert';
 import { buildApp } from '../../src/server.app.js';
+import { db } from '../../src/db/client.js';
 
 // Note: DATABASE_URL check removed - tests handle both connected and disconnected states
 
 describe('Health Endpoints', async () => {
+  const EXPECTED_MCP_ENV_KEYS = ['GITHUB_MCP_BASE_URL', 'GITHUB_TOKEN'] as const;
   const app = await buildApp();
 
   // Cleanup after all tests
@@ -61,6 +63,84 @@ describe('Health Endpoints', async () => {
         assert.ok('error' in body, 'Should have error field');
       }
     });
+
+    test('should always include mcp object with diagnostic fields', async () => {
+      const response = await app.inject({
+        method: 'GET',
+        url: '/ready',
+      });
+
+      const body = JSON.parse(response.body);
+      assert.ok(body.mcp, '/ready must always include mcp object');
+      assert.strictEqual(typeof body.mcp.configured, 'boolean', 'mcp.configured must be boolean');
+      assert.strictEqual(typeof body.mcp.gatewayReachable, 'boolean', 'mcp.gatewayReachable must be boolean');
+      assert.ok(Array.isArray(body.mcp.missingEnv), 'mcp.missingEnv must be an array');
+      assert.ok('baseUrl' in body.mcp, 'mcp.baseUrl must be present (string or null)');
+      assert.ok('error' in body.mcp, 'mcp.error must be present (string or null)');
+      assert.ok(
+        body.mcp.baseUrl === null || typeof body.mcp.baseUrl === 'string',
+        'mcp.baseUrl must be string or null'
+      );
+      assert.ok(
+        body.mcp.error === null || typeof body.mcp.error === 'string',
+        'mcp.error must be string or null'
+      );
+
+      const allKeysAreExpected = body.mcp.missingEnv.every((key: string) =>
+        EXPECTED_MCP_ENV_KEYS.includes(key as (typeof EXPECTED_MCP_ENV_KEYS)[number])
+      );
+      assert.ok(allKeysAreExpected, 'mcp.missingEnv must only include expected env keys');
+
+      if (body.mcp.configured) {
+        assert.deepStrictEqual(
+          body.mcp.missingEnv,
+          [],
+          'mcp.missingEnv must be empty when mcp.configured=true'
+        );
+      } else {
+        assert.ok(
+          body.mcp.missingEnv.length > 0,
+          'mcp.missingEnv must contain at least one key when mcp.configured=false'
+        );
+      }
+    });
+
+    test('should include mcp diagnostics in deterministic degraded 503 response', async () => {
+      const dbWithMutableExecute = db as unknown as {
+        execute: (...args: unknown[]) => Promise<unknown>;
+      };
+      const originalExecute = dbWithMutableExecute.execute;
+      dbWithMutableExecute.execute = async () => {
+        throw new Error('forced-db-failure-for-ready-test');
+      };
+
+      try {
+        const response = await app.inject({
+          method: 'GET',
+          url: '/ready',
+        });
+
+        assert.strictEqual(response.statusCode, 503);
+        const body = JSON.parse(response.body);
+        assert.strictEqual(body.ready, false);
+        assert.ok('error' in body, '503 body must include error field');
+
+        assert.ok(body.mcp, '503 response must include mcp object');
+        assert.strictEqual(typeof body.mcp.configured, 'boolean', 'mcp.configured must be boolean');
+        assert.strictEqual(typeof body.mcp.gatewayReachable, 'boolean', 'mcp.gatewayReachable must be boolean');
+        assert.ok(Array.isArray(body.mcp.missingEnv), 'mcp.missingEnv must be an array');
+        assert.ok(
+          body.mcp.baseUrl === null || typeof body.mcp.baseUrl === 'string',
+          'mcp.baseUrl must be string or null in 503 response'
+        );
+        assert.ok(
+          body.mcp.error === null || typeof body.mcp.error === 'string',
+          'mcp.error must be string or null in 503 response'
+        );
+      } finally {
+        dbWithMutableExecute.execute = originalExecute;
+      }
+    });
   });
 
   describe('GET /version', () => {
@@ -106,4 +186,3 @@ describe('Health Endpoints', async () => {
     });
   });
 });
-

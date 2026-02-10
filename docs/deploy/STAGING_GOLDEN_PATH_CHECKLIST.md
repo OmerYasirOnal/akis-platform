@@ -18,21 +18,24 @@
 
 ```bash
 # 1. Health check
-curl -s https://staging.akisflow.com/api/health | jq .
+curl -s https://staging.akisflow.com/health | jq .
 # Expected: { "status": "ok" }
 
-# 2. Readiness check (MCP fields)
-curl -s https://staging.akisflow.com/api/ready | jq '.mcp'
-# Expected:
+# 2. Readiness check (MCP fields — always present)
+curl -s https://staging.akisflow.com/ready | jq '.mcp'
+# Expected (healthy):
 # {
 #   "configured": true,
-#   "github": true,
-#   "baseUrl": "http://mcp-gateway:4010/mcp"
+#   "gatewayReachable": true,
+#   "baseUrl": "http://mcp-gateway:4010/mcp",
+#   "missingEnv": [],
+#   "error": null
 # }
-# If mcp.github=false → gateway is down or GITHUB_TOKEN missing/invalid
+# If configured=false → check missingEnv array for which env vars are missing
+# If gatewayReachable=false → gateway container is down or unreachable
 
 # 3. Version check
-curl -s https://staging.akisflow.com/api/version | jq .
+curl -s https://staging.akisflow.com/version | jq .
 # Record version for evidence
 ```
 
@@ -95,7 +98,11 @@ After all 3 golden paths pass:
    - `/agents/scribe?shot=1` — completed Scribe job
    - `/agents/trace?shot=1` — completed Trace job
    - `/agents/proto?shot=1` — completed Proto job
-3. **Save `/ready` output** showing `mcp.configured: true, mcp.github: true`
+3. **Save `/ready` output** showing:
+   - `mcp.configured: true`
+   - `mcp.gatewayReachable: true`
+   - `mcp.missingEnv: []`
+   - `mcp.error: null`
 4. **Update docs:**
    - `docs/NEXT.md` — check off the M1 golden path item
    - `docs/qa/GRADUATION_EVIDENCE.md` — add run IDs/dates if needed
@@ -106,8 +113,8 @@ After all 3 golden paths pass:
 
 | Symptom | Cause | Fix |
 |---------|-------|-----|
-| `mcp.configured: false` | `GITHUB_MCP_BASE_URL` not set | Add `GITHUB_MCP_BASE_URL=http://mcp-gateway:4010/mcp` to staging `.env` |
-| `mcp.github: false` | Gateway down or token invalid | Check `docker compose logs mcp-gateway`; verify `GITHUB_TOKEN` |
+| `mcp.configured: false` | Check `mcp.missingEnv` array | Add listed env vars to staging `.env` (e.g. `GITHUB_MCP_BASE_URL`, `GITHUB_TOKEN`) |
+| `mcp.gatewayReachable: false` | Gateway down or unreachable | Check `docker compose logs mcp-gateway`; verify container is running |
 | `MISSING_DEPENDENCY` in job logs | AI key not configured for user | Add API key in Settings → AI Keys |
 | Job stuck in `running` | Stale job watchdog timeout | Wait 5min; check `StaleJobWatchdog` logs |
 | `GATEWAY_ERROR` | MCP Gateway network issue | Restart: `docker compose restart mcp-gateway` |
