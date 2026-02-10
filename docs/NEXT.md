@@ -84,6 +84,7 @@ docs/NEXT.md                                             (bu dosya — anlık ey
 |----|-------|-------|--------|
 | S0.5.2-RAG-1 | Araştırma notu + karar kilitleme | Tamamlandı | `docs/agents/CONTEXT_PACKS.md` (2026-02-09) |
 | S0.5.2-RAG-2 | Bağlam paketi mekanizması doğrulama | Tamamlandı | contextPacks.ts + 19 doğrulama testi (2026-02-09) |
+| S0.5.2-RAG-3 | Context Pack contract: versioned + selectable + auditable metadata (`packId`, `packVersion`, `profile`) | Tamamlandı | Ref 4 + Sec 4.2b + Sec 7.2 hizası: truncation stratejisi, invalid profile reject, contract testleri (2026-02-10) |
 
 ### Faz E (24-28 Şub) — KG + M1 PİLOT DEMO
 
