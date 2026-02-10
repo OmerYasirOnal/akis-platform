@@ -73,11 +73,11 @@
 - [x] Agent yönlendirme: `/agents/*` kanonik, eski rotalar yönlendiriliyor
 - [x] Hata durumlarında kullanıcıya anlaşılır mesaj
 - [x] Logo tüm yüzeylerde güncel
-- [ ] E-posta/şifre kayıt + giriş çalışıyor (staging)
-- [ ] OAuth yönlendirmeleri staging alanında çalışıyor
-- [ ] Scribe golden path çalışıyor (kuru çalışma)
-- [ ] Trace golden path çalışıyor
-- [ ] Proto golden path çalışıyor
+- [x] E-posta/şifre kayıt + giriş çalışıyor (staging) — SMTP provider aktif (2026-02-10)
+- [x] OAuth yönlendirmeleri staging alanında çalışıyor — Google + GitHub (2026-02-10)
+- [ ] Scribe golden path çalışıyor (kuru çalışma) — MCP Gateway profile aktif edilmeli
+- [ ] Trace golden path çalışıyor — MCP Gateway profile aktif edilmeli
+- [ ] Proto golden path çalışıyor — MCP Gateway profile aktif edilmeli
 - [x] Pilot katılım akışı çalışıyor (2026-02-09)
 - [x] Demo senaryosu yazılmış (2026-02-09) — prova bekliyor
 - [x] KG kanıt dokümanı mevcut (2026-02-09)
