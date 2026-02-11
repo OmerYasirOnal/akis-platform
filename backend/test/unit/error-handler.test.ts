@@ -67,6 +67,7 @@ describe('getStatusCodeForError', () => {
     ['UNAUTHORIZED', 401],
     ['INVALID_CREDENTIALS', 401],
     ['EMAIL_IN_USE', 409],
+    ['EMAIL_DELIVERY_FAILED', 503],
     ['USER_NOT_FOUND', 404],
     ['EMAIL_NOT_VERIFIED', 403],
     ['ALREADY_VERIFIED', 403],

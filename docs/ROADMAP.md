@@ -22,7 +22,7 @@
 
 | Kilometre Taşı | Hedef Tarih | Odak | Durum |
 |-----------------|-------------|------|-------|
-| **M1: Pilot Demo** | 28 Şubat 2026 | Staging düzeltme + Scribe/Trace/Proto golden path + pilot katılım | **Devam Ediyor** (31/31 görev, 1,391 test, MCP CI eklendi; A-mark only favicon/compact logo güncellemesi tamamlandı) |
+| **M1: Pilot Demo** | 28 Şubat 2026 | Staging düzeltme + Scribe/Trace/Proto golden path + pilot katılım | **Devam Ediyor** (32/32 görev, 1,391 test; A-mark only favicon/compact logo + signup email false-success fix tamamlandı, staging SMTP auth credential düzeltmesi bekleniyor) |
 | **M2: Stabilizasyon** | 31 Mart 2026 | Hata düzeltme, pilot geri bildirim, pg_trgm prototip, tez taslağı | Başlanmadı |
 | **M3: Mezuniyet** | Mayıs 2026 | Final rapor, sunum, demo video, teslim paketi | Başlanmadı |
 
@@ -73,7 +73,7 @@
 - [x] Agent yönlendirme: `/agents/*` kanonik, eski rotalar yönlendiriliyor
 - [x] Hata durumlarında kullanıcıya anlaşılır mesaj
 - [x] Logo tüm yüzeylerde güncel (full wordmark korunarak A-mark only favicon + compact UI güncellemesi, 2026-02-11)
-- [x] E-posta/şifre kayıt + giriş çalışıyor (staging) — SMTP provider aktif (2026-02-10)
+- [ ] E-posta/şifre kayıt + giriş çalışıyor (staging) — SMTP auth `535` nedeniyle verification delivery bloklu; credential düzeltmesi sonrası yeniden doğrulanacak (2026-02-11)
 - [x] OAuth yönlendirmeleri staging alanında çalışıyor — Google + GitHub (2026-02-10)
 - [ ] Scribe golden path çalışıyor (kuru çalışma) — MCP always-on, `GITHUB_TOKEN` env + redeploy gerekli
 - [ ] Trace golden path çalışıyor — aynı
