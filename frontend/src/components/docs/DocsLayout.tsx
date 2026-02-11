@@ -154,9 +154,7 @@ export default function DocsLayout() {
         <div className="mx-auto flex h-16 max-w-[1400px] items-center justify-between px-4 sm:px-6 lg:px-8">
           <div className="flex items-center gap-6">
             <NavLink to="/" className="flex items-center gap-2 text-xl font-bold text-ak-text-primary hover:text-ak-primary transition-colors">
-              <svg className="h-6 w-6 text-ak-primary" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
+              <img src="/brand/akis-a-mark.png" alt="AKIS" className="h-7 w-7" />
               AKIS
             </NavLink>
             <div className="hidden sm:flex items-center">
