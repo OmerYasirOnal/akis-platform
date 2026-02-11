@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { ProfileMenu } from '../ProfileMenu';
 
@@ -84,7 +84,9 @@ describe('ProfileMenu', () => {
   it('calls logout and navigates on Logout click', async () => {
     render(<ProfileMenu />, { wrapper: Wrapper });
     fireEvent.click(screen.getByLabelText('Profile menu'));
-    fireEvent.click(screen.getByText('Logout'));
+    await act(async () => {
+      fireEvent.click(screen.getByText('Logout'));
+    });
     // Wait for async logout
     await vi.waitFor(() => {
       expect(mockLogout).toHaveBeenCalled();

@@ -31,6 +31,19 @@ export const traceEventTypeEnum = pgEnum('trace_event_type', [
   'reasoning',     // Reasoning summary
 ]);
 
+export const threadStatusEnum = pgEnum('thread_status', [
+  'active',
+  'awaiting_user_input',
+  'awaiting_plan_selection',
+  'queued',
+  'completed',
+  'failed',
+]);
+
+export const threadMessageRoleEnum = pgEnum('thread_message_role', ['system', 'user', 'agent']);
+export const planCandidateStatusEnum = pgEnum('plan_candidate_status', ['unbuilt', 'queued', 'building', 'built', 'failed']);
+export const threadTaskStatusEnum = pgEnum('thread_task_status', ['pending', 'awaiting_user_input', 'answered', 'completed', 'failed']);
+
 export const jobs = pgTable('jobs', {
   id: uuid('id').defaultRandom().primaryKey(),
   type: varchar('type', { length: 50 }).notNull(),
@@ -304,6 +317,137 @@ export type JobArtifact = typeof jobArtifacts.$inferSelect;
 export type NewJobArtifact = typeof jobArtifacts.$inferInsert;
 
 /**
+ * Conversation threads - persistent multi-agent chat threads
+ */
+export const conversationThreads = pgTable('conversation_threads', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  title: varchar('title', { length: 255 }).notNull().default('New conversation'),
+  status: threadStatusEnum('status').notNull().default('active'),
+  agentType: varchar('agent_type', { length: 50 }).notNull().default('scribe'),
+  activeRuns: integer('active_runs').notNull().default(0),
+  lastMessageAt: timestamp('last_message_at'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => ({
+  userIdIdx: index('idx_conversation_threads_user_id').on(table.userId),
+  userStatusUpdatedIdx: index('idx_conversation_threads_user_status_updated').on(table.userId, table.status, table.updatedAt),
+}));
+
+export type ConversationThread = typeof conversationThreads.$inferSelect;
+export type NewConversationThread = typeof conversationThreads.$inferInsert;
+
+/**
+ * Conversation messages - ordered chat history inside thread
+ */
+export const conversationMessages = pgTable('conversation_messages', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  threadId: uuid('thread_id').notNull().references(() => conversationThreads.id, { onDelete: 'cascade' }),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  role: threadMessageRoleEnum('role').notNull(),
+  agentType: varchar('agent_type', { length: 50 }),
+  content: text('content').notNull(),
+  metadata: jsonb('metadata').notNull().default({}),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => ({
+  threadCreatedIdx: index('idx_conversation_messages_thread_created').on(table.threadId, table.createdAt),
+  userCreatedIdx: index('idx_conversation_messages_user_created').on(table.userId, table.createdAt),
+}));
+
+export type ConversationMessage = typeof conversationMessages.$inferSelect;
+export type NewConversationMessage = typeof conversationMessages.$inferInsert;
+
+/**
+ * Thread tasks - uncertainty gate and ask/wait/resume lifecycle
+ */
+export const threadTasks = pgTable('thread_tasks', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  threadId: uuid('thread_id').notNull().references(() => conversationThreads.id, { onDelete: 'cascade' }),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  status: threadTaskStatusEnum('status').notNull().default('pending'),
+  prompt: text('prompt').notNull(),
+  question: text('question'),
+  answer: text('answer'),
+  uncertaintyScore: numeric('uncertainty_score', { precision: 5, scale: 2 }),
+  resumeToken: varchar('resume_token', { length: 100 }),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  answeredAt: timestamp('answered_at'),
+}, (table) => ({
+  threadStatusIdx: index('idx_thread_tasks_thread_status').on(table.threadId, table.status),
+  userCreatedIdx: index('idx_thread_tasks_user_created').on(table.userId, table.createdAt),
+}));
+
+export type ThreadTask = typeof threadTasks.$inferSelect;
+export type NewThreadTask = typeof threadTasks.$inferInsert;
+
+/**
+ * Plan candidates - one or more buildable plans per thread
+ */
+export const planCandidates = pgTable('plan_candidates', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  threadId: uuid('thread_id').notNull().references(() => conversationThreads.id, { onDelete: 'cascade' }),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  sourceMessageId: uuid('source_message_id').references(() => conversationMessages.id, { onDelete: 'set null' }),
+  title: varchar('title', { length: 255 }).notNull(),
+  summary: text('summary').notNull(),
+  sourcePrompt: text('source_prompt').notNull(),
+  status: planCandidateStatusEnum('status').notNull().default('unbuilt'),
+  selected: boolean('selected').notNull().default(false),
+  buildJobId: uuid('build_job_id').references(() => jobs.id, { onDelete: 'set null' }),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => ({
+  threadStatusUpdatedIdx: index('idx_plan_candidates_thread_status_updated').on(table.threadId, table.status, table.updatedAt),
+  userCreatedIdx: index('idx_plan_candidates_user_created').on(table.userId, table.createdAt),
+}));
+
+export type PlanCandidate = typeof planCandidates.$inferSelect;
+export type NewPlanCandidate = typeof planCandidates.$inferInsert;
+
+/**
+ * Plan candidate builds - immutable build attempts
+ */
+export const planCandidateBuilds = pgTable('plan_candidate_builds', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  threadId: uuid('thread_id').notNull().references(() => conversationThreads.id, { onDelete: 'cascade' }),
+  planCandidateId: uuid('plan_candidate_id').notNull().references(() => planCandidates.id, { onDelete: 'cascade' }),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  status: planCandidateStatusEnum('status').notNull().default('queued'),
+  jobId: uuid('job_id').references(() => jobs.id, { onDelete: 'set null' }),
+  metadata: jsonb('metadata').notNull().default({}),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => ({
+  threadCreatedIdx: index('idx_plan_candidate_builds_thread_created').on(table.threadId, table.createdAt),
+  candidateCreatedIdx: index('idx_plan_candidate_builds_candidate_created').on(table.planCandidateId, table.createdAt),
+}));
+
+export type PlanCandidateBuild = typeof planCandidateBuilds.$inferSelect;
+export type NewPlanCandidateBuild = typeof planCandidateBuilds.$inferInsert;
+
+/**
+ * Thread trust snapshots - reliability/hallucination/task/tool health bars
+ */
+export const threadTrustSnapshots = pgTable('thread_trust_snapshots', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  threadId: uuid('thread_id').notNull().references(() => conversationThreads.id, { onDelete: 'cascade' }),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  jobId: uuid('job_id').references(() => jobs.id, { onDelete: 'set null' }),
+  reliability: integer('reliability').notNull(),
+  hallucinationRisk: integer('hallucination_risk').notNull(),
+  taskSuccess: integer('task_success').notNull(),
+  toolHealth: integer('tool_health').notNull(),
+  metadata: jsonb('metadata').notNull().default({}),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => ({
+  threadCreatedIdx: index('idx_thread_trust_snapshots_thread_created').on(table.threadId, table.createdAt),
+  userCreatedIdx: index('idx_thread_trust_snapshots_user_created').on(table.userId, table.createdAt),
+}));
+
+export type ThreadTrustSnapshot = typeof threadTrustSnapshots.$inferSelect;
+export type NewThreadTrustSnapshot = typeof threadTrustSnapshots.$inferInsert;
+
+/**
  * User status enum - tracks account state
  */
 export const userStatusEnum = pgEnum('user_status', [
@@ -464,6 +608,12 @@ export type NewUserAiKey = typeof userAiKeys.$inferInsert;
 // Users relations - includes oauth accounts
 export const usersRelations = relations(users, ({ many }) => ({
   oauthAccounts: many(oauthAccounts),
+  conversationThreads: many(conversationThreads),
+  conversationMessages: many(conversationMessages),
+  threadTasks: many(threadTasks),
+  planCandidates: many(planCandidates),
+  planCandidateBuilds: many(planCandidateBuilds),
+  threadTrustSnapshots: many(threadTrustSnapshots),
 }));
 
 // OAuth accounts relations
@@ -605,6 +755,13 @@ export const agentConfigs = pgTable('agent_configs', {
   
   // LLM overrides (optional)
   llmModelOverride: varchar('llm_model_override', { length: 255 }),
+
+  // Runtime controls (Agent Control Platform v1)
+  runtimeProfile: varchar('runtime_profile', { length: 20 }).notNull().default('deterministic'), // deterministic|balanced|creative|custom
+  temperatureValue: numeric('temperature_value', { precision: 3, scale: 2 }), // 0.00-1.00 (custom profile only)
+  commandLevel: integer('command_level').notNull().default(2), // L1-L5
+  allowCommandExecution: boolean('allow_command_execution').notNull().default(false), // Derived from commandLevel (>=3)
+  settingsVersion: integer('settings_version').notNull().default(1),
   
   // Audit
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
@@ -623,6 +780,94 @@ export const agentConfigsRelations = relations(agentConfigs, ({ one }) => ({
   user: one(users, {
     fields: [agentConfigs.userId],
     references: [users.id],
+  }),
+}));
+
+export const conversationThreadsRelations = relations(conversationThreads, ({ one, many }) => ({
+  user: one(users, {
+    fields: [conversationThreads.userId],
+    references: [users.id],
+  }),
+  messages: many(conversationMessages),
+  tasks: many(threadTasks),
+  planCandidates: many(planCandidates),
+  planCandidateBuilds: many(planCandidateBuilds),
+  trustSnapshots: many(threadTrustSnapshots),
+}));
+
+export const conversationMessagesRelations = relations(conversationMessages, ({ one }) => ({
+  thread: one(conversationThreads, {
+    fields: [conversationMessages.threadId],
+    references: [conversationThreads.id],
+  }),
+  user: one(users, {
+    fields: [conversationMessages.userId],
+    references: [users.id],
+  }),
+}));
+
+export const threadTasksRelations = relations(threadTasks, ({ one }) => ({
+  thread: one(conversationThreads, {
+    fields: [threadTasks.threadId],
+    references: [conversationThreads.id],
+  }),
+  user: one(users, {
+    fields: [threadTasks.userId],
+    references: [users.id],
+  }),
+}));
+
+export const planCandidatesRelations = relations(planCandidates, ({ one, many }) => ({
+  thread: one(conversationThreads, {
+    fields: [planCandidates.threadId],
+    references: [conversationThreads.id],
+  }),
+  user: one(users, {
+    fields: [planCandidates.userId],
+    references: [users.id],
+  }),
+  sourceMessage: one(conversationMessages, {
+    fields: [planCandidates.sourceMessageId],
+    references: [conversationMessages.id],
+  }),
+  buildJob: one(jobs, {
+    fields: [planCandidates.buildJobId],
+    references: [jobs.id],
+  }),
+  builds: many(planCandidateBuilds),
+}));
+
+export const planCandidateBuildsRelations = relations(planCandidateBuilds, ({ one }) => ({
+  thread: one(conversationThreads, {
+    fields: [planCandidateBuilds.threadId],
+    references: [conversationThreads.id],
+  }),
+  candidate: one(planCandidates, {
+    fields: [planCandidateBuilds.planCandidateId],
+    references: [planCandidates.id],
+  }),
+  user: one(users, {
+    fields: [planCandidateBuilds.userId],
+    references: [users.id],
+  }),
+  job: one(jobs, {
+    fields: [planCandidateBuilds.jobId],
+    references: [jobs.id],
+  }),
+}));
+
+export const threadTrustSnapshotsRelations = relations(threadTrustSnapshots, ({ one }) => ({
+  thread: one(conversationThreads, {
+    fields: [threadTrustSnapshots.threadId],
+    references: [conversationThreads.id],
+  }),
+  user: one(users, {
+    fields: [threadTrustSnapshots.userId],
+    references: [users.id],
+  }),
+  job: one(jobs, {
+    fields: [threadTrustSnapshots.jobId],
+    references: [jobs.id],
   }),
 }));
 

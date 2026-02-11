@@ -15,6 +15,8 @@ import { generateScribeBranchName } from '../utils/branchNaming.js';
 import { incrementUsage } from '../services/billing/BillingService.js';
 import { generateQualitySuggestions, type QualityResult, type QualityInput } from '../services/quality/index.js';
 
+const MAX_ACTIVE_RUNS_PER_USER = 3;
+
 // Request validation schemas
 // Legacy payload schema (backward compatible)
 const scribePayloadSchema = z.object({
@@ -51,6 +53,15 @@ const tracePayloadSchema = z.object({
   baseBranch: z.string().optional(),
   branchStrategy: z.enum(['auto', 'manual']).optional(),
   dryRun: z.boolean().optional(),
+  automationMode: z.literal('generate_and_run').optional(),
+  targetBaseUrl: z.string().url().optional(),
+  featureLimit: z.number().int().min(1).max(100).optional(),
+  tracePreferences: z.object({
+    testDepth: z.enum(['smoke', 'standard', 'deep']),
+    authScope: z.enum(['public', 'authenticated', 'mixed']),
+    browserTarget: z.enum(['chromium', 'cross_browser', 'mobile']),
+    strictness: z.enum(['fast', 'balanced', 'strict']),
+  }).optional(),
 }).passthrough();
 
 const protoPayloadSchema = z.object({
@@ -72,12 +83,99 @@ const protoPayloadSchema = z.object({
   }
 });
 
+const runtimeProfileSchema = z.enum(['deterministic', 'balanced', 'creative', 'custom']);
+const commandLevelSchema = z.number().int().min(1).max(5);
+const runtimeOverrideSchema = z
+  .object({
+    runtimeProfile: runtimeProfileSchema.optional(),
+    temperatureValue: z.number().min(0).max(1).optional().nullable(),
+    commandLevel: commandLevelSchema.optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (
+      data.runtimeProfile === 'custom' &&
+      (data.temperatureValue === null || data.temperatureValue === undefined)
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'temperatureValue is required when runtimeProfile is custom',
+        path: ['temperatureValue'],
+      });
+    }
+  });
+
+type RuntimeProfile = z.infer<typeof runtimeProfileSchema>;
+type CommandLevel = 1 | 2 | 3 | 4 | 5;
+
+interface RuntimeControl {
+  runtimeProfile: RuntimeProfile;
+  temperatureValue: number | null;
+  commandLevel: CommandLevel;
+  allowCommandExecution: boolean;
+  settingsVersion: number;
+}
+
+const DEFAULT_RUNTIME: RuntimeControl = {
+  runtimeProfile: 'deterministic',
+  temperatureValue: null,
+  commandLevel: 2,
+  allowCommandExecution: false,
+  settingsVersion: 1,
+};
+
+function toNumericOrNull(value: unknown): number | null {
+  if (value === null || value === undefined) return null;
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  if (typeof value === 'string' && value.trim().length > 0) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+}
+
+function ensureRuntimeControl(value: Partial<RuntimeControl> | null | undefined): RuntimeControl {
+  const runtimeProfile = value?.runtimeProfile ?? DEFAULT_RUNTIME.runtimeProfile;
+  const commandLevel = (value?.commandLevel ?? DEFAULT_RUNTIME.commandLevel) as CommandLevel;
+  const temperatureValue =
+    runtimeProfile === 'custom' ? value?.temperatureValue ?? DEFAULT_RUNTIME.temperatureValue : null;
+
+  return {
+    runtimeProfile,
+    temperatureValue,
+    commandLevel,
+    allowCommandExecution: commandLevel >= 3,
+    settingsVersion: value?.settingsVersion ?? DEFAULT_RUNTIME.settingsVersion,
+  };
+}
+
+function applyRuntimeOverride(
+  base: RuntimeControl,
+  runtimeOverride?: z.infer<typeof runtimeOverrideSchema>
+): RuntimeControl {
+  if (!runtimeOverride) return base;
+  const runtimeProfile = runtimeOverride.runtimeProfile ?? base.runtimeProfile;
+  const commandLevel = (runtimeOverride.commandLevel ?? base.commandLevel) as CommandLevel;
+  const temperatureValue =
+    runtimeProfile === 'custom'
+      ? runtimeOverride.temperatureValue ?? base.temperatureValue ?? null
+      : null;
+
+  return {
+    runtimeProfile,
+    temperatureValue,
+    commandLevel,
+    allowCommandExecution: commandLevel >= 3,
+    settingsVersion: base.settingsVersion,
+  };
+}
+
 // NOTE: coderPayloadSchema and developerPayloadSchema shelved for S0.5.
 // See: _shelved/README.md for reactivation.
 
 const submitJobSchema = z.object({
   type: z.enum(['scribe', 'trace', 'proto']),
   payload: z.unknown().optional(),
+  runtimeOverride: runtimeOverrideSchema.optional(),
   /** If true, the job will use a stronger model for final validation */
   requiresStrictValidation: z.boolean().optional().default(false),
 }).superRefine((data, ctx) => {
@@ -165,6 +263,35 @@ function extractCorrelationIdFromText(value: unknown): string | null {
   return match?.[1] || null;
 }
 
+async function resolveEffectiveRuntimeControl(
+  userId: string | undefined,
+  agentType: 'scribe' | 'trace' | 'proto',
+  runtimeOverride?: z.infer<typeof runtimeOverrideSchema>
+): Promise<RuntimeControl> {
+  if (!userId) {
+    return applyRuntimeOverride(DEFAULT_RUNTIME, runtimeOverride);
+  }
+
+  const config = await db.query.agentConfigs.findFirst({
+    where: and(eq(agentConfigs.userId, userId), eq(agentConfigs.agentType, agentType)),
+  });
+
+  const configRuntime = config
+    ? ensureRuntimeControl({
+        runtimeProfile: (config.runtimeProfile as RuntimeProfile | null) ?? undefined,
+        temperatureValue: toNumericOrNull(config.temperatureValue),
+        commandLevel: (config.commandLevel as CommandLevel | null) ?? undefined,
+        allowCommandExecution:
+          typeof config.allowCommandExecution === 'boolean'
+            ? config.allowCommandExecution
+            : undefined,
+        settingsVersion: config.settingsVersion ?? undefined,
+      })
+    : DEFAULT_RUNTIME;
+
+  return applyRuntimeOverride(configRuntime, runtimeOverride);
+}
+
 // Initialize orchestrator (will be injected from server.app.ts)
 let orchestrator: AgentOrchestrator;
 
@@ -186,6 +313,17 @@ export async function agentsRoutes(fastify: FastifyInstance) {
           properties: {
             type: { type: 'string', enum: ['scribe', 'trace', 'proto'] },
             payload: { type: 'object' },
+            runtimeOverride: {
+              type: 'object',
+              properties: {
+                runtimeProfile: {
+                  type: 'string',
+                  enum: ['deterministic', 'balanced', 'creative', 'custom'],
+                },
+                temperatureValue: { type: 'number', minimum: 0, maximum: 1 },
+                commandLevel: { type: 'number', minimum: 1, maximum: 5 },
+              },
+            },
             requiresStrictValidation: { type: 'boolean', default: false },
           },
         },
@@ -209,9 +347,10 @@ export async function agentsRoutes(fastify: FastifyInstance) {
         let enrichedPayload = body.payload;
         let aiModel: string | undefined;
         let aiProvider: string | undefined;
+        let userId: string | undefined;
+        let effectiveRuntime: RuntimeControl = DEFAULT_RUNTIME;
 
         if (body.type === 'scribe') {
-          let userId: string;
           try {
             const user = await requireAuth(request);
             userId = user.id;
@@ -219,6 +358,10 @@ export async function agentsRoutes(fastify: FastifyInstance) {
             const errorResponse = formatErrorResponse(request, authError);
             reply.code(401).send(errorResponse);
             return;
+          }
+
+          if (!userId) {
+            throw new Error('Authenticated user id is required for scribe jobs');
           }
 
           // ========================================================================
@@ -513,9 +656,6 @@ export async function agentsRoutes(fastify: FastifyInstance) {
           }
         }
 
-        // Track userId for billing (extracted outside if block for scope)
-        let userId: string | undefined;
-        
         // For non-scribe agents, inject userId and AI provider config from auth session
         if (body.type !== 'scribe') {
           try {
@@ -545,6 +685,46 @@ export async function agentsRoutes(fastify: FastifyInstance) {
           } else if (userId && !enrichedPayload) {
             enrichedPayload = { userId };
           }
+        }
+
+        if (userId) {
+          const [activeRunsRow] = await db
+            .select({
+              count: sql<number>`count(*)`,
+            })
+            .from(jobs)
+            .where(
+              and(
+                inArray(jobs.state, ['pending', 'running']),
+                sql`(${jobs.payload}->>'userId')::text = ${userId}`
+              )
+            );
+          const activeRuns = Number(activeRunsRow?.count ?? 0);
+          if (activeRuns >= MAX_ACTIVE_RUNS_PER_USER) {
+            return reply.code(429).send({
+              error: {
+                code: 'ACTIVE_RUN_LIMIT_EXCEEDED',
+                message: `Maximum ${MAX_ACTIVE_RUNS_PER_USER} active runs are allowed per user.`,
+              },
+              activeRuns,
+              limit: MAX_ACTIVE_RUNS_PER_USER,
+            });
+          }
+        }
+
+        effectiveRuntime = await resolveEffectiveRuntimeControl(userId, body.type, body.runtimeOverride);
+        if (enrichedPayload && typeof enrichedPayload === 'object') {
+          enrichedPayload = {
+            ...(enrichedPayload as Record<string, unknown>),
+            runtimeOverride: body.runtimeOverride ?? null,
+            effectiveRuntime,
+          };
+        } else {
+          enrichedPayload = {
+            runtimeOverride: body.runtimeOverride ?? null,
+            effectiveRuntime,
+            ...(userId ? { userId } : {}),
+          };
         }
 
         // Submit job (creates DB row with pending state)
@@ -805,6 +985,13 @@ export async function agentsRoutes(fastify: FastifyInstance) {
         // Return job data with optional plan/audit/trace/artifacts
         const correlationId =
           extractCorrelationIdFromText(job.errorMessage) || extractCorrelationIdFromText(job.error);
+        const payloadAsRecord =
+          job.payload && typeof job.payload === 'object'
+            ? (job.payload as Record<string, unknown>)
+            : null;
+        const effectiveRuntime = ensureRuntimeControl(
+          (payloadAsRecord?.effectiveRuntime as Partial<RuntimeControl> | undefined) ?? undefined
+        );
 
         // Build structured AI response object
         const aiResponse = {
@@ -853,6 +1040,7 @@ export async function agentsRoutes(fastify: FastifyInstance) {
           aiEstimatedCostUsd: job.aiEstimatedCostUsd,
           // New structured AI object
           ai: aiResponse,
+          effectiveRuntime,
           correlationId,
           // Quality fields (persisted)
           qualityScore: job.qualityScore,

@@ -172,7 +172,7 @@ export default function DocsLayout() {
             />
             <NavLink
               to="/dashboard"
-              className="hidden sm:inline-flex items-center gap-2 rounded-full bg-ak-primary px-4 py-2 text-sm font-semibold text-[#111418] hover:brightness-110 active:brightness-95 transition-colors"
+              className="hidden sm:inline-flex items-center gap-2 rounded-full bg-ak-primary px-4 py-2 text-sm font-semibold text-[color:var(--ak-on-primary)] hover:brightness-110 active:brightness-95 transition-colors"
             >
               Dashboard
               <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -211,7 +211,7 @@ export default function DocsLayout() {
           {/* Main content */}
           <main className="min-w-0 flex-1 lg:pl-8">
             <Breadcrumb />
-            <article className="prose prose-invert max-w-none prose-headings:text-ak-text-primary prose-headings:font-semibold prose-p:text-ak-text-secondary prose-p:leading-relaxed prose-a:text-ak-primary prose-a:no-underline hover:prose-a:underline prose-strong:text-ak-text-primary prose-code:text-ak-primary prose-code:bg-ak-surface prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded-md prose-code:text-sm prose-code:before:content-none prose-code:after:content-none prose-pre:bg-ak-surface prose-pre:border prose-pre:border-ak-border prose-pre:rounded-xl prose-li:text-ak-text-secondary prose-li:marker:text-ak-primary/50 prose-hr:border-ak-border prose-blockquote:border-ak-primary/30 prose-blockquote:text-ak-text-secondary prose-th:text-ak-text-primary prose-td:text-ak-text-secondary">
+            <article className="prose max-w-none prose-headings:text-ak-text-primary prose-headings:font-semibold prose-p:text-ak-text-secondary prose-p:leading-relaxed prose-a:text-ak-primary prose-a:no-underline hover:prose-a:underline prose-strong:text-ak-text-primary prose-code:text-ak-primary prose-code:bg-ak-surface prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded-md prose-code:text-sm prose-code:before:content-none prose-code:after:content-none prose-pre:bg-ak-surface prose-pre:border prose-pre:border-ak-border prose-pre:rounded-xl prose-li:text-ak-text-secondary prose-li:marker:text-ak-primary/50 prose-hr:border-ak-border prose-blockquote:border-ak-primary/30 prose-blockquote:text-ak-text-secondary prose-th:text-ak-text-primary prose-td:text-ak-text-secondary">
               <Outlet />
             </article>
           </main>

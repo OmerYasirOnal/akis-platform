@@ -11,6 +11,22 @@ const withCredentials = {
 export type AgentType = 'scribe' | 'trace' | 'proto';
 
 export type JobState = 'pending' | 'running' | 'completed' | 'failed';
+export type RuntimeProfile = 'deterministic' | 'balanced' | 'creative' | 'custom';
+export type CommandLevel = 1 | 2 | 3 | 4 | 5;
+
+export interface RuntimeOverride {
+  runtimeProfile?: RuntimeProfile;
+  temperatureValue?: number | null;
+  commandLevel?: CommandLevel;
+}
+
+export interface EffectiveRuntime {
+  runtimeProfile: RuntimeProfile;
+  temperatureValue: number | null;
+  commandLevel: CommandLevel;
+  allowCommandExecution: boolean;
+  settingsVersion: number;
+}
 
 export interface AgentDefinition {
   id: AgentType;
@@ -50,6 +66,10 @@ export interface JobDetail {
   audit?: unknown[];
   trace?: unknown[];
   artifacts?: unknown[];
+  qualityScore?: number | null;
+  qualityBreakdown?: unknown;
+  qualitySuggestions?: string[];
+  effectiveRuntime?: EffectiveRuntime;
 }
 
 const agents: AgentDefinition[] = [
@@ -89,6 +109,7 @@ const agents: AgentDefinition[] = [
 export interface RunAgentRequest {
   type: AgentType;
   payload: unknown;
+  runtimeOverride?: RuntimeOverride;
   requiresStrictValidation?: boolean;
 }
 

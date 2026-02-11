@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import {
+  LOGO_A_MARK_PNG,
   LOGO_ALT,
   LOGO_PNG_1X,
   LOGO_PNG_2X,
@@ -39,11 +40,14 @@ export default function Logo({
     size === "hero"
       ? { height: "clamp(72px, 12vw, 112px)" }
       : { height: `${height}px` };
+  const useMonogram = size !== "hero";
+  const src = useMonogram ? LOGO_A_MARK_PNG : LOGO_PNG_1X;
+  const srcSet = useMonogram ? undefined : LOGO_SRCSET;
 
   const logoElement = (
     <img
-      src={LOGO_PNG_1X}
-      srcSet={LOGO_SRCSET}
+      src={src}
+      srcSet={srcSet}
       alt={LOGO_ALT}
       className={cn("w-auto", className)}
       style={computedStyle}
@@ -62,4 +66,3 @@ export default function Logo({
     </Link>
   );
 }
-

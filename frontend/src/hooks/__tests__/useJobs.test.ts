@@ -29,7 +29,7 @@ describe('useJobs', () => {
   });
 
   it('starts in loading state', () => {
-    mockGetJobs.mockResolvedValue(makeJobsResponse(0));
+    mockGetJobs.mockReturnValue(new Promise(() => undefined));
     const { result } = renderHook(() => useJobs());
     expect(result.current.isLoading).toBe(true);
     expect(result.current.error).toBeNull();
