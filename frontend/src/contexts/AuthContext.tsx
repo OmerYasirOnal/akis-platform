@@ -7,6 +7,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
+import { useLocation } from 'react-router-dom';
 import { AuthAPI, type AuthUser } from '../services/api/auth';
 
 type User = (AuthUser & { role: 'member' }) | null;
@@ -29,9 +30,16 @@ const AuthContext = createContext<AuthContextValue>({
   setUser: () => {},
 });
 
+const AUTH_REQUIRED_PREFIXES = ['/dashboard', '/agents'];
+
+function requiresAuthResolve(pathname: string): boolean {
+  return AUTH_REQUIRED_PREFIXES.some((prefix) => pathname.startsWith(prefix));
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User>(null);
   const [loading, setLoading] = useState(true);
+  const location = useLocation();
 
   const mapUser = useCallback((payload: AuthUser): NonNullable<User> => {
     return {
@@ -41,7 +49,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
+    if (!requiresAuthResolve(location.pathname)) {
+      setLoading(false);
+      return;
+    }
+
     let active = true;
+    setLoading(true);
 
     AuthAPI.me()
       .then((currentUser) => {
@@ -63,7 +77,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => {
       active = false;
     };
-  }, [mapUser]);
+  }, [location.pathname, mapUser]);
 
   const login = useCallback(
     async (email: string, password: string) => {
