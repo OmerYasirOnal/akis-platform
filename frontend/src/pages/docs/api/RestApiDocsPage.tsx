@@ -1,27 +1,27 @@
-/**
- * REST API Documentation
- */
 import { Link } from 'react-router-dom';
+import { useI18n } from '../../../i18n/useI18n';
+import { DocsReferenceList } from '../../../components/common/DocsReferenceList';
 
 export default function RestApiDocsPage() {
+  const { t } = useI18n();
+  const tx = (key: string) => t(key as never);
+
   return (
     <div>
-      <h1>REST API Reference</h1>
-      
-      <p className="lead">
-        The AKIS REST API allows you to programmatically manage agents, jobs, and integrations. All endpoints are served from <code>/api</code>.
-      </p>
+      <h1>{tx('docs.restApi.title')}</h1>
+      <p className="lead">{tx('docs.restApi.lead')}</p>
 
-      <h2>Base URL</h2>
+      <h2>{tx('docs.restApi.baseUrl')}</h2>
       <pre><code>{`/api`}</code></pre>
 
-      <h2>Authentication</h2>
+      <h2>{tx('docs.restApi.authentication')}</h2>
       <p>
-        All API requests require authentication via session cookie. See <Link to="/docs/api/auth">Authentication</Link> for details.
+        {tx('docs.restApi.authDesc')}{' '}
+        <Link to="/docs/api/auth">{tx('docs.auth.title')}</Link>
       </p>
 
-      <h2>Agents</h2>
-      <h3>Run Agent</h3>
+      <h2>{tx('docs.restApi.agents')}</h2>
+      <h3>{tx('docs.restApi.runAgent')}</h3>
       <pre><code className="language-http">{`POST /api/agents/jobs
 Content-Type: application/json
 
@@ -35,27 +35,27 @@ Content-Type: application/json
   }
 }`}</code></pre>
 
-      <h3>Get Job</h3>
+      <h3>{tx('docs.restApi.getJob')}</h3>
       <pre><code className="language-http">{`GET /api/agents/jobs/:id`}</code></pre>
 
-      <h3>List Jobs</h3>
+      <h3>{tx('docs.restApi.listJobs')}</h3>
       <pre><code className="language-http">{`GET /api/agents/jobs?limit=10&cursor=job_123`}</code></pre>
 
-      <h2>Integrations</h2>
-      <h3>GitHub Status</h3>
+      <h2>{tx('docs.restApi.integrations')}</h2>
+      <h3>{tx('docs.restApi.githubStatus')}</h3>
       <pre><code className="language-http">{`GET /api/integrations/github/status`}</code></pre>
 
-      <h3>Start GitHub OAuth</h3>
+      <h3>{tx('docs.restApi.startOAuth')}</h3>
       <pre><code className="language-http">{`GET /api/integrations/github/oauth/start`}</code></pre>
 
-      <h3>Disconnect GitHub</h3>
+      <h3>{tx('docs.restApi.disconnectGithub')}</h3>
       <pre><code className="language-http">{`DELETE /api/integrations/github`}</code></pre>
 
-      <h2>Settings</h2>
-      <h3>Get Profile</h3>
+      <h2>{tx('docs.restApi.settings')}</h2>
+      <h3>{tx('docs.restApi.getProfile')}</h3>
       <pre><code className="language-http">{`GET /api/settings/profile`}</code></pre>
 
-      <h3>Update Profile</h3>
+      <h3>{tx('docs.restApi.updateProfile')}</h3>
       <pre><code className="language-http">{`PUT /api/settings/profile
 Content-Type: application/json
 
@@ -63,11 +63,11 @@ Content-Type: application/json
   "name": "New Name"
 }`}</code></pre>
 
-      <h3>AI Keys Status</h3>
+      <h3>{tx('docs.restApi.aiKeysStatus')}</h3>
       <pre><code className="language-http">{`GET /api/settings/ai-keys/status`}</code></pre>
 
-      <h2>Error Responses</h2>
-      <p>Errors follow a consistent format:</p>
+      <h2>{tx('docs.restApi.errorResponses')}</h2>
+      <p>{tx('docs.restApi.errorDesc')}</p>
       <pre><code className="language-json">{`{
   "error": {
     "code": "ERROR_CODE",
@@ -76,20 +76,17 @@ Content-Type: application/json
   }
 }`}</code></pre>
 
-      <h2>OpenAPI Spec</h2>
-      <p>
-        The full OpenAPI specification is available at{' '}
-        <a href="/openapi.json" target="_blank" rel="noopener noreferrer">/openapi.json</a>.
-        Interactive Swagger UI is at{' '}
-        <a href="/api/docs" target="_blank" rel="noopener noreferrer">/api/docs</a>.
-      </p>
+      <h2>{tx('docs.restApi.openApiSpec')}</h2>
+      <p>{tx('docs.restApi.openApiDesc')}</p>
 
-      <h2>Related</h2>
-      <ul>
-        <li><Link to="/docs/api/auth">Authentication</Link></li>
-        <li><Link to="/docs/api/webhooks">Webhooks</Link></li>
-        <li><Link to="/docs/agents/scribe">Scribe Agent</Link></li>
-      </ul>
+      <DocsReferenceList
+        title={tx('docs.section.related')}
+        items={[
+          { label: tx('docs.auth.title'), href: '/docs/api/auth' },
+          { label: tx('docs.webhooks.title'), href: '/docs/api/webhooks' },
+          { label: 'Scribe Agent', href: '/docs/agents/scribe' },
+        ]}
+      />
     </div>
   );
 }
