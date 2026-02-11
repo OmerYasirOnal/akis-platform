@@ -26,6 +26,7 @@ export type AuthErrorCode =
   | 'UNAUTHORIZED'
   | 'INVALID_CREDENTIALS'
   | 'EMAIL_IN_USE'
+  | 'EMAIL_DELIVERY_FAILED'
   | 'USER_NOT_FOUND'
   | 'EMAIL_NOT_VERIFIED'
   | 'ALREADY_VERIFIED'
@@ -172,6 +173,7 @@ export function getStatusCodeForError(code: ErrorCode): number {
     case 'AI_PROVIDER_ERROR':
     case 'AI_NETWORK_ERROR':
     case 'AI_INVALID_RESPONSE':
+    case 'EMAIL_DELIVERY_FAILED':
     case 'ENCRYPTION_NOT_CONFIGURED':
     case 'OAUTH_NOT_CONFIGURED':
       return 503; // Service unavailable
