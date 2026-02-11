@@ -1372,14 +1372,10 @@ export default function AgentsHubPage() {
   };
 
   const runQueuedItemNow = (sessionId: string, itemId: string) => {
-    let picked: SteerQueueItem | null = null;
-    updateQueue(sessionId, (prev) => {
-      const target = prev.find((item) => item.id === itemId) || null;
-      picked = target;
-      return prev.filter((item) => item.id !== itemId);
-    });
-    const pickedItem = picked;
+    const currentQueue = steerQueueBySession[sessionId] ?? [];
+    const pickedItem = currentQueue.find((item) => item.id === itemId) ?? null;
     if (!pickedItem) return;
+    updateQueue(sessionId, (prev) => prev.filter((item) => item.id !== itemId));
     setActiveSessionId(sessionId);
     const linkedSession = chatSessions.find((session) => session.id === sessionId);
     if (linkedSession) {

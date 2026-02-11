@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
-import Button from '../../../../../components/common/Button';
-import { toast } from '../../../../../components/ui/Toast';
+import Button from '../../../../components/common/Button';
+import { toast } from '../../../../components/ui/Toast';
 
 const FILES = [
   'src/main.tsx',
