@@ -1,30 +1,26 @@
-/**
- * API Authentication Documentation
- */
-import { Link } from 'react-router-dom';
+import { useI18n } from '../../../i18n/useI18n';
+import { DocsReferenceList } from '../../../components/common/DocsReferenceList';
 
 export default function AuthDocsPage() {
+  const { t } = useI18n();
+  const tx = (key: string) => t(key as never);
+
   return (
     <div>
-      <h1>API Authentication</h1>
-      
-      <p className="lead">
-        AKIS uses cookie-based session authentication for API requests. All API endpoints require an authenticated session.
-      </p>
+      <h1>{tx('docs.auth.title')}</h1>
+      <p className="lead">{tx('docs.auth.lead')}</p>
 
-      <h2>Session Cookie</h2>
-      <p>
-        After logging in, a session cookie named <code>akis_sid</code> is set. This cookie is:
-      </p>
+      <h2>{tx('docs.auth.sessionCookie')}</h2>
+      <p>{tx('docs.auth.sessionDesc')}</p>
       <ul>
-        <li>HTTP-only (not accessible via JavaScript)</li>
-        <li>SameSite=Lax (CSRF protection)</li>
-        <li>Secure in production (HTTPS only)</li>
-        <li>Valid for 7 days by default</li>
+        <li>{tx('docs.auth.httpOnly')}</li>
+        <li>{tx('docs.auth.sameSite')}</li>
+        <li>{tx('docs.auth.secure')}</li>
+        <li>{tx('docs.auth.valid7d')}</li>
       </ul>
 
-      <h2>Login Flow</h2>
-      <h3>Email/Password</h3>
+      <h2>{tx('docs.auth.loginFlow')}</h2>
+      <h3>{tx('docs.auth.emailPassword')}</h3>
       <pre><code className="language-http">{`POST /auth/login
 Content-Type: application/json
 
@@ -33,28 +29,28 @@ Content-Type: application/json
   "password": "your-password"
 }`}</code></pre>
 
-      <h3>OAuth (GitHub/Google)</h3>
+      <h3>{tx('docs.auth.oauthGithub')}</h3>
       <pre><code className="language-http">{`GET /auth/oauth/github`}</code></pre>
-      <p>Redirects to GitHub for authentication, then back to AKIS.</p>
+      <p>{tx('docs.auth.oauthRedirects')}</p>
 
-      <h2>Making Authenticated Requests</h2>
-      <p>Include credentials in fetch requests:</p>
+      <h2>{tx('docs.auth.makingRequests')}</h2>
+      <p>{tx('docs.auth.includeCredentials')}</p>
       <pre><code className="language-javascript">{`const response = await fetch('/api/settings/profile', {
   credentials: 'include', // Important!
 });
 
 const profile = await response.json();`}</code></pre>
 
-      <h2>Session Validation</h2>
+      <h2>{tx('docs.auth.sessionValidation')}</h2>
       <pre><code className="language-http">{`GET /auth/me`}</code></pre>
-      <p>Returns current user info if authenticated, 401 otherwise.</p>
+      <p>{tx('docs.auth.sessionValidationDesc')}</p>
 
-      <h2>Logout</h2>
+      <h2>{tx('docs.auth.logout')}</h2>
       <pre><code className="language-http">{`POST /auth/logout`}</code></pre>
-      <p>Clears the session cookie.</p>
+      <p>{tx('docs.auth.logoutDesc')}</p>
 
-      <h2>Error Handling</h2>
-      <p>Unauthenticated requests return:</p>
+      <h2>{tx('docs.auth.errorHandling')}</h2>
+      <p>{tx('docs.auth.errorDesc')}</p>
       <pre><code className="language-json">{`{
   "error": {
     "code": "UNAUTHORIZED",
@@ -62,12 +58,14 @@ const profile = await response.json();`}</code></pre>
   }
 }`}</code></pre>
 
-      <h2>Related</h2>
-      <ul>
-        <li><Link to="/docs/api/rest">REST API Reference</Link></li>
-        <li><Link to="/docs/security/oauth">OAuth Security</Link></li>
-        <li><Link to="/docs/security/api-keys">API Keys</Link></li>
-      </ul>
+      <DocsReferenceList
+        title={tx('docs.section.related')}
+        items={[
+          { label: tx('docs.restApi.title'), href: '/docs/api/rest' },
+          { label: 'OAuth Security', href: '/docs/security/oauth' },
+          { label: tx('docs.restApi.aiKeysStatus'), href: '/docs/security/api-keys' },
+        ]}
+      />
     </div>
   );
 }
