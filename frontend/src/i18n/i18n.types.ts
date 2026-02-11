@@ -447,6 +447,82 @@ export const MESSAGE_KEYS = [
   'docs.gettingStarted.congrats',
   'docs.gettingStarted.nextSteps',
 
+  // Docs — GitHub Integration
+  'docs.github.title',
+  'docs.github.lead',
+  'docs.github.whatYouCanDo',
+  'docs.github.connecting',
+  'docs.github.permissions',
+  'docs.github.howAgentsUse',
+  'docs.github.disconnecting',
+  'docs.github.troubleshooting',
+
+  // Docs — MCP
+  'docs.mcp.title',
+  'docs.mcp.lead',
+  'docs.mcp.whatIsMcp',
+  'docs.mcp.howAkisUses',
+  'docs.mcp.architecture',
+  'docs.mcp.benefits',
+  'docs.mcp.gateway',
+
+  // Docs — Atlassian
+  'docs.atlassian.title',
+  'docs.atlassian.lead',
+  'docs.atlassian.jira',
+  'docs.atlassian.confluence',
+  'docs.atlassian.connecting',
+  'docs.atlassian.apiToken',
+  'docs.atlassian.security',
+
+  // Docs — API Keys
+  'docs.apiKeys.title',
+  'docs.apiKeys.lead',
+  'docs.apiKeys.encryption',
+  'docs.apiKeys.whatsEncrypted',
+  'docs.apiKeys.keyDisplay',
+  'docs.apiKeys.serverSideOnly',
+  'docs.apiKeys.configuring',
+  'docs.apiKeys.rotation',
+  'docs.apiKeys.envVars',
+
+  // Docs — OAuth
+  'docs.oauth.title',
+  'docs.oauth.lead',
+  'docs.oauth.flow',
+  'docs.oauth.csrf',
+  'docs.oauth.tokenStorage',
+  'docs.oauth.sessionMgmt',
+  'docs.oauth.providers',
+
+  // Docs — Privacy
+  'docs.privacy.title',
+  'docs.privacy.lead',
+  'docs.privacy.whatWeCollect',
+  'docs.privacy.whatWeDontStore',
+  'docs.privacy.retention',
+  'docs.privacy.thirdParty',
+  'docs.privacy.yourRights',
+  'docs.privacy.accountDeletion',
+
+  // Docs — Self-Hosting
+  'docs.selfHosting.title',
+  'docs.selfHosting.lead',
+  'docs.selfHosting.requirements',
+  'docs.selfHosting.quickDeploy',
+  'docs.selfHosting.envConfig',
+  'docs.selfHosting.production',
+  'docs.selfHosting.scaling',
+  'docs.selfHosting.updating',
+
+  // Docs — Troubleshooting sections
+  'docs.troubleshooting.authIssues',
+  'docs.troubleshooting.integrationIssues',
+  'docs.troubleshooting.agentJobIssues',
+  'docs.troubleshooting.uiIssues',
+  'docs.troubleshooting.dbIssues',
+  'docs.troubleshooting.gettingHelp',
+
   // About Page
   'about.label',
   'about.title',

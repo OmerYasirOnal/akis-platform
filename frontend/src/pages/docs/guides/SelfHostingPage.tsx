@@ -1,18 +1,16 @@
-/**
- * Self-Hosting Guide
- */
-import { Link } from 'react-router-dom';
+import { useI18n } from '../../../i18n/useI18n';
+import { DocsReferenceList } from '../../../components/common/DocsReferenceList';
 
 export default function SelfHostingPage() {
+  const { t } = useI18n();
+  const tx = (key: string) => t(key as never);
+
   return (
     <div>
-      <h1>Self-Hosting AKIS</h1>
-      
-      <p className="lead">
-        AKIS is designed to be self-hosted. This guide covers deploying AKIS on your own infrastructure.
-      </p>
+      <h1>{tx('docs.selfHosting.title')}</h1>
+      <p className="lead">{tx('docs.selfHosting.lead')}</p>
 
-      <h2>Requirements</h2>
+      <h2>{tx('docs.selfHosting.requirements')}</h2>
       <ul>
         <li>Docker and Docker Compose</li>
         <li>PostgreSQL 15+</li>
@@ -21,26 +19,14 @@ export default function SelfHostingPage() {
         <li>10GB disk space</li>
       </ul>
 
-      <h2>Quick Deploy with Docker Compose</h2>
-      <pre><code className="language-bash">{`# Clone the repository
-git clone https://github.com/OmerYasirOnal/akis-platform-devolopment.git
+      <h2>{tx('docs.selfHosting.quickDeploy')}</h2>
+      <pre><code className="language-bash">{`git clone https://github.com/OmerYasirOnal/akis-platform-devolopment.git
 cd akis-platform-devolopment/devagents
-
-# Copy environment files
 cp backend/.env.example backend/.env
 cp frontend/.env.example frontend/.env
-
-# Configure environment (edit .env files)
-# At minimum, set:
-# - DATABASE_URL
-# - AUTH_JWT_SECRET
-# - AI_KEY_ENCRYPTION_KEY
-
-# Start with Docker Compose
 docker compose up -d`}</code></pre>
 
-      <h2>Environment Configuration</h2>
-      <h3>Required Variables</h3>
+      <h2>{tx('docs.selfHosting.envConfig')}</h2>
       <pre><code>{`# Database
 DATABASE_URL=postgresql://postgres:postgres@postgres:5432/akis
 
@@ -52,21 +38,7 @@ AI_KEY_ENCRYPTION_KEY=your-32-char-key
 FRONTEND_URL=https://your-domain.com
 BACKEND_URL=https://api.your-domain.com`}</code></pre>
 
-      <h3>Optional Variables</h3>
-      <pre><code>{`# AI Provider (default: mock)
-AI_PROVIDER=openrouter
-AI_API_KEY=sk-or-...
-
-# GitHub OAuth
-GITHUB_OAUTH_CLIENT_ID=...
-GITHUB_OAUTH_CLIENT_SECRET=...
-GITHUB_OAUTH_CALLBACK_URL=https://api.your-domain.com/api/integrations/github/oauth/callback
-
-# Email (for verification)
-EMAIL_PROVIDER=resend
-RESEND_API_KEY=...`}</code></pre>
-
-      <h2>Production Considerations</h2>
+      <h2>{tx('docs.selfHosting.production')}</h2>
       <ul>
         <li><strong>HTTPS</strong> - Use a reverse proxy (nginx, Caddy) with SSL</li>
         <li><strong>Database</strong> - Use a managed PostgreSQL service for reliability</li>
@@ -75,33 +47,27 @@ RESEND_API_KEY=...`}</code></pre>
         <li><strong>Rate Limiting</strong> - Configure appropriate limits in production</li>
       </ul>
 
-      <h2>Scaling</h2>
-      <p>
-        AKIS is designed as a modular monolith optimized for single-node deployment. For higher load:
-      </p>
+      <h2>{tx('docs.selfHosting.scaling')}</h2>
       <ul>
         <li>Scale vertically (more RAM/CPU) first</li>
         <li>Use a connection pooler (PgBouncer) for database</li>
         <li>Consider read replicas for analytics queries</li>
       </ul>
 
-      <h2>Updating</h2>
-      <pre><code className="language-bash">{`# Pull latest changes
-git pull origin main
-
-# Rebuild and restart
+      <h2>{tx('docs.selfHosting.updating')}</h2>
+      <pre><code className="language-bash">{`git pull origin main
 docker compose build
 docker compose up -d
-
-# Run migrations
 docker compose exec backend pnpm db:migrate`}</code></pre>
 
-      <h2>Related</h2>
-      <ul>
-        <li><Link to="/docs/getting-started">Quick Start</Link></li>
-        <li><Link to="/docs/security/api-keys">API Key Security</Link></li>
-        <li><Link to="/docs/guides/troubleshooting">Troubleshooting</Link></li>
-      </ul>
+      <DocsReferenceList
+        title={tx('docs.section.related')}
+        items={[
+          { label: tx('docs.gettingStarted.title'), href: '/docs/getting-started' },
+          { label: tx('docs.apiKeys.title'), href: '/docs/security/api-keys' },
+          { label: tx('docs.troubleshooting.title'), href: '/docs/guides/troubleshooting' },
+        ]}
+      />
     </div>
   );
 }
