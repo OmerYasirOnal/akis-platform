@@ -548,7 +548,7 @@ This progression can be framed as "from contract-first agents to skill-composabl
 | **Orchestrator** | DI + Factory + Registry pattern | No parallel execution | Low (sequential is correct for S0.5) | Post-M1 |
 | **Contract Enforcement** | Zod + typed contracts + playbooks | No runtime output validation against contract | Medium | Golden path tests |
 | **Resilience** | Basic `retryAfter` on AI errors | No circuit breaker, no systematic backoff, no per-tool timeout | Medium | M2 |
-| **Testing** | 1,344 tests (797 backend + 547 frontend) + Scribe Golden Trace replay + 5-path QA acceptance matrix | Cross-agent LLM-free golden trace replay still partial (Scribe done; Trace/Proto pending) | **Medium** (P1) | M2 |
+| **Testing** | 1,391 tests (842 backend + 549 frontend) + Scribe Golden Trace replay + 5-path QA acceptance matrix + TraceAutomationRunner (Playwright execution engine) + TrustScoringService (4-bar metrics) + webhook HMAC-SHA256 validation + Studio command/patch security tests | Cross-agent LLM-free golden trace replay still partial (Scribe done; Trace runner ready, Proto pending) | **Low** (P2) | M2 |
 | **Context Packs** | 3 agent profiles, size-limited | No relevance scoring, no context quality evaluation | Low | M2 (pg_trgm spike) |
 | **Agent UX** | Console pages, SSE stream | No progressive disclosure, no "how to fix" links | Medium | M2 |
 | **Observability** | 5/5 pillars at basic level | No OTel standardization, no alerting on sustained failures | Low | M2+ |
