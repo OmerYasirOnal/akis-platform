@@ -1,18 +1,17 @@
-/**
- * Data Privacy Documentation
- */
 import { Link } from 'react-router-dom';
+import { useI18n } from '../../../i18n/useI18n';
+import { DocsReferenceList } from '../../../components/common/DocsReferenceList';
 
 export default function PrivacyDocsPage() {
+  const { t } = useI18n();
+  const tx = (key: string) => t(key as never);
+
   return (
     <div>
-      <h1>Data Privacy</h1>
-      
-      <p className="lead">
-        AKIS is designed with privacy as a core principle. We minimize data collection and give you control over your information.
-      </p>
+      <h1>{tx('docs.privacy.title')}</h1>
+      <p className="lead">{tx('docs.privacy.lead')}</p>
 
-      <h2>What We Collect</h2>
+      <h2>{tx('docs.privacy.whatWeCollect')}</h2>
       <ul>
         <li><strong>Account Information</strong> - Email, name (required for authentication)</li>
         <li><strong>Job Data</strong> - Agent job history and results</li>
@@ -20,7 +19,7 @@ export default function PrivacyDocsPage() {
         <li><strong>Configuration</strong> - Agent settings and preferences</li>
       </ul>
 
-      <h2>What We Don&apos;t Store</h2>
+      <h2>{tx('docs.privacy.whatWeDontStore')}</h2>
       <ul>
         <li>Your source code (only analyzed temporarily)</li>
         <li>Git commit contents (only metadata)</li>
@@ -28,43 +27,39 @@ export default function PrivacyDocsPage() {
         <li>AI conversation history beyond job context</li>
       </ul>
 
-      <h2>Data Retention</h2>
-      <p>
-        Job history and traces are retained for 90 days by default. You can request deletion at any time through account settings.
-      </p>
+      <h2>{tx('docs.privacy.retention')}</h2>
+      <p>Job history and traces are retained for 90 days by default. You can request deletion at any time through account settings.</p>
 
-      <h2>Third-Party Services</h2>
-      <p>AKIS may share data with:</p>
+      <h2>{tx('docs.privacy.thirdParty')}</h2>
       <ul>
         <li><strong>AI Providers</strong> - Code snippets sent for analysis (OpenAI/OpenRouter)</li>
         <li><strong>GitHub</strong> - Repository operations via OAuth</li>
         <li><strong>Atlassian</strong> - Issue/page operations via API</li>
       </ul>
 
-      <h2>Your Rights</h2>
+      <h2>{tx('docs.privacy.yourRights')}</h2>
       <ul>
         <li><strong>Access</strong> - Export your data</li>
         <li><strong>Deletion</strong> - Delete your account and all data</li>
         <li><strong>Correction</strong> - Update your profile information</li>
       </ul>
 
-      <h2>Account Deletion</h2>
-      <p>
-        To delete your account and all associated data:
-      </p>
+      <h2>{tx('docs.privacy.accountDeletion')}</h2>
       <ol>
         <li>Go to <Link to="/dashboard/settings/workspace">Settings → Workspace</Link></li>
         <li>Click &quot;Delete Account&quot;</li>
-        <li>Confirm by typing &quot;DELETE MY ACCOUNT&quot;</li>
+        <li>Confirm deletion</li>
         <li>All data will be permanently removed</li>
       </ol>
 
-      <h2>Related</h2>
-      <ul>
-        <li><Link to="/docs/security/api-keys">API Key Security</Link></li>
-        <li><Link to="/legal/privacy">Privacy Policy</Link></li>
-        <li><Link to="/legal/terms">Terms of Service</Link></li>
-      </ul>
+      <DocsReferenceList
+        title={tx('docs.section.related')}
+        items={[
+          { label: tx('docs.apiKeys.title'), href: '/docs/security/api-keys' },
+          { label: 'Privacy Policy', href: '/legal/privacy' },
+          { label: 'Terms of Service', href: '/legal/terms' },
+        ]}
+      />
     </div>
   );
 }
