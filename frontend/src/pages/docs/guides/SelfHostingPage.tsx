@@ -27,7 +27,8 @@ cp frontend/.env.example frontend/.env
 docker compose up -d`}</code></pre>
 
       <h2>{tx('docs.selfHosting.envConfig')}</h2>
-      <pre><code>{`# Database
+      <p>Edit <code>backend/.env</code> with your environment values:</p>
+      <pre><code className="language-bash">{`# Database
 DATABASE_URL=postgresql://postgres:postgres@postgres:5432/akis
 
 # Security (generate with: openssl rand -hex 32)

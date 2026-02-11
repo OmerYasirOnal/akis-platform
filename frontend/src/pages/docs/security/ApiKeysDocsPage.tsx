@@ -51,7 +51,7 @@ export default function ApiKeysDocsPage() {
       <p>To rotate a key, simply save a new key. The old encrypted key is overwritten.</p>
 
       <h2>{tx('docs.apiKeys.envVars')}</h2>
-      <pre><code>{`AI_KEY_ENCRYPTION_KEY=your-32-character-encryption-key`}</code></pre>
+      <pre><code className="language-bash">{`AI_KEY_ENCRYPTION_KEY=your-32-character-encryption-key`}</code></pre>
       <p>This key should be at least 32 characters. Never commit it to version control.</p>
 
       <DocsReferenceList
