@@ -1,66 +1,89 @@
-/**
- * Trace Agent Documentation
- */
 import { Link } from 'react-router-dom';
+import { useI18n } from '../../../i18n/useI18n';
 
 export default function TraceDocsPage() {
+  const { t } = useI18n();
+  const tx = (key: string) => t(key as never);
+
+  const features = [1, 2, 3].map((n) => ({
+    title: tx(`agents.trace.feature${n}.title`),
+    description: tx(`agents.trace.feature${n}.description`),
+  }));
+  const useCases = [1, 2, 3].map((n) => ({
+    title: tx(`agents.trace.useCase${n}.title`),
+    description: tx(`agents.trace.useCase${n}.description`),
+  }));
+
   return (
-    <div>
-      <h1>Trace Agent</h1>
-      
-      <p className="lead">
-        Trace is an AI agent that generates test plans, coverage matrices, and test scaffolds from specifications and acceptance criteria. Currently in development.
-      </p>
+    <div className="not-prose space-y-8">
+      <section className="rounded-2xl border border-ak-border bg-ak-surface p-6">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-ak-text-secondary/70">
+              {tx('agents.trace.subtitle')}
+            </p>
+            <h1 className="mt-2 text-3xl font-semibold text-ak-text-primary">{tx('agents.trace.heroTitle')}</h1>
+            <p className="mt-2 text-lg text-ak-text-secondary">{tx('agents.trace.heroSubtitle')}</p>
+            <p className="mt-4 max-w-3xl text-sm leading-relaxed text-ak-text-secondary">
+              {tx('agents.trace.heroDescription')}
+            </p>
+          </div>
+          <img
+            src="/brand/akis-a-mark.png"
+            alt="AKIS A mark"
+            className="h-20 w-20 rounded-xl border border-ak-border bg-ak-bg p-2"
+          />
+        </div>
+      </section>
 
-      <div className="not-prose my-6 rounded-xl border border-yellow-500/20 bg-yellow-500/5 p-4">
-        <h3 className="text-lg font-semibold text-yellow-400">Coming Soon</h3>
-        <p className="mt-2 text-ak-text-secondary">
-          Trace is currently under development. The features described below represent our planned capabilities.
-        </p>
-      </div>
+      <section className="grid gap-4 md:grid-cols-3">
+        {features.map((feature) => (
+          <article key={feature.title} className="rounded-xl border border-ak-border bg-ak-surface p-4">
+            <h2 className="text-base font-semibold text-ak-text-primary">{feature.title}</h2>
+            <p className="mt-2 text-sm leading-relaxed text-ak-text-secondary">{feature.description}</p>
+          </article>
+        ))}
+      </section>
 
-      <h2>Planned Capabilities</h2>
-      <ul>
-        <li><strong>Spec Parsing</strong> - Extract requirements from Jira tickets</li>
-        <li><strong>Test Plan Generation</strong> - Create structured test plans</li>
-        <li><strong>Coverage Matrix</strong> - Map tests to requirements</li>
-        <li><strong>Test Scaffolding</strong> - Generate test file templates</li>
-        <li><strong>Risk Analysis</strong> - Identify high-risk areas</li>
-      </ul>
+      <section className="rounded-2xl border border-ak-border bg-ak-surface p-6">
+        <h2 className="text-xl font-semibold text-ak-text-primary">{tx('docs.section.useCases')}</h2>
+        <div className="mt-4 space-y-3">
+          {useCases.map((item) => (
+            <div key={item.title} className="rounded-lg border border-ak-border bg-ak-bg p-4">
+              <h3 className="text-sm font-semibold text-ak-text-primary">{item.title}</h3>
+              <p className="mt-1 text-sm text-ak-text-secondary">{item.description}</p>
+            </div>
+          ))}
+        </div>
+      </section>
 
-      <h2>How It Will Work</h2>
-      <ol>
-        <li><strong>Input</strong> - Provide a Jira issue key or specification document</li>
-        <li><strong>Analyze</strong> - Trace parses acceptance criteria and requirements</li>
-        <li><strong>Generate</strong> - Test plan with scenarios, edge cases, and priorities</li>
-        <li><strong>Output</strong> - Structured test matrix and optional code scaffolds</li>
-      </ol>
+      <section className="rounded-2xl border border-ak-primary/20 bg-ak-primary/5 p-6">
+        <h2 className="text-xl font-semibold text-ak-text-primary">{tx('agents.trace.title')}</h2>
+        <p className="mt-2 text-sm text-ak-text-secondary">{tx('agents.trace.description')}</p>
+        <div className="mt-4 flex flex-wrap gap-3">
+          <Link
+            to="/dashboard/agents"
+            className="inline-flex items-center rounded-lg bg-ak-primary px-4 py-2 text-sm font-semibold text-[color:var(--ak-on-primary)] hover:brightness-110"
+          >
+            {tx('agentsHub.runAgent')}
+          </Link>
+          <Link
+            to="/docs/integrations/atlassian"
+            className="inline-flex items-center rounded-lg border border-ak-border bg-ak-surface px-4 py-2 text-sm font-semibold text-ak-text-primary hover:border-ak-primary/50"
+          >
+            {tx('docs.integrations.title')}
+          </Link>
+        </div>
+      </section>
 
-      <h2>Integration with Jira</h2>
-      <p>
-        Trace will integrate directly with Jira to:
-      </p>
-      <ul>
-        <li>Read issue descriptions and acceptance criteria</li>
-        <li>Link test plans back to source issues</li>
-        <li>Update issue status when tests are generated</li>
-        <li>Create sub-tasks for test implementation</li>
-      </ul>
-
-      <h2>Output Formats</h2>
-      <ul>
-        <li><strong>Test Plan Document</strong> - Markdown or Confluence page</li>
-        <li><strong>Coverage Matrix</strong> - CSV or Excel compatible</li>
-        <li><strong>Test Scaffolds</strong> - Jest, Vitest, or Playwright files</li>
-        <li><strong>BDD Scenarios</strong> - Gherkin/Cucumber format</li>
-      </ul>
-
-      <h2>Related</h2>
-      <ul>
-        <li><Link to="/docs/agents/scribe">Scribe Agent</Link> - Documentation generation</li>
-        <li><Link to="/docs/integrations/atlassian">Atlassian Integration</Link> - Jira connection</li>
-        <li><Link to="/docs/agents/proto">Proto Agent</Link> - Code scaffolding</li>
-      </ul>
+      <section className="rounded-2xl border border-ak-border bg-ak-surface p-6">
+        <h2 className="text-xl font-semibold text-ak-text-primary">{tx('docs.section.references')}</h2>
+        <ul className="mt-3 space-y-2 text-sm text-ak-text-secondary">
+          <li><Link className="text-ak-primary hover:underline" to="/docs/agents/scribe">{tx('agents.scribe.heroTitle')}</Link></li>
+          <li><Link className="text-ak-primary hover:underline" to="/docs/api/rest">{tx('docs.apiReference.title')}</Link></li>
+          <li><Link className="text-ak-primary hover:underline" to="/docs/guides/best-practices">{tx('docs.configuration.title')}</Link></li>
+        </ul>
+      </section>
     </div>
   );
 }

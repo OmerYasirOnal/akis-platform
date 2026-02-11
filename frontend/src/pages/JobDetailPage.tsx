@@ -50,6 +50,16 @@ interface Artifact {
   createdAt: string;
 }
 
+interface TraceAutomationSummary {
+  featurePassRate?: number;
+  featuresPassed?: number;
+  featuresTotal?: number;
+  testCasesPassed?: number;
+  testCasesTotal?: number;
+  durationMs?: number;
+  targetBaseUrl?: string;
+}
+
 type SectionId = 'overview' | 'activity' | 'outputs' | 'quality';
 
 // ============================================================================
@@ -533,6 +543,17 @@ export default function JobDetailPage() {
     return { healthy: lastMcp.status === 'success', gatewayUrl: lastMcp.gatewayUrl, lastAttempt: lastMcp.timestamp, errorCode: lastMcp.errorCode };
   }, [traces]);
 
+  const traceAutomationSummary = useMemo<TraceAutomationSummary | null>(() => {
+    if (job?.type !== 'trace' || !job.result || typeof job.result !== 'object') return null;
+    const metadata = (job.result as { metadata?: unknown }).metadata;
+    if (!metadata || typeof metadata !== 'object') return null;
+    const raw =
+      (metadata as { automationSummary?: unknown; automationExecution?: unknown }).automationSummary ??
+      (metadata as { automationExecution?: unknown }).automationExecution;
+    if (!raw || typeof raw !== 'object') return null;
+    return raw as TraceAutomationSummary;
+  }, [job]);
+
   const containerClass = 'mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8';
 
   if (isLoading && !job) {
@@ -569,6 +590,9 @@ export default function JobDetailPage() {
   }
 
   const payload = (job.payload || {}) as Record<string, unknown>;
+  const qualityScore = typeof job.qualityScore === 'number'
+    ? job.qualityScore
+    : (isScribe && scribeQuality ? scribeQuality.score : null);
 
   return (
     <div className={containerClass}>
@@ -632,6 +656,17 @@ export default function JobDetailPage() {
             <label className="text-xs font-medium text-ak-text-secondary uppercase tracking-wider">Duration</label>
             <p className="mt-1 text-sm text-ak-text-primary">{formatDuration(job.createdAt, job.state === 'completed' || job.state === 'failed' ? job.updatedAt : undefined)}</p>
           </div>
+          {typeof qualityScore === 'number' && (
+            <div>
+              <label className="text-xs font-medium text-ak-text-secondary uppercase tracking-wider">Quality Gate</label>
+              <p className="mt-1 text-sm font-semibold text-ak-text-primary">
+                {Math.round(qualityScore)}/100
+                <span className={`ml-2 rounded px-1.5 py-0.5 text-[10px] ${qualityScore >= 60 ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'}`}>
+                  {qualityScore >= 60 ? 'PASS' : 'FAIL'}
+                </span>
+              </p>
+            </div>
+          )}
           {typeof payload.owner === 'string' && typeof payload.repo === 'string' && (
             <div>
               <label className="text-xs font-medium text-ak-text-secondary uppercase tracking-wider">Repository</label>
@@ -726,6 +761,34 @@ export default function JobDetailPage() {
         {/* Overview */}
         {activeSection === 'overview' && (
           <div className="space-y-6">
+            {traceAutomationSummary && (
+              <div className="bg-ak-surface-2 rounded-lg p-4 border border-ak-border">
+                <h4 className="text-xs font-medium text-ak-text-secondary uppercase tracking-wider mb-3">Automation Coverage</h4>
+                <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+                  <div>
+                    <p className="text-[11px] text-ak-text-secondary">Feature Pass Rate</p>
+                    <p className="text-lg font-semibold text-ak-text-primary">%{typeof traceAutomationSummary.featurePassRate === 'number' ? traceAutomationSummary.featurePassRate : 0}</p>
+                  </div>
+                  <div>
+                    <p className="text-[11px] text-ak-text-secondary">Features</p>
+                    <p className="text-lg font-semibold text-ak-text-primary">{traceAutomationSummary.featuresPassed ?? 0}/{traceAutomationSummary.featuresTotal ?? 0}</p>
+                  </div>
+                  <div>
+                    <p className="text-[11px] text-ak-text-secondary">Test Cases</p>
+                    <p className="text-lg font-semibold text-ak-text-primary">{traceAutomationSummary.testCasesPassed ?? 0}/{traceAutomationSummary.testCasesTotal ?? 0}</p>
+                  </div>
+                  <div>
+                    <p className="text-[11px] text-ak-text-secondary">Duration</p>
+                    <p className="text-lg font-semibold text-ak-text-primary">
+                      {typeof traceAutomationSummary.durationMs === 'number' ? `${Math.max(1, Math.round(traceAutomationSummary.durationMs / 1000))}s` : '-'}
+                    </p>
+                  </div>
+                </div>
+                {traceAutomationSummary.targetBaseUrl && (
+                  <p className="mt-2 text-xs text-ak-text-secondary">{traceAutomationSummary.targetBaseUrl}</p>
+                )}
+              </div>
+            )}
             <div className={`grid grid-cols-2 gap-4 ${previewFiles.length > 0 ? 'md:grid-cols-4' : 'md:grid-cols-3'}`}>
               <div className="bg-ak-surface-2 rounded-lg p-4 border border-ak-border">
                 <h4 className="text-xs font-medium text-ak-text-secondary uppercase tracking-wider mb-2">Trace Events</h4>

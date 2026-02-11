@@ -16,6 +16,7 @@ import { estimateCostUsd } from './pricing.js';
 import {
   DETERMINISTIC_TEMPERATURES,
   CREATIVE_TEMPERATURES,
+  BALANCED_TEMPERATURES,
   DETERMINISTIC_SEED,
   PLAN_SYSTEM_PROMPT,
   buildPlanUserPrompt,
@@ -203,6 +204,21 @@ export interface AIServiceObserver {
   onAiCall: (metrics: AICallMetrics) => void;
 }
 
+type RuntimeProfile = 'deterministic' | 'balanced' | 'creative' | 'custom';
+
+type TemperatureSet = {
+  plan: number;
+  generate: number;
+  reflect: number;
+  validate: number;
+  repair: number;
+};
+
+export interface AIServiceRuntimeOptions {
+  runtimeProfile?: RuntimeProfile;
+  temperatureValue?: number | null;
+}
+
 // =============================================================================
 // OpenRouter/OpenAI Compatible Implementation
 // =============================================================================
@@ -236,6 +252,7 @@ class RealAIService implements AIService {
   public planner: Planner;
   public reflector: Reflector;
   private observer?: AIServiceObserver;
+  private runtimeOptions: AIServiceRuntimeOptions;
   
   // Retry configuration - can be overridden via environment
   private readonly maxRetries: number;
@@ -250,9 +267,10 @@ class RealAIService implements AIService {
     return process.env.AI_DETERMINISTIC_MODE !== 'false';
   }
 
-  constructor(config: AIConfig, observer?: AIServiceObserver) {
+  constructor(config: AIConfig, observer?: AIServiceObserver, runtimeOptions: AIServiceRuntimeOptions = {}) {
     this.config = config;
     this.observer = observer;
+    this.runtimeOptions = runtimeOptions;
     
     // Configure retry behavior from environment or use defaults
     this.maxRetries = parseInt(process.env.AI_PLANNER_MAX_RETRIES || '3', 10);
@@ -267,6 +285,30 @@ class RealAIService implements AIService {
       critique: (input: { artifact: unknown; context?: unknown; checkResults?: ReflectionInput['checkResults'] }) =>
         this.reflectOnArtifact({ artifact: input.artifact, context: input.context, checkResults: input.checkResults }),
     };
+  }
+
+  private getTemperatures(): TemperatureSet {
+    const profile = this.runtimeOptions.runtimeProfile;
+    if (profile === 'balanced') {
+      return BALANCED_TEMPERATURES;
+    }
+    if (profile === 'creative') {
+      return CREATIVE_TEMPERATURES;
+    }
+    if (profile === 'custom') {
+      const raw = this.runtimeOptions.temperatureValue;
+      const base = typeof raw === 'number' && Number.isFinite(raw)
+        ? Math.min(1, Math.max(0, raw))
+        : DETERMINISTIC_TEMPERATURES.generate;
+      return {
+        plan: Math.min(1, Math.max(0, base * 0.85)),
+        generate: base,
+        reflect: Math.min(1, Math.max(0, base * 0.65)),
+        validate: Math.min(0.3, Math.max(0, base * 0.5)),
+        repair: 0,
+      };
+    }
+    return this.getDeterministicMode() ? DETERMINISTIC_TEMPERATURES : CREATIVE_TEMPERATURES;
   }
 
   getConfigSummary() {
@@ -667,7 +709,7 @@ class RealAIService implements AIService {
    * Plan a task - uses AI_MODEL_PLANNER with strict JSON schema validation
    */
   async planTask(input: PlanInput): Promise<Plan> {
-    const temps = this.getDeterministicMode() ? DETERMINISTIC_TEMPERATURES : CREATIVE_TEMPERATURES;
+    const temps = this.getTemperatures();
     const userPrompt = buildPlanUserPrompt(input.agent, input.goal, input.context);
 
     const response = await this.chatCompletion(
@@ -687,7 +729,7 @@ class RealAIService implements AIService {
    * Generate work artifact - uses AI_MODEL_DEFAULT
    */
   async generateWorkArtifact(input: WorkerInput): Promise<WorkerResult> {
-    const temps = this.getDeterministicMode() ? DETERMINISTIC_TEMPERATURES : CREATIVE_TEMPERATURES;
+    const temps = this.getTemperatures();
     const userPrompt = buildGenerateUserPrompt(input.task, input.context, input.previousSteps);
 
     const response = await this.chatCompletion(
@@ -716,7 +758,7 @@ class RealAIService implements AIService {
    * Reflect on artifact - uses AI_MODEL_DEFAULT with strict JSON schema validation
    */
   async reflectOnArtifact(input: ReflectionInput): Promise<Critique> {
-    const temps = this.getDeterministicMode() ? DETERMINISTIC_TEMPERATURES : CREATIVE_TEMPERATURES;
+    const temps = this.getTemperatures();
 
     let checkResultsSummary = '';
     if (input.checkResults) {
@@ -769,7 +811,7 @@ Respond with ONLY the JSON critique object.`;
    * Validate with strong model - uses AI_MODEL_VALIDATION with strict JSON schema validation
    */
   async validateWithStrongModel(input: ValidationInput): Promise<ValidationResult> {
-    const temps = this.getDeterministicMode() ? DETERMINISTIC_TEMPERATURES : CREATIVE_TEMPERATURES;
+    const temps = this.getTemperatures();
 
     const artifactStr = typeof input.artifact === 'string'
       ? input.artifact
@@ -932,7 +974,11 @@ class MockAIService implements AIService {
  * Create AIService instance based on configuration
  * Uses getAIConfig() to resolve environment variables with legacy fallbacks
  */
-export function createAIService(config?: AIConfig, observer?: AIServiceObserver): AIService {
+export function createAIService(
+  config?: AIConfig,
+  observer?: AIServiceObserver,
+  runtimeOptions: AIServiceRuntimeOptions = {}
+): AIService {
   // ALWAYS use mock in test environment to prevent external API calls during tests
   if (process.env.NODE_ENV === 'test') {
     console.log('[AIService] Using mock provider (test environment)');
@@ -957,7 +1003,7 @@ export function createAIService(config?: AIConfig, observer?: AIServiceObserver)
   console.log(`[AIService] Using ${resolvedConfig.provider} provider`);
   console.log(`[AIService] Models: default=${resolvedConfig.modelDefault}, planner=${resolvedConfig.modelPlanner}, validation=${resolvedConfig.modelValidation}`);
   
-  return new RealAIService(resolvedConfig, observer);
+  return new RealAIService(resolvedConfig, observer, runtimeOptions);
 }
 
 // Note: Planner and Reflector interfaces are already exported above

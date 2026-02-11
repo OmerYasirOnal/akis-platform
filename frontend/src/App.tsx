@@ -9,6 +9,7 @@ import { useI18n } from './i18n/useI18n';
 import LandingPage from './pages/LandingPage';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import FeedbackWidget from './components/feedback/FeedbackWidget';
+import { ToastContainer } from './components/ui/Toast';
 
 // Auth pages — lazy (only needed on login/signup flows)
 const LoginEmail = lazy(() => import('./pages/auth/LoginEmail'));
@@ -66,6 +67,7 @@ const DashboardSettingsAiKeysPage = lazy(() => import('./pages/dashboard/setting
 const AgentsHubPage = lazy(() => import('./pages/dashboard/agents/AgentsHubPage'));
 const DashboardAgentTracePage = lazy(() => import('./pages/dashboard/agents/trace/index'));
 const DashboardAgentProtoPage = lazy(() => import('./pages/dashboard/agents/proto/index'));
+const DashboardAgentStudioPage = lazy(() => import('./pages/dashboard/agents/studio/index'));
 const SmartAutomationsPage = lazy(() => import('./pages/dashboard/agents/smart-automations/SmartAutomationsPage'));
 const AutomationDetailPage = lazy(() => import('./pages/dashboard/agents/smart-automations/AutomationDetailPage'));
 
@@ -136,6 +138,7 @@ function App() {
             <Route path="scribe" element={<Suspense fallback={<PageLoader />}><DashboardAgentScribePage /></Suspense>} />
             <Route path="trace" element={<Suspense fallback={<PageLoader />}><DashboardAgentTracePage /></Suspense>} />
             <Route path="proto" element={<Suspense fallback={<PageLoader />}><DashboardAgentProtoPage /></Suspense>} />
+            <Route path="studio" element={<Suspense fallback={<PageLoader />}><DashboardAgentStudioPage /></Suspense>} />
           </Route>
 
           {/* Smart Automations - standalone route (no AgentsLayout) */}
@@ -249,6 +252,7 @@ function App() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
         <FeedbackWidget />
+        <ToastContainer />
       </AuthProvider>
     </BrowserRouter>
   );

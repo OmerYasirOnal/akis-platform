@@ -5,7 +5,7 @@ import { jobs, jobPlans, jobAudits, oauthAccounts, type NewJob, type NewJobPlan,
 import { eq, and } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
 import { JobNotFoundError, InvalidStateTransitionError, DatabaseError, AIProviderError, MissingAIKeyError, SkillContractViolationError } from '../errors.js';
-import { createAIService, type AIService, type AIServiceObserver } from '../../services/ai/AIService.js';
+import { createAIService, type AIService, type AIServiceObserver, type AIServiceRuntimeOptions } from '../../services/ai/AIService.js';
 import type { Plan, Critique } from '../../services/ai/AIService.js';
 import { AICallMetricsCollector } from '../../services/ai/ai-metrics.js';
 import { getDecryptedUserAiKey, getUserActiveProvider, type AIKeyProvider } from '../../services/ai/user-ai-keys.js';
@@ -734,6 +734,22 @@ export class AgentOrchestrator {
     const env = getEnv();
     const envConfig = getAIConfig(env);
     const modelOverride = payload.llmModelOverride as string | undefined;
+    const runtimePayload = payload.effectiveRuntime as
+      | { runtimeProfile?: string; temperatureValue?: number | null }
+      | undefined;
+    const runtimeOptions: AIServiceRuntimeOptions = {
+      runtimeProfile:
+        runtimePayload?.runtimeProfile === 'balanced' ||
+        runtimePayload?.runtimeProfile === 'creative' ||
+        runtimePayload?.runtimeProfile === 'custom' ||
+        runtimePayload?.runtimeProfile === 'deterministic'
+          ? runtimePayload.runtimeProfile
+          : undefined,
+      temperatureValue:
+        typeof runtimePayload?.temperatureValue === 'number'
+          ? runtimePayload.temperatureValue
+          : undefined,
+    };
 
     // Non-scribe jobs without userId: use global AIService (env-configured).
     // Non-scribe WITH userId: fall through to user key resolution below,
@@ -746,7 +762,8 @@ export class AgentOrchestrator {
         keySource: 'env',
         fallbackReason: 'NON_SCRIBE_NO_USER',
       };
-      return { aiService: this.aiService, metrics, resolution };
+      const runtimeAwareService = createAIService(envConfig, observer, runtimeOptions);
+      return { aiService: runtimeAwareService, metrics, resolution };
     }
 
     const userId = payload.userId as string | undefined;
@@ -762,7 +779,8 @@ export class AgentOrchestrator {
         keySource: 'env',
         fallbackReason: 'USE_ENV_AI_FLAG',
       };
-      return { aiService: this.aiService, metrics, resolution };
+      const runtimeAwareService = createAIService(envConfig, observer, runtimeOptions);
+      return { aiService: runtimeAwareService, metrics, resolution };
     }
 
     // ========================================================================
@@ -906,7 +924,7 @@ export class AgentOrchestrator {
 
     console.log(`[resolveAiServiceForJob] Creating AIService: provider=${providerCandidate}, model=${resolvedModel}, keySource=${keySource}, providerReason=${providerResolutionReason}, baseUrl=${baseUrl}`);
     
-    const aiService = createAIService(aiConfig, observer);
+    const aiService = createAIService(aiConfig, observer, runtimeOptions);
     const resolution: AIResolution = {
       provider: providerCandidate,
       model: resolvedModel,

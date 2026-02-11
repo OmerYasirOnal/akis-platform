@@ -9,17 +9,17 @@ export default function WebhooksDocsPage() {
       <h1>Webhooks</h1>
       
       <p className="lead">
-        AKIS can send webhook notifications when events occur. Webhooks enable real-time integrations with your systems.
+        AKIS supports event-driven integrations through inbound triggers and structured job events. This page documents the current contract and rollout path.
       </p>
 
-      <div className="not-prose my-6 rounded-xl border border-yellow-500/20 bg-yellow-500/5 p-4">
-        <h3 className="text-lg font-semibold text-yellow-400">Coming Soon</h3>
+      <div className="not-prose my-6 rounded-xl border border-ak-primary/20 bg-ak-primary/5 p-4">
+        <h3 className="text-lg font-semibold text-ak-primary">Current Status</h3>
         <p className="mt-2 text-ak-text-secondary">
-          Outbound webhooks are planned for a future release. This page describes the intended functionality.
+          Inbound GitHub triggers are available. Outbound delivery payloads are staged behind feature rollout and follow the payload format below.
         </p>
       </div>
 
-      <h2>Planned Events</h2>
+      <h2>Event Types</h2>
       <ul>
         <li><code>job.started</code> - Agent job has started</li>
         <li><code>job.completed</code> - Job finished successfully</li>
@@ -47,7 +47,7 @@ export default function WebhooksDocsPage() {
       </p>
       <pre><code>{`X-AKIS-Signature: sha256=...`}</code></pre>
 
-      <h2>GitHub Webhooks (Inbound)</h2>
+      <h2>Inbound Triggers (GitHub)</h2>
       <p>
         AKIS can receive GitHub webhooks to trigger agent runs automatically. This is useful for running Scribe on PR merge.
       </p>

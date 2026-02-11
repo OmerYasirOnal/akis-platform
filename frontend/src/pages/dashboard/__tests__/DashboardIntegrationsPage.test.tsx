@@ -50,6 +50,12 @@ describe('DashboardIntegrationsPage', () => {
     expect(
       screen.getByText(/Connect AKIS to your development tools and services/i)
     ).toBeInTheDocument();
+
+    await waitFor(() => {
+      expect(integrationsApi.getGitHubStatus).toHaveBeenCalled();
+      expect(integrationsApi.getJiraStatus).toHaveBeenCalled();
+      expect(integrationsApi.getConfluenceStatus).toHaveBeenCalled();
+    });
   });
 
   it('shows GitHub status as "Not connected" when disconnected', async () => {

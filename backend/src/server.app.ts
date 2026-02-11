@@ -28,6 +28,7 @@ import { dashboardMetricsRoutes } from './api/dashboard-metrics.js';
 import { aiModelsRoutes } from './api/ai-models.js';
 import { smartAutomationsRoutes } from './api/smart-automations.js';
 import { feedbackRoutes } from './api/feedback.js';
+import { conversationsRoutes } from './api/conversations.js';
 import { AgentOrchestrator } from './core/orchestrator/AgentOrchestrator.js';
 import { createAIService } from './services/ai/AIService.js';
 import type { MCPTools } from './services/mcp/adapters/index.js';
@@ -205,6 +206,7 @@ export async function buildApp() {
   await app.register(aiModelsRoutes);
   await app.register(smartAutomationsRoutes);
   await app.register(feedbackRoutes);
+  await app.register(conversationsRoutes);
   if (env.NODE_ENV !== 'production' && process.env.SCRIBE_DEV_GITHUB_BOOTSTRAP === 'true') {
     await app.register(testHelpersRoutes, { prefix: '/test' });
   }
