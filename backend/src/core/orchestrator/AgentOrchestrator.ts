@@ -1,7 +1,7 @@
 import { AgentFactory, type AgentDependencies } from '../agents/AgentFactory.js';
 import { AgentStateMachine } from '../state/AgentStateMachine.js';
 import { db } from '../../db/client.js';
-import { jobs, jobPlans, jobAudits, oauthAccounts, type NewJob, type NewJobPlan, type NewJobAudit } from '../../db/schema.js';
+import { jobs, jobPlans, jobAudits, jobArtifacts, oauthAccounts, type NewJob, type NewJobPlan, type NewJobAudit } from '../../db/schema.js';
 import { eq, and } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
 import { JobNotFoundError, InvalidStateTransitionError, DatabaseError, AIProviderError, MissingAIKeyError, SkillContractViolationError } from '../errors.js';
@@ -20,6 +20,52 @@ import { jobEventBus } from '../events/JobEventBus.js';
 import { computeQualityScore, type QualityInput } from '../../services/quality/QualityScoring.js';
 
 export const DEV_GITHUB_BOOTSTRAP_TOKEN_PLACEHOLDER = '__DEV_GITHUB_BOOTSTRAP__';
+
+type DocDepth = 'lite' | 'standard' | 'deep';
+
+function asStringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((item): item is string => typeof item === 'string')
+    .map((item) => item.trim())
+    .filter((item) => item.length > 0);
+}
+
+function asNumber(value: unknown): number | null {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return null;
+  return value;
+}
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  return value as Record<string, unknown>;
+}
+
+function resolveDocDepth(payload: Record<string, unknown> | null, resultObj: Record<string, unknown> | null): DocDepth {
+  const fromPayload = payload?.docDepth;
+  if (fromPayload === 'lite' || fromPayload === 'standard' || fromPayload === 'deep') {
+    return fromPayload;
+  }
+  const docPackConfig = asRecord(resultObj?.docPackConfig);
+  const fromResult = docPackConfig?.docDepth;
+  if (fromResult === 'lite' || fromResult === 'standard' || fromResult === 'deep') {
+    return fromResult;
+  }
+  return 'standard';
+}
+
+function extractOperationFiles(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  const files: string[] = [];
+  for (const item of value) {
+    const operation = asRecord(item);
+    const file = operation?.file;
+    if (typeof file === 'string' && file.trim().length > 0) {
+      files.push(file.trim());
+    }
+  }
+  return files;
+}
 
 /**
  * Custom error for missing GitHub integration
@@ -981,19 +1027,88 @@ export class AgentOrchestrator {
       // Fetch job to get payload for quality metrics
       const [job] = await db.select().from(jobs).where(eq(jobs.id, jobId)).limit(1);
       if (job) {
-        const payload = job.payload as Record<string, unknown> | null;
-        const resultObj = result as Record<string, unknown> | null;
-        
+        const payload = asRecord(job.payload);
+        const resultObj = asRecord(result);
+        const diagnostics = asRecord(resultObj?.diagnostics);
+        const docPackConfig = asRecord(resultObj?.docPackConfig);
+        const [artifacts, commits] = await Promise.all([
+          db
+            .select({
+              artifactType: jobArtifacts.artifactType,
+              path: jobArtifacts.path,
+            })
+            .from(jobArtifacts)
+            .where(eq(jobArtifacts.jobId, jobId)),
+          Promise.resolve(Array.isArray(resultObj?.commits) ? resultObj.commits.length : 0),
+        ]);
+
+        const configuredTargets = asStringArray(payload?.outputTargets);
+        if (configuredTargets.length === 0) {
+          configuredTargets.push(...asStringArray(docPackConfig?.outputTargets));
+        }
+        const targetPath = payload?.targetPath;
+        if (configuredTargets.length === 0 && typeof targetPath === 'string' && targetPath.trim().length > 0) {
+          configuredTargets.push(targetPath.trim());
+        }
+
+        const diagnosticTargets = asStringArray(diagnostics?.targets);
+        const diagnosticOperationFiles = extractOperationFiles(diagnostics?.operations);
+        const artifactDocReads = artifacts.filter((artifact) => artifact.artifactType === 'doc_read').length;
+        const artifactProducedPaths = artifacts
+          .filter(
+            (artifact) =>
+              artifact.artifactType === 'file_created' ||
+              artifact.artifactType === 'file_modified' ||
+              artifact.artifactType === 'file_preview'
+          )
+          .map((artifact) => artifact.path);
+
+        const resultTargets = asStringArray(resultObj?.targetsProduced);
+        const targetsProduced =
+          resultTargets.length > 0
+            ? resultTargets
+            : diagnosticTargets.length > 0
+              ? diagnosticTargets
+              : diagnosticOperationFiles.length > 0
+                ? diagnosticOperationFiles
+                : artifactProducedPaths;
+
+        const resultDocumentsRead = asNumber(resultObj?.documentsRead) ?? 0;
+        const documentsRead = Math.max(resultDocumentsRead, artifactDocReads);
+
+        const resultFilesProduced = asNumber(resultObj?.filesProduced) ?? 0;
+        const filesProduced = Math.max(
+          resultFilesProduced,
+          diagnosticOperationFiles.length,
+          artifactProducedPaths.length,
+          targetsProduced.length,
+          commits
+        );
+
+        const payloadPasses = asNumber(payload?.passes) ?? 0;
+        const resultPasses = asNumber(docPackConfig?.passes) ?? 0;
+        const multiPass =
+          payload?.multiPass === true ||
+          payloadPasses >= 2 ||
+          resultPasses >= 2 ||
+          payload?.docPack === 'full' ||
+          docPackConfig?.docPack === 'full';
+
+        const totalTokens =
+          asNumber(resultObj?.totalTokens) ??
+          asNumber(job.aiTotalTokens) ??
+          null;
+
         const qualityInput: QualityInput = {
           jobType: job.type,
           state: 'completed',
-          targetsConfigured: (payload?.outputTargets as string[]) || [],
-          targetsProduced: (resultObj?.targetsProduced as string[]) || [],
-          documentsRead: (resultObj?.documentsRead as number) || 0,
-          filesProduced: (resultObj?.filesProduced as number) || 0,
-          docDepth: (payload?.docDepth as 'lite' | 'standard' | 'deep') || 'standard',
-          multiPass: (payload?.multiPass as boolean) || false,
-          totalTokens: (resultObj?.totalTokens as number) || null,
+          targetsConfigured: configuredTargets,
+          targetsProduced,
+          documentsRead,
+          filesProduced,
+          docDepth: resolveDocDepth(payload, resultObj),
+          multiPass,
+          totalTokens,
         };
         
         const quality = computeQualityScore(qualityInput);
