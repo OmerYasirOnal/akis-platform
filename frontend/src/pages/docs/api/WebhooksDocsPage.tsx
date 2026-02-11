@@ -39,7 +39,7 @@ export default function WebhooksDocsPage() {
 
       <h2>{tx('docs.webhooks.security')}</h2>
       <p>{tx('docs.webhooks.securityDesc')}</p>
-      <pre><code>{`X-AKIS-Signature: sha256=...`}</code></pre>
+      <pre><code className="language-http">{`X-AKIS-Signature: sha256=...`}</code></pre>
 
       <h2>{tx('docs.webhooks.inboundTriggers')}</h2>
       <p>{tx('docs.webhooks.inboundDesc')}</p>

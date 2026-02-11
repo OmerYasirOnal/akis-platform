@@ -21,6 +21,7 @@ export default function TroubleshootingPage() {
       <h3>OAuth callback fails</h3>
       <ul>
         <li>Verify the callback URL in GitHub OAuth App settings matches your backend URL</li>
+        <li>For local dev, use <code>/api/integrations/github/oauth/callback</code> on your backend host</li>
         <li>Ensure your browser allows redirects</li>
       </ul>
 
