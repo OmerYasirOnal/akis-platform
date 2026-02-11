@@ -448,6 +448,35 @@ export type ThreadTrustSnapshot = typeof threadTrustSnapshots.$inferSelect;
 export type NewThreadTrustSnapshot = typeof threadTrustSnapshots.$inferInsert;
 
 /**
+ * Studio sessions — workspace + file tree + command + patch context
+ */
+export const studioSessionStateEnum = pgEnum('studio_session_state', [
+  'active',
+  'paused',
+  'completed',
+  'archived',
+]);
+
+export const studioSessions = pgTable('studio_sessions', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  title: varchar('title', { length: 256 }).notNull(),
+  repoUrl: varchar('repo_url', { length: 512 }),
+  branch: varchar('branch', { length: 256 }),
+  state: studioSessionStateEnum('state').notNull().default('active'),
+  workspace: jsonb('workspace').notNull().default({}),
+  metadata: jsonb('metadata').notNull().default({}),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => ({
+  userIdx: index('idx_studio_sessions_user').on(table.userId),
+  stateIdx: index('idx_studio_sessions_state').on(table.state),
+}));
+
+export type StudioSession = typeof studioSessions.$inferSelect;
+export type NewStudioSession = typeof studioSessions.$inferInsert;
+
+/**
  * User status enum - tracks account state
  */
 export const userStatusEnum = pgEnum('user_status', [
