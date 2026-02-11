@@ -46,10 +46,10 @@ export default function GitHubDocsPage() {
         <li>Opens PRs with generated documentation</li>
       </ul>
 
-      <h3>Trace (Coming Soon)</h3>
+      <h3>Trace</h3>
       <ul>
-        <li>Reads code structure for test planning</li>
-        <li>Creates test scaffold files</li>
+        <li>Reads repository and ticket context for test planning</li>
+        <li>Generates traceable test matrix artifacts</li>
       </ul>
 
       <h2>Disconnecting</h2>

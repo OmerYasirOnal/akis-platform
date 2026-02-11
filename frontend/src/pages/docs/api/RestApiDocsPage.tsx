@@ -13,7 +13,7 @@ export default function RestApiDocsPage() {
       </p>
 
       <h2>Base URL</h2>
-      <pre><code>{`http://localhost:3000/api`}</code></pre>
+      <pre><code>{`/api`}</code></pre>
 
       <h2>Authentication</h2>
       <p>
@@ -39,7 +39,7 @@ Content-Type: application/json
       <pre><code className="language-http">{`GET /api/agents/jobs/:id`}</code></pre>
 
       <h3>List Jobs</h3>
-      <pre><code className="language-http">{`GET /api/agents/jobs?limit=10&offset=0`}</code></pre>
+      <pre><code className="language-http">{`GET /api/agents/jobs?limit=10&cursor=job_123`}</code></pre>
 
       <h2>Integrations</h2>
       <h3>GitHub Status</h3>

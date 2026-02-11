@@ -130,6 +130,35 @@ export interface Job {
   qualitySuggestions?: string[] | null;
 }
 
+export interface TraceAutomationFailure {
+  feature: string;
+  test: string;
+  reason: string;
+}
+
+export interface TraceAutomationSummary {
+  runner: 'playwright';
+  targetBaseUrl: string;
+  featuresTotal: number;
+  featuresPassed: number;
+  featuresFailed: number;
+  featurePassRate: number;
+  testCasesTotal: number;
+  testCasesPassed: number;
+  testCasesFailed: number;
+  durationMs: number;
+  failures: TraceAutomationFailure[];
+  generatedTestPath: string;
+  mode: 'syntactic';
+  totalScenarios: number;
+  executedScenarios: number;
+  passedScenarios: number;
+  failedScenarios: number;
+  passRate: number;
+  featuresCovered: number;
+  featureCoverageRate: number;
+}
+
 export interface JobTraceEvent {
   id: string;
   eventType: string;

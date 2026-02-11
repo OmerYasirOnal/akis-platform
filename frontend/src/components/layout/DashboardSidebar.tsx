@@ -51,6 +51,14 @@ const AutomationsIcon = () => (
   </svg>
 );
 
+const StudioIcon = () => (
+  <svg className="h-4.5 w-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 4.5h16.5v10.5H3.75V4.5z" />
+    <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 19.5h7.5" />
+    <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v4.5" />
+  </svg>
+);
+
 interface NavItem {
   to: string;
   label: string;
@@ -76,6 +84,7 @@ const navGroups: NavGroup[] = [
     title: 'Agents',
     items: [
       { to: '/agents', label: 'Agents Hub', icon: <AgentsHubIcon /> },
+      { to: '/agents/studio', label: 'Studio', icon: <StudioIcon /> },
       { to: '/agents/smart-automations', label: 'Automations', icon: <AutomationsIcon /> },
     ],
   },

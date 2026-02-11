@@ -5,16 +5,16 @@
   --ak-color-surface-2-dark: #1F242A;
   --ak-color-surface-3-dark: #262C33;
   --ak-color-text-primary-dark: #E8ECEF;
-  --ak-color-text-secondary-dark: #8B949E;
+  --ak-color-text-secondary-dark: #9AA6B2;
   --ak-color-border-dark: #2D343D;
 
   /* Light palette — softer off-white backgrounds for reduced eye strain */
-  --ak-color-bg-light: #F7F8FA;
+  --ak-color-bg-light: #F5F7F9;
   --ak-color-surface-light: #FFFFFF;
   --ak-color-surface-2-light: #F3F5F7;
   --ak-color-surface-3-light: #E8ECEF;
   --ak-color-text-primary-light: #1A2328;
-  --ak-color-text-secondary-light: #5C6B73;
+  --ak-color-text-secondary-light: #4E5D66;
   --ak-color-border-light: #D8DFE4;
   
   /* Light mode specific elevation (softer shadows) */
@@ -63,4 +63,3 @@
   --ak-card-padding: 20px;
   --ak-card-radius: 16px;
 }
-

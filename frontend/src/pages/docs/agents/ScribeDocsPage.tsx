@@ -1,140 +1,89 @@
-/**
- * Scribe Agent Documentation
- */
 import { Link } from 'react-router-dom';
+import { useI18n } from '../../../i18n/useI18n';
 
 export default function ScribeDocsPage() {
+  const { t } = useI18n();
+  const tx = (key: string) => t(key as never);
+
+  const features = [1, 2, 3].map((n) => ({
+    title: tx(`agents.scribe.feature${n}.title`),
+    description: tx(`agents.scribe.feature${n}.description`),
+  }));
+  const useCases = [1, 2, 3].map((n) => ({
+    title: tx(`agents.scribe.useCase${n}.title`),
+    description: tx(`agents.scribe.useCase${n}.description`),
+  }));
+
   return (
-    <div>
-      <h1>Scribe Agent</h1>
-      
-      <p className="lead">
-        Scribe is an AI agent that automatically generates and updates documentation from your Git repository. It analyzes commits, understands code changes, and produces human-readable documentation.
-      </p>
+    <div className="not-prose space-y-8">
+      <section className="rounded-2xl border border-ak-border bg-ak-surface p-6">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-ak-text-secondary/70">
+              {tx('agents.scribe.subtitle')}
+            </p>
+            <h1 className="mt-2 text-3xl font-semibold text-ak-text-primary">{tx('agents.scribe.heroTitle')}</h1>
+            <p className="mt-2 text-lg text-ak-text-secondary">{tx('agents.scribe.heroSubtitle')}</p>
+            <p className="mt-4 max-w-3xl text-sm leading-relaxed text-ak-text-secondary">
+              {tx('agents.scribe.heroDescription')}
+            </p>
+          </div>
+          <img
+            src="/brand/akis-a-mark.png"
+            alt="AKIS A mark"
+            className="h-20 w-20 rounded-xl border border-ak-border bg-ak-bg p-2"
+          />
+        </div>
+      </section>
 
-      <h2>Capabilities</h2>
-      <ul>
-        <li><strong>Commit Analysis</strong> - Understands what changed and why</li>
-        <li><strong>Documentation Generation</strong> - Creates README, changelogs, API docs</li>
-        <li><strong>Pull Request Creation</strong> - Submits changes via PR for review</li>
-        <li><strong>Multi-target Support</strong> - Output to GitHub, Confluence, or local files</li>
-      </ul>
+      <section className="grid gap-4 md:grid-cols-3">
+        {features.map((feature) => (
+          <article key={feature.title} className="rounded-xl border border-ak-border bg-ak-surface p-4">
+            <h2 className="text-base font-semibold text-ak-text-primary">{feature.title}</h2>
+            <p className="mt-2 text-sm leading-relaxed text-ak-text-secondary">{feature.description}</p>
+          </article>
+        ))}
+      </section>
 
-      <h2>How It Works</h2>
-      <ol>
-        <li><strong>Connect</strong> - Link your GitHub repository</li>
-        <li><strong>Configure</strong> - Set target paths, templates, and triggers</li>
-        <li><strong>Run</strong> - Scribe analyzes recent commits</li>
-        <li><strong>Review</strong> - A PR is created with the generated docs</li>
-        <li><strong>Merge</strong> - Approve and merge the documentation updates</li>
-      </ol>
+      <section className="rounded-2xl border border-ak-border bg-ak-surface p-6">
+        <h2 className="text-xl font-semibold text-ak-text-primary">{tx('docs.section.useCases')}</h2>
+        <div className="mt-4 space-y-3">
+          {useCases.map((item) => (
+            <div key={item.title} className="rounded-lg border border-ak-border bg-ak-bg p-4">
+              <h3 className="text-sm font-semibold text-ak-text-primary">{item.title}</h3>
+              <p className="mt-1 text-sm text-ak-text-secondary">{item.description}</p>
+            </div>
+          ))}
+        </div>
+      </section>
 
-      <h2>Configuration Options</h2>
-      <table>
-        <thead>
-          <tr>
-            <th>Option</th>
-            <th>Description</th>
-            <th>Default</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td><code>baseBranch</code></td>
-            <td>Branch to analyze and create PRs against</td>
-            <td><code>main</code></td>
-          </tr>
-          <tr>
-            <td><code>targetPlatform</code></td>
-            <td>Where to publish docs</td>
-            <td><code>github_repo</code></td>
-          </tr>
-          <tr>
-            <td><code>includeGlobs</code></td>
-            <td>Files to include in analysis</td>
-            <td><code>**/*</code></td>
-          </tr>
-          <tr>
-            <td><code>excludeGlobs</code></td>
-            <td>Files to exclude from analysis</td>
-            <td><code>node_modules/**</code></td>
-          </tr>
-          <tr>
-            <td><code>triggerMode</code></td>
-            <td>When to run: manual, on_pr_merge, scheduled</td>
-            <td><code>manual</code></td>
-          </tr>
-        </tbody>
-      </table>
+      <section className="rounded-2xl border border-ak-primary/20 bg-ak-primary/5 p-6">
+        <h2 className="text-xl font-semibold text-ak-text-primary">{tx('agents.scribe.title')}</h2>
+        <p className="mt-2 text-sm text-ak-text-secondary">{tx('agents.scribe.description')}</p>
+        <div className="mt-4 flex flex-wrap gap-3">
+          <Link
+            to="/dashboard/agents"
+            className="inline-flex items-center rounded-lg bg-ak-primary px-4 py-2 text-sm font-semibold text-[color:var(--ak-on-primary)] hover:brightness-110"
+          >
+            {tx('agentsHub.runAgent')}
+          </Link>
+          <Link
+            to="/docs/api/rest"
+            className="inline-flex items-center rounded-lg border border-ak-border bg-ak-surface px-4 py-2 text-sm font-semibold text-ak-text-primary hover:border-ak-primary/50"
+          >
+            {tx('docs.apiReference.title')}
+          </Link>
+        </div>
+      </section>
 
-      <h2>Example Usage</h2>
-      <pre><code className="language-typescript">{`// Run Scribe via API
-const response = await fetch('/api/agents/jobs', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({
-    type: 'scribe',
-    payload: {
-      owner: 'your-username',
-      repo: 'your-repo',
-      baseBranch: 'main',
-      dryRun: false,
-    },
-  }),
-});
-
-const { jobId } = await response.json();
-// Poll /api/agents/jobs/:jobId for status`}</code></pre>
-
-      <h2>Output Formats</h2>
-      <p>Scribe can generate documentation in multiple formats:</p>
-      <ul>
-        <li><strong>Markdown</strong> - README.md, CHANGELOG.md</li>
-        <li><strong>API Documentation</strong> - OpenAPI/Swagger compatible</li>
-        <li><strong>Confluence Pages</strong> - Direct publish to Atlassian</li>
-        <li><strong>GitHub Wiki</strong> - Wiki page generation</li>
-      </ul>
-
-      <h2>Plan-Only Mode</h2>
-      <p>
-        For safety, Scribe supports a &quot;plan-only&quot; mode where it generates a plan document without making any changes. This is useful for:
-      </p>
-      <ul>
-        <li>Reviewing what changes will be made before execution</li>
-        <li>Approval workflows in enterprise settings</li>
-        <li>Understanding the agent&apos;s reasoning</li>
-      </ul>
-
-      <h2>Explainability</h2>
-      <p>
-        Every Scribe job includes a detailed trace showing:
-      </p>
-      <ul>
-        <li>Files analyzed and changes detected</li>
-        <li>AI reasoning for each decision</li>
-        <li>Tool calls made (GitHub API, MCP tools)</li>
-        <li>Output artifacts generated</li>
-      </ul>
-
-      <div className="not-prose mt-8 rounded-xl border border-ak-primary/20 bg-ak-primary/5 p-4">
-        <h3 className="text-lg font-semibold text-ak-primary">Try Scribe Now</h3>
-        <p className="mt-2 text-ak-text-secondary">
-          Connect your GitHub repository and run Scribe to see it in action.
-        </p>
-        <Link
-          to="/dashboard/agents"
-          className="mt-4 inline-block rounded-lg bg-ak-primary px-4 py-2 text-sm font-semibold text-[#111418] hover:brightness-110 active:brightness-95"
-        >
-          Go to Agents Hub →
-        </Link>
-      </div>
-
-      <h2>Related</h2>
-      <ul>
-        <li><Link to="/docs/agents/trace">Trace Agent</Link> - Generate test plans</li>
-        <li><Link to="/docs/integrations/github">GitHub Integration</Link> - Repository connection</li>
-        <li><Link to="/docs/api/rest">REST API</Link> - Programmatic access</li>
-      </ul>
+      <section className="rounded-2xl border border-ak-border bg-ak-surface p-6">
+        <h2 className="text-xl font-semibold text-ak-text-primary">{tx('docs.section.references')}</h2>
+        <ul className="mt-3 space-y-2 text-sm text-ak-text-secondary">
+          <li><Link className="text-ak-primary hover:underline" to="/docs/agents/trace">{tx('agents.trace.heroTitle')}</Link></li>
+          <li><Link className="text-ak-primary hover:underline" to="/docs/integrations/github">{tx('docs.integrations.title')}</Link></li>
+          <li><Link className="text-ak-primary hover:underline" to="/docs/api/auth">{tx('docs.apiReference.title')}</Link></li>
+        </ul>
+      </section>
     </div>
   );
 }
