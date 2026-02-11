@@ -59,6 +59,43 @@ describe('QualityScoring', () => {
       
       assert.strictEqual(multiResult.score, singleResult.score + 15);
     });
+
+    it('normalizes configured and produced target identifiers before matching', () => {
+      const result = computeQualityScore({
+        ...baseInput,
+        targetsConfigured: ['docs/README.md', 'docs/API.md'],
+        targetsProduced: ['README', 'API'],
+      });
+
+      const coverage = result.breakdown.find((item) => item.label === 'Target coverage');
+      assert.strictEqual(coverage?.points, 30);
+      assert.ok(result.score >= 60);
+    });
+
+    it('handles scoped runs with inferred targets when outputTargets is empty', () => {
+      const result = computeQualityScore({
+        ...baseInput,
+        targetsConfigured: [],
+        targetsProduced: [],
+        documentsRead: 4,
+        filesProduced: 1,
+      });
+
+      assert.ok(result.score >= 70, `expected scoped run score >= 70, got ${result.score}`);
+    });
+
+    it('keeps score low when there is no produced output', () => {
+      const result = computeQualityScore({
+        ...baseInput,
+        targetsConfigured: [],
+        targetsProduced: [],
+        documentsRead: 0,
+        filesProduced: 0,
+        docDepth: 'standard',
+      });
+
+      assert.ok(result.score < 60, `expected failing score < 60, got ${result.score}`);
+    });
   });
 
   describe('generateQualitySuggestions', () => {

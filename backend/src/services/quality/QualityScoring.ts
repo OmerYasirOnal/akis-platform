@@ -32,6 +32,24 @@ export interface QualityInput {
   totalTokens?: number | null;
 }
 
+function normalizeTarget(value: string): string {
+  const trimmed = value.trim();
+  if (trimmed.length === 0) return '';
+  const base = trimmed.includes('/') ? trimmed.split('/').pop() ?? trimmed : trimmed;
+  return base.replace(/\.[^.]+$/i, '').toUpperCase();
+}
+
+function normalizeTargetList(values: string[]): string[] {
+  const dedup = new Set<string>();
+  for (const value of values) {
+    const normalized = normalizeTarget(value);
+    if (normalized.length > 0) {
+      dedup.add(normalized);
+    }
+  }
+  return Array.from(dedup);
+}
+
 /**
  * Computes a 0–100 quality score for a completed job based on execution metrics.
  * @param input - Job metrics (targets, files, depth, multi-pass, state)
@@ -55,32 +73,50 @@ export function computeQualityScore(input: QualityInput): QualityResult {
     };
   }
 
-  // Target coverage (30 points max)
-  const targetCoverage = input.targetsConfigured.length > 0
-    ? input.targetsProduced.filter(t => input.targetsConfigured.includes(t)).length / input.targetsConfigured.length
+  const configuredTargets = normalizeTargetList(input.targetsConfigured);
+  const producedTargets = normalizeTargetList(input.targetsProduced);
+  const producedCount = Math.max(input.filesProduced, producedTargets.length);
+  const configuredCount = configuredTargets.length;
+
+  // Target coverage (30 points max, scope-aware)
+  const matchedTargets = configuredCount > 0
+    ? configuredTargets.filter((target) => producedTargets.includes(target)).length
     : 0;
+  const targetCoverage = configuredCount > 0
+    ? matchedTargets / configuredCount
+    : producedCount > 0
+      ? 1
+      : 0;
   const targetPoints = Math.round(targetCoverage * 30);
   breakdown.push({
     label: 'Target coverage',
-    value: `${input.targetsProduced.length}/${input.targetsConfigured.length} targets`,
+    value: configuredCount > 0
+      ? `${matchedTargets}/${configuredCount} targets`
+      : producedCount > 0
+        ? `${producedCount} inferred target(s)`
+        : '0 inferred targets',
     points: targetPoints,
   });
   score += targetPoints;
 
-  // Files analyzed (20 points max)
-  const readPoints = Math.min(input.documentsRead * 2, 20);
+  // Files analyzed (20 points max, calibrated by target scope)
+  const expectedReads = Math.max(3, configuredCount > 0 ? configuredCount * 2 : 3);
+  const readCoverage = Math.min(input.documentsRead / expectedReads, 1);
+  const readPoints = Math.round(readCoverage * 20);
   breakdown.push({
     label: 'Files analyzed',
-    value: `${input.documentsRead} files`,
+    value: `${input.documentsRead}/${expectedReads} files`,
     points: readPoints,
   });
   score += readPoints;
 
-  // Output volume (20 points max)
-  const outputPoints = Math.min(input.filesProduced * 5, 20);
+  // Output volume (20 points max, calibrated by target scope)
+  const expectedOutputs = Math.max(1, configuredCount > 0 ? configuredCount : 1);
+  const outputCoverage = Math.min(producedCount / expectedOutputs, 1);
+  const outputPoints = Math.round(outputCoverage * 20);
   breakdown.push({
     label: 'Docs generated',
-    value: `${input.filesProduced} files`,
+    value: `${producedCount}/${expectedOutputs} files`,
     points: outputPoints,
   });
   score += outputPoints;

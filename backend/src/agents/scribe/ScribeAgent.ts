@@ -686,6 +686,9 @@ export class ScribeAgent extends BaseAgent {
         mode: 'contract-first-doc-specialist',
         skill: task.skill,
         skillResult: runScribeSkill(task.skill, task.skillInput ?? {}),
+        targetsProduced: [],
+        documentsRead: 0,
+        filesProduced: 0,
       };
     }
 
@@ -1144,6 +1147,9 @@ If no issues, output: []`;
     
     results.critiques = critiques;
     const totalIssues = critiques.reduce((sum, c) => sum + (c.critique.issues?.length || 0), 0);
+    const targetsProduced = updatedFiles.map((file) => file.path);
+    const documentsRead = Math.max((repoContext.keyFiles?.length || 0) + fileTargets.length, fileTargets.length);
+    const filesProduced = updatedFiles.length;
 
     this.traceRecorder?.recordPlanStep({
       stepId: 'reflect-critique',
@@ -1198,6 +1204,9 @@ If no issues, output: []`;
         agent: 'scribe-v2',
         mode: 'contract-first-doc-specialist',
         filesUpdated: updatedFiles.length,
+        targetsProduced,
+        documentsRead,
+        filesProduced,
         ...results,
         diagnostics: {
           mode: 'dry-run',
@@ -1368,6 +1377,9 @@ If no issues, output: []`;
       agent: 'scribe-v2',
       mode: 'contract-first-doc-specialist',
       filesUpdated: updatedFiles.length,
+      targetsProduced,
+      documentsRead,
+      filesProduced,
       ...results,
       diagnostics: {
         mode: dryRun ? 'dry-run' : 'execute',

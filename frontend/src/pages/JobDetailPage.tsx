@@ -215,6 +215,24 @@ interface QualityBreakdown {
   breakdown: { label: string; value: string; points: number }[];
 }
 
+function normalizeQualityTarget(value: string): string {
+  const trimmed = value.trim();
+  if (trimmed.length === 0) return '';
+  const base = trimmed.includes('/') ? trimmed.split('/').pop() ?? trimmed : trimmed;
+  return base.replace(/\.[^.]+$/i, '').toUpperCase();
+}
+
+function normalizeQualityTargets(values: string[]): string[] {
+  const unique = new Set<string>();
+  for (const value of values) {
+    const normalized = normalizeQualityTarget(value);
+    if (normalized.length > 0) {
+      unique.add(normalized);
+    }
+  }
+  return Array.from(unique);
+}
+
 function computeScribeQuality(
   job: Job,
   traces: TraceEvent[],
@@ -222,15 +240,18 @@ function computeScribeQuality(
   filesProduced: Artifact[],
 ): QualityBreakdown {
   const payload = (job.payload || {}) as Record<string, unknown>;
-  const targetsConfigured = (payload.outputTargets as string[] | undefined) || [];
+  const targetsConfiguredRaw = ((payload.outputTargets as string[] | undefined) || []).slice();
+  if (targetsConfiguredRaw.length === 0 && typeof payload.targetPath === 'string' && payload.targetPath.trim().length > 0) {
+    targetsConfiguredRaw.push(payload.targetPath.trim());
+  }
   const docDepth = (payload.docDepth as string) || 'standard';
   const docPack = (payload.docPack as string) || 'standard';
-  const multiPass = docPack === 'full' || docDepth === 'deep';
+  const multiPass = payload.multiPass === true || (typeof payload.passes === 'number' && payload.passes >= 2) || docPack === 'full';
 
-  const targetsProduced = filesProduced.map(f => {
-    const name = f.path.split('/').pop()?.replace(/\.md$/i, '').toUpperCase() || '';
-    return name;
-  });
+  const targetsProducedRaw = filesProduced.map((file) => file.path);
+  const targetsConfigured = normalizeQualityTargets(targetsConfiguredRaw);
+  const targetsProduced = normalizeQualityTargets(targetsProducedRaw);
+  const producedCount = Math.max(filesProduced.length, targetsProduced.length);
 
   const toolCalls = traces.filter(t =>
     t.eventType === 'tool_call' || t.eventType === 'mcp_call'
@@ -244,21 +265,35 @@ function computeScribeQuality(
   let score = 0;
 
   // Targets coverage
-  const targetCoverage = targetsConfigured.length > 0
-    ? targetsProduced.filter(t => targetsConfigured.includes(t)).length / targetsConfigured.length
+  const matchedTargets = targetsConfigured.length > 0
+    ? targetsConfigured.filter((target) => targetsProduced.includes(target)).length
     : 0;
+  const targetCoverage = targetsConfigured.length > 0
+    ? matchedTargets / targetsConfigured.length
+    : producedCount > 0
+      ? 1
+      : 0;
   const targetPoints = Math.round(targetCoverage * 30);
-  breakdown.push({ label: 'Target coverage', value: `${targetsProduced.length}/${targetsConfigured.length} targets`, points: targetPoints });
+  const targetValue = targetsConfigured.length > 0
+    ? `${matchedTargets}/${targetsConfigured.length} targets`
+    : producedCount > 0
+      ? `${producedCount} inferred target(s)`
+      : '0 inferred targets';
+  breakdown.push({ label: 'Target coverage', value: targetValue, points: targetPoints });
   score += targetPoints;
 
   // Files analyzed
-  const readPoints = Math.min(documentsRead.length * 2, 20);
-  breakdown.push({ label: 'Files analyzed', value: `${documentsRead.length} files`, points: readPoints });
+  const expectedReads = Math.max(3, targetsConfigured.length > 0 ? targetsConfigured.length * 2 : 3);
+  const readCoverage = Math.min(documentsRead.length / expectedReads, 1);
+  const readPoints = Math.round(readCoverage * 20);
+  breakdown.push({ label: 'Files analyzed', value: `${documentsRead.length}/${expectedReads} files`, points: readPoints });
   score += readPoints;
 
   // Output volume
-  const outputPoints = Math.min(filesProduced.length * 5, 20);
-  breakdown.push({ label: 'Docs generated', value: `${filesProduced.length} files`, points: outputPoints });
+  const expectedOutputs = Math.max(1, targetsConfigured.length > 0 ? targetsConfigured.length : 1);
+  const outputCoverage = Math.min(producedCount / expectedOutputs, 1);
+  const outputPoints = Math.round(outputCoverage * 20);
+  breakdown.push({ label: 'Docs generated', value: `${producedCount}/${expectedOutputs} files`, points: outputPoints });
   score += outputPoints;
 
   // Depth bonus
