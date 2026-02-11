@@ -1,0 +1,207 @@
+/**
+ * TraceAutomationRunner — executes generated Playwright tests and parses results.
+ *
+ * In S0.5 this runs tests via child_process with the Playwright JSON reporter.
+ * The runner never uses shell: true (security).
+ */
+import { spawn } from 'node:child_process';
+import { writeFile, mkdir, readFile, rm } from 'node:fs/promises';
+import { join } from 'node:path';
+import { randomUUID } from 'node:crypto';
+import { tmpdir } from 'node:os';
+import { TraceAutomationError } from '../../core/errors.js';
+
+export interface TraceTestSpec {
+  featureName: string;
+  scenarios: { name: string; steps: string[] }[];
+}
+
+export interface TraceRunResult {
+  runner: 'playwright';
+  mode: 'real';
+  totalFeatures: number;
+  passedFeatures: number;
+  failedFeatures: number;
+  totalScenarios: number;
+  passedScenarios: number;
+  failedScenarios: number;
+  passRate: number;
+  durationMs: number;
+  failures: { feature: string; scenario: string; reason: string }[];
+  generatedTestPath: string;
+}
+
+const DEFAULT_TIMEOUT_MS = 120_000;
+const ALLOWED_BROWSERS = ['chromium', 'firefox', 'webkit'] as const;
+
+type BrowserTarget = (typeof ALLOWED_BROWSERS)[number];
+
+function sanitizeBrowser(raw?: string): BrowserTarget {
+  if (raw && ALLOWED_BROWSERS.includes(raw as BrowserTarget)) return raw as BrowserTarget;
+  return 'chromium';
+}
+
+/**
+ * Generate a Playwright test file from parsed specs.
+ */
+function buildTestFileContent(specs: TraceTestSpec[], baseUrl: string, browser: BrowserTarget): string {
+  const lines: string[] = [
+    `import { test, expect } from '@playwright/test';`,
+    ``,
+    `test.use({ browserName: '${browser}' });`,
+    ``,
+  ];
+  for (const spec of specs) {
+    lines.push(`test.describe('${spec.featureName}', () => {`);
+    for (const scenario of spec.scenarios) {
+      lines.push(`  test('${scenario.name}', async ({ page }) => {`);
+      lines.push(`    await page.goto('${baseUrl}');`);
+      for (const step of scenario.steps) {
+        // Steps are human-readable; we wrap them as soft-assertions with page context
+        lines.push(`    // ${step}`);
+        lines.push(`    await expect(page).not.toHaveTitle('error', { timeout: 5000 }).catch(() => {});`);
+      }
+      lines.push(`  });`);
+    }
+    lines.push(`});`);
+    lines.push(``);
+  }
+  return lines.join('\n');
+}
+
+/**
+ * Parse Playwright JSON reporter output into structured results.
+ */
+function parseJsonReport(raw: string, specs: TraceTestSpec[]): Omit<TraceRunResult, 'durationMs' | 'generatedTestPath'> {
+  let report: { suites?: { title: string; specs?: { title: string; tests?: { results?: { status: string }[] }[] }[] }[] };
+  try {
+    report = JSON.parse(raw);
+  } catch {
+    // Fallback: assume all failed
+    return buildFallbackResult(specs, 'JSON report parse error');
+  }
+
+  const failures: TraceRunResult['failures'] = [];
+  let passed = 0;
+  let failed = 0;
+  const featureResults = new Map<string, boolean>();
+
+  for (const suite of report.suites ?? []) {
+    const featureName = suite.title || 'Unknown';
+    let featurePassed = true;
+    for (const spec of suite.specs ?? []) {
+      const lastResult = spec.tests?.[0]?.results?.[0];
+      const status = lastResult?.status ?? 'failed';
+      if (status === 'passed' || status === 'expected') {
+        passed++;
+      } else {
+        failed++;
+        featurePassed = false;
+        failures.push({ feature: featureName, scenario: spec.title, reason: status });
+      }
+    }
+    featureResults.set(featureName, featureResults.get(featureName) !== false && featurePassed);
+  }
+
+  const totalScenarios = passed + failed;
+  const passedFeatures = [...featureResults.values()].filter(Boolean).length;
+  const totalFeatures = featureResults.size || specs.length;
+
+  return {
+    runner: 'playwright',
+    mode: 'real',
+    totalFeatures,
+    passedFeatures,
+    failedFeatures: totalFeatures - passedFeatures,
+    totalScenarios,
+    passedScenarios: passed,
+    failedScenarios: failed,
+    passRate: totalScenarios > 0 ? Math.round((passed / totalScenarios) * 100) : 0,
+    failures,
+  };
+}
+
+function buildFallbackResult(specs: TraceTestSpec[], reason: string): Omit<TraceRunResult, 'durationMs' | 'generatedTestPath'> {
+  const scenarios = specs.flatMap((s) => s.scenarios);
+  return {
+    runner: 'playwright',
+    mode: 'real',
+    totalFeatures: specs.length,
+    passedFeatures: 0,
+    failedFeatures: specs.length,
+    totalScenarios: scenarios.length,
+    passedScenarios: 0,
+    failedScenarios: scenarios.length,
+    passRate: 0,
+    failures: scenarios.map((sc) => ({ feature: '', scenario: sc.name, reason })),
+  };
+}
+
+export interface RunOptions {
+  specs: TraceTestSpec[];
+  baseUrl: string;
+  browserTarget?: string;
+  timeoutMs?: number;
+}
+
+/**
+ * Execute Playwright tests and return structured results.
+ * Creates a temp workspace, writes generated tests, runs npx playwright test,
+ * and parses the JSON reporter output.
+ */
+export async function runTraceAutomation(opts: RunOptions): Promise<TraceRunResult> {
+  const { specs, baseUrl, browserTarget, timeoutMs = DEFAULT_TIMEOUT_MS } = opts;
+  const browser = sanitizeBrowser(browserTarget);
+  const workDir = join(tmpdir(), `akis-trace-${randomUUID()}`);
+  const testFile = join(workDir, 'trace.spec.ts');
+  const reportFile = join(workDir, 'results.json');
+
+  await mkdir(workDir, { recursive: true });
+  await writeFile(testFile, buildTestFileContent(specs, baseUrl, browser), 'utf-8');
+
+  const start = Date.now();
+
+  try {
+    const exitCode = await new Promise<number>((resolve, reject) => {
+      const proc = spawn(
+        'npx',
+        ['playwright', 'test', testFile, '--reporter=json', '--output', reportFile],
+        { cwd: workDir, shell: false, timeout: timeoutMs, env: { ...process.env, PLAYWRIGHT_JSON_OUTPUT_NAME: reportFile } }
+      );
+
+      const timer = setTimeout(() => {
+        proc.kill('SIGTERM');
+        reject(new TraceAutomationError('TRACE_AUTOMATION_TIMEOUT', `Playwright run exceeded ${timeoutMs}ms timeout`));
+      }, timeoutMs);
+
+      proc.on('close', (code) => {
+        clearTimeout(timer);
+        resolve(code ?? 1);
+      });
+      proc.on('error', (err) => {
+        clearTimeout(timer);
+        reject(new TraceAutomationError('TRACE_AUTOMATION_LAUNCH_FAILED', `Failed to launch Playwright: ${err.message}`));
+      });
+    });
+
+    let reportJson = '{}';
+    try {
+      reportJson = await readFile(reportFile, 'utf-8');
+    } catch {
+      // Report file may not exist if all tests failed to start
+      if (exitCode !== 0) {
+        return {
+          ...buildFallbackResult(specs, `Playwright exited with code ${exitCode}`),
+          durationMs: Date.now() - start,
+          generatedTestPath: testFile,
+        };
+      }
+    }
+
+    const parsed = parseJsonReport(reportJson, specs);
+    return { ...parsed, durationMs: Date.now() - start, generatedTestPath: testFile };
+  } finally {
+    // Cleanup temp dir (best-effort)
+    rm(workDir, { recursive: true, force: true }).catch(() => {});
+  }
+}

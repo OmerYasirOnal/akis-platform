@@ -103,6 +103,26 @@ export class MissingAIKeyError extends AIProviderError {
   }
 }
 
+/**
+ * Trace automation error codes
+ */
+export type TraceAutomationErrorCode =
+  | 'TRACE_AUTOMATION_TIMEOUT'
+  | 'TRACE_AUTOMATION_RUN_FAILED'
+  | 'TRACE_AUTOMATION_LAUNCH_FAILED';
+
+export class TraceAutomationError extends Error {
+  readonly code: TraceAutomationErrorCode;
+  readonly retryable: boolean;
+
+  constructor(code: TraceAutomationErrorCode, message: string, retryable = false) {
+    super(message);
+    this.name = 'TraceAutomationError';
+    this.code = code;
+    this.retryable = retryable;
+  }
+}
+
 export class ModelNotAllowedError extends AIProviderError {
   readonly model: string;
   readonly allowlist: string[];
