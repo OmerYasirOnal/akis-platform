@@ -55,7 +55,7 @@ export function usePushToTalk(options: UsePushToTalkOptions = {}): UsePushToTalk
   const [isListening, setIsListening] = useState(false);
   const [transcript, setTranscript] = useState('');
   const [interimTranscript, setInterimTranscript] = useState('');
-  const recognitionRef = useRef<ReturnType<SpeechRecognitionCtor> | null>(null);
+  const recognitionRef = useRef<InstanceType<SpeechRecognitionCtor> | null>(null);
   const isSupported = typeof window !== 'undefined' && !!getSpeechRecognition();
 
   const startListening = useCallback(() => {
