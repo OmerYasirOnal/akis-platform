@@ -4,7 +4,7 @@
 > **WBS Tablosu:** [`docs/planning/WBS_EXPORT_S0.5.xlsx_compatible.md`](planning/WBS_EXPORT_S0.5.xlsx_compatible.md)  
 > **Araştırma Notu:** [`docs/planning/RESEARCH_BRIEF_S0.5_STAGING_RAG_AGENTS.md`](planning/RESEARCH_BRIEF_S0.5_STAGING_RAG_AGENTS.md)  
 > **Araştırma Temeli:** `docs/planning/RESEARCH_DEEP_DIVE_AGENT_ARCHITECTURE.md`  
-> **Son Güncelleme:** 2026-02-10
+> **Son Güncelleme:** 2026-02-11
 
 ---
 
@@ -28,7 +28,7 @@ docs/NEXT.md                                             (bu dosya — anlık ey
 | Deploy Edilen Commit | `2c503f7` (PR #265 merge — staging deploy 2026-02-10) |
 | S0.5 PR | [#265](https://github.com/OmerYasirOnal/akis-platform-devolopment/pull/265) — onboarding, feedback, context packs, QA docs, 750+ yeni test |
 | Smoke Testleri | 12/12 geçti (`staging_smoke.sh --commit 2c503f7`, 2026-02-10) |
-| Test Sayısı | Backend: 797 + Frontend: 547 = **1,344 toplam** (Phase 1-8 test kampanyası, 2026-02-10) |
+| Test Sayısı | Backend: 842 + Frontend: 549 = **1,391 toplam** (Phase 1-8 test kampanyası + S0.5 sprint, 2026-02-11) |
 | Kod Düzeltmeleri | MCP `/ready` durumu, OAuth hoşgeldin e-postası, agents yönlendirme `/agents/*`, logo güncelleme, güvenlik temizliği, E2E test hizalama |
 | Şifreleme | Staging'de yapılandırıldı (`/ready` → `encryption.configured: true`) |
 | E-posta | SMTP şablonu hazır (`/ready` → `email.configured`, `email.host`, `email.port`, `email.from`); OAuth hoşgeldin e-postası eklendi |
@@ -114,6 +114,16 @@ docs/NEXT.md                                             (bu dosya — anlık ey
 | S0.5.3-UX-12 | Trace “Yaz→Koş→Raporla” coverage görünürlüğü (console + job detail) | Tamamlandı | Trace Console summary kartları (feature/test/duration/failures) + generated test preview, Job Details’e “Automation Coverage” kartı, i18n TR/EN key güncellemeleri ve test güncellemesi (2026-02-11) |
 | S0.5.3-OPS-1 | `/ready` MCP diagnostics — her zaman `mcp` objesi + `missingEnv` dizisi | Tamamlandı | Schema fix + diagnostik alanlar + test (2026-02-10) |
 | S0.5.3-OPS-2 | Staging smoke + deploy docs contract drift fix (`mcp.github` → `mcp.gatewayReachable`) | Tamamlandı | `scripts/staging_smoke.sh`, OCI workflow metinleri ve staging deploy/checklist dokümanları güncellendi (2026-02-10) |
+| S0.5.3-AUTH-1 | Public sayfa 401 console hata temizliği (AuthContext skip on public routes) | Tamamlandı | PR #285 — `requiresAuthResolve()` guard (2026-02-11) |
+| S0.5.3-I18N-1 | Docs i18n batch-1 (DocsIndex/GettingStarted/RestApi/Auth/Webhooks/BestPractices) + DocsSectionCard/DocsReferenceList | Tamamlandı | PR #286 — 6 sayfa + 2 ortak bileşen (2026-02-11) |
+| S0.5.3-I18N-2 | Docs i18n batch-2 (Integrations/Security/Guides + localhost temizliği) | Tamamlandı | PR #287 — 8 sayfa + i18n 687/687 key parity (2026-02-11) |
+| S0.5.3-TRACE-1 | TraceAutomationRunner (gerçek Playwright yürütme motoru + JSON reporter parse) | Tamamlandı | PR #288 — 6 unit test, feature-bazlı sonuç hesaplama (2026-02-11) |
+| S0.5.3-TRUST-1 | TrustScoringService (4 güven metriği: Reliability/Hallucination Risk/Task Success/Tool Health) | Tamamlandı | PR #289 — 11 unit test, pure computation (2026-02-11) |
+| S0.5.3-STUDIO-1 | Studio backend session CRUD + DB schema + file tree stub | Tamamlandı | PR #290 — migration 0030 + 8 unit test (2026-02-11) |
+| S0.5.3-STUDIO-2 | StudioCommandRunner (allowlist) + PatchProposalService (güvenlik doğrulama) | Tamamlandı | PR #291 — 16 unit test, shell:false + path traversal koruması (2026-02-11) |
+| S0.5.3-WEBHOOK-1 | Webhook HMAC-SHA256 doğrulama + trigger şema kontrat testleri | Tamamlandı | PR #292 — 16 unit test (2026-02-11) |
+| S0.5.3-PTT-1 | usePushToTalk hook (Web Speech API) + docs i18n parity doğrulama scripti | Tamamlandı | PR #293 — voice input + verify_docs_i18n_parity.mjs (2026-02-11) |
+| S0.5.3-SYNC-1 | Research gap güncelleme (Sec 9.1 Testing: 1391 test) + NEXT.md final senkron | Tamamlandı | Araştırma dokümanı + planlama tutarlılığı (2026-02-11) |
 
 ---
 
