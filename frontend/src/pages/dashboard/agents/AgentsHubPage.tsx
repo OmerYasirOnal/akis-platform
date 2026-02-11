@@ -1565,11 +1565,21 @@ export default function AgentsHubPage() {
                           <span className="rounded bg-ak-surface px-1 py-0.5 text-[9px] font-semibold tracking-wide text-ak-text-secondary border border-ak-border">
                             {session.typeLabel}
                           </span>
+                          {session.messages.some((m) => m.isError) && (
+                            <span className="rounded bg-red-500/10 px-1 py-0.5 text-[9px] font-semibold text-red-400 border border-red-500/20">
+                              !
+                            </span>
+                          )}
                         </div>
                         <p className="mt-1 truncate text-[12px] font-medium">
                           {session.title}
                         </p>
-                        <p className="truncate text-[10px] text-ak-text-secondary/60">
+                        <p className={cn(
+                          'truncate text-[10px]',
+                          session.lastMessagePreview?.startsWith('Error:') || session.lastMessagePreview?.startsWith('Failed:')
+                            ? 'text-red-400/70'
+                            : 'text-ak-text-secondary/60'
+                        )}>
                           {session.lastMessagePreview || 'No messages yet'}
                         </p>
                       </div>
@@ -1977,8 +1987,14 @@ export default function AgentsHubPage() {
         {/* Input Area */}
         <div ref={inputAreaRef} className="border-t border-ak-border bg-ak-bg p-3 relative">
           {jobError && (
-            <div className="mb-2 px-3 py-2 rounded-lg bg-red-500/[0.08] border border-red-500/20 text-xs text-red-300">
-              {jobError}
+            <div className="mb-2 flex items-center justify-between px-3 py-2 rounded-lg bg-red-500/[0.08] border border-red-500/20 text-xs text-red-300">
+              <span>{jobError}</span>
+              <button
+                onClick={() => setJobError(null)}
+                className="ml-2 shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium text-red-300 hover:bg-red-500/20 hover:text-red-200 transition-colors"
+              >
+                ✕
+              </button>
             </div>
           )}
           <div className="flex items-end gap-2">

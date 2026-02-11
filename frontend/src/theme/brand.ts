@@ -14,9 +14,9 @@ export const LOGO_PNG_TRANSPARENT = LOGO_PNG_2X;
 export const LOGO_ALT = "AKIS";
 
 export const LOGO_SIZES = {
-  hero: 112,
-  nav: 32,   // Increased from 24 for better visibility in navigation
-  sm: 24,    // Increased from 20 for better legibility
+  hero: 120,  // Landing page hero — clamp(72px, 12vw, 120px)
+  nav: 36,    // Main navigation bar
+  sm: 28,     // Compact: auth pages, footers, sidebar
 } as const;
 
 export type LogoSize = keyof typeof LOGO_SIZES;

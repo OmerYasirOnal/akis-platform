@@ -154,7 +154,7 @@ export default function DocsLayout() {
         <div className="mx-auto flex h-16 max-w-[1400px] items-center justify-between px-4 sm:px-6 lg:px-8">
           <div className="flex items-center gap-6">
             <NavLink to="/" className="flex items-center gap-2 text-xl font-bold text-ak-text-primary hover:text-ak-primary transition-colors">
-              <img src="/brand/akis-a-mark.png" alt="AKIS" className="h-7 w-7" />
+              <img src="/brand/akis-a-mark.png" alt="AKIS" className="h-8 w-8" />
               AKIS
             </NavLink>
             <div className="hidden sm:flex items-center">
