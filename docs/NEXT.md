@@ -35,7 +35,7 @@ docs/NEXT.md                                             (bu dosya — anlık ey
 | Google OAuth | `/ready` → `oauth.google`, `oauth.github`, `oauth.callbackBase` gösteriyor — staging `.env` kimlik bilgilerini doğrulayın |
 | MCP Gateway | Always-on staging stack'te (profile kaldırıldı); CI pipeline (PR #266); `GITHUB_TOKEN` env gerekli |
 | Agent Yönlendirme | Scribe/Trace/Proto → `/agents/*` taşındı; `/dashboard/scribe\|trace\|proto` yeni rotalara yönlendirme yapıyor |
-| Logo | Tek kaynak: `frontend/public/brand/logo.png` + 3 density varyantı güncellendi |
+| Logo | Full wordmark korunuyor (`frontend/src/assets/branding/akis-official-logo@*`), compact/favikon için A-mark only ailesi güncellendi (`frontend/src/assets/branding/akis-a-mark.png`, `akis-mark@2x.png`, `akis-mark@3x.png`, `frontend/public/brand/favicon*`) |
 
 ---
 
@@ -124,6 +124,8 @@ docs/NEXT.md                                             (bu dosya — anlık ey
 | S0.5.3-WEBHOOK-1 | Webhook HMAC-SHA256 doğrulama + trigger şema kontrat testleri | Tamamlandı | PR #292 — 16 unit test (2026-02-11) |
 | S0.5.3-PTT-1 | usePushToTalk hook (Web Speech API) + docs i18n parity doğrulama scripti | Tamamlandı | PR #293 — voice input + verify_docs_i18n_parity.mjs (2026-02-11) |
 | S0.5.3-SYNC-1 | Research gap güncelleme (Sec 9.1 Testing: 1391 test) + NEXT.md final senkron | Tamamlandı | Araştırma dokümanı + planlama tutarlılığı (2026-02-11) |
+| S0.5.3-UX-13 | AKIS A-mark only asset family + favicon refresh (transparent) | Tamamlandı | `akis-mark@2x/@3x` eklendi, compact UI `Logo` srcset güncellendi, favicon seti (`ico+16+32+180+512`) A-mark ile güncellendi (2026-02-11) |
+| S0.5.3-UX-14 | Scribe quality gate kalibrasyonu (result + diagnostics + artifact fallback) | Tamamlandı | `ScribeAgent` kalite metrikleri (`targetsProduced/documentsRead/filesProduced`) eklendi; `AgentOrchestrator.completeJob` quality input fallback zinciri güçlendirildi (`result` → `diagnostics` → `job_artifacts`); Job Detail fallback skoru backend ile hizalandı; backend/frontend test+build doğrulandı (2026-02-11) |
 
 ---
 

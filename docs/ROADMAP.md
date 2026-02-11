@@ -2,7 +2,7 @@
 
 > **Kanonik Plan:** [`docs/planning/DELIVERY_PLAN_S0.5_FEB_TO_GRADUATION.md`](planning/DELIVERY_PLAN_S0.5_FEB_TO_GRADUATION.md)  
 > **Anlık Eylemler:** [`docs/NEXT.md`](NEXT.md)  
-> **Son Güncelleme:** 2026-02-10
+> **Son Güncelleme:** 2026-02-11
 
 ---
 
@@ -22,7 +22,7 @@
 
 | Kilometre Taşı | Hedef Tarih | Odak | Durum |
 |-----------------|-------------|------|-------|
-| **M1: Pilot Demo** | 28 Şubat 2026 | Staging düzeltme + Scribe/Trace/Proto golden path + pilot katılım | **Devam Ediyor** (30/30 görev, 1,344 test, MCP CI eklendi, staging deploy bekliyor) |
+| **M1: Pilot Demo** | 28 Şubat 2026 | Staging düzeltme + Scribe/Trace/Proto golden path + pilot katılım | **Devam Ediyor** (31/31 görev, 1,391 test, MCP CI eklendi; A-mark only favicon/compact logo güncellemesi tamamlandı) |
 | **M2: Stabilizasyon** | 31 Mart 2026 | Hata düzeltme, pilot geri bildirim, pg_trgm prototip, tez taslağı | Başlanmadı |
 | **M3: Mezuniyet** | Mayıs 2026 | Final rapor, sunum, demo video, teslim paketi | Başlanmadı |
 
@@ -72,7 +72,7 @@
 - [x] Health/ready/version endpoint'leri 200 dönüyor
 - [x] Agent yönlendirme: `/agents/*` kanonik, eski rotalar yönlendiriliyor
 - [x] Hata durumlarında kullanıcıya anlaşılır mesaj
-- [x] Logo tüm yüzeylerde güncel
+- [x] Logo tüm yüzeylerde güncel (full wordmark korunarak A-mark only favicon + compact UI güncellemesi, 2026-02-11)
 - [x] E-posta/şifre kayıt + giriş çalışıyor (staging) — SMTP provider aktif (2026-02-10)
 - [x] OAuth yönlendirmeleri staging alanında çalışıyor — Google + GitHub (2026-02-10)
 - [ ] Scribe golden path çalışıyor (kuru çalışma) — MCP always-on, `GITHUB_TOKEN` env + redeploy gerekli

@@ -2,7 +2,7 @@
 
 **Doküman Versiyonu:** v1.1  
 **Hazırlanma Tarihi:** Aralık 2024  
-**Son Güncelleme:** Aralık 2025 (Phase 9.2 asset optimization & cleanup)  
+**Son Güncelleme:** Şubat 2026 (A-mark only favicon + compact logo refresh)  
 **Amaç:** AKIS Platform'un tüm logo/marka varlıklarının kapsamlı envanteri ve frontend'deki kullanım haritası  
 **Güncelleme Notu:** Phase 9.2 logo rollout ve asset optimizasyonu tamamlandı. Canonical asset'ler optimize edildi, legacy dosyalar arşivlendi.
 
@@ -10,11 +10,11 @@
 
 ## 1. Executive Summary
 
-### 1.1 Bulgular Özeti (Güncel Durum - Aralık 2025)
+### 1.1 Bulgular Özeti (Güncel Durum - Şubat 2026)
 
 **Canonical Varlık Sayısı:** 
 - `frontend/public/brand/`: 7 canonical dosya (favicon set + sosyal görseller)
-- `frontend/src/assets/branding/`: 3 canonical dosya (`akis-official-logo.png`, `akis-official-logo@2x.png`, `akis-official-logo@3x.png`)
+- `frontend/src/assets/branding/`: 6 canonical dosya (`akis-official-logo.png`, `akis-official-logo@2x.png`, `akis-official-logo@3x.png`, `akis-a-mark.png`, `akis-mark@2x.png`, `akis-mark@3x.png`)
 
 **Phase 9.2 Tamamlanan İşler:**
 - ✅ **Canonical favicon set:** Tüm favicon'lar doğru boyutlarda ve formatlarda optimize edildi
@@ -25,9 +25,9 @@
 - ✅ **Misnamed dosya düzeltmesi:** `akis-logo.svg` (misnamed PNG) arşivlendi
 
 **Kalan Optimizasyonlar:**
-- ⚠️ `android-chrome-512x512.png` hala 220KB (hedef ≤30KB) - placeholder'dan üretildi, final asset'te optimize edilecek
-- ⚠️ `apple-touch-icon.png` 23KB (hedef ≤15KB) - kabul edilebilir ama final asset'te optimize edilebilir
-- ⚠️ `favicon.ico` single-size (32x32) - multi-size ICO için gelecekte optimize edilebilir
+- ⚠️ `android-chrome-512x512.png` hala 94KB (hedef ≤30KB) - final asset ile optimize edilmeli
+- ✅ `apple-touch-icon.png` 15KB hedefini karşılıyor
+- ✅ `favicon.ico` multi-size sete güncellendi (16x16, 32x32, 48x48, 64x64)
 
 **Legacy Dosyalar (Arşivlendi):**
 - `docs/brand/legacy/akis-icon.png` (988KB)
@@ -46,13 +46,13 @@
 Bu klasör Vite'ın public assets klasörü; dosyalar build sonrası root'a kopyalanır ve `/brand/` path'i ile erişilebilir. **Phase 9.2 sonrası:** Sadece canonical favicon ve sosyal önizleme görselleri burada bulunur.
 
 #### **favicon.ico** ✅ Canonical
-- **Boyut:** 3.3 KB
-- **Piksel Boyutları:** 32x32 (single-size ICO)
+- **Boyut:** 8.4 KB
+- **Piksel Boyutları:** Multi-size ICO (16x16, 32x32, 48x48, 64x64)
 - **Format:** MS Windows icon resource (ICO)
 - **Şeffaflık:** ✅ Var (32-bit ICO)
 - **Kullanım:** Browser favicon (`index.html` meta)
 - **Durum:** ✅ Optimize edildi (hedef ≤15KB ✅)
-- **Not:** Single-size ICO; multi-size (16x16, 32x32) için gelecekte optimize edilebilir
+- **Not:** Çoklu tarayıcı uyumluluğu için multi-size ICO kullanılıyor
 
 #### **favicon-16x16.png** ✅ Canonical
 - **Boyut:** 610 B
@@ -63,7 +63,7 @@ Bu klasör Vite'ın public assets klasörü; dosyalar build sonrası root'a kopy
 - **Durum:** ✅ Optimize edildi (hedef ≤2KB ✅)
 
 #### **favicon-32x32.png** ✅ Canonical
-- **Boyut:** 1.4 KB
+- **Boyut:** 1.5 KB
 - **Piksel Boyutları:** 32 x 32
 - **Format:** PNG, 8-bit/color RGB
 - **Şeffaflık:** ✅ Var (RGB, şeffaf destekli)
@@ -71,20 +71,20 @@ Bu klasör Vite'ın public assets klasörü; dosyalar build sonrası root'a kopy
 - **Durum:** ✅ Optimize edildi (hedef ≤4KB ✅)
 
 #### **apple-touch-icon.png** ✅ Canonical
-- **Boyut:** 23 KB
+- **Boyut:** 15 KB
 - **Piksel Boyutları:** 180 x 180
 - **Format:** PNG, 8-bit/color RGB
 - **Şeffaflık:** ✅ Var (RGB, şeffaf destekli)
 - **Kullanım:** iOS home screen icon (`index.html` meta)
-- **Durum:** ⚠️ Optimize edildi ama hedefin üzerinde (hedef ≤15KB, mevcut 23KB - kabul edilebilir)
+- **Durum:** ✅ Optimize edildi (hedef ≤15KB ✅)
 
 #### **android-chrome-512x512.png** ✅ Canonical (Placeholder)
-- **Boyut:** 220 KB
+- **Boyut:** 94 KB
 - **Piksel Boyutları:** 512 x 512
 - **Format:** PNG, 8-bit/color RGB
 - **Şeffaflık:** ✅ Var (RGB, şeffaf destekli)
 - **Kullanım:** PWA/Android icon (`index.html` meta)
-- **Durum:** ❌ Placeholder'dan üretildi, hedefin üzerinde (hedef ≤30KB, mevcut 220KB - final asset'te optimize edilmeli)
+- **Durum:** ❌ Hedefin üzerinde (hedef ≤30KB, mevcut 94KB - final asset'te optimize edilmeli)
 
 #### **og-image.png** ✅ Canonical
 - **Boyut:** 103 KB
@@ -524,19 +524,18 @@ AKIS Platform'un logo/marka varlık envanteri Phase 9.2 rollout ile güncellendi
 6. ✅ Metadata/favicon entegrasyonu (`index.html`)
 
 **Kalan İşler:**
-- ⚠️ `android-chrome-512x512.png` optimize edilmeli (220KB → ≤30KB hedef)
+- ⚠️ `android-chrome-512x512.png` optimize edilmeli (94KB → ≤30KB hedef)
 - ⚠️ UI logo PNG dosya boyutları optimize edilmeli (Brand Guide hedefleri: 1x≤20KB, 2x≤40KB, 3x≤60KB)
 
 **Canonical Asset Durumu:**
 - `frontend/public/brand/`: 7 canonical dosya (favicon set + sosyal görseller)
-- `frontend/src/assets/branding/`: 3 canonical dosya (`akis-official-logo.png`, `akis-official-logo@2x.png`, `akis-official-logo@3x.png`)
+- `frontend/src/assets/branding/`: 6 canonical dosya (`akis-official-logo.png`, `akis-official-logo@2x.png`, `akis-official-logo@3x.png`, `akis-a-mark.png`, `akis-mark@2x.png`, `akis-mark@3x.png`)
 - Legacy dosyalar: `docs/brand/legacy/` altında arşivlendi
 
 Bu envanter, Phase 9.2 sonrası güncel durumu yansıtmaktadır ve gelecek optimizasyonlar için referans doküman olarak kullanılabilir.
 
 ---
 
-**Son Güncelleme:** Aralık 2025 (Phase 9.2 asset optimization & cleanup)  
+**Son Güncelleme:** Şubat 2026 (A-mark only favicon + compact logo refresh)  
 **Sorumlu:** Frontend Team  
 **İlgili Epic:** #27 Phase 9.2 — High-res logo rollout
-

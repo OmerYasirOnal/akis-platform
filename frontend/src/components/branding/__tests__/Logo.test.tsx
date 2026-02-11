@@ -25,6 +25,9 @@ describe('Logo', () => {
     const img = screen.getByRole('img', { name: 'AKIS' });
     expect(img).toHaveAttribute('loading', 'lazy');
     expect(img.getAttribute('src')).toContain('akis-a-mark.png');
+    const srcSet = img.getAttribute('srcset');
+    expect(srcSet).toContain('akis-mark@2x.png 2x');
+    expect(srcSet).toContain('akis-mark@3x.png 3x');
   });
 
   it('wraps with a home link by default', () => {
@@ -38,4 +41,3 @@ describe('Logo', () => {
     expect(link).toHaveAttribute('href', '/');
   });
 });
-
