@@ -110,12 +110,25 @@ export async function registerMultiStepAuthRoutes(
     try {
       await verificationService.sendVerificationCode(created.id, email, created.name);
     } catch (error) {
-      // If email fails, still return success but log error
       console.error('[Auth] Failed to send verification email:', error);
-      
+
       if (error instanceof Error && error.message === 'TOO_MANY_ATTEMPTS') {
         return sendError(reply, request, 'RATE_LIMITED', 'Too many verification attempts. Please wait 15 minutes.');
       }
+
+      // Roll back pending user so the email can be retried on next signup attempt.
+      try {
+        await db.delete(users).where(eq(users.id, created.id));
+      } catch (cleanupError) {
+        console.error('[Auth] Failed to rollback user after email delivery failure:', cleanupError);
+      }
+
+      return sendError(
+        reply,
+        request,
+        'EMAIL_DELIVERY_FAILED',
+        'Unable to send verification email. Please try again later.',
+      );
     }
 
     return reply.code(201).send({
@@ -356,4 +369,3 @@ export async function registerMultiStepAuthRoutes(
     return { ok: true };
   });
 }
-

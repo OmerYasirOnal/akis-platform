@@ -25,13 +25,13 @@ docs/NEXT.md                                             (bu dosya — anlık ey
 | Alan | Değer |
 |------|-------|
 | URL | https://staging.akisflow.com |
-| Deploy Edilen Commit | `2c503f7` (PR #265 merge — staging deploy 2026-02-10) |
+| Deploy Edilen Commit | `be6552b` (PR #299 merge sonrası staging deploy, 2026-02-11) |
 | S0.5 PR | [#265](https://github.com/OmerYasirOnal/akis-platform-devolopment/pull/265) — onboarding, feedback, context packs, QA docs, 750+ yeni test |
-| Smoke Testleri | 12/12 geçti (`staging_smoke.sh --commit 2c503f7`, 2026-02-10) |
+| Smoke Testleri | 12/12 geçti (`staging_smoke.sh --commit be6552b`, 2026-02-11) |
 | Test Sayısı | Backend: 842 + Frontend: 549 = **1,391 toplam** (Phase 1-8 test kampanyası + S0.5 sprint, 2026-02-11) |
 | Kod Düzeltmeleri | MCP `/ready` durumu, OAuth hoşgeldin e-postası, agents yönlendirme `/agents/*`, logo güncelleme, güvenlik temizliği, E2E test hizalama |
 | Şifreleme | Staging'de yapılandırıldı (`/ready` → `encryption.configured: true`) |
-| E-posta | SMTP şablonu hazır (`/ready` → `email.configured`, `email.host`, `email.port`, `email.from`); OAuth hoşgeldin e-postası eklendi |
+| E-posta | SMTP konfigürasyonu görünür (`/ready`), ancak canlı gönderimde SMTP auth hatası var (`535 authentication failed`); kayıt akışı için credential düzeltmesi gerekli |
 | Google OAuth | `/ready` → `oauth.google`, `oauth.github`, `oauth.callbackBase` gösteriyor — staging `.env` kimlik bilgilerini doğrulayın |
 | MCP Gateway | Always-on staging stack'te (profile kaldırıldı); CI pipeline (PR #266); `GITHUB_TOKEN` env gerekli |
 | Agent Yönlendirme | Scribe/Trace/Proto → `/agents/*` taşındı; `/dashboard/scribe\|trace\|proto` yeni rotalara yönlendirme yapıyor |
@@ -126,6 +126,7 @@ docs/NEXT.md                                             (bu dosya — anlık ey
 | S0.5.3-SYNC-1 | Research gap güncelleme (Sec 9.1 Testing: 1391 test) + NEXT.md final senkron | Tamamlandı | Araştırma dokümanı + planlama tutarlılığı (2026-02-11) |
 | S0.5.3-UX-13 | AKIS A-mark only asset family + favicon refresh (transparent) | Tamamlandı | `akis-mark@2x/@3x` eklendi, compact UI `Logo` srcset güncellendi, favicon seti (`ico+16+32+180+512`) A-mark ile güncellendi (2026-02-11) |
 | S0.5.3-UX-14 | Scribe quality gate kalibrasyonu (result + diagnostics + artifact fallback) | Tamamlandı | `ScribeAgent` kalite metrikleri (`targetsProduced/documentsRead/filesProduced`) eklendi; `AgentOrchestrator.completeJob` quality input fallback zinciri güçlendirildi (`result` → `diagnostics` → `job_artifacts`); Job Detail fallback skoru backend ile hizalandı; backend/frontend test+build doğrulandı (2026-02-11) |
+| S0.5.3-AUTH-2 | Signup mail fail davranışı düzeltmesi (false-success kaldırma) | Tamamlandı | `POST /auth/signup/start` artık verification mail gönderimi başarısızsa `EMAIL_DELIVERY_FAILED` (503) dönüyor ve oluşturulan `pending_verification` kullanıcıyı rollback ediyor; staging kök neden: SMTP auth `535` (2026-02-11) |
 
 ---
 
@@ -182,7 +183,7 @@ docs/NEXT.md                                             (bu dosya — anlık ey
 - [x] `.env.staging` şablonu localhost referansları temizlendi, gerçek sırlar kaldırıldı
 - [x] Agent yönlendirme: `/agents/*` kanonik, `/dashboard/scribe|trace|proto` yönlendirme
 - [x] OAuth hoşgeldin e-postası: yeni OAuth kullanıcılarına hoşgeldin e-postası gönderimi
-- [x] E-posta/şifre kayıt + giriş staging'de çalışıyor — SMTP provider=smtp yapılandırıldı (2026-02-10)
+- [ ] E-posta/şifre kayıt + giriş staging'de tam çalışıyor — SMTP auth `535` nedeniyle verification delivery bloklu; staging SMTP credential güncellemesi gerekli (2026-02-11)
 - [x] OAuth yönlendirmeleri staging alanında çalışıyor — Google + GitHub OAuth aktif (2026-02-10)
 - [ ] Scribe/Trace/Proto golden path'leri çalışıyor — MCP Gateway always-on (profile kaldırıldı), `GITHUB_TOKEN` env gerekli + kuru çalışma doğrulaması
 - [x] Hata durumlarında anlaşılır mesaj (AGT-6 standart hata zarfı, 39 birim testi)
