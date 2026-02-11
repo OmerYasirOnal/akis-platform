@@ -1,32 +1,27 @@
-/**
- * OAuth Security Documentation
- */
-import { Link } from 'react-router-dom';
+import { useI18n } from '../../../i18n/useI18n';
+import { DocsReferenceList } from '../../../components/common/DocsReferenceList';
 
 export default function OAuthDocsPage() {
+  const { t } = useI18n();
+  const tx = (key: string) => t(key as never);
+
   return (
     <div>
-      <h1>OAuth Security</h1>
-      
-      <p className="lead">
-        AKIS uses OAuth 2.0 for secure authentication with GitHub and other providers. This document explains how the OAuth flow works and the security measures in place.
-      </p>
+      <h1>{tx('docs.oauth.title')}</h1>
+      <p className="lead">{tx('docs.oauth.lead')}</p>
 
-      <h2>OAuth Flow</h2>
+      <h2>{tx('docs.oauth.flow')}</h2>
       <ol>
         <li>User clicks &quot;Connect&quot; in AKIS</li>
         <li>AKIS generates a cryptographic state token (CSRF protection)</li>
-        <li>User is redirected to the provider&apos;s authorization page</li>
+        <li>User is redirected to the provider authorization page</li>
         <li>User grants permission</li>
-        <li>Provider redirects back to AKIS with an authorization code</li>
+        <li>Provider redirects back with an authorization code</li>
         <li>AKIS exchanges the code for access tokens (server-side)</li>
         <li>Tokens are encrypted and stored</li>
       </ol>
 
-      <h2>CSRF Protection</h2>
-      <p>
-        AKIS uses the &quot;state&quot; parameter to prevent CSRF attacks:
-      </p>
+      <h2>{tx('docs.oauth.csrf')}</h2>
       <ul>
         <li>32-byte cryptographic random state generated per request</li>
         <li>State stored in HTTP-only cookie (not in URL)</li>
@@ -35,10 +30,7 @@ export default function OAuthDocsPage() {
         <li>Single-use: state is consumed immediately</li>
       </ul>
 
-      <h2>Token Storage</h2>
-      <p>
-        OAuth access tokens are stored securely:
-      </p>
+      <h2>{tx('docs.oauth.tokenStorage')}</h2>
       <ul>
         <li>Encrypted at rest using AES-256-GCM</li>
         <li>Never exposed to the frontend</li>
@@ -46,10 +38,7 @@ export default function OAuthDocsPage() {
         <li>Refresh tokens stored when available</li>
       </ul>
 
-      <h2>Session Management</h2>
-      <p>
-        AKIS user sessions use JWT tokens:
-      </p>
+      <h2>{tx('docs.oauth.sessionMgmt')}</h2>
       <ul>
         <li>Stored in HTTP-only cookies</li>
         <li>SameSite=Lax for CSRF protection</li>
@@ -57,18 +46,20 @@ export default function OAuthDocsPage() {
         <li>7-day expiration by default</li>
       </ul>
 
-      <h2>Supported Providers</h2>
+      <h2>{tx('docs.oauth.providers')}</h2>
       <ul>
         <li><strong>GitHub</strong> - Repository access and PR creation</li>
         <li><strong>Google</strong> - User authentication (optional)</li>
       </ul>
 
-      <h2>Related</h2>
-      <ul>
-        <li><Link to="/docs/integrations/github">GitHub Integration</Link></li>
-        <li><Link to="/docs/security/api-keys">API Key Security</Link></li>
-        <li><Link to="/docs/security/privacy">Data Privacy</Link></li>
-      </ul>
+      <DocsReferenceList
+        title={tx('docs.section.related')}
+        items={[
+          { label: tx('docs.github.title'), href: '/docs/integrations/github' },
+          { label: tx('docs.apiKeys.title'), href: '/docs/security/api-keys' },
+          { label: tx('docs.privacy.title'), href: '/docs/security/privacy' },
+        ]}
+      />
     </div>
   );
 }
