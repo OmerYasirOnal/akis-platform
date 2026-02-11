@@ -28,6 +28,8 @@
 **Logo Asset:**
 - Birincil dosya: `frontend/src/assets/branding/akis-official-logo@2x.png` (transparent PNG, geniş boşluklu)
 - Opsiyonel: @3x varyantı Phase 9.2'de eklenecek (`frontend/src/assets/branding/akis-official-logo@3x.png`)
+- Compact mark-only ailesi: `frontend/src/assets/branding/akis-a-mark.png`, `frontend/src/assets/branding/akis-mark@2x.png`, `frontend/src/assets/branding/akis-mark@3x.png`
+- Favicon seti mark-only square kaynaktan üretilir (`frontend/public/brand/favicon.ico`, `favicon-16x16.png`, `favicon-32x32.png`, `apple-touch-icon.png`, `android-chrome-512x512.png`)
 - Referans merkezi: `frontend/src/theme/brand.ts` (`LOGO_PNG_HERO`, `LOGO_SIZES`)
 
 **Logo Specifications:**
@@ -1730,5 +1732,4 @@ Bu design system dokümanı, AKIS Platform'un tüm UI bileşenlerini, renk palet
 - Tüm değişiklikleri git'e commit'leyin
 
 **Bu doküman, frontend takımının referans rehberidir ve codebase ile senkron tutulmalıdır.**
-
 

@@ -28,3 +28,12 @@
 
 - Prefer repository hygiene actions to be bundled with delivery when requested.
   Example: After feature implementation, include branch/PR cleanup and merge flow preparation in the same execution cycle.
+
+- Prefer preserving the full AKIS wordmark on hero/marketing while using mark-only assets for compact UI and favicons.
+  Example: Keep `akis-official-logo@*` in hero sections, route compact/logo-small and favicon usage to A-mark assets.
+
+- Prefer strict branch naming aligned with milestone scope and avoid direct work on `main`.
+  Example: Use `feat/S0.5.X-short-desc` or `fix/S0.5.X-short-desc` before making changes.
+
+- Prefer Scribe quality score to reflect real execution evidence (accuracy + coverage), not sparse payload defaults.
+  Example: Derive quality metrics from agent result, diagnostics, and artifacts so completed runs do not stay at `10/100` when docs are actually produced.
