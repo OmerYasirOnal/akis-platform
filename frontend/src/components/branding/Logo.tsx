@@ -1,6 +1,8 @@
 import { Link } from "react-router-dom";
 import {
   LOGO_A_MARK_PNG,
+  LOGO_A_MARK_PNG_2X,
+  LOGO_A_MARK_PNG_3X,
   LOGO_ALT,
   LOGO_PNG_1X,
   LOGO_PNG_2X,
@@ -29,6 +31,7 @@ interface LogoProps {
 
 // LOGO_PNG_* are already resolved URLs (via import.meta.url in brand.ts)
 const LOGO_SRCSET = `${LOGO_PNG_1X} 1x, ${LOGO_PNG_2X} 2x, ${LOGO_PNG_3X} 3x`;
+const LOGO_A_MARK_SRCSET = `${LOGO_A_MARK_PNG_2X} 2x, ${LOGO_A_MARK_PNG_3X} 3x`;
 
 export default function Logo({
   size = "nav",
@@ -42,7 +45,7 @@ export default function Logo({
       : { height: `${height}px` };
   const useMonogram = size !== "hero";
   const src = useMonogram ? LOGO_A_MARK_PNG : LOGO_PNG_1X;
-  const srcSet = useMonogram ? undefined : LOGO_SRCSET;
+  const srcSet = useMonogram ? LOGO_A_MARK_SRCSET : LOGO_SRCSET;
 
   const logoElement = (
     <img
