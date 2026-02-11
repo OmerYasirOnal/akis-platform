@@ -38,7 +38,7 @@ export default function Logo({
   const height = LOGO_SIZES[size];
   const computedStyle =
     size === "hero"
-      ? { height: "clamp(72px, 12vw, 112px)" }
+      ? { height: "clamp(80px, 14vw, 120px)" }
       : { height: `${height}px` };
   const useMonogram = size !== "hero";
   const src = useMonogram ? LOGO_A_MARK_PNG : LOGO_PNG_1X;
