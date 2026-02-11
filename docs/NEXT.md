@@ -3,6 +3,7 @@
 > **Kanonik Plan:** [`docs/planning/DELIVERY_PLAN_S0.5_FEB_TO_GRADUATION.md`](planning/DELIVERY_PLAN_S0.5_FEB_TO_GRADUATION.md)  
 > **WBS Tablosu:** [`docs/planning/WBS_EXPORT_S0.5.xlsx_compatible.md`](planning/WBS_EXPORT_S0.5.xlsx_compatible.md)  
 > **Araştırma Notu:** [`docs/planning/RESEARCH_BRIEF_S0.5_STAGING_RAG_AGENTS.md`](planning/RESEARCH_BRIEF_S0.5_STAGING_RAG_AGENTS.md)  
+> **Araştırma Temeli:** `docs/planning/RESEARCH_DEEP_DIVE_AGENT_ARCHITECTURE.md`  
 > **Son Güncelleme:** 2026-02-10
 
 ---
@@ -94,6 +95,7 @@ docs/NEXT.md                                             (bu dosya — anlık ey
 | S0.5.3-QA-2 | Demo senaryosu (15 dk) | Tamamlandı | `docs/qa/DEMO_SCRIPT_15MIN.md` (2026-02-09) |
 | S0.5.3-QA-3 | KG kanıt dokümanı | Tamamlandı | `docs/qa/GRADUATION_EVIDENCE.md` (2026-02-09) |
 | S0.5.3-QA-4 | Tez hazırlık notu (taslak) | Tamamlandı | `docs/qa/THESIS_PREP_NOTE.md` (2026-02-09) |
+| S0.5.3-QA-5 | 5 golden path için exact URL + pass/fail acceptance matrix + 15dk demo hizası | Tamamlandı | `docs/qa/REGRESSION_CHECKLIST.md` + `docs/qa/DEMO_SCRIPT_15MIN.md` güncellendi (2026-02-10) |
 | S0.5.3-DOC-1 | Public portfolio export akışı | Tamamlandı | `scripts/public-repo/export.sh` + `docs/public/` (2026-02-10) |
 | S0.5.3-UX-1 | Landing page CTA kontrast + sahte metrikler düzeltme | Tamamlandı | Button contrast fix + capability cards (2026-02-10) |
 | S0.5.3-DOC-2 | Screenshot shot list + portfolio referansları | Tamamlandı | `docs/public/assets/SHOTLIST.md` (2026-02-10) |
@@ -102,6 +104,14 @@ docs/NEXT.md                                             (bu dosya — anlık ey
 | S0.5.3-UX-3 | Button kontrast WCAG AA — tüm CTA'larda `text-ak-bg` → `text-[#111418]` | Tamamlandı | 13 dosyada fix, opacity hover → brightness (2026-02-10) |
 | S0.5.3-UX-4 | Automations sidebar + smart-automations erişilebilirliği | Tamamlandı | Sidebar nav item, i18n keys, Web IA güncelleme (2026-02-10) |
 | S0.5.3-UX-5 | Logo PNG transparency + duplicate cleanup | Tamamlandı | RGBA transparent logolar, `public/assets/branding/` + `logo.png` silindi (2026-02-10) |
+| S0.5.3-UX-6 | Agents Hub kalıcı conversation thread'leri (agent/automation), tür etiketi+ikon, AI kısa başlık üretimi | Tamamlandı | `/agents` içinde localStorage session kalıcılığı, sidebar thread listesi, type+title header, automation run-link mesajları (2026-02-11) |
+| S0.5.3-DOC-4 | `/docs/agents/*` sayfalarında TR/EN uyumlu içerik, referans blokları, görsel kart düzeni + link/kontrast stabilizasyonu | Tamamlandı | Scribe/Trace/Proto docs sayfaları i18n tabanlı yeniden düzenlendi; global link style scope daraltıldı, DocsLayout CTA kontrastı düzeltildi (2026-02-11) |
+| S0.5.3-UX-7 | Light/Dark theme readability tuning (göz yormayan arkaplan + secondary text contrast) | Tamamlandı | `theme.tokens.css` dark/light metin ve zemin tokenları güncellendi, primary CTA metin görünürlüğü `--ak-on-primary` ile sabitlendi (2026-02-11) |
+| S0.5.3-UX-8 | Doküman kalite görünürlüğü: Agent Hub + Job Details | Tamamlandı | Agent Hub completion mesajı + header quality badge, Job Details summary card quality gate (PASS/FAIL) eklendi (2026-02-11) |
+| S0.5.3-UX-9 | Trace guided prototype run (3-4 seçenekli soru) + automation execution özeti | Tamamlandı | Trace Console’da preference soruları eklendi (`testDepth/authScope/browserTarget/strictness`), payload’a `tracePreferences` bağlandı; TraceAgent sonuç metadata’sına `automationExecution` (executed/passed/failed/passRate/featureCoverage) eklendi + testler (2026-02-11) |
+| S0.5.3-UX-10 | Agent runtime controls (Settings drawer + 5 kademe command + runtime override) + Studio route scaffold | Tamamlandı | `agent-configs` runtime alanları (`runtimeProfile/temperatureValue/commandLevel/settingsVersion`), `/api/agents/jobs` `runtimeOverride` + `effectiveRuntime`, Scribe/Trace/Proto/AgentsHub settings drawer, `/agents/studio` MVP yüzeyi ve toast bildirimleri (2026-02-11) |
+| S0.5.3-UX-11 | Multi-Agent Thread Studio v1 (backend kalıcı thread + plan candidate domain + thread SSE) | Tamamlandı | Yeni conversation domain migration (`conversation_threads/messages/tasks/plan_candidates/plan_candidate_builds/thread_trust_snapshots`), `/api/conversations/*` endpoint ailesi, 3 aktif run build guard ve Agents Hub backend thread senkronu (2026-02-11) |
+| S0.5.3-UX-12 | Trace “Yaz→Koş→Raporla” coverage görünürlüğü (console + job detail) | Tamamlandı | Trace Console summary kartları (feature/test/duration/failures) + generated test preview, Job Details’e “Automation Coverage” kartı, i18n TR/EN key güncellemeleri ve test güncellemesi (2026-02-11) |
 | S0.5.3-OPS-1 | `/ready` MCP diagnostics — her zaman `mcp` objesi + `missingEnv` dizisi | Tamamlandı | Schema fix + diagnostik alanlar + test (2026-02-10) |
 | S0.5.3-OPS-2 | Staging smoke + deploy docs contract drift fix (`mcp.github` → `mcp.gatewayReachable`) | Tamamlandı | `scripts/staging_smoke.sh`, OCI workflow metinleri ve staging deploy/checklist dokümanları güncellendi (2026-02-10) |
 

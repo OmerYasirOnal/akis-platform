@@ -58,14 +58,14 @@ pnpm -C frontend dev`}</code></pre>
 
       <p>The application is now running:</p>
       <ul>
-        <li><strong>Frontend:</strong> <a href="http://localhost:5173">http://localhost:5173</a></li>
-        <li><strong>Backend API:</strong> <a href="http://localhost:3000">http://localhost:3000</a></li>
-        <li><strong>API Docs:</strong> <a href="http://localhost:3000/docs">http://localhost:3000/docs</a></li>
+        <li><strong>Frontend:</strong> <code>http://localhost:5173</code></li>
+        <li><strong>Backend API:</strong> <code>http://localhost:3000</code></li>
+        <li><strong>API Docs:</strong> <code>/api/docs</code></li>
       </ul>
 
       <h2>Step 7: Create an Account</h2>
       <ol>
-        <li>Navigate to <a href="http://localhost:5173/signup">http://localhost:5173/signup</a></li>
+        <li>Navigate to <Link to="/signup">/signup</Link></li>
         <li>Enter your email and create a password</li>
         <li>Complete the onboarding flow</li>
       </ol>

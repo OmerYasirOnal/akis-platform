@@ -9,6 +9,7 @@
   --ak-text-secondary: var(--ak-color-text-secondary-dark);
   --ak-border: var(--ak-color-border-dark);
   --ak-primary: var(--ak-color-primary);
+  --ak-on-primary: #071a17;
   --ak-primary-soft: var(--ak-color-primary-soft);
   --ak-danger: var(--ak-color-danger);
 }
@@ -23,6 +24,7 @@
   --ak-text-secondary: var(--ak-color-text-secondary-light);
   --ak-border: var(--ak-color-border-light);
   --ak-primary: var(--ak-color-primary);
+  --ak-on-primary: #082019;
   --ak-primary-soft: rgba(7, 209, 175, 0.12);
   --ak-danger: var(--ak-color-danger);
   /* Softer elevations for light mode */
@@ -65,12 +67,19 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 a {
-  color: var(--accent, var(--ak-primary));
+  color: inherit;
   transition: color var(--transition-base, 200ms);
 }
 
-a:hover,
-a:focus-visible {
+.prose a,
+.docs-link {
+  color: var(--accent, var(--ak-primary));
+}
+
+.prose a:hover,
+.prose a:focus-visible,
+.docs-link:hover,
+.docs-link:focus-visible {
   color: var(--accent, var(--ak-primary));
 }
 
@@ -89,4 +98,3 @@ a:focus-visible {
     transition-duration: 0.01ms !important;
   }
 }
-

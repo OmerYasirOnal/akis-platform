@@ -19,7 +19,7 @@ describe('useAgentStatus', () => {
   });
 
   it('starts in loading state', () => {
-    mockGetRunningJobs.mockResolvedValue({ jobs: [] });
+    mockGetRunningJobs.mockReturnValue(new Promise(() => undefined));
     const { result } = renderHook(() => useAgentStatus('scribe'));
     expect(result.current.isLoading).toBe(true);
   });

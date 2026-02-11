@@ -1,10 +1,22 @@
 import { FastifyInstance } from 'fastify';
-import { jobEventBus, type JobEvent } from '../core/events/JobEventBus.js';
+import { z } from 'zod';
+import { jobEventBus, type StreamEvent } from '../core/events/JobEventBus.js';
 import { db } from '../db/client.js';
 import { jobs } from '../db/schema.js';
 import { eq } from 'drizzle-orm';
 
 const TERMINAL_STATES = new Set(['completed', 'failed']);
+const streamQuerySchema = z.object({
+  cursor: z.coerce.number().int().positive().optional(),
+  includeHistory: z
+    .union([z.literal('true'), z.literal('false'), z.boolean()])
+    .optional()
+    .transform((value) => {
+      if (typeof value === 'boolean') return value;
+      if (value === undefined) return true;
+      return value !== 'false';
+    }),
+});
 
 export async function jobEventsRoutes(fastify: FastifyInstance) {
   fastify.get(
@@ -20,10 +32,19 @@ export async function jobEventsRoutes(fastify: FastifyInstance) {
             id: { type: 'string', format: 'uuid' },
           },
         },
+        querystring: {
+          type: 'object',
+          properties: {
+            cursor: { type: 'integer', minimum: 1 },
+            includeHistory: { type: 'boolean', default: true },
+          },
+        },
       },
     },
     async (request, reply) => {
       const { id } = request.params as { id: string };
+      const query = streamQuerySchema.parse(request.query);
+      const includeHistory = query.includeHistory ?? true;
 
       const [job] = await db.select({ state: jobs.state }).from(jobs).where(eq(jobs.id, id)).limit(1);
       if (!job) {
@@ -40,25 +61,35 @@ export async function jobEventsRoutes(fastify: FastifyInstance) {
         'X-Accel-Buffering': 'no',
       });
 
-      const sendEvent = (event: JobEvent) => {
-        raw.write(`data: ${JSON.stringify(event)}\n\n`);
+      const sendEvent = (event: StreamEvent) => {
+        raw.write(jobEventBus.formatForSSE(event));
       };
 
-      const history = jobEventBus.getHistory(id);
-      for (const event of history) {
-        sendEvent(event);
+      if (query.cursor) {
+        const events = jobEventBus.getStreamHistoryAfter(id, query.cursor);
+        for (const event of events) sendEvent(event);
+      } else if (includeHistory) {
+        const events = jobEventBus.getStreamHistory(id);
+        for (const event of events) sendEvent(event);
       }
 
       if (TERMINAL_STATES.has(job.state)) {
-        const phase = job.state === 'completed' ? 'done' : 'error';
-        sendEvent({ phase, message: `Job ${job.state}`, ts: new Date().toISOString() });
+        sendEvent({
+          eventId: jobEventBus.getCurrentEventId(id) + 1,
+          type: 'stage',
+          ts: new Date().toISOString(),
+          jobId: id,
+          stage: job.state === 'completed' ? 'completed' : 'failed',
+          status: 'completed',
+          message: `Job ${job.state}`,
+        });
         raw.end();
         return;
       }
 
-      const onEvent = (event: JobEvent) => {
+      const onEvent = (event: StreamEvent) => {
         sendEvent(event);
-        if (event.phase === 'done' || event.phase === 'error') {
+        if (event.type === 'stage' && (event.stage === 'completed' || event.stage === 'failed') && event.status === 'completed') {
           cleanup();
         }
       };
@@ -69,11 +100,11 @@ export async function jobEventsRoutes(fastify: FastifyInstance) {
 
       const cleanup = () => {
         clearInterval(keepAlive);
-        jobEventBus.unsubscribe(id, onEvent);
+        jobEventBus.unsubscribeStream(id, onEvent);
         raw.end();
       };
 
-      jobEventBus.subscribe(id, onEvent);
+      jobEventBus.subscribeStream(id, onEvent);
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       ((request as any).raw as import('http').IncomingMessage).on('close', cleanup);

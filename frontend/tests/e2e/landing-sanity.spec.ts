@@ -37,8 +37,8 @@ test.describe('Landing Page Sanity', () => {
       timeout: 10_000,
     });
 
-    // Stats section
-    await expect(page.getByText('Trusted by Growing Teams')).toBeVisible();
+    // Capabilities section
+    await expect(page.getByText('Autonomous Software Development Infrastructure')).toBeVisible();
 
     // Features section
     await expect(page.getByText('Everything You Need to Automate')).toBeVisible();

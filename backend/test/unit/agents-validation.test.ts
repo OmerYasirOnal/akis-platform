@@ -30,6 +30,15 @@ const tracePayloadSchema = z.object({
   baseBranch: z.string().optional(),
   branchStrategy: z.enum(['auto', 'manual']).optional(),
   dryRun: z.boolean().optional(),
+  automationMode: z.literal('generate_and_run').optional(),
+  targetBaseUrl: z.string().url().optional(),
+  featureLimit: z.number().int().min(1).max(100).optional(),
+  tracePreferences: z.object({
+    testDepth: z.enum(['smoke', 'standard', 'deep']),
+    authScope: z.enum(['public', 'authenticated', 'mixed']),
+    browserTarget: z.enum(['chromium', 'cross_browser', 'mobile']),
+    strictness: z.enum(['fast', 'balanced', 'strict']),
+  }).optional(),
 }).passthrough();
 
 const protoPayloadSchema = z.object({
@@ -60,6 +69,20 @@ const jobsListQuerySchema = z.object({
   state: z.enum(['pending', 'running', 'completed', 'failed']).optional(),
   limit: z.coerce.number().int().min(1).max(100).default(20),
   cursor: z.string().optional(),
+});
+
+const runtimeOverrideSchema = z.object({
+  runtimeProfile: z.enum(['deterministic', 'balanced', 'creative', 'custom']).optional(),
+  temperatureValue: z.number().min(0).max(1).optional().nullable(),
+  commandLevel: z.number().int().min(1).max(5).optional(),
+}).superRefine((data, ctx) => {
+  if (data.runtimeProfile === 'custom' && (data.temperatureValue === null || data.temperatureValue === undefined)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'temperatureValue is required when runtimeProfile is custom',
+      path: ['temperatureValue'],
+    });
+  }
 });
 
 // ─── Re-create pure functions from agents.ts ─────────────────────────
@@ -215,6 +238,48 @@ describe('tracePayloadSchema', () => {
     const r = tracePayloadSchema.parse({ spec: 's', customField: 'value' });
     assert.strictEqual((r as Record<string, unknown>).customField, 'value');
   });
+
+  test('accepts valid tracePreferences', () => {
+    const r = tracePayloadSchema.parse({
+      spec: 's',
+      tracePreferences: {
+        testDepth: 'standard',
+        authScope: 'mixed',
+        browserTarget: 'chromium',
+        strictness: 'balanced',
+      },
+    });
+    assert.deepStrictEqual(r.tracePreferences, {
+      testDepth: 'standard',
+      authScope: 'mixed',
+      browserTarget: 'chromium',
+      strictness: 'balanced',
+    });
+  });
+
+  test('accepts automation run options', () => {
+    const r = tracePayloadSchema.parse({
+      spec: 's',
+      automationMode: 'generate_and_run',
+      targetBaseUrl: 'https://staging.akisflow.com',
+      featureLimit: 25,
+    });
+    assert.strictEqual(r.automationMode, 'generate_and_run');
+    assert.strictEqual(r.targetBaseUrl, 'https://staging.akisflow.com');
+    assert.strictEqual(r.featureLimit, 25);
+  });
+
+  test('rejects invalid tracePreferences enum values', () => {
+    assert.throws(() => tracePayloadSchema.parse({
+      spec: 's',
+      tracePreferences: {
+        testDepth: 'invalid',
+        authScope: 'mixed',
+        browserTarget: 'chromium',
+        strictness: 'balanced',
+      },
+    }));
+  });
 });
 
 // ─── protoPayloadSchema ──────────────────────────────────────────────
@@ -295,6 +360,28 @@ describe('jobsListQuerySchema', () => {
       const r = jobsListQuerySchema.parse({ state });
       assert.strictEqual(r.state, state);
     }
+  });
+});
+
+describe('runtimeOverrideSchema', () => {
+  test('accepts deterministic profile without temperature', () => {
+    const r = runtimeOverrideSchema.safeParse({ runtimeProfile: 'deterministic', commandLevel: 2 });
+    assert.strictEqual(r.success, true);
+  });
+
+  test('accepts custom profile with temperature', () => {
+    const r = runtimeOverrideSchema.safeParse({ runtimeProfile: 'custom', temperatureValue: 0.55, commandLevel: 4 });
+    assert.strictEqual(r.success, true);
+  });
+
+  test('rejects custom profile without temperature', () => {
+    const r = runtimeOverrideSchema.safeParse({ runtimeProfile: 'custom', commandLevel: 4 });
+    assert.strictEqual(r.success, false);
+  });
+
+  test('rejects invalid command level', () => {
+    assert.strictEqual(runtimeOverrideSchema.safeParse({ commandLevel: 0 }).success, false);
+    assert.strictEqual(runtimeOverrideSchema.safeParse({ commandLevel: 6 }).success, false);
   });
 });
 

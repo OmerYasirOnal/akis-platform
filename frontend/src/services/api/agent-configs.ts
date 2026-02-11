@@ -15,6 +15,8 @@ const withCredentials = {
 export type AgentType = 'scribe' | 'trace' | 'proto';
 export type TriggerMode = 'on_pr_merge' | 'scheduled' | 'manual';
 export type TargetPlatform = 'github_repo' | 'confluence' | 'notion' | 'github_wiki';
+export type RuntimeProfile = 'deterministic' | 'balanced' | 'creative' | 'custom';
+export type CommandLevel = 1 | 2 | 3 | 4 | 5;
 
 export interface ScribeConfig {
   id?: string;
@@ -36,6 +38,11 @@ export interface ScribeConfig {
   jobTimeoutSeconds: number | null;
   maxRetries: number | null;
   llmModelOverride: string | null;
+  runtimeProfile: RuntimeProfile;
+  temperatureValue: number | null;
+  commandLevel: CommandLevel;
+  allowCommandExecution: boolean;
+  settingsVersion: number;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -108,6 +115,9 @@ export interface ConfigUpdatePayload {
   jobTimeoutSeconds?: number;
   maxRetries?: number;
   llmModelOverride?: string | null;
+  runtimeProfile?: RuntimeProfile;
+  temperatureValue?: number | null;
+  commandLevel?: CommandLevel;
 }
 
 export const agentConfigsApi = {

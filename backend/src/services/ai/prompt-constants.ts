@@ -37,6 +37,18 @@ export const CREATIVE_TEMPERATURES = {
 } as const;
 
 /**
+ * Temperature settings for balanced mode.
+ * Middle ground between deterministic and creative.
+ */
+export const BALANCED_TEMPERATURES = {
+  plan: 0.35,
+  generate: 0.5,
+  reflect: 0.2,
+  validate: 0.15,
+  repair: 0,
+} as const;
+
+/**
  * Default seed for deterministic reproducibility.
  * OpenAI/OpenRouter support `seed` for cache-friendly deterministic outputs.
  * null = no seed (non-deterministic).

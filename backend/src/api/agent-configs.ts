@@ -13,6 +13,8 @@ import { getScribeModelAllowlist, isModelAllowed } from '../services/ai/modelAll
 
 // Validation schemas
 const agentTypeSchema = z.enum(['scribe', 'trace', 'proto']);
+const runtimeProfileSchema = z.enum(['deterministic', 'balanced', 'creative', 'custom']);
+const commandLevelSchema = z.number().int().min(1).max(5);
 
 const scribeConfigSchema = z.object({
   enabled: z.boolean().optional(),
@@ -32,7 +34,33 @@ const scribeConfigSchema = z.object({
   jobTimeoutSeconds: z.number().int().min(10).max(600).optional(),
   maxRetries: z.number().int().min(0).max(5).optional(),
   llmModelOverride: z.string().optional().nullable(),
+  runtimeProfile: runtimeProfileSchema.optional(),
+  temperatureValue: z.number().min(0).max(1).optional().nullable(),
+  commandLevel: commandLevelSchema.optional(),
+}).superRefine((data, ctx) => {
+  if (data.runtimeProfile === 'custom') {
+    if (data.temperatureValue === null || data.temperatureValue === undefined) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'temperatureValue is required when runtimeProfile is custom',
+        path: ['temperatureValue'],
+      });
+    }
+  }
 });
+
+const DEFAULT_RUNTIME_PROFILE = 'deterministic' as const;
+const DEFAULT_COMMAND_LEVEL = 2;
+
+function toNumberOrNull(value: unknown): number | null {
+  if (value === null || value === undefined) return null;
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  if (typeof value === 'string' && value.trim().length > 0) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+}
 
 export async function agentConfigRoutes(fastify: FastifyInstance) {
   // GET /api/agents/configs - List all agent configs for current user
@@ -48,7 +76,25 @@ export async function agentConfigRoutes(fastify: FastifyInstance) {
         });
 
         return reply.code(200).send({
-          configs,
+          configs: configs.map((config) => ({
+            ...config,
+            runtimeProfile: config.runtimeProfile || DEFAULT_RUNTIME_PROFILE,
+            temperatureValue: toNumberOrNull(config.temperatureValue),
+            commandLevel:
+              typeof config.commandLevel === 'number'
+                ? config.commandLevel
+                : DEFAULT_COMMAND_LEVEL,
+            allowCommandExecution:
+              typeof config.allowCommandExecution === 'boolean'
+                ? config.allowCommandExecution
+                : (typeof config.commandLevel === 'number'
+                  ? config.commandLevel >= 3
+                  : DEFAULT_COMMAND_LEVEL >= 3),
+            settingsVersion:
+              typeof config.settingsVersion === 'number'
+                ? config.settingsVersion
+                : 1,
+          })),
         });
       } catch (err: unknown) {
         if (err instanceof Error && err.message === 'UNAUTHORIZED') {
@@ -116,8 +162,30 @@ export async function agentConfigRoutes(fastify: FastifyInstance) {
           },
         };
 
+        const normalizedConfig = config
+          ? {
+              ...config,
+              runtimeProfile: config.runtimeProfile || DEFAULT_RUNTIME_PROFILE,
+              temperatureValue: toNumberOrNull(config.temperatureValue),
+              commandLevel:
+                typeof config.commandLevel === 'number'
+                  ? config.commandLevel
+                  : DEFAULT_COMMAND_LEVEL,
+              allowCommandExecution:
+                typeof config.allowCommandExecution === 'boolean'
+                  ? config.allowCommandExecution
+                  : (typeof config.commandLevel === 'number'
+                    ? config.commandLevel >= 3
+                    : DEFAULT_COMMAND_LEVEL >= 3),
+              settingsVersion:
+                typeof config.settingsVersion === 'number'
+                  ? config.settingsVersion
+                  : 1,
+            }
+          : null;
+
         return reply.code(200).send({
-          config: config || null,
+          config: normalizedConfig,
           integrationStatus,
         });
       } catch (err: unknown) {
@@ -193,17 +261,36 @@ export async function agentConfigRoutes(fastify: FastifyInstance) {
 
         let config;
         if (existing) {
+          const resolvedRuntimeProfile = payload.runtimeProfile ?? existing.runtimeProfile ?? DEFAULT_RUNTIME_PROFILE;
+          const resolvedTemperatureValue =
+            resolvedRuntimeProfile === 'custom'
+              ? (payload.temperatureValue ?? toNumberOrNull(existing.temperatureValue))
+              : null;
+          const resolvedCommandLevel = payload.commandLevel ?? existing.commandLevel ?? DEFAULT_COMMAND_LEVEL;
+
           // Update
           const [updated] = await db
             .update(agentConfigs)
             .set({
               ...payload,
+              runtimeProfile: resolvedRuntimeProfile,
+              temperatureValue: resolvedTemperatureValue !== null ? String(resolvedTemperatureValue) : null,
+              commandLevel: resolvedCommandLevel,
+              allowCommandExecution: resolvedCommandLevel >= 3,
+              settingsVersion: (existing.settingsVersion ?? 1) + 1,
               updatedAt: new Date(),
             })
             .where(eq(agentConfigs.id, existing.id))
             .returning();
           config = updated;
         } else {
+          const resolvedRuntimeProfile = payload.runtimeProfile ?? DEFAULT_RUNTIME_PROFILE;
+          const resolvedTemperatureValue =
+            resolvedRuntimeProfile === 'custom'
+              ? (payload.temperatureValue ?? null)
+              : null;
+          const resolvedCommandLevel = payload.commandLevel ?? DEFAULT_COMMAND_LEVEL;
+
           // Insert
           const [created] = await db
             .insert(agentConfigs)
@@ -211,13 +298,36 @@ export async function agentConfigRoutes(fastify: FastifyInstance) {
               userId: user.id,
               agentType,
               ...payload,
+              runtimeProfile: resolvedRuntimeProfile,
+              temperatureValue: resolvedTemperatureValue !== null ? String(resolvedTemperatureValue) : null,
+              commandLevel: resolvedCommandLevel,
+              allowCommandExecution: resolvedCommandLevel >= 3,
+              settingsVersion: 1,
             })
             .returning();
           config = created;
         }
 
         return reply.code(200).send({
-          config,
+          config: {
+            ...config,
+            runtimeProfile: config.runtimeProfile || DEFAULT_RUNTIME_PROFILE,
+            temperatureValue: toNumberOrNull(config.temperatureValue),
+            commandLevel:
+              typeof config.commandLevel === 'number'
+                ? config.commandLevel
+                : DEFAULT_COMMAND_LEVEL,
+            allowCommandExecution:
+              typeof config.allowCommandExecution === 'boolean'
+                ? config.allowCommandExecution
+                : (typeof config.commandLevel === 'number'
+                  ? config.commandLevel >= 3
+                  : DEFAULT_COMMAND_LEVEL >= 3),
+            settingsVersion:
+              typeof config.settingsVersion === 'number'
+                ? config.settingsVersion
+                : 1,
+          },
           message: 'Configuration saved successfully',
         });
       } catch (err: unknown) {

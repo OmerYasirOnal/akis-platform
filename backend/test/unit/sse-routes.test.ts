@@ -9,22 +9,16 @@ import assert from 'node:assert';
 
 test('SSE route paths are well-formed', async (t) => {
   await t.test('canonical path includes /api prefix', () => {
-    const canonical = '/api/agents/jobs/:id/trace-stream';
+    const canonical = '/api/agents/jobs/:id/stream';
     assert.ok(canonical.startsWith('/api/'));
     assert.ok(canonical.includes(':id'));
-    assert.ok(canonical.endsWith('/trace-stream'));
+    assert.ok(canonical.endsWith('/stream'));
   });
 
-  await t.test('short alias path includes /api prefix', () => {
-    const alias = '/api/jobs/:id/trace-stream';
-    assert.ok(alias.startsWith('/api/'));
-    assert.ok(alias.includes(':id'));
-  });
-
-  await t.test('legacy alias path has no /api prefix', () => {
-    const legacy = '/agents/jobs/:id/trace-stream';
-    assert.ok(!legacy.startsWith('/api'));
-    assert.ok(legacy.includes(':id'));
+  await t.test('query params include cursor/includeHistory', () => {
+    const url = '/api/agents/jobs/uuid/stream?cursor=12&includeHistory=false';
+    assert.ok(url.includes('cursor=12'));
+    assert.ok(url.includes('includeHistory=false'));
   });
 });
 
@@ -32,10 +26,10 @@ test('SSE event format', async (t) => {
   await t.test('formatForSSE produces valid SSE format', () => {
     // Simulate the format pattern used in the handler
     const event = { type: 'stage', eventId: 1, ts: new Date().toISOString(), jobId: 'test' };
-    const formatted = `event: ${event.type}\nid: ${event.eventId}\ndata: ${JSON.stringify(event)}\n\n`;
+    const formatted = `id: ${event.eventId}\nevent: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`;
 
-    assert.ok(formatted.startsWith('event: stage\n'));
-    assert.ok(formatted.includes('id: 1\n'));
+    assert.ok(formatted.startsWith('id: 1\n'));
+    assert.ok(formatted.includes('event: stage\n'));
     assert.ok(formatted.includes('"type":"stage"'));
     assert.ok(formatted.endsWith('\n\n'));
   });

@@ -28,6 +28,17 @@ const scribeConfigSchema = z.object({
   jobTimeoutSeconds: z.number().int().min(10).max(600).optional(),
   maxRetries: z.number().int().min(0).max(5).optional(),
   llmModelOverride: z.string().optional().nullable(),
+  runtimeProfile: z.enum(['deterministic', 'balanced', 'creative', 'custom']).optional(),
+  temperatureValue: z.number().min(0).max(1).optional().nullable(),
+  commandLevel: z.number().int().min(1).max(5).optional(),
+}).superRefine((data, ctx) => {
+  if (data.runtimeProfile === 'custom' && (data.temperatureValue === null || data.temperatureValue === undefined)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'temperatureValue is required when runtimeProfile is custom',
+      path: ['temperatureValue'],
+    });
+  }
 });
 
 // ─── agentTypeSchema ───────────────────────────────────────────────────
@@ -75,8 +86,32 @@ describe('scribeConfigSchema', () => {
       jobTimeoutSeconds: 300,
       maxRetries: 3,
       llmModelOverride: 'gpt-4o-mini',
+      runtimeProfile: 'balanced',
+      commandLevel: 3,
     });
     assert.strictEqual(result.success, true);
+  });
+
+  test('accepts custom runtime profile with temperature value', () => {
+    const result = scribeConfigSchema.safeParse({
+      runtimeProfile: 'custom',
+      temperatureValue: 0.45,
+      commandLevel: 4,
+    });
+    assert.strictEqual(result.success, true);
+  });
+
+  test('rejects custom runtime profile without temperature value', () => {
+    const result = scribeConfigSchema.safeParse({
+      runtimeProfile: 'custom',
+      commandLevel: 4,
+    });
+    assert.strictEqual(result.success, false);
+  });
+
+  test('rejects commandLevel outside 1-5', () => {
+    assert.strictEqual(scribeConfigSchema.safeParse({ commandLevel: 0 }).success, false);
+    assert.strictEqual(scribeConfigSchema.safeParse({ commandLevel: 6 }).success, false);
   });
 
   test('accepts null for nullable fields', () => {
