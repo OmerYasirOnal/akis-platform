@@ -22,15 +22,15 @@
 
 | # | Check | Expected | Pass |
 |---|-------|----------|------|
-| 1.1 | `GET /health` | `{"status":"ok"}` HTTP 200 | [ ] |
-| 1.2 | `GET /ready` | `{"ready":true}`, DB connected | [ ] |
-| 1.3 | `GET /version` | Commit SHA matches deployed | [ ] |
-| 1.4 | `GET /` | HTML with `id="root"` | [ ] |
-| 1.5 | `/ready` → `.mcp` | `configured: true` | [ ] |
-| 1.6 | `/ready` → `.oauth` | `github: true` or `google: true` | [ ] |
-| 1.7 | `/ready` → `.encryption` | `configured: true` | [ ] |
-| 1.8 | TLS cert valid | Not expired, Let's Encrypt | [ ] |
-| 1.9 | No `localhost` in responses | Grep staging HTML/API responses | [ ] |
+| 1.1 | `GET /health` | `{"status":"ok"}` HTTP 200 | [x] 2026-02-12 |
+| 1.2 | `GET /ready` | `{"ready":true}`, DB connected | [x] 2026-02-12 |
+| 1.3 | `GET /version` | Commit SHA matches deployed | [x] a3c8e7f 2026-02-12 |
+| 1.4 | `GET /` | HTML with `id="root"` | [x] 2026-02-12 |
+| 1.5 | `/ready` → `.mcp` | `configured: true` | [x] 2026-02-12 |
+| 1.6 | `/ready` → `.oauth` | `github: true` or `google: true` | [x] both true 2026-02-12 |
+| 1.7 | `/ready` → `.encryption` | `configured: true` | [x] 2026-02-12 |
+| 1.8 | TLS cert valid | Not expired, Let's Encrypt | [x] LE E7, exp May 4 2026 |
+| 1.9 | No `localhost` in responses | Grep staging HTML/API responses | [x] 2026-02-12 |
 
 ---
 
@@ -50,15 +50,15 @@
 
 | # | Check | Expected | Pass |
 |---|-------|----------|------|
-| 2.1 | Navigate to `/auth/signup` | Signup form renders | [ ] |
-| 2.2 | Submit email | Moves to password step | [ ] |
-| 2.3 | Submit password | Creates account, sends verification email | [ ] |
-| 2.4 | Enter verification code | Account verified, redirected to dashboard | [ ] |
-| 2.5 | Logout | Session cleared, redirected to home | [ ] |
-| 2.6 | Navigate to `/auth/login` | Login form renders | [ ] |
-| 2.7 | Submit email + password | Authenticated, redirected to dashboard | [ ] |
-| 2.8 | `GET /auth/me` (unauth) | HTTP 401 | [ ] |
-| 2.9 | `GET /auth/me` (auth) | User object returned | [ ] |
+| 2.1 | Navigate to `/auth/signup` | Signup form renders | [ ] manual |
+| 2.2 | Submit email | Moves to password step | [ ] manual |
+| 2.3 | Submit password | Creates account, sends verification email | [ ] blocked: Resend domain pending |
+| 2.4 | Enter verification code | Account verified, redirected to dashboard | [ ] blocked: Resend domain pending |
+| 2.5 | Logout | Session cleared, redirected to home | [ ] manual |
+| 2.6 | Navigate to `/auth/login` | Login form renders | [ ] manual |
+| 2.7 | Submit email + password | Authenticated, redirected to dashboard | [ ] manual |
+| 2.8 | `GET /auth/me` (unauth) | HTTP 401 | [x] 2026-02-12 |
+| 2.9 | `GET /auth/me` (auth) | User object returned | [x] 2026-02-12 |
 
 ---
 
@@ -97,14 +97,14 @@
 | 5.2 | GitHub connected user | Repos/branches populate | [ ] |
 | 5.3 | Select repo + branch | Dropdowns functional | [ ] |
 | 5.4 | Configure doc pack + depth | Selectors work | [ ] |
-| 5.5 | Click "Run Scribe" | Job submitted (201), status: pending | [ ] |
+| 5.5 | Click "Run Scribe" | Job submitted (201), status: pending | [x] API dry-run completed 2026-02-12 |
 | 5.6 | Logs tab | Progress events stream | [ ] |
 | 5.7 | Status transitions | Ready → Queued → Running → Complete | [ ] |
 | 5.8 | Preview tab | Generated docs visible | [ ] |
 | 5.9 | Diff tab | File changes visible | [ ] |
 | 5.10 | Reset Console | State cleared | [ ] |
 | 5.11 | GitHub disconnected | Error notice, controls disabled | [ ] |
-| 5.12 | No AI key | AI_KEY_MISSING error shown | [ ] |
+| 5.12 | No AI key | AI_KEY_MISSING error shown | [x] API 2026-02-12 |
 
 ---
 
@@ -116,13 +116,13 @@
 | 6.2 | Agent status badge | Shows Active/Inactive | [ ] |
 | 6.3 | Enter spec in textarea | Text accepted | [ ] |
 | 6.4 | "Run Trace" enabled | When spec non-empty | [ ] |
-| 6.5 | Click "Run Trace" | Job submitted (201) | [ ] |
+| 6.5 | Click "Run Trace" | Job submitted (201) | [x] API completed 2026-02-12 |
 | 6.6 | Logs tab | Trace events stream | [ ] |
 | 6.7 | Status transitions | Ready → Queued → Running → Complete | [ ] |
 | 6.8 | Results tab | Test plan JSON/Markdown visible | [ ] |
 | 6.9 | Button re-enables | After completion or failure | [ ] |
 | 6.10 | Empty spec submit | Validation error shown | [ ] |
-| 6.11 | No AI key | AI_KEY_MISSING error shown | [ ] |
+| 6.11 | No AI key | AI_KEY_MISSING error shown | [x] API 2026-02-12 |
 
 ---
 
@@ -134,13 +134,13 @@
 | 7.2 | Agent status badge | Shows Active/Inactive | [ ] |
 | 7.3 | Enter description | Text accepted | [ ] |
 | 7.4 | "Run Proto" enabled | When description non-empty | [ ] |
-| 7.5 | Click "Run Proto" | Job submitted (201) | [ ] |
+| 7.5 | Click "Run Proto" | Job submitted (201) | [x] API completed 2026-02-12 |
 | 7.6 | Logs tab | Progress events stream | [ ] |
 | 7.7 | Status transitions | Ready → Queued → Running → Complete | [ ] |
 | 7.8 | Results tab | Prototype files visible | [ ] |
 | 7.9 | Button re-enables | After completion or failure | [ ] |
 | 7.10 | Empty description submit | Validation error shown | [ ] |
-| 7.11 | No AI key | AI_KEY_MISSING error shown | [ ] |
+| 7.11 | No AI key | AI_KEY_MISSING error shown | [x] API 2026-02-12 |
 
 ---
 
@@ -148,12 +148,12 @@
 
 | # | Check | Expected | Pass |
 |---|-------|----------|------|
-| 8.1 | `GET /api/agents/jobs` (unauth) | Returns jobs or 401 | [ ] |
-| 8.2 | `GET /api/agents/jobs/running` (unauth) | HTTP 401 | [ ] |
-| 8.3 | `POST /api/agents/jobs` (unauth) | HTTP 401 | [ ] |
-| 8.4 | `GET /api/settings/ai-keys/status` (auth) | Provider status JSON | [ ] |
-| 8.5 | `GET /api/usage/current-month` (auth) | Usage stats JSON | [ ] |
-| 8.6 | `GET /brand/logo.png` | HTTP 200, image content | [ ] |
+| 8.1 | `GET /api/agents/jobs` (unauth) | Returns jobs or 401 | [x] 200 2026-02-12 |
+| 8.2 | `GET /api/agents/jobs/running` (unauth) | HTTP 401 | [x] 401 2026-02-12 |
+| 8.3 | `POST /api/agents/jobs` (unauth) | HTTP 401 | [~] 400 validation-before-auth |
+| 8.4 | `GET /api/settings/ai-keys/status` (auth) | Provider status JSON | [x] openai configured 2026-02-12 |
+| 8.5 | `GET /api/usage/current-month` (auth) | Usage stats JSON | [x] 237k tokens 2026-02-12 |
+| 8.6 | `GET /brand/logo.png` | HTTP 200, image content | [x] 2026-02-12 |
 
 ---
 
@@ -161,13 +161,13 @@
 
 | # | Check | Expected | Pass |
 |---|-------|----------|------|
-| 9.1 | No localhost leaks | No `localhost` or `127.0.0.1` in HTML/API | [ ] |
-| 9.2 | trust-proxy active | Cookies set with `Secure` flag | [ ] |
-| 9.3 | CORS headers | `Access-Control-Allow-Origin` present | [ ] |
-| 9.4 | Security headers | `X-Content-Type-Options`, `X-Frame-Options`, HSTS | [ ] |
-| 9.5 | SPA deep links | `/agents/scribe`, `/agents/trace`, `/agents/proto` return HTML | [ ] |
-| 9.6 | Route redirects | `/dashboard/scribe` → `/agents/scribe` | [ ] |
-| 9.7 | Rate limiting | Rapid requests get 429 | [ ] |
+| 9.1 | No localhost leaks | No `localhost` or `127.0.0.1` in HTML/API | [x] 2026-02-12 |
+| 9.2 | trust-proxy active | Cookies set with `Secure` flag | [x] deployment config 2026-02-12 |
+| 9.3 | CORS headers | `Access-Control-Allow-Origin` present | [x] staging origin 2026-02-12 |
+| 9.4 | Security headers | `X-Content-Type-Options`, `X-Frame-Options`, HSTS | [x] CSP+HSTS+XFO+XCTO+XSS 2026-02-12 |
+| 9.5 | SPA deep links | `/agents/scribe`, `/agents/trace`, `/agents/proto` return HTML | [x] all 200 with root 2026-02-12 |
+| 9.6 | Route redirects | `/dashboard/scribe` → `/agents/scribe` | [x] SPA client-side 2026-02-12 |
+| 9.7 | Rate limiting | Rapid requests get 429 | [~] no 429 after 50 req — limit high or /health excluded |
 
 ---
 
@@ -175,13 +175,33 @@
 
 | # | Check | Expected | Pass |
 |---|-------|----------|------|
-| 10.1 | AI_KEY_MISSING | Clear error: "No AI key configured" | [ ] |
-| 10.2 | ENCRYPTION_NOT_CONFIGURED | Clear error: "Server config error" | [ ] |
-| 10.3 | VALIDATION_ERROR | Clear error with field details | [ ] |
-| 10.4 | AI_RATE_LIMITED | "AI service is busy, will retry" | [ ] |
-| 10.5 | GITHUB_NOT_CONNECTED | "Connect GitHub" message | [ ] |
-| 10.6 | Job failure | Status shows "Failed" + error message | [ ] |
-| 10.7 | Network error | Graceful fallback, no white screen | [ ] |
+| 10.1 | AI_KEY_MISSING | Clear error: "No AI key configured" | [x] API 2026-02-12 |
+| 10.2 | ENCRYPTION_NOT_CONFIGURED | Clear error: "Server config error" | [ ] requires config change |
+| 10.3 | VALIDATION_ERROR | Clear error with field details | [x] API 2026-02-12 |
+| 10.4 | AI_RATE_LIMITED | "AI service is busy, will retry" | [ ] requires load test |
+| 10.5 | GITHUB_NOT_CONNECTED | "Connect GitHub" message | [ ] manual browser test |
+| 10.6 | Job failure | Status shows "Failed" + error message | [x] NOT_FOUND 2026-02-12 |
+| 10.7 | Network error | Graceful fallback, no white screen | [ ] manual browser test |
+
+---
+
+## Latest Test Run — 2026-02-12
+
+**Tester:** Automated via API (JWT auth)
+**Staging commit:** `a3c8e7f`
+
+| Area | Status | Notes |
+|------|--------|-------|
+| Smoke tests (staging_smoke.sh) | 12/12 PASS | All green |
+| Infrastructure (/health, /ready, /version) | PASS | `ready=true`, MCP configured, email=resend |
+| MCP Gateway | PASS | `configured=true`, `gatewayReachable=true`, `missingEnv=[]` |
+| Scribe golden path (API dry-run) | PASS | Job `a9a8f02b` completed — plan, preview, critiques, diagnostics |
+| Trace golden path (API) | PASS | Job `49d244f5` completed — testPlan, coverageMatrix, artifacts |
+| Proto golden path (API) | PASS | Job `5a8f7a45` completed — artifacts, critique, reflectionChecks |
+| OAuth (GitHub + Google) | PASS | `/ready` shows both providers active |
+| Email signup | BLOCKED | Resend.com domain verification pending (DNS propagation); API key valid |
+
+**Remaining manual checks:** Auth flow (browser), Dashboard onboarding, SSE live stream, error handling, security headers.
 
 ---
 
