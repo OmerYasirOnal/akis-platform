@@ -34,6 +34,17 @@ export interface QualityInput {
   contextPackId?: string | null;
   citationCount?: number | null;
   verifiedCitationCount?: number | null;
+  /** Trace agent quality metrics */
+  traceMetrics?: {
+    scenarioCount: number;
+    priorityBreakdown?: Record<string, number>;
+    layerBreakdown?: Record<string, number>;
+    hasPlaywrightCode?: boolean;
+    hasRiskAssessment?: boolean;
+    hasCoverageMatrix?: boolean;
+    repoScanned?: boolean;
+    existingTestCount?: number;
+  } | null;
 }
 
 function normalizeTarget(value: string): string {
@@ -142,6 +153,61 @@ export function computeQualityScore(input: QualityInput): QualityResult {
     breakdown.push({ label: 'Multi-pass review', value: 'No', points: 0 });
   }
 
+  // Trace agent quality metrics
+  if (input.traceMetrics) {
+    const tm = input.traceMetrics;
+    let traceBonus = 0;
+
+    // Scenario coverage: more scenarios = better coverage
+    if (tm.scenarioCount >= 10) {
+      traceBonus += 5;
+      breakdown.push({ label: 'Test scenarios', value: `${tm.scenarioCount} scenarios (comprehensive)`, points: 5 });
+    } else if (tm.scenarioCount >= 5) {
+      traceBonus += 3;
+      breakdown.push({ label: 'Test scenarios', value: `${tm.scenarioCount} scenarios (good)`, points: 3 });
+    } else {
+      breakdown.push({ label: 'Test scenarios', value: `${tm.scenarioCount} scenarios`, points: 0 });
+    }
+
+    // Multi-layer coverage bonus
+    const layers = tm.layerBreakdown ?? {};
+    const layersCovered = Object.values(layers).filter(v => v > 0).length;
+    if (layersCovered >= 3) {
+      traceBonus += 5;
+      breakdown.push({ label: 'Test layers', value: 'Unit + Integration + E2E', points: 5 });
+    } else if (layersCovered >= 2) {
+      traceBonus += 3;
+      breakdown.push({ label: 'Test layers', value: `${layersCovered}/3 layers`, points: 3 });
+    }
+
+    // P0 coverage: critical tests present
+    const p0Count = tm.priorityBreakdown?.P0 ?? 0;
+    if (p0Count > 0) {
+      traceBonus += 3;
+      breakdown.push({ label: 'Critical tests (P0)', value: `${p0Count} P0 tests`, points: 3 });
+    }
+
+    // Executable code bonus
+    if (tm.hasPlaywrightCode) {
+      traceBonus += 3;
+      breakdown.push({ label: 'Executable tests', value: 'Playwright code generated', points: 3 });
+    }
+
+    // Risk assessment bonus
+    if (tm.hasRiskAssessment) {
+      traceBonus += 2;
+      breakdown.push({ label: 'Risk assessment', value: 'Generated', points: 2 });
+    }
+
+    // Repo scan bonus
+    if (tm.repoScanned) {
+      traceBonus += 2;
+      breakdown.push({ label: 'Repo analysis', value: 'Deep scan performed', points: 2 });
+    }
+
+    score += traceBonus;
+  }
+
   // S0.6: Evidence/attribution quality gate
   // When a context pack is used, agent output must include citations.
   // Missing citations → penalty; verified citations → bonus.
@@ -227,6 +293,26 @@ export function generateQualitySuggestions(result: QualityResult, input: Quality
 
   if (input.contextPackId && (input.citationCount ?? 0) === 0) {
     suggestions.push('Add source citations when using knowledge packs for higher trust scores');
+  }
+
+  // Trace-specific suggestions
+  if (input.traceMetrics) {
+    const tm = input.traceMetrics;
+    const layers = tm.layerBreakdown ?? {};
+    const layersCovered = Object.values(layers).filter(v => v > 0).length;
+
+    if (layersCovered < 3) {
+      suggestions.push('Add tests at all layers (unit, integration, e2e) for comprehensive coverage');
+    }
+    if ((tm.priorityBreakdown?.P0 ?? 0) === 0) {
+      suggestions.push('Add P0 (critical) tests for auth, security, and data integrity');
+    }
+    if (!tm.hasPlaywrightCode) {
+      suggestions.push('Enable executable Playwright code generation for CI-ready tests');
+    }
+    if (!tm.repoScanned) {
+      suggestions.push('Connect a repository for code-aware test generation');
+    }
   }
 
   return suggestions.slice(0, 2);

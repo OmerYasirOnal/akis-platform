@@ -46,7 +46,7 @@ function toDetailText(detail?: Record<string, unknown>): string {
 }
 
 function formatTime(ts: string): string {
-  return new Date(ts).toLocaleTimeString('en-GB', { hour12: false });
+  return new Date(ts).toLocaleTimeString(undefined, { hour12: false });
 }
 
 function toMessages(

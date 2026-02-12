@@ -2,6 +2,59 @@ import { BaseAgent } from '../../core/agents/BaseAgent.js';
 import type { AgentDependencies } from '../../core/agents/AgentFactory.js';
 import type { Plan, AIService } from '../../services/ai/AIService.js';
 import type { MCPTools } from '../../services/mcp/adapters/index.js';
+import type { TraceRecorder } from '../../core/tracing/TraceRecorder.js';
+import { TRACE_GENERATE_SYSTEM_PROMPT } from '../../services/ai/prompt-constants.js';
+
+// ---------------------------------------------------------------------------
+// Configuration
+// ---------------------------------------------------------------------------
+
+/** Max files to scan for repo context */
+const REPO_SCAN_CONFIG = {
+  maxFiles: 80,
+  maxDepth: 3,
+  maxFilesPerDir: 8,
+  previewLength: 4000,
+  sourceExtensions: new Set([
+    '.ts', '.tsx', '.js', '.jsx', '.py', '.go', '.rs', '.java', '.rb', '.php',
+  ]),
+  skipDirs: new Set([
+    'node_modules', 'dist', 'build', '.git', '__pycache__', '.next',
+    'coverage', 'vendor', '.cache', 'out', '.turbo', '.vercel',
+  ]),
+  testDirs: ['test', 'tests', '__tests__', 'spec', 'specs', 'e2e', 'cypress'],
+  routeDirs: ['routes', 'api', 'controllers', 'handlers', 'endpoints'],
+};
+
+/** Token budget per test depth */
+const TOKEN_BUDGETS: Record<string, number> = {
+  smoke: 8000,
+  standard: 16000,
+  deep: 32000,
+};
+
+/** Priority levels for test classification */
+type TestPriority = 'P0' | 'P1' | 'P2' | 'P3';
+
+interface PrioritizedScenario {
+  name: string;
+  steps: string[];
+  priority: TestPriority;
+  estimatedDurationMs: number;
+  flakinessRisk: 'low' | 'medium' | 'high';
+  testLayer: 'unit' | 'integration' | 'e2e';
+  tags: string[];
+}
+
+interface TestLayerBudget {
+  layer: 'unit' | 'integration' | 'e2e';
+  tokenBudget: number;
+  scenarioCount: number;
+}
+
+// ---------------------------------------------------------------------------
+// Interfaces
+// ---------------------------------------------------------------------------
 
 interface TracePayload {
   spec: string;
@@ -13,12 +66,27 @@ interface TracePayload {
   automationMode?: 'generate_and_run';
   targetBaseUrl?: string;
   featureLimit?: number;
+  maxTokens?: number;
   tracePreferences?: {
     testDepth: 'smoke' | 'standard' | 'deep';
     authScope: 'public' | 'authenticated' | 'mixed';
     browserTarget: 'chromium' | 'cross_browser' | 'mobile';
     strictness: 'fast' | 'balanced' | 'strict';
   };
+}
+
+interface RepoContext {
+  routes: string[];
+  models: string[];
+  services: string[];
+  existingTests: string[];
+  techStack: string[];
+  sourceFiles: Array<{ path: string; preview: string }>;
+  hasAuth: boolean;
+  hasDocker: boolean;
+  hasCI: boolean;
+  projectType: string;
+  fileCount: number;
 }
 
 interface TraceAutomationSummary {
@@ -34,7 +102,7 @@ interface TraceAutomationSummary {
   durationMs: number;
   failures: Array<{ feature: string; test: string; reason: string }>;
   generatedTestPath: string;
-  mode: 'syntactic';
+  mode: 'syntactic' | 'ai-enhanced';
   totalScenarios: number;
   executedScenarios: number;
   passedScenarios: number;
@@ -42,20 +110,40 @@ interface TraceAutomationSummary {
   passRate: number;
   featuresCovered: number;
   featureCoverageRate: number;
+  priorityBreakdown?: Record<TestPriority, number>;
+  layerBreakdown?: Record<string, number>;
 }
+
+// ---------------------------------------------------------------------------
+// TraceAgent
+// ---------------------------------------------------------------------------
 
 export class TraceAgent extends BaseAgent {
   readonly type = 'trace';
   private aiService?: AIService;
+  private traceRecorder?: TraceRecorder;
 
   constructor(deps?: AgentDependencies) {
     super();
     if (deps?.tools?.aiService) {
       this.aiService = deps.tools.aiService as AIService;
     }
+    if (deps?.traceRecorder) {
+      this.traceRecorder = deps.traceRecorder;
+    }
     this.playbook.requiresPlanning = true;
     this.playbook.requiresReflection = false;
   }
+
+  // ── Helpers ──────────────────────────────────────────────────────────────
+
+  private emitLog(message: string, data?: Record<string, unknown>) {
+    if (this.traceRecorder) {
+      this.traceRecorder.recordInfo(message, data);
+    }
+  }
+
+  // ── Planning ─────────────────────────────────────────────────────────────
 
   async plan(
     planner: { plan(input: { agent: string; goal: string; context?: unknown }): Promise<Plan> },
@@ -63,15 +151,19 @@ export class TraceAgent extends BaseAgent {
   ): Promise<Plan> {
     const payload = context as TracePayload;
     const preferenceSummary = this.renderPreferenceSummary(payload.tracePreferences);
+    this.emitLog('Planning test generation strategy', { specLength: payload.spec?.length });
     return planner.plan({
       agent: 'trace',
       goal: `Generate a comprehensive test plan and coverage matrix from the following specification:\n\n${payload.spec}\n\n${preferenceSummary}`,
       context: {
         specLength: payload.spec?.length || 0,
+        hasRepo: !!(payload.owner && payload.repo),
         tracePreferences: payload.tracePreferences ?? null,
       },
     });
   }
+
+  // ── Simple execute (no tools) ────────────────────────────────────────────
 
   async execute(context: unknown): Promise<unknown> {
     const payload = context as TracePayload;
@@ -82,32 +174,29 @@ export class TraceAgent extends BaseAgent {
     const spec = typeof payload.spec === 'string' ? payload.spec : String(payload.spec);
     const startedAt = Date.now();
     const scenarios = this.parseScenarios(spec);
+    const prioritized = this.classifyScenarios(scenarios);
     const files = this.generateTestFiles(scenarios);
     const coverageMatrix = this.generateCoverageMatrix(scenarios);
     const automationExecution = this.evaluateAutomationExecution(
-      scenarios,
-      coverageMatrix,
-      files,
-      payload.targetBaseUrl,
-      startedAt
+      scenarios, coverageMatrix, files, payload.targetBaseUrl, startedAt, prioritized,
     );
-    const testPlanMd = this.renderTestPlanMarkdown(scenarios, coverageMatrix, automationExecution);
+    const testPlanMd = this.renderTestPlanMarkdown(scenarios, coverageMatrix, automationExecution, prioritized);
 
     return {
-      ok: true,
-      agent: 'trace',
-      files,
-      testPlan: testPlanMd,
-      coverageMatrix,
+      ok: true, agent: 'trace', files, testPlan: testPlanMd, coverageMatrix,
       metadata: {
         scenarioCount: scenarios.length,
         totalTestCases: files.reduce((sum, f) => sum + f.cases.length, 0),
         specLength: spec.length,
+        priorityBreakdown: this.getPriorityBreakdown(prioritized),
+        layerBreakdown: this.getLayerBreakdown(prioritized),
         automationSummary: automationExecution,
         automationExecution,
       },
     };
   }
+
+  // ── Full execute with tools ──────────────────────────────────────────────
 
   async executeWithTools(tools: MCPTools, plan?: Plan, context?: unknown): Promise<unknown> {
     const payload = context as TracePayload;
@@ -116,60 +205,211 @@ export class TraceAgent extends BaseAgent {
     }
 
     const spec = typeof payload.spec === 'string' ? payload.spec : String(payload.spec);
-
     const startedAt = Date.now();
+    const depth = payload.tracePreferences?.testDepth ?? 'standard';
+    const tokenBudget = payload.maxTokens ?? TOKEN_BUDGETS[depth] ?? 16000;
+
+    // ── Phase 1: Gather repo context (if available) ──────────────────────
+    let repoContext: RepoContext | null = null;
+    if (payload.owner && payload.repo && tools.githubMCP) {
+      this.emitLog('Scanning repository for code context', {
+        owner: payload.owner, repo: payload.repo,
+      });
+      repoContext = await this.gatherRepoContext(
+        tools.githubMCP, payload.owner, payload.repo, payload.baseBranch || 'main',
+      );
+      this.emitLog('Repository scan complete', {
+        routes: repoContext.routes.length,
+        models: repoContext.models.length,
+        services: repoContext.services.length,
+        existingTests: repoContext.existingTests.length,
+        techStack: repoContext.techStack,
+        sourceFiles: repoContext.sourceFiles.length,
+      });
+    }
+
+    // ── Phase 2: Parse and classify spec scenarios ─────────────────────
+    this.emitLog('Parsing test specification', { specLength: spec.length });
+    const scenarios = this.parseScenarios(spec);
+    const prioritized = this.classifyScenarios(scenarios, repoContext);
+    this.emitLog('Scenarios parsed and classified', {
+      count: scenarios.length,
+      priorityBreakdown: this.getPriorityBreakdown(prioritized),
+      layerBreakdown: this.getLayerBreakdown(prioritized),
+    });
+
+    // ── Phase 3: Multi-pass AI test plan generation ──────────────────────
     let testPlanMd: string;
     let coverageMatrix: Record<string, string[]>;
     let files: Array<{ path: string; cases: Array<{ name: string; steps: string[] }> }>;
     const preferenceSummary = this.renderPreferenceSummary(payload.tracePreferences);
+    let aiPlaywrightCode = '';
 
     if (this.aiService) {
-      const aiResult = await this.aiService.generateWorkArtifact({
-        task: `Generate a comprehensive test plan with test cases and coverage matrix from this specification. Return structured markdown with sections: ## Test Plan, ## Test Cases (with scenario names and steps), ## Coverage Matrix (feature vs test mapping).\n\nSpecification:\n${spec}\n\n${preferenceSummary}`,
+      const contextSection = repoContext
+        ? this.buildRepoContextPrompt(repoContext)
+        : '';
+
+      // Pass 1: Generate comprehensive test plan
+      this.emitLog('AI Pass 1/3: Generating test strategy and scenarios', { tokenBudget, depth });
+      const layerBudgets = this.computeLayerBudgets(prioritized, tokenBudget);
+
+      const planResult = await this.aiService.generateWorkArtifact({
+        task: [
+          'Generate a comprehensive, production-grade test plan with executable test cases.',
+          '',
+          '## Specification',
+          spec,
+          '',
+          preferenceSummary,
+          '',
+          contextSection,
+          '',
+          '## Priority Classification Applied',
+          ...prioritized.map(p => `- **${p.priority}** [${p.testLayer}] ${p.name} (flakiness: ${p.flakinessRisk})`),
+          '',
+          '## Required Output Format',
+          'Return structured Markdown with these sections:',
+          '1. **## Test Strategy** — Overall approach, test layers, prioritization rationale',
+          '2. **## Test Scenarios** — Each scenario with Given/When/Then steps, priority (P0-P3), estimated run time, and flakiness risk',
+          '3. **## Coverage Matrix** — Feature-to-test mapping table',
+          '4. **## Risk Assessment** — Flakiness risks, untestable areas, recommendations',
+          '5. **## Gap Analysis** — What\'s NOT covered and why',
+        ].join('\n'),
         context: {
           plan: plan?.steps.map(s => s.title),
           tracePreferences: payload.tracePreferences ?? null,
+          repoHasAuth: repoContext?.hasAuth ?? false,
+          existingTestCount: repoContext?.existingTests.length ?? 0,
+          layerBudgets,
         },
+        maxTokens: Math.floor(tokenBudget * 0.4),
+        systemPrompt: TRACE_GENERATE_SYSTEM_PROMPT,
       });
-      testPlanMd = aiResult.content;
-      const scenarios = this.parseScenarios(spec);
+
+      testPlanMd = planResult.content;
+      this.emitLog('AI Pass 1 complete: Test plan generated', { length: testPlanMd.length });
+
+      // Pass 2: Generate executable Playwright test code
+      this.emitLog('AI Pass 2/3: Generating executable Playwright test code');
+
+      const codeResult = await this.aiService.generateWorkArtifact({
+        task: [
+          'Generate production-ready Playwright test code (TypeScript) for the following test scenarios.',
+          'IMPORTANT: Generate REAL, EXECUTABLE test code — not comments or pseudocode.',
+          '',
+          '## Scenarios to implement:',
+          ...prioritized.map(p => [
+            `### ${p.priority} [${p.testLayer}] ${p.name}`,
+            `Steps: ${p.steps.join(' → ')}`,
+            `Tags: ${p.tags.join(', ')}`,
+            `Estimated duration: ${p.estimatedDurationMs}ms`,
+            '',
+          ].join('\n')),
+          '',
+          contextSection ? `## Repository Context\n${contextSection}` : '',
+          '',
+          '## Requirements:',
+          '- Use `import { test, expect } from "@playwright/test";`',
+          '- Use `test.describe()` to group related tests',
+          '- Include `test.beforeEach()` for common setup (navigation, auth)',
+          '- Use realistic selectors: `page.getByRole()`, `page.getByText()`, `page.getByTestId()`',
+          '- Add proper `await` for all async operations',
+          '- Include `expect()` assertions with meaningful error messages',
+          '- Handle loading states with `page.waitForLoadState()`',
+          '- Add test tags via `test()` annotations',
+          `- Base URL: ${payload.targetBaseUrl || 'https://staging.akisflow.com'}`,
+          '',
+          'Return ONLY TypeScript code wrapped in a single code block. No Markdown outside the code block.',
+        ].join('\n'),
+        context: { scenarioCount: prioritized.length, testPlanLength: testPlanMd.length },
+        maxTokens: Math.floor(tokenBudget * 0.4),
+        systemPrompt: TRACE_GENERATE_SYSTEM_PROMPT,
+      });
+
+      aiPlaywrightCode = codeResult.content;
+      this.emitLog('AI Pass 2 complete: Playwright code generated', { length: aiPlaywrightCode.length });
+
+      // Pass 3: Generate coverage matrix analysis
+      this.emitLog('AI Pass 3/3: Generating coverage analysis and risk assessment');
+
+      const coverageResult = await this.aiService.generateWorkArtifact({
+        task: [
+          'Analyze the following test scenarios and generate:',
+          '1. A detailed coverage matrix mapping every code path / feature to test cases',
+          '2. A risk assessment identifying flaky tests, race conditions, and untestable areas',
+          '3. Recommendations for improving test reliability',
+          '',
+          '## Scenarios:',
+          ...prioritized.map(p => `- ${p.priority} [${p.testLayer}] ${p.name}: ${p.steps.join(' → ')}`),
+          '',
+          contextSection,
+          '',
+          'Return structured Markdown.',
+        ].join('\n'),
+        context: { scenarioCount: prioritized.length },
+        maxTokens: Math.floor(tokenBudget * 0.2),
+        systemPrompt: TRACE_GENERATE_SYSTEM_PROMPT,
+      });
+
+      this.emitLog('AI Pass 3 complete: Coverage analysis generated', { length: coverageResult.content.length });
+
+      // Merge AI coverage into coverage matrix
       files = this.generateTestFiles(scenarios);
       coverageMatrix = this.generateCoverageMatrix(scenarios);
+
+      // Append AI coverage analysis to test plan
+      testPlanMd = `${testPlanMd.trimEnd()}\n\n${coverageResult.content}`;
     } else {
-      const scenarios = this.parseScenarios(spec);
       files = this.generateTestFiles(scenarios);
       coverageMatrix = this.generateCoverageMatrix(scenarios);
-      testPlanMd = this.renderTestPlanMarkdown(scenarios, coverageMatrix);
+      testPlanMd = this.renderTestPlanMarkdown(scenarios, coverageMatrix, undefined, prioritized);
     }
 
-    const derivedScenarios = files.map((f) => ({ name: f.cases[0]?.name ?? f.path, steps: f.cases[0]?.steps ?? [] }));
+    // ── Phase 4: Automation evaluation ───────────────────────────────────
+    const derivedScenarios = files.map((f) => ({
+      name: f.cases[0]?.name ?? f.path,
+      steps: f.cases[0]?.steps ?? [],
+    }));
     const automationExecution = this.evaluateAutomationExecution(
-      derivedScenarios,
-      coverageMatrix,
-      files,
-      payload.targetBaseUrl,
-      startedAt
+      derivedScenarios, coverageMatrix, files, payload.targetBaseUrl, startedAt, prioritized,
     );
     if (!testPlanMd.includes('## Automation Execution Summary')) {
       testPlanMd = `${testPlanMd.trimEnd()}\n\n${this.renderAutomationExecutionMarkdown(automationExecution)}`;
     }
 
+    // ── Phase 5: Build artifacts ─────────────────────────────────────────
+    this.emitLog('Building test artifacts');
     const artifacts: Array<{ filePath: string; content: string }> = [];
 
     artifacts.push({ filePath: 'docs/test-plan.md', content: testPlanMd });
 
-    const testCode = files.map(f => {
-      const cases = f.cases.map(c =>
-        `  it('${c.name.replace(/'/g, "\\'")}', () => {\n${c.steps.map(s => `    // ${s}`).join('\n')}\n  });`
-      ).join('\n\n');
-      return `describe('${f.path}', () => {\n${cases}\n});`;
-    }).join('\n\n');
+    // Generate executable test code: prefer AI-generated if available
+    const testCode = aiPlaywrightCode
+      ? this.cleanPlaywrightCode(aiPlaywrightCode)
+      : this.generatePlaywrightTestCode(prioritized, payload.targetBaseUrl);
 
     artifacts.push({ filePath: 'tests/generated/trace-tests.test.ts', content: testCode });
 
     const coverageMd = this.renderCoverageMatrixMarkdown(coverageMatrix);
     artifacts.push({ filePath: 'docs/coverage-matrix.md', content: coverageMd });
 
+    // Generate risk assessment artifact
+    const riskMd = this.renderRiskAssessment(prioritized);
+    artifacts.push({ filePath: 'docs/risk-assessment.md', content: riskMd });
+
+    // Record artifacts to DB for quality scoring + frontend Outputs tab
+    for (const artifact of artifacts) {
+      this.traceRecorder?.recordFileCreated(
+        artifact.filePath,
+        artifact.content.length,
+        artifact.content.substring(0, 500),
+      );
+    }
+
+    this.emitLog('Artifacts built', { count: artifacts.length });
+
+    // ── Phase 6: Commit to GitHub (if not dry run) ───────────────────────
     if (!payload.dryRun && payload.owner && payload.repo && tools.githubMCP) {
       const github = tools.githubMCP;
       const branchName = payload.branchStrategy === 'manual'
@@ -177,95 +417,263 @@ export class TraceAgent extends BaseAgent {
         : `trace/run-${Date.now()}`;
 
       try {
+        this.emitLog('Committing artifacts to GitHub', { branch: branchName });
+
         if (payload.branchStrategy !== 'manual') {
           await github.createBranch(payload.owner, payload.repo, branchName, payload.baseBranch || 'main');
+          this.emitLog('Branch created', { branch: branchName });
         }
 
         for (const artifact of artifacts) {
           await github.commitFile(
-            payload.owner,
-            payload.repo,
-            branchName,
-            artifact.filePath,
-            artifact.content,
+            payload.owner, payload.repo, branchName,
+            artifact.filePath, artifact.content,
             `trace: generate ${artifact.filePath}`
           );
+          this.emitLog('File committed', { file: artifact.filePath });
         }
 
         let prUrl: string | undefined;
         try {
           const prResult = await github.createPRDraft(
-            payload.owner,
-            payload.repo,
+            payload.owner, payload.repo,
             `[Trace] Test plan and coverage matrix`,
-            `Auto-generated by AKIS Trace agent.\n\n## Artifacts\n${artifacts.map(a => `- \`${a.filePath}\``).join('\n')}`,
-            branchName,
-            payload.baseBranch || 'main'
+            `Auto-generated by AKIS Trace agent.\n\n## Artifacts\n${artifacts.map(a => `- \`${a.filePath}\``).join('\n')}\n\n## Stats\n- Scenarios: ${scenarios.length}\n- Test cases: ${files.reduce((s, f) => s + f.cases.length, 0)}\n- Coverage features: ${Object.keys(coverageMatrix).length}`,
+            branchName, payload.baseBranch || 'main',
           );
           prUrl = (prResult as { url?: string })?.url;
+          this.emitLog('Pull request created', { url: prUrl });
         } catch {
           // PR creation is optional
         }
 
         return {
-          ok: true,
-          agent: 'trace',
-          files,
-          testPlan: testPlanMd,
-          coverageMatrix,
+          ok: true, agent: 'trace', files, testPlan: testPlanMd, coverageMatrix,
           artifacts: artifacts.map(a => ({ filePath: a.filePath })),
-          branch: branchName,
-          prUrl,
+          branch: branchName, prUrl,
           metadata: {
             scenarioCount: files.length,
             totalTestCases: files.reduce((sum, f) => sum + f.cases.length, 0),
             specLength: spec.length,
             committed: true,
+            priorityBreakdown: this.getPriorityBreakdown(prioritized),
+            layerBreakdown: this.getLayerBreakdown(prioritized),
+            repoContext: repoContext ? { fileCount: repoContext.fileCount, routes: repoContext.routes.length, models: repoContext.models.length } : null,
             automationSummary: automationExecution,
             automationExecution,
           },
         };
       } catch (githubError) {
-        // GitHub operations failed - return results without commit
         console.error(`[TraceAgent] GitHub operations failed:`, githubError);
+        this.emitLog('GitHub commit failed, returning artifacts inline', {
+          error: githubError instanceof Error ? githubError.message : String(githubError),
+        });
         return {
-          ok: true,
-          agent: 'trace',
-          files,
-          testPlan: testPlanMd,
-          coverageMatrix,
+          ok: true, agent: 'trace', files, testPlan: testPlanMd, coverageMatrix,
           artifacts: artifacts.map(a => ({ filePath: a.filePath, content: a.content })),
           metadata: {
             scenarioCount: files.length,
             totalTestCases: files.reduce((sum, f) => sum + f.cases.length, 0),
-            specLength: spec.length,
-            committed: false,
+            specLength: spec.length, committed: false,
+            priorityBreakdown: this.getPriorityBreakdown(prioritized),
+            layerBreakdown: this.getLayerBreakdown(prioritized),
             githubError: githubError instanceof Error ? githubError.message : String(githubError),
-            automationSummary: automationExecution,
-            automationExecution,
+            automationSummary: automationExecution, automationExecution,
           },
         };
       }
     }
 
     return {
-      ok: true,
-      agent: 'trace',
-      files,
-      testPlan: testPlanMd,
-      coverageMatrix,
+      ok: true, agent: 'trace', files, testPlan: testPlanMd, coverageMatrix,
       artifacts: artifacts.map(a => ({ filePath: a.filePath, content: a.content })),
       metadata: {
         scenarioCount: files.length,
         totalTestCases: files.reduce((sum, f) => sum + f.cases.length, 0),
-        specLength: spec.length,
-        committed: false,
+        specLength: spec.length, committed: false,
+        priorityBreakdown: this.getPriorityBreakdown(prioritized),
+        layerBreakdown: this.getLayerBreakdown(prioritized),
+        repoContext: repoContext ? { fileCount: repoContext.fileCount, routes: repoContext.routes.length, models: repoContext.models.length } : null,
         tracePreferences: payload.tracePreferences ?? null,
-        automationSummary: automationExecution,
-        automationExecution,
+        automationSummary: automationExecution, automationExecution,
       },
     };
   }
+
+  // ── Repository context gathering ─────────────────────────────────────────
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private async gatherRepoContext(github: any, owner: string, repo: string, branch: string): Promise<RepoContext> {
+    const ctx: RepoContext = {
+      routes: [], models: [], services: [], existingTests: [],
+      techStack: [], sourceFiles: [], hasAuth: false, hasDocker: false,
+      hasCI: false, projectType: 'unknown', fileCount: 0,
+    };
+
+    try {
+      // Scan root to detect project type
+      const rootFiles = await this.safeListDir(github, owner, repo, branch, '');
+      if (!rootFiles) return ctx;
+
+      for (const f of rootFiles) {
+        const name = f.name?.toLowerCase() || '';
+        if (name === 'package.json') ctx.techStack.push('node');
+        if (name === 'tsconfig.json') ctx.techStack.push('typescript');
+        if (name === 'requirements.txt' || name === 'pyproject.toml') ctx.techStack.push('python');
+        if (name === 'go.mod') ctx.techStack.push('go');
+        if (name === 'cargo.toml') ctx.techStack.push('rust');
+        if (name === 'dockerfile' || name === 'docker-compose.yml') ctx.hasDocker = true;
+        if (name === '.github') ctx.hasCI = true;
+      }
+
+      ctx.projectType = ctx.techStack.includes('typescript') ? 'typescript'
+        : ctx.techStack.includes('node') ? 'javascript'
+        : ctx.techStack.includes('python') ? 'python'
+        : ctx.techStack[0] || 'unknown';
+
+      // Recursively scan source directories
+      const dirsToScan = ['src', 'lib', 'app', 'server', 'backend', 'frontend', 'api',
+        ...REPO_SCAN_CONFIG.routeDirs, ...REPO_SCAN_CONFIG.testDirs, 'docs'];
+
+      for (const dir of dirsToScan) {
+        const dirEntry = rootFiles.find((f: { name: string }) => f.name === dir);
+        if (dirEntry) {
+          await this.scanDirectoryRecursive(github, owner, repo, branch, dir, ctx, 0);
+        }
+      }
+
+      // Detect auth presence
+      ctx.hasAuth = ctx.sourceFiles.some(f =>
+        f.path.includes('auth') || f.path.includes('login') || f.path.includes('session')
+      );
+
+    } catch (error) {
+      this.emitLog('Repository scan error (partial results used)', {
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+
+    return ctx;
+  }
+
+  private async scanDirectoryRecursive(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    github: any, owner: string, repo: string, branch: string,
+    dirPath: string, ctx: RepoContext, depth: number
+  ): Promise<void> {
+    if (depth > REPO_SCAN_CONFIG.maxDepth) return;
+    if (ctx.fileCount >= REPO_SCAN_CONFIG.maxFiles) return;
+
+    const entries = await this.safeListDir(github, owner, repo, branch, dirPath);
+    if (!entries) return;
+
+    let filesInDir = 0;
+
+    for (const entry of entries) {
+      if (ctx.fileCount >= REPO_SCAN_CONFIG.maxFiles) break;
+      if (filesInDir >= REPO_SCAN_CONFIG.maxFilesPerDir) break;
+
+      const fullPath = `${dirPath}/${entry.name}`;
+      const nameLower = entry.name.toLowerCase();
+
+      if (entry.type === 'dir') {
+        if (REPO_SCAN_CONFIG.skipDirs.has(nameLower)) continue;
+        await this.scanDirectoryRecursive(github, owner, repo, branch, fullPath, ctx, depth + 1);
+        continue;
+      }
+
+      // Classify file
+      const ext = '.' + entry.name.split('.').pop()?.toLowerCase();
+      if (!REPO_SCAN_CONFIG.sourceExtensions.has(ext)) continue;
+
+      filesInDir++;
+      ctx.fileCount++;
+
+      // Categorize
+      const isTest = REPO_SCAN_CONFIG.testDirs.some(td => fullPath.includes(`/${td}/`))
+        || nameLower.includes('.test.') || nameLower.includes('.spec.');
+      const isRoute = REPO_SCAN_CONFIG.routeDirs.some(rd => fullPath.includes(`/${rd}/`))
+        || nameLower.includes('route') || nameLower.includes('controller') || nameLower.includes('handler');
+      const isModel = nameLower.includes('model') || nameLower.includes('schema') || nameLower.includes('entity');
+      const isService = nameLower.includes('service') || nameLower.includes('provider') || nameLower.includes('middleware');
+
+      if (isTest) ctx.existingTests.push(fullPath);
+      if (isRoute) ctx.routes.push(fullPath);
+      if (isModel) ctx.models.push(fullPath);
+      if (isService) ctx.services.push(fullPath);
+
+      // Read file preview for important files (routes, models, tests)
+      if ((isRoute || isModel || isService) && ctx.sourceFiles.length < 30) {
+        try {
+          const content = await github.readFileContent(owner, repo, branch, fullPath);
+          if (content) {
+            const preview = typeof content === 'string'
+              ? content.substring(0, REPO_SCAN_CONFIG.previewLength)
+              : '';
+            ctx.sourceFiles.push({ path: fullPath, preview });
+            // Record doc read for quality scoring
+            this.traceRecorder?.recordDocRead(fullPath, preview.length, preview.substring(0, 200));
+          }
+        } catch {
+          // skip unreadable files
+        }
+      }
+    }
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private async safeListDir(github: any, owner: string, repo: string, branch: string, path: string): Promise<any[] | null> {
+    try {
+      return await github.listDirectory(owner, repo, branch, path);
+    } catch {
+      return null;
+    }
+  }
+
+  // ── Build repo context prompt section ────────────────────────────────────
+
+  private buildRepoContextPrompt(ctx: RepoContext): string {
+    const sections: string[] = ['## Repository Context (from code analysis)'];
+
+    sections.push(`Project type: ${ctx.projectType} | Tech stack: ${ctx.techStack.join(', ')}`);
+    sections.push(`Files scanned: ${ctx.fileCount} | Has auth: ${ctx.hasAuth} | Has Docker: ${ctx.hasDocker} | Has CI: ${ctx.hasCI}`);
+
+    if (ctx.routes.length > 0) {
+      sections.push(`\n### Routes/Controllers (${ctx.routes.length} files)`);
+      sections.push(ctx.routes.slice(0, 15).map(r => `- ${r}`).join('\n'));
+    }
+
+    if (ctx.models.length > 0) {
+      sections.push(`\n### Models/Schema (${ctx.models.length} files)`);
+      sections.push(ctx.models.slice(0, 10).map(m => `- ${m}`).join('\n'));
+    }
+
+    if (ctx.services.length > 0) {
+      sections.push(`\n### Services/Middleware (${ctx.services.length} files)`);
+      sections.push(ctx.services.slice(0, 10).map(s => `- ${s}`).join('\n'));
+    }
+
+    if (ctx.existingTests.length > 0) {
+      sections.push(`\n### Existing Tests (${ctx.existingTests.length} files)`);
+      sections.push(ctx.existingTests.slice(0, 10).map(t => `- ${t}`).join('\n'));
+    }
+
+    // Include source file previews
+    const previews = ctx.sourceFiles.slice(0, 10);
+    if (previews.length > 0) {
+      sections.push('\n### Source Code Previews');
+      for (const f of previews) {
+        sections.push(`\n#### ${f.path}`);
+        sections.push('```');
+        sections.push(f.preview);
+        sections.push('```');
+      }
+    }
+
+    return sections.join('\n');
+  }
+
+  // ── Preference summary ───────────────────────────────────────────────────
 
   private renderPreferenceSummary(payload?: TracePayload['tracePreferences']): string {
     if (!payload) {
@@ -281,10 +689,12 @@ export class TraceAgent extends BaseAgent {
     ].join('\n');
   }
 
+  // ── Scenario parsing ─────────────────────────────────────────────────────
+
   private parseScenarios(spec: string): Array<{ name: string; steps: string[] }> {
     const scenarios: Array<{ name: string; steps: string[] }> = [];
 
-    // Parse ALL Gherkin scenarios (not just the first one)
+    // Parse ALL Gherkin scenarios
     const gherkinPattern = /Scenario(?:\s+Outline)?:\s*(.+?)(?:\n|$)/gi;
     let gherkinMatch;
     const scenarioBlocks: Array<{ name: string; startIndex: number }> = [];
@@ -327,6 +737,7 @@ export class TraceAgent extends BaseAgent {
       return scenarios;
     }
 
+    // Natural language: split by sentences
     const sentences = spec.split(/[.!?]+/).map((s) => s.trim()).filter((s) => s.length > 5);
     if (sentences.length > 0) {
       scenarios.push({ name: 'Test: Generated from spec', steps: sentences });
@@ -339,6 +750,8 @@ export class TraceAgent extends BaseAgent {
 
     return scenarios;
   }
+
+  // ── Test file generation ─────────────────────────────────────────────────
 
   private generateTestFiles(scenarios: Array<{ name: string; steps: string[] }>) {
     if (scenarios.length === 0) {
@@ -354,6 +767,8 @@ export class TraceAgent extends BaseAgent {
     });
   }
 
+  // ── Coverage matrix ──────────────────────────────────────────────────────
+
   private generateCoverageMatrix(scenarios: Array<{ name: string; steps: string[] }>): Record<string, string[]> {
     const matrix: Record<string, string[]> = {};
     for (const scenario of scenarios) {
@@ -368,15 +783,38 @@ export class TraceAgent extends BaseAgent {
     return matrix;
   }
 
+  // ── Markdown renderers ───────────────────────────────────────────────────
+
   private renderTestPlanMarkdown(
     scenarios: Array<{ name: string; steps: string[] }>,
     coverageMatrix: Record<string, string[]>,
-    automationExecution?: TraceAutomationSummary
+    automationExecution?: TraceAutomationSummary,
+    prioritized?: PrioritizedScenario[],
   ): string {
     const lines: string[] = ['# Test Plan\n', `Generated: ${new Date().toISOString()}\n`];
+
+    // Add priority summary if available
+    if (prioritized && prioritized.length > 0) {
+      const breakdown = this.getPriorityBreakdown(prioritized);
+      const layerBreakdown = this.getLayerBreakdown(prioritized);
+      lines.push('## Summary\n');
+      lines.push(`- **Total scenarios:** ${prioritized.length}`);
+      lines.push(`- **P0 (Critical):** ${breakdown.P0} | **P1 (High):** ${breakdown.P1} | **P2 (Medium):** ${breakdown.P2} | **P3 (Low):** ${breakdown.P3}`);
+      lines.push(`- **Unit:** ${layerBreakdown.unit} | **Integration:** ${layerBreakdown.integration} | **E2E:** ${layerBreakdown.e2e}`);
+      lines.push(`- **Estimated total duration:** ${Math.round(prioritized.reduce((s, p) => s + p.estimatedDurationMs, 0) / 1000)}s`);
+      lines.push('');
+    }
+
     lines.push('## Test Scenarios\n');
-    for (const s of scenarios) {
-      lines.push(`### ${s.name}\n`);
+    const scenariosToRender = prioritized ?? scenarios;
+    for (const s of scenariosToRender) {
+      const prio = (s as PrioritizedScenario).priority;
+      const layer = (s as PrioritizedScenario).testLayer;
+      const header = prio ? `### ${prio} [${layer}] ${s.name}` : `### ${s.name}`;
+      lines.push(`${header}\n`);
+      if ((s as PrioritizedScenario).flakinessRisk) {
+        lines.push(`> Flakiness: ${(s as PrioritizedScenario).flakinessRisk} | Tags: ${(s as PrioritizedScenario).tags?.join(', ') || 'none'}\n`);
+      }
       for (const step of s.steps) {
         lines.push(`- ${step}`);
       }
@@ -421,12 +859,266 @@ export class TraceAgent extends BaseAgent {
     ].join('\n');
   }
 
+  // ── Scenario classification ──────────────────────────────────────────────
+
+  private classifyScenarios(
+    scenarios: Array<{ name: string; steps: string[] }>,
+    repoCtx?: RepoContext | null,
+  ): PrioritizedScenario[] {
+    return scenarios.map(s => {
+      const nameLower = s.name.toLowerCase();
+      const stepsJoined = s.steps.join(' ').toLowerCase();
+      const allText = `${nameLower} ${stepsJoined}`;
+
+      // Priority classification
+      let priority: TestPriority = 'P2';
+      if (allText.includes('auth') || allText.includes('login') || allText.includes('password') ||
+          allText.includes('payment') || allText.includes('security') || allText.includes('delete')) {
+        priority = 'P0';
+      } else if (allText.includes('create') || allText.includes('submit') || allText.includes('save') ||
+                 allText.includes('register') || allText.includes('signup')) {
+        priority = 'P1';
+      } else if (allText.includes('display') || allText.includes('view') || allText.includes('list') ||
+                 allText.includes('search') || allText.includes('filter')) {
+        priority = 'P2';
+      } else if (allText.includes('tooltip') || allText.includes('animation') || allText.includes('color') ||
+                 allText.includes('style') || allText.includes('hover')) {
+        priority = 'P3';
+      }
+
+      // Test layer detection
+      let testLayer: 'unit' | 'integration' | 'e2e' = 'e2e';
+      if (allText.includes('api') || allText.includes('endpoint') || allText.includes('route') ||
+          allText.includes('service') || allText.includes('middleware')) {
+        testLayer = 'integration';
+      }
+      if (allText.includes('function') || allText.includes('util') || allText.includes('helper') ||
+          allText.includes('parse') || allText.includes('validate') || allText.includes('calculate')) {
+        testLayer = 'unit';
+      }
+
+      // Flakiness risk
+      let flakinessRisk: 'low' | 'medium' | 'high' = 'low';
+      if (allText.includes('animation') || allText.includes('timing') || allText.includes('wait') ||
+          allText.includes('async') || allText.includes('network') || allText.includes('scroll')) {
+        flakinessRisk = 'high';
+      } else if (allText.includes('load') || allText.includes('navigation') || allText.includes('redirect')) {
+        flakinessRisk = 'medium';
+      }
+
+      // Tags
+      const tags: string[] = [];
+      if (priority === 'P0') tags.push('critical');
+      if (allText.includes('auth')) tags.push('auth');
+      if (allText.includes('api')) tags.push('api');
+      if (allText.includes('ui') || allText.includes('page') || allText.includes('button')) tags.push('ui');
+      if (repoCtx?.hasAuth && allText.includes('login')) tags.push('auth-flow');
+      tags.push(testLayer);
+
+      // Duration estimate
+      const estimatedDurationMs =
+        testLayer === 'unit' ? 100 :
+        testLayer === 'integration' ? 2000 :
+        s.steps.length * 3000 + 5000;
+
+      return { ...s, priority, estimatedDurationMs, flakinessRisk, testLayer, tags };
+    });
+  }
+
+  private getPriorityBreakdown(prioritized: PrioritizedScenario[]): Record<TestPriority, number> {
+    const breakdown: Record<TestPriority, number> = { P0: 0, P1: 0, P2: 0, P3: 0 };
+    for (const s of prioritized) breakdown[s.priority]++;
+    return breakdown;
+  }
+
+  private getLayerBreakdown(prioritized: PrioritizedScenario[]): Record<string, number> {
+    const breakdown: Record<string, number> = { unit: 0, integration: 0, e2e: 0 };
+    for (const s of prioritized) breakdown[s.testLayer]++;
+    return breakdown;
+  }
+
+  private computeLayerBudgets(prioritized: PrioritizedScenario[], totalBudget: number): TestLayerBudget[] {
+    const layers = ['unit', 'integration', 'e2e'] as const;
+    const counts = layers.map(l => ({ layer: l, count: prioritized.filter(s => s.testLayer === l).length }));
+    const total = counts.reduce((s, c) => s + c.count, 0) || 1;
+    return counts.map(c => ({
+      layer: c.layer,
+      tokenBudget: Math.floor((c.count / total) * totalBudget),
+      scenarioCount: c.count,
+    }));
+  }
+
+  // ── Executable Playwright code generation ───────────────────────────────
+
+  private generatePlaywrightTestCode(
+    prioritized: PrioritizedScenario[],
+    targetBaseUrl = 'https://staging.akisflow.com',
+  ): string {
+    const lines: string[] = [
+      `import { test, expect } from '@playwright/test';`,
+      '',
+      `// Auto-generated by AKIS Trace Agent`,
+      `// Base URL: ${targetBaseUrl}`,
+      `// Generated: ${new Date().toISOString()}`,
+      '',
+    ];
+
+    // Group by test layer
+    const byLayer = { unit: [] as PrioritizedScenario[], integration: [] as PrioritizedScenario[], e2e: [] as PrioritizedScenario[] };
+    for (const s of prioritized) byLayer[s.testLayer].push(s);
+
+    for (const [layer, scenarios] of Object.entries(byLayer)) {
+      if (scenarios.length === 0) continue;
+
+      lines.push(`test.describe('${layer.toUpperCase()} Tests', () => {`);
+
+      if (layer === 'e2e') {
+        lines.push(`  test.beforeEach(async ({ page }) => {`);
+        lines.push(`    await page.goto('${targetBaseUrl}');`);
+        lines.push(`    await page.waitForLoadState('networkidle');`);
+        lines.push(`  });`);
+        lines.push('');
+      }
+
+      for (const scenario of scenarios) {
+        const tagStr = scenario.tags.length > 0 ? ` @${scenario.tags.join(' @')}` : '';
+        lines.push(`  // Priority: ${scenario.priority} | Flakiness: ${scenario.flakinessRisk} | Est: ${scenario.estimatedDurationMs}ms`);
+        lines.push(`  test('${scenario.name.replace(/'/g, "\\'")}${tagStr}', async ({ page }) => {`);
+
+        for (const step of scenario.steps) {
+          const stepLower = step.toLowerCase();
+          if (stepLower.includes('navigate') || stepLower.includes('visit') || stepLower.includes('go to')) {
+            const pathMatch = step.match(/(?:to|visit|navigate)\s+(?:the\s+)?(.+?)(?:\s+page)?$/i);
+            const path = pathMatch ? pathMatch[1].toLowerCase().replace(/\s+/g, '-') : '/';
+            lines.push(`    // ${step}`);
+            lines.push(`    await page.goto('${targetBaseUrl}/${path}');`);
+            lines.push(`    await page.waitForLoadState('domcontentloaded');`);
+          } else if (stepLower.includes('click') || stepLower.includes('press')) {
+            const target = step.match(/(?:click|press)\s+(?:the\s+)?(.+?)$/i)?.[1] || 'button';
+            lines.push(`    // ${step}`);
+            lines.push(`    await page.getByRole('button', { name: /${target.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}/i }).click();`);
+          } else if (stepLower.includes('enter') || stepLower.includes('type') || stepLower.includes('fill')) {
+            const fieldMatch = step.match(/(?:enter|type|fill)\s+(?:in\s+)?(?:the\s+)?(.+?)$/i);
+            const field = fieldMatch?.[1] || 'input';
+            lines.push(`    // ${step}`);
+            lines.push(`    await page.getByRole('textbox', { name: /${field.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}/i }).fill('test-value');`);
+          } else if (stepLower.includes('see') || stepLower.includes('display') || stepLower.includes('show') || stepLower.includes('appear')) {
+            const expectedText = step.match(/(?:see|display|show|appear)\s+(?:the\s+)?(.+?)$/i)?.[1] || 'expected content';
+            lines.push(`    // ${step}`);
+            lines.push(`    await expect(page.getByText(/${expectedText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}/i)).toBeVisible();`);
+          } else if (stepLower.includes('error') || stepLower.includes('fail')) {
+            lines.push(`    // ${step}`);
+            lines.push(`    await expect(page.getByRole('alert')).toBeVisible();`);
+          } else if (stepLower.includes('redirect') || stepLower.includes('url')) {
+            lines.push(`    // ${step}`);
+            lines.push(`    await page.waitForURL(/.*/, { timeout: 10000 });`);
+          } else {
+            lines.push(`    // TODO: ${step}`);
+            lines.push(`    // await page.locator('/* selector for: ${step.replace(/'/g, "\\'")} */').click();`);
+          }
+          lines.push('');
+        }
+
+        lines.push(`  });`);
+        lines.push('');
+      }
+
+      lines.push(`});`);
+      lines.push('');
+    }
+
+    return lines.join('\n');
+  }
+
+  private cleanPlaywrightCode(raw: string): string {
+    // Extract code from markdown code blocks if present
+    const codeBlockMatch = raw.match(/```(?:typescript|ts)?\n([\s\S]*?)```/);
+    if (codeBlockMatch) return codeBlockMatch[1].trim();
+
+    // If no code block, check if it looks like valid TypeScript
+    if (raw.includes('import') && raw.includes('test')) return raw.trim();
+
+    // Fallback: wrap in basic structure
+    return `// AI-generated test code\n${raw.trim()}`;
+  }
+
+  // ── Risk assessment ─────────────────────────────────────────────────────
+
+  private renderRiskAssessment(prioritized: PrioritizedScenario[]): string {
+    const lines: string[] = [
+      '# Risk Assessment',
+      '',
+      `Generated: ${new Date().toISOString()}`,
+      '',
+      '## Priority Distribution',
+      '',
+      `| Priority | Count | Description |`,
+      `|----------|-------|-------------|`,
+      `| P0 (Critical) | ${prioritized.filter(s => s.priority === 'P0').length} | Auth, payments, data integrity |`,
+      `| P1 (High) | ${prioritized.filter(s => s.priority === 'P1').length} | Core business logic, CRUD |`,
+      `| P2 (Medium) | ${prioritized.filter(s => s.priority === 'P2').length} | Display, navigation, search |`,
+      `| P3 (Low) | ${prioritized.filter(s => s.priority === 'P3').length} | Visual, animations, tooltips |`,
+      '',
+      '## Test Layer Distribution',
+      '',
+      `| Layer | Count | Avg Duration |`,
+      `|-------|-------|-------------|`,
+      `| Unit | ${prioritized.filter(s => s.testLayer === 'unit').length} | ~100ms |`,
+      `| Integration | ${prioritized.filter(s => s.testLayer === 'integration').length} | ~2000ms |`,
+      `| E2E | ${prioritized.filter(s => s.testLayer === 'e2e').length} | ~${Math.round(prioritized.filter(s => s.testLayer === 'e2e').reduce((s, p) => s + p.estimatedDurationMs, 0) / Math.max(1, prioritized.filter(s => s.testLayer === 'e2e').length))}ms |`,
+      '',
+      '## Flakiness Risk Assessment',
+      '',
+    ];
+
+    const highRisk = prioritized.filter(s => s.flakinessRisk === 'high');
+    const mediumRisk = prioritized.filter(s => s.flakinessRisk === 'medium');
+
+    if (highRisk.length > 0) {
+      lines.push('### High Risk (need retry strategy or stabilization)');
+      for (const s of highRisk) {
+        lines.push(`- **${s.name}** — ${s.steps.join(' → ')}`);
+      }
+      lines.push('');
+    }
+
+    if (mediumRisk.length > 0) {
+      lines.push('### Medium Risk (monitor for flakiness)');
+      for (const s of mediumRisk) {
+        lines.push(`- **${s.name}** — ${s.steps.join(' → ')}`);
+      }
+      lines.push('');
+    }
+
+    const totalDuration = prioritized.reduce((s, p) => s + p.estimatedDurationMs, 0);
+    lines.push('## Estimated Total Execution Time');
+    lines.push('');
+    lines.push(`- Sequential: ${Math.round(totalDuration / 1000)}s`);
+    lines.push(`- Parallel (4 workers): ~${Math.round(totalDuration / 4000)}s`);
+    lines.push('');
+
+    lines.push('## Recommendations');
+    lines.push('');
+    lines.push('1. Run P0 tests on every commit (CI gate)');
+    lines.push('2. Run P0+P1 tests on PR creation');
+    lines.push('3. Run full suite nightly or pre-release');
+    lines.push('4. Add retry logic for high-flakiness scenarios');
+    if (highRisk.length > 2) {
+      lines.push('5. Consider splitting high-risk E2E tests into API-level integration tests');
+    }
+
+    return lines.join('\n');
+  }
+
+  // ── Automation evaluation ────────────────────────────────────────────────
+
   private evaluateAutomationExecution(
     scenarios: Array<{ name: string; steps: string[] }>,
     coverageMatrix: Record<string, string[]>,
     files: Array<{ path: string; cases: Array<{ name: string; steps: string[] }> }>,
     targetBaseUrl = 'https://staging.akisflow.com',
-    startedAt = Date.now()
+    startedAt = Date.now(),
+    prioritized?: PrioritizedScenario[],
   ): TraceAutomationSummary {
     const totalScenarios = scenarios.length;
     const passedScenarios = scenarios.filter(
@@ -455,24 +1147,16 @@ export class TraceAgent extends BaseAgent {
     return {
       runner: 'playwright',
       targetBaseUrl,
-      featuresTotal,
-      featuresPassed,
-      featuresFailed,
-      featurePassRate,
-      testCasesTotal,
-      testCasesPassed,
-      testCasesFailed,
+      featuresTotal, featuresPassed, featuresFailed, featurePassRate,
+      testCasesTotal, testCasesPassed, testCasesFailed,
       durationMs: Math.max(1, Date.now() - startedAt),
       failures,
       generatedTestPath: 'tests/generated/trace-tests.test.ts',
-      totalScenarios,
-      executedScenarios,
-      passedScenarios,
-      failedScenarios,
-      passRate,
-      featuresCovered,
-      featureCoverageRate,
-      mode: 'syntactic' as const,
+      totalScenarios, executedScenarios, passedScenarios, failedScenarios, passRate,
+      featuresCovered, featureCoverageRate,
+      mode: this.aiService ? 'ai-enhanced' : 'syntactic',
+      priorityBreakdown: prioritized ? this.getPriorityBreakdown(prioritized) : undefined,
+      layerBreakdown: prioritized ? this.getLayerBreakdown(prioritized) : undefined,
     };
   }
 }
