@@ -5,6 +5,7 @@ import type { AIService, Plan, Planner } from '../../services/ai/AIService.js';
 import type { MCPTools } from '../../services/mcp/adapters/index.js';
 import type { TraceRecorder } from '../../core/tracing/TraceRecorder.js';
 import { getContractForPath, buildContractPrompt, detectDocFileType, type RepoContext, resolveDocPackConfig, targetToPath, type DocPack, type DocDepth, type ResolvedDocPackConfig } from './DocContract.js';
+import { SCRIBE_GENERATE_SYSTEM_PROMPT } from '../../services/ai/prompt-constants.js';
 import { createPlanGenerator, type PlanContext, type GeneratedPlan } from '../../core/planning/PlanGenerator.js';
 import { db } from '../../db/client.js';
 import { jobPlans } from '../../db/schema.js';
@@ -1063,6 +1064,7 @@ export class ScribeAgent extends BaseAgent {
     });
 
     const updatedFiles: Array<{ path: string; content: string; linesAdded: number }> = [];
+    const perFileTokenBudget = Math.floor(docPackConfig.maxOutputTokens / Math.max(fileTargets.length, 1));
 
     for (const target of fileTargets) {
       const docType = detectDocFileType(target.path);
@@ -1095,15 +1097,19 @@ export class ScribeAgent extends BaseAgent {
         durationMs: Date.now() - genStartTime,
       });
 
-      // Generate content using AI
+      // Generate content using AI with depth-aware token budget
+      await this.traceRecorder?.emitLog('info', `Generating ${target.path} (${fileTargets.indexOf(target) + 1}/${fileTargets.length})...`);
       const aiResult = await this.aiService.generateWorkArtifact({
         task: contractPrompt,
-        context: { ...task, filePath: target.path, docType, repoContext },
+        context: { ...task, filePath: target.path, docType },
+        maxTokens: perFileTokenBudget,
+        systemPrompt: SCRIBE_GENERATE_SYSTEM_PROMPT,
       });
       const newContent = aiResult.content;
 
       const linesAdded = newContent.split('\n').length - target.existingContent.split('\n').length;
-      
+      await this.traceRecorder?.emitLog('info', `Generated ${target.path}: ${newContent.split('\n').length} lines`);
+
       updatedFiles.push({
         path: target.path,
         content: newContent,
@@ -1178,14 +1184,12 @@ If no issues, output: []`;
       });
     }
 
-    // Enforce maxOutputTokens: truncate any file exceeding the per-file token budget
-    const perFileTokenBudget = Math.floor(docPackConfig.maxOutputTokens / Math.max(updatedFiles.length, 1));
+    // Safety truncation fallback (AI call already respects perFileTokenBudget)
+    const safetyCharLimit = perFileTokenBudget * 4;
     for (const file of updatedFiles) {
-      // Rough approximation: 1 token ≈ 4 chars
-      const charLimit = perFileTokenBudget * 4;
-      if (file.content.length > charLimit) {
-        file.content = file.content.substring(0, charLimit) + '\n\n<!-- Content truncated: exceeded token budget -->';
-        this.traceRecorder?.recordInfo(`Truncated ${file.path} to ~${perFileTokenBudget} tokens (maxOutputTokens enforcement)`);
+      if (file.content.length > safetyCharLimit) {
+        file.content = file.content.substring(0, safetyCharLimit) + '\n\n<!-- Content truncated: exceeded token budget -->';
+        this.traceRecorder?.recordInfo(`Safety truncated ${file.path} to ~${perFileTokenBudget} tokens`);
       }
     }
 
@@ -1230,7 +1234,7 @@ If no issues, output: []`;
     results.critiques = critiques;
     const totalIssues = critiques.reduce((sum, c) => sum + (c.critique.issues?.length || 0), 0);
     const targetsProduced = updatedFiles.map((file) => file.path);
-    const documentsRead = Math.max((repoContext.keyFiles?.length || 0) + fileTargets.length, fileTargets.length);
+    const documentsRead = repoContext.keyFiles?.length || 0;
     const filesProduced = updatedFiles.length;
 
     this.traceRecorder?.recordPlanStep({
