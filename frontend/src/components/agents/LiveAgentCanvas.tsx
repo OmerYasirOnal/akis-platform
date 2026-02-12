@@ -142,7 +142,7 @@ export function LiveAgentCanvas({
       <div className="min-h-0 flex-1 overflow-y-auto">
         {activeView === 'stream' && (
           <div className="flex h-full flex-col gap-3">
-            <div className="sm:h-1/2 lg:h-3/5" data-testid="stream-monologue">
+            <div className="sm:h-3/5 lg:h-2/3" data-testid="stream-monologue">
               <InnerMonologue
                 events={events}
                 traceEvents={traceEvents}
@@ -150,7 +150,7 @@ export function LiveAgentCanvas({
                 isRunning={isRunning}
               />
             </div>
-            <div className="hidden sm:block lg:h-2/5" data-testid="stream-phases">
+            <div className="hidden sm:block lg:h-1/3" data-testid="stream-phases">
               <PhaseActivityCards
                 events={events}
                 currentStage={currentStage}
