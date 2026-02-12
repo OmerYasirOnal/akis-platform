@@ -4,6 +4,7 @@ import { BrowserRouter } from 'react-router-dom';
 import DashboardAgentScribePage from '../DashboardAgentScribePage';
 import { githubDiscoveryApi } from '../../../../services/api/github-discovery';
 import { integrationsApi } from '../../../../services/api/integrations';
+import { I18nContext } from '../../../../i18n/i18n.context';
 
 vi.mock('../../../../services/api/github-discovery', () => ({
   githubDiscoveryApi: {
@@ -20,7 +21,11 @@ vi.mock('../../../../services/api/integrations', () => ({
 }));
 
 const renderWithRouter = (ui: React.ReactElement) => {
-  return render(<BrowserRouter>{ui}</BrowserRouter>);
+  return render(
+    <I18nContext.Provider value={{ locale: 'en', availableLocales: ['en', 'tr'], status: 'ready', t: ((key: string) => key) as never, setLocale: async () => {} }}>
+      <BrowserRouter>{ui}</BrowserRouter>
+    </I18nContext.Provider>
+  );
 };
 
 describe('DashboardAgentScribePage', () => {
@@ -222,43 +227,44 @@ describe('DashboardAgentScribePage', () => {
     renderWithRouter(<DashboardAgentScribePage />);
 
     await waitFor(() => {
-      expect(screen.getByText(/Documentation Pack/i)).toBeInTheDocument();
+      // i18n t() returns the key itself in test — appears in h3 and label
+      expect(screen.getAllByText('agents.scribe.docScope.label').length).toBeGreaterThanOrEqual(1);
     });
 
-    // Pack dropdown should be present with default "Standard Docs"
-    const packSelect = screen.getByDisplayValue('Standard Docs');
+    // Pack dropdown: default is auto-detect (empty value), displayed as key
+    const packSelect = screen.getByDisplayValue('agents.scribe.docScope.auto');
     expect(packSelect).toBeInTheDocument();
 
-    // Depth buttons
-    expect(screen.getByRole('button', { name: /Lite/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Standard/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Deep/i })).toBeInTheDocument();
+    // Depth buttons (t() returns the key)
+    expect(screen.getByRole('button', { name: 'agents.scribe.docDepth.lite' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'agents.scribe.docDepth.standard' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'agents.scribe.docDepth.deep' })).toBeInTheDocument();
 
     // Budget indicator
     expect(screen.getByText(/~16K/)).toBeInTheDocument();
     expect(screen.getByText(/tokens/i)).toBeInTheDocument();
 
-    // Output target checkboxes - default standard targets should be checked
-    expect(screen.getByText('README')).toBeInTheDocument();
-    expect(screen.getByText('ARCHITECTURE')).toBeInTheDocument();
-    expect(screen.getByText('API')).toBeInTheDocument();
-    expect(screen.getByText('DEVELOPMENT')).toBeInTheDocument();
+    // Auto-detect hint should be visible (output targets hidden in auto mode)
+    expect(screen.getByText('agents.scribe.docScope.autoHint')).toBeInTheDocument();
   });
 
   it('updates output targets when doc pack changes', async () => {
     renderWithRouter(<DashboardAgentScribePage />);
 
     await waitFor(() => {
-      expect(screen.getByText(/Documentation Pack/i)).toBeInTheDocument();
+      expect(screen.getAllByText('agents.scribe.docScope.label').length).toBeGreaterThanOrEqual(1);
     });
 
-    // Change to "Deep Doc Pack"
-    const packSelect = screen.getByDisplayValue('Standard Docs');
+    // Change to full pack
+    const packSelect = screen.getByDisplayValue('agents.scribe.docScope.auto');
     fireEvent.change(packSelect, { target: { value: 'full' } });
 
     await waitFor(() => {
       // Should show 2-pass badge
       expect(screen.getByText(/2-pass/i)).toBeInTheDocument();
     });
+
+    // Output targets should now be visible (no longer auto-detect)
+    expect(screen.getByText('README')).toBeInTheDocument();
   });
 });

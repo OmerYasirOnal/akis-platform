@@ -112,9 +112,13 @@ services:
       # AI Service
       AI_PROVIDER: ${AI_PROVIDER:-mock}
       AI_API_KEY: ${AI_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       AI_MODEL_DEFAULT: ${AI_MODEL_DEFAULT:-}
+      AI_MODEL_PLANNER: ${AI_MODEL_PLANNER:-}
+      AI_MODEL_VALIDATION: ${AI_MODEL_VALIDATION:-}
       AI_KEY_ENCRYPTION_KEY: ${AI_KEY_ENCRYPTION_KEY:-}
       AI_KEY_ENCRYPTION_KEY_VERSION: ${AI_KEY_ENCRYPTION_KEY_VERSION:-v1}
+      AI_DETERMINISTIC_MODE: ${AI_DETERMINISTIC_MODE:-false}
       
       # Reverse proxy (Caddy terminates TLS; backend must trust X-Forwarded-* headers)
       TRUST_PROXY: ${TRUST_PROXY:-true}
