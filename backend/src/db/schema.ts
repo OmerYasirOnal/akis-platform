@@ -3,6 +3,21 @@ import { relations } from 'drizzle-orm';
 
 export const jobStateEnum = pgEnum('job_state', ['pending', 'running', 'completed', 'failed', 'awaiting_approval']);
 
+// ============================================================================
+// Crew System Enums (M2: Agent Teams)
+// ============================================================================
+export const crewRunStatusEnum = pgEnum('crew_run_status', [
+  'planning', 'spawning', 'running', 'merging', 'completed', 'failed',
+]);
+
+export const crewTaskStatusEnum = pgEnum('crew_task_status', [
+  'pending', 'in_progress', 'completed', 'blocked',
+]);
+
+export const crewMessageTypeEnum = pgEnum('crew_message_type', [
+  'chat', 'task_update', 'status_report', 'challenge', 'directive',
+]);
+
 export const auditPhaseEnum = pgEnum('audit_phase', ['plan', 'execute', 'reflect', 'validate']);
 
 /**
@@ -109,6 +124,15 @@ export const jobs = pgTable('jobs', {
   qualityVersion: varchar('quality_version', { length: 20 }),
   /** When quality was computed */
   qualityComputedAt: timestamp('quality_computed_at'),
+  // M2: Crew System fields
+  /** Crew run this job belongs to (null if standalone) */
+  crewRunId: uuid('crew_run_id'),
+  /** Worker role within the crew (e.g., 'content', 'ui', 'seo') */
+  workerRole: varchar('worker_role', { length: 100 }),
+  /** Worker index within the crew (0-based) */
+  workerIndex: integer('worker_index'),
+  /** Worker color for UI display (hex, e.g., '#10B981') */
+  workerColor: varchar('worker_color', { length: 20 }),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 }, (table) => ({
@@ -119,6 +143,8 @@ export const jobs = pgTable('jobs', {
   approvedByIdx: index('idx_jobs_approved_by').on(table.approvedBy),
   // PR-2: Index for revision chain queries
   parentJobIdIdx: index('idx_jobs_parent_job_id').on(table.parentJobId),
+  // M2: Crew system queries
+  crewRunIdIdx: index('idx_jobs_crew_run_id').on(table.crewRunId),
 }));
 
 export type Job = typeof jobs.$inferSelect;
@@ -1193,6 +1219,136 @@ export const smartAutomationItemsRelations = relations(smartAutomationItems, ({ 
     fields: [smartAutomationItems.runId],
     references: [smartAutomationRuns.id],
   }),
+}));
+
+// ============================================================================
+// Crew System (M2: Agent Teams — Claude Code Teams inspired)
+// Enables parallel multi-agent orchestration with shared task list + messaging
+// Reference: https://code.claude.com/docs/en/agent-teams
+// ============================================================================
+
+/**
+ * Crew runs — top-level orchestration entity for parallel agent teams
+ * Maps to Claude Code's "team lead + teammates" pattern
+ */
+export const crewRuns = pgTable('crew_runs', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  status: crewRunStatusEnum('status').notNull().default('planning'),
+  /** User's goal / task description for the crew */
+  goal: text('goal').notNull(),
+  /** Worker role definitions (JSON array) */
+  workerRoles: jsonb('worker_roles').$type<Array<{
+    role: string;
+    agentType: string;
+    taskDescription: string;
+    color: string;
+  }>>().notNull(),
+  /** Coordinator job ID (the team lead) */
+  coordinatorJobId: uuid('coordinator_job_id').references(() => jobs.id, { onDelete: 'set null' }),
+  /** Merged output from all workers */
+  mergedOutput: jsonb('merged_output'),
+  /** How to merge worker outputs: concatenate, synthesize, structured */
+  mergeStrategy: varchar('merge_strategy', { length: 50 }).notNull().default('synthesize'),
+  /** Error handling: fail_fast (stop all on first failure) or best_effort (continue) */
+  failureStrategy: varchar('failure_strategy', { length: 50 }).notNull().default('best_effort'),
+  /** Auto-approve worker actions without user confirmation */
+  autoApprove: boolean('auto_approve').notNull().default(false),
+  totalWorkers: integer('total_workers').notNull().default(0),
+  completedWorkers: integer('completed_workers').notNull().default(0),
+  failedWorkers: integer('failed_workers').notNull().default(0),
+  /** Coordinator reflection on merged output */
+  coordinatorReflection: text('coordinator_reflection'),
+  /** Aggregate token usage across all workers + coordinator */
+  totalTokens: integer('total_tokens'),
+  /** Aggregate cost across all workers + coordinator */
+  totalCostUsd: numeric('total_cost_usd', { precision: 12, scale: 6 }),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  userIdIdx: index('idx_crew_runs_user_id').on(table.userId),
+  statusIdx: index('idx_crew_runs_status').on(table.status),
+  createdAtIdx: index('idx_crew_runs_created_at').on(table.createdAt),
+}));
+
+export type CrewRun = typeof crewRuns.$inferSelect;
+export type NewCrewRun = typeof crewRuns.$inferInsert;
+
+/**
+ * Crew tasks — shared task list for agent coordination
+ * Maps to Claude Code's ~/.claude/tasks/{team-name}/ pattern
+ * Workers can claim tasks, track dependencies, and self-coordinate
+ */
+export const crewTasks = pgTable('crew_tasks', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  crewRunId: uuid('crew_run_id').notNull().references(() => crewRuns.id, { onDelete: 'cascade' }),
+  title: varchar('title', { length: 500 }).notNull(),
+  description: text('description'),
+  status: crewTaskStatusEnum('status').notNull().default('pending'),
+  /** Which worker job claimed this task (null = unclaimed) */
+  assignedTo: uuid('assigned_to').references(() => jobs.id, { onDelete: 'set null' }),
+  /** Task IDs this task depends on (must complete before this can start) */
+  dependsOn: jsonb('depends_on').$type<string[]>().default([]),
+  priority: integer('priority').notNull().default(0),
+  /** Task result when completed */
+  result: jsonb('result'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  crewRunIdIdx: index('idx_crew_tasks_crew_run_id').on(table.crewRunId),
+  statusIdx: index('idx_crew_tasks_status').on(table.crewRunId, table.status),
+  assignedToIdx: index('idx_crew_tasks_assigned_to').on(table.assignedTo),
+}));
+
+export type CrewTask = typeof crewTasks.$inferSelect;
+export type NewCrewTask = typeof crewTasks.$inferInsert;
+
+/**
+ * Crew messages — inter-agent messaging (mailbox system)
+ * Maps to Claude Code's mailbox for teammate communication
+ * Enables: agent-to-agent, user-to-agent, and broadcast messages
+ */
+export const crewMessages = pgTable('crew_messages', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  crewRunId: uuid('crew_run_id').notNull().references(() => crewRuns.id, { onDelete: 'cascade' }),
+  /** Sender job ID (null = message from user) */
+  fromJobId: uuid('from_job_id').references(() => jobs.id, { onDelete: 'set null' }),
+  /** Recipient job ID (null = broadcast to all crew members) */
+  toJobId: uuid('to_job_id').references(() => jobs.id, { onDelete: 'set null' }),
+  /** Sender role label (e.g., 'coordinator', 'user', 'content-writer') */
+  fromRole: varchar('from_role', { length: 100 }).notNull(),
+  /** Recipient role label (null = broadcast) */
+  toRole: varchar('to_role', { length: 100 }),
+  content: text('content').notNull(),
+  messageType: crewMessageTypeEnum('message_type').notNull().default('chat'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  crewRunIdIdx: index('idx_crew_messages_crew_run_id').on(table.crewRunId),
+  fromJobIdIdx: index('idx_crew_messages_from_job_id').on(table.fromJobId),
+  toJobIdIdx: index('idx_crew_messages_to_job_id').on(table.toJobId),
+  createdAtIdx: index('idx_crew_messages_created_at').on(table.crewRunId, table.createdAt),
+}));
+
+export type CrewMessage = typeof crewMessages.$inferSelect;
+export type NewCrewMessage = typeof crewMessages.$inferInsert;
+
+// Crew relations
+export const crewRunsRelations = relations(crewRuns, ({ one, many }) => ({
+  user: one(users, { fields: [crewRuns.userId], references: [users.id] }),
+  coordinatorJob: one(jobs, { fields: [crewRuns.coordinatorJobId], references: [jobs.id] }),
+  tasks: many(crewTasks),
+  messages: many(crewMessages),
+}));
+
+export const crewTasksRelations = relations(crewTasks, ({ one }) => ({
+  crewRun: one(crewRuns, { fields: [crewTasks.crewRunId], references: [crewRuns.id] }),
+  assignedJob: one(jobs, { fields: [crewTasks.assignedTo], references: [jobs.id] }),
+}));
+
+export const crewMessagesRelations = relations(crewMessages, ({ one }) => ({
+  crewRun: one(crewRuns, { fields: [crewMessages.crewRunId], references: [crewRuns.id] }),
+  fromJob: one(jobs, { fields: [crewMessages.fromJobId], references: [jobs.id] }),
+  toJob: one(jobs, { fields: [crewMessages.toJobId], references: [jobs.id] }),
 }));
 
 // ============================================================================

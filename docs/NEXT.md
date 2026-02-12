@@ -278,6 +278,8 @@ docs/NEXT.md                                             (bu dosya — anlık ey
 | M2-RAG-2 | Hybrid Search | — | Keyword + vector birleştirme | Başlanmadı |
 | M2-RAG-3 | RAG Evaluation UI | — | 5 metrik dashboard + halüsinasyon tespiti | Başlanmadı |
 | M2-RAG-4 | Knowledge Base Yönetim UI | — | Doküman upload, indeks, semantic search | Başlanmadı |
+| M2-CREW-1 | Generic Crew System | — | Agent Teams: coordinator + parallel workers + shared task list + inter-agent messaging | Devam Ediyor |
+| M2-CREW-2 | Crew Frontend UI | — | CrewRunPage, WorkerCard, CrewChat, CrewTaskBoard | Devam Ediyor |
 
 ---
 
@@ -309,6 +311,7 @@ docs/NEXT.md                                             (bu dosya — anlık ey
 | [`docs/agents/CONTEXT_PACKS.md`](agents/CONTEXT_PACKS.md) | Bağlam paketleri mimari kararı |
 | [`docs/planning/SOCIAL_PLATFORM_VISION.md`](planning/SOCIAL_PLATFORM_VISION.md) | M2/M3 social platform vizyonu (feed, marketplace, showcase) |
 | [`docs/planning/RAG_INTEGRATION_PLAN_M2.md`](planning/RAG_INTEGRATION_PLAN_M2.md) | M2 RAG entegrasyon planı (mimari + fazlar) |
+| Crew System Plan | M2 Crew System (Agent Teams) planı — `.cursor/plans/crew_system_+_research_c5c05ba8.plan.md` |
 
 ---
 

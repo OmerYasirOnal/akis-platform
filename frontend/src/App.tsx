@@ -70,6 +70,7 @@ const DashboardAgentProtoPage = lazy(() => import('./pages/dashboard/agents/prot
 const DashboardAgentStudioPage = lazy(() => import('./pages/dashboard/agents/studio/index'));
 const SmartAutomationsPage = lazy(() => import('./pages/dashboard/agents/smart-automations/SmartAutomationsPage'));
 const AutomationDetailPage = lazy(() => import('./pages/dashboard/agents/smart-automations/AutomationDetailPage'));
+const CrewRunPage = lazy(() => import('./pages/dashboard/agents/CrewRunPage'));
 
 const PageLoader = () => (
   <div className="flex min-h-[200px] items-center justify-center">
@@ -140,6 +141,18 @@ function App() {
             <Route path="proto" element={<Suspense fallback={<PageLoader />}><DashboardAgentProtoPage /></Suspense>} />
             <Route path="studio" element={<Suspense fallback={<PageLoader />}><DashboardAgentStudioPage /></Suspense>} />
           </Route>
+
+          {/* Crew Run - standalone route (no AgentsLayout, full-page view) */}
+          <Route
+            path="/agents/crew/:id"
+            element={
+              <ProtectedRoute>
+                <Suspense fallback={<PageLoader />}>
+                  <CrewRunPage />
+                </Suspense>
+              </ProtectedRoute>
+            }
+          />
 
           {/* Smart Automations - standalone route (no AgentsLayout) */}
           <Route
