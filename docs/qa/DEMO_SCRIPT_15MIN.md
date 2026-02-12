@@ -26,7 +26,7 @@
 
 | Path | Exact URL | Acceptance Criteria |
 |---|---|---|
-| GP-1 Auth signup/login | `https://staging.akisflow.com/auth/signup` + `https://staging.akisflow.com/auth/login` | Signup/login works, redirect to `/dashboard` |
+| GP-1 Auth signup/login | `https://staging.akisflow.com/signup` + `https://staging.akisflow.com/login` | Signup/login works, redirect to `/dashboard` |
 | GP-2 /ready + MCP | `https://staging.akisflow.com/ready` | `ready=true`, `mcp.configured=true`, `mcp.gatewayReachable=true` |
 | GP-3 Scribe docpack | `https://staging.akisflow.com/agents/scribe` | Job completes, doc preview and diff/output visible |
 | GP-4 Trace test plan | `https://staging.akisflow.com/agents/trace` | Job completes, generated test plan output visible |
@@ -74,7 +74,7 @@
 ### Step-by-step
 
 1. **Login flow:**
-   - Navigate to `https://staging.akisflow.com/auth/login`
+   - Navigate to `https://staging.akisflow.com/login`
    - Enter test account email → password
    - Show successful login redirect to `/dashboard`
 
@@ -168,7 +168,7 @@ If job execution fails:
    - "Context packs provide repo files to agents deterministically"
 
 3. **Quality & testing:**
-   - "842 backend + 549 frontend = 1,391 total tests"
+   - "929 backend + 564 frontend = 1,493 total tests"
    - "E2E golden path tests for each agent (Playwright)"
    - "Regression checklist with 70+ checks"
 
@@ -194,7 +194,7 @@ If job execution fails:
 | "Can agents call each other?" | "No. The orchestrator controls the lifecycle. Agents are isolated by design." |
 | "What happens if the AI API is down?" | "Structured error: AI_RATE_LIMITED or AI_PROVIDER_ERROR, with retry logic." |
 | "Is this deployed somewhere?" | "Yes, staging.akisflow.com on OCI Free Tier. Single VM, Docker Compose." |
-| "What's the testing coverage?" | "842 backend + 549 frontend = 1,391 tests. E2E golden path tests per agent." |
+| "What's the testing coverage?" | "929 backend + 564 frontend = 1,493 tests. E2E golden path tests per agent." |
 
 ---
 

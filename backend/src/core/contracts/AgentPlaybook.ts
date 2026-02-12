@@ -44,7 +44,7 @@ export class AgentPlaybook {
         results.push(result);
       } catch (error) {
         if (step.retryable) {
-          // TODO: Implement retry logic
+          // TODO(M2): Implement retry logic — tracked in docs/planning/M2_BACKLOG.md
           throw error;
         }
         throw error;

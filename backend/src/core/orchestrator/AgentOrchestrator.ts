@@ -1375,7 +1375,7 @@ export class AgentOrchestrator {
       // Record approval and resume in trace
       traceRecorder.recordInfo(`Job resumed after approval by ${job.approvedBy}`);
 
-      // TODO: PR-1 Phase 2 - Implement full execution continuation
+      // TODO(M2): PR-1 Phase 2 - Implement full execution continuation — tracked in docs/planning/M2_BACKLOG.md
       // For now, we mark as completed with a note that execution was approved
       const result = {
         approved: true,

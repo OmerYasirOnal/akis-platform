@@ -222,7 +222,7 @@ export async function integrationsRoutes(fastify: FastifyInstance) {
           ),
         });
 
-        // TODO: Encrypt token at rest (similar to AI key storage)
+        // TODO(M2): Encrypt integration tokens at rest (similar to AI key storage) — tracked in docs/planning/M2_BACKLOG.md
         // For now storing plaintext, but interface ready for encryption
         if (existingOAuth) {
           await db

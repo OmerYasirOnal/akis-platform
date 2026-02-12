@@ -10,7 +10,7 @@
 
 1. Navigate to **Agents → Proto** (`/agents/proto`)
 2. Confirm agent status badge shows "Active" or "Inactive"
-3. Enter a **feature description** in the textarea
+3. Enter **requirements/goal** in the textarea
 4. Optionally configure **prototype scope** (UI component / API endpoint / full-stack)
 5. Click **"Run Proto"**
 6. Observe **Logs** tab streaming progress events in real-time

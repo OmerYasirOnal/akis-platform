@@ -54,7 +54,7 @@ const DashboardSettingsAiProvidersPage = () => (
         </p>
       </div>
       <div className="rounded-xl border border-dashed border-ak-border bg-ak-surface-2 px-4 py-3 text-xs text-ak-text-secondary">
-        TODO: Enable plan upgrades and managed key allocation.
+        Plan upgrades and managed key allocation coming in M2.
       </div>
     </Card>
   </div>

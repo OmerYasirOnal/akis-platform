@@ -4,7 +4,7 @@
 > **Priority:** P0 — Demo critical  
 > **Created:** 2026-02-12  
 > **Deadline:** 2026-02-16 (before scope freeze 21 Feb)  
-> **Status:** Planning
+> **Status:** Completed (2026-02-12, commit b723c2d, PR #302)
 
 ---
 
