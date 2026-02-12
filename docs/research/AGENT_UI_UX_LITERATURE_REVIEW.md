@@ -39,6 +39,8 @@ Research shows that users who can observe an agent's reasoning process develop m
 
 This literature review surveys the most recent (2024-2026) Q1-level research on transparent agent interfaces and derives design principles for the AKIS Platform agent console.
 
+> **Related:** For a focused treatment of agent *thinking process visualization* — chain-of-thought display, progressive disclosure for reasoning, deterministic agent visualization, and the Asked/Did/Why explainability pattern — see [AGENT_THINKING_VISUALIZATION_LITERATURE_REVIEW.md](./AGENT_THINKING_VISUALIZATION_LITERATURE_REVIEW.md).
+
 ---
 
 ## 2. Chain-of-Thought Visualization

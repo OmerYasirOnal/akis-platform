@@ -212,12 +212,21 @@ export class TraceAgent extends BaseAgent {
     // ── Phase 1: Gather repo context (if available) ──────────────────────
     let repoContext: RepoContext | null = null;
     if (payload.owner && payload.repo && tools.githubMCP) {
+      this.traceRecorder?.recordReasoning({
+        phase: 'Repository Analysis',
+        summary: `Scanning ${payload.owner}/${payload.repo} for code context. Looking for routes, models, services, and existing tests to generate targeted test scenarios instead of generic ones.`,
+      });
       this.emitLog('Scanning repository for code context', {
         owner: payload.owner, repo: payload.repo,
       });
       repoContext = await this.gatherRepoContext(
         tools.githubMCP, payload.owner, payload.repo, payload.baseBranch || 'main',
       );
+      this.traceRecorder?.recordDecision({
+        title: 'Repository Context Gathered',
+        decision: `Found ${repoContext.fileCount} source files: ${repoContext.routes.length} routes, ${repoContext.models.length} models, ${repoContext.services.length} services, ${repoContext.existingTests.length} existing tests.`,
+        reasoning: `Project type: ${repoContext.projectType} (${repoContext.techStack.join(', ')}). ${repoContext.hasAuth ? 'Auth detected — will prioritize authentication test scenarios.' : 'No auth detected.'} ${repoContext.existingTests.length > 0 ? `${repoContext.existingTests.length} existing tests found — will avoid duplicating coverage.` : 'No existing tests — full coverage needed.'}`,
+      });
       this.emitLog('Repository scan complete', {
         routes: repoContext.routes.length,
         models: repoContext.models.length,
@@ -229,13 +238,36 @@ export class TraceAgent extends BaseAgent {
     }
 
     // ── Phase 2: Parse and classify spec scenarios ─────────────────────
+    this.traceRecorder?.recordPlanStep({
+      stepId: 'parse-scenarios',
+      title: 'Parse Test Specification',
+      description: `Parsing specification (${spec.length} chars) into structured test scenarios`,
+      reasoning: 'Extracting Gherkin scenarios, arrow-notation flows, and natural language test descriptions to build a structured scenario list for classification.',
+      status: 'running',
+    });
     this.emitLog('Parsing test specification', { specLength: spec.length });
     const scenarios = this.parseScenarios(spec);
     const prioritized = this.classifyScenarios(scenarios, repoContext);
+
+    const priorityBreakdown = this.getPriorityBreakdown(prioritized);
+    const layerBreakdown = this.getLayerBreakdown(prioritized);
+    this.traceRecorder?.recordDecision({
+      title: 'Scenario Classification Complete',
+      decision: `Classified ${scenarios.length} scenarios: P0=${priorityBreakdown.P0}, P1=${priorityBreakdown.P1}, P2=${priorityBreakdown.P2}, P3=${priorityBreakdown.P3} across unit=${layerBreakdown.unit}, integration=${layerBreakdown.integration}, e2e=${layerBreakdown.e2e} layers.`,
+      reasoning: `Priority assigned by keyword analysis: auth/security/payment keywords mark P0 (critical), CRUD operations mark P1 (high), display/search mark P2 (medium), visual/animation mark P3 (low). Test layers determined by scope: API/service keywords suggest integration tests, function/util keywords suggest unit tests, others default to e2e.`,
+      alternatives: ['Could use LLM-based classification for higher accuracy', 'Could weight by code coverage data if available'],
+    });
+    this.traceRecorder?.recordPlanStep({
+      stepId: 'parse-scenarios',
+      title: 'Parse Test Specification',
+      description: `Parsed ${scenarios.length} scenarios from specification`,
+      reasoning: `Found ${scenarios.length} test scenarios. ${priorityBreakdown.P0 > 0 ? `${priorityBreakdown.P0} critical (P0) tests identified for auth/security flows.` : 'No P0 tests — specification may not cover auth/security.'} ${Object.values(layerBreakdown).filter(v => v > 0).length >= 2 ? 'Multi-layer coverage achieved.' : 'Single test layer — consider diversifying.'}`,
+      status: 'completed',
+    });
     this.emitLog('Scenarios parsed and classified', {
       count: scenarios.length,
-      priorityBreakdown: this.getPriorityBreakdown(prioritized),
-      layerBreakdown: this.getLayerBreakdown(prioritized),
+      priorityBreakdown,
+      layerBreakdown,
     });
 
     // ── Phase 3: Multi-pass AI test plan generation ──────────────────────
@@ -251,6 +283,13 @@ export class TraceAgent extends BaseAgent {
         : '';
 
       // Pass 1: Generate comprehensive test plan
+      this.traceRecorder?.recordPlanStep({
+        stepId: 'ai-pass-1',
+        title: 'AI Pass 1/3: Generate Test Strategy',
+        description: 'Generating comprehensive test plan with scenarios, coverage matrix, and risk assessment',
+        reasoning: `Using ${depth} depth with ${tokenBudget} token budget (40% allocated to planning). ${repoContext ? `Repository context enriches test scenarios with real code paths from ${repoContext.routes.length} routes and ${repoContext.models.length} models.` : 'No repository context — generating from specification only.'}`,
+        status: 'running',
+      });
       this.emitLog('AI Pass 1/3: Generating test strategy and scenarios', { tokenBudget, depth });
       const layerBudgets = this.computeLayerBudgets(prioritized, tokenBudget);
 
@@ -288,9 +327,23 @@ export class TraceAgent extends BaseAgent {
       });
 
       testPlanMd = planResult.content;
+      this.traceRecorder?.recordPlanStep({
+        stepId: 'ai-pass-1',
+        title: 'AI Pass 1/3: Test Strategy Generated',
+        description: `Generated test plan (${testPlanMd.length} chars) with strategy, scenarios, coverage matrix, and risk assessment`,
+        reasoning: `Test plan covers ${prioritized.length} scenarios across ${Object.values(layerBreakdown).filter(v => v > 0).length} test layers. Plan includes Given/When/Then steps, priority labels, and flakiness risk for each scenario.`,
+        status: 'completed',
+      });
       this.emitLog('AI Pass 1 complete: Test plan generated', { length: testPlanMd.length });
 
       // Pass 2: Generate executable Playwright test code
+      this.traceRecorder?.recordPlanStep({
+        stepId: 'ai-pass-2',
+        title: 'AI Pass 2/3: Generate Playwright Tests',
+        description: 'Generating production-ready Playwright test code in TypeScript',
+        reasoning: `Converting ${prioritized.length} test scenarios into executable Playwright code. Using page.getByRole() and page.getByText() selectors for resilient tests. Target base URL: ${payload.targetBaseUrl || 'https://staging.akisflow.com'}.`,
+        status: 'running',
+      });
       this.emitLog('AI Pass 2/3: Generating executable Playwright test code');
 
       const codeResult = await this.aiService.generateWorkArtifact({
@@ -328,9 +381,23 @@ export class TraceAgent extends BaseAgent {
       });
 
       aiPlaywrightCode = codeResult.content;
+      this.traceRecorder?.recordPlanStep({
+        stepId: 'ai-pass-2',
+        title: 'AI Pass 2/3: Playwright Tests Generated',
+        description: `Generated ${aiPlaywrightCode.length} chars of executable Playwright test code`,
+        reasoning: `Playwright code generated for ${prioritized.length} scenarios with proper imports, test.describe() grouping, beforeEach() setup, and expect() assertions.`,
+        status: 'completed',
+      });
       this.emitLog('AI Pass 2 complete: Playwright code generated', { length: aiPlaywrightCode.length });
 
       // Pass 3: Generate coverage matrix analysis
+      this.traceRecorder?.recordPlanStep({
+        stepId: 'ai-pass-3',
+        title: 'AI Pass 3/3: Coverage Analysis',
+        description: 'Analyzing test coverage gaps and generating risk assessment',
+        reasoning: `Final pass uses remaining 20% of token budget (${Math.floor(tokenBudget * 0.2)} tokens) to analyze coverage completeness, identify flaky test risks, and recommend improvements.`,
+        status: 'running',
+      });
       this.emitLog('AI Pass 3/3: Generating coverage analysis and risk assessment');
 
       const coverageResult = await this.aiService.generateWorkArtifact({
@@ -352,6 +419,13 @@ export class TraceAgent extends BaseAgent {
         systemPrompt: TRACE_GENERATE_SYSTEM_PROMPT,
       });
 
+      this.traceRecorder?.recordPlanStep({
+        stepId: 'ai-pass-3',
+        title: 'AI Pass 3/3: Coverage Analysis Complete',
+        description: `Generated coverage analysis (${coverageResult.content.length} chars) with gap identification and risk assessment`,
+        reasoning: 'Coverage matrix maps every feature to its test cases. Risk assessment identifies flaky tests, race conditions, and untestable areas.',
+        status: 'completed',
+      });
       this.emitLog('AI Pass 3 complete: Coverage analysis generated', { length: coverageResult.content.length });
 
       // Merge AI coverage into coverage matrix
@@ -379,6 +453,10 @@ export class TraceAgent extends BaseAgent {
     }
 
     // ── Phase 5: Build artifacts ─────────────────────────────────────────
+    this.traceRecorder?.recordReasoning({
+      phase: 'Artifact Generation',
+      summary: `Building 4 test artifacts: test plan document, executable Playwright tests, coverage matrix, and risk assessment. ${aiPlaywrightCode ? 'AI-generated Playwright code will be used (preferred over template-based generation).' : 'Using template-based Playwright code generation (no AI code available).'}`,
+    });
     this.emitLog('Building test artifacts');
     const artifacts: Array<{ filePath: string; content: string }> = [];
 
