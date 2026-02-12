@@ -89,6 +89,20 @@ Favicon:
 
 Tüm token değerleri `frontend/src/theme/tokens.ts` dosyasında tip güvenli olarak tutulur. Tailwind `extend.colors` aynı değerleri kullanır.
 
+**Light Theme Tokens (GitHub Primer style):**
+
+| Token (light) | Hex | Kullanım |
+|---------------|-----|----------|
+| `ak-bg-light` | `#ffffff` | Light mode body arka planı |
+| `ak-surface-light` | `#ffffff` | Light mode düşük elevasyon |
+| `ak-surface-2-light` | `#f6f8fa` | Kartlar, modallar |
+| `ak-surface-3-light` | `#eaeef2` | Subtle yüzeyler |
+| `ak-text-primary-light` | `#1f2328` | Başlıklar ve kritik metin |
+| `ak-text-secondary-light` | `#656d76` | Gövde açıklamaları |
+| `ak-border-light` | `#d0d7de` | Kart/section border |
+
+Primary (`ak-primary: #07D1AF`) light modda değişmez. CSS: `frontend/src/theme/theme.tokens.css`.
+
 ### 2.2 Türevler & Durum Renkleri
 
 - `ak-primary/90` → hover durumları için Tailwind `bg-ak-primary/90`
@@ -1339,15 +1353,17 @@ function ThemeToggle() {
 }
 ```
 
-**Light Mode Colors (Future):**
+**Light Mode Colors (GitHub Primer style, `theme.tokens.css`):**
 
 ```javascript
 {
-  'ak-bg-light': '#F9FAFB',
-  'ak-surface-light': '#FFFFFF',
-  'ak-text-primary-light': '#111827',
-  'ak-text-secondary-light': '#6B7280',
-  // ... etc.
+  'ak-bg-light': '#ffffff',
+  'ak-surface-light': '#ffffff',
+  'ak-surface-2-light': '#f6f8fa',
+  'ak-surface-3-light': '#eaeef2',
+  'ak-text-primary-light': '#1f2328',
+  'ak-text-secondary-light': '#656d76',
+  'ak-border-light': '#d0d7de'
 }
 ```
 
