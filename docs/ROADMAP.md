@@ -73,11 +73,11 @@
 - [x] Agent yönlendirme: `/agents/*` kanonik, eski rotalar yönlendiriliyor
 - [x] Hata durumlarında kullanıcıya anlaşılır mesaj
 - [x] Logo tüm yüzeylerde güncel (full wordmark korunarak A-mark only favicon + compact UI güncellemesi, 2026-02-11)
-- [ ] E-posta/şifre kayıt + giriş çalışıyor (staging) — SMTP auth `535` nedeniyle verification delivery bloklu; credential düzeltmesi sonrası yeniden doğrulanacak (2026-02-11)
+- [x] E-posta/şifre kayıt + giriş çalışıyor (staging) — Resend.com domain verified, `noreply@akisflow.com` aktif (2026-02-12)
 - [x] OAuth yönlendirmeleri staging alanında çalışıyor — Google + GitHub (2026-02-10)
-- [ ] Scribe golden path çalışıyor (kuru çalışma) — MCP always-on, `GITHUB_TOKEN` env + redeploy gerekli
-- [ ] Trace golden path çalışıyor — aynı
-- [ ] Proto golden path çalışıyor — aynı
+- [x] Scribe golden path çalışıyor — staging API dry-run completed, plan+preview+critiques+diagnostics (2026-02-12)
+- [x] Trace golden path çalışıyor — staging API completed, testPlan+coverageMatrix+artifacts (2026-02-12)
+- [x] Proto golden path çalışıyor — staging API completed, artifacts+critique+reflectionChecks (2026-02-12)
 - [x] Pilot katılım akışı çalışıyor (2026-02-09)
 - [x] Demo senaryosu yazılmış (2026-02-09) — prova bekliyor
 - [x] KG kanıt dokümanı mevcut (2026-02-09)
