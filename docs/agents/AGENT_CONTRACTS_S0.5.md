@@ -62,6 +62,17 @@ These fields appear in all three payload schemas:
 | `baseBranch` | `string` | `'main'` | Base branch for operations |
 | `dryRun` | `boolean` | `false` | Simulate without writing to GitHub |
 
+### 1.4 Live Execution UI Contract (Frontend)
+
+Agent execution visibility is standardized via **LiveAgentCanvas** on all console pages:
+
+- **Component:** `frontend/src/components/agents/LiveAgentCanvas.tsx`
+- **Views:** `stream`, `timeline`, `quality`
+- **Data source:** existing SSE stream (`/api/agents/jobs/:id/stream`) consumed by `useJobStream`
+- **Primary event types:** `stage`, `trace`, `tool`, `artifact`, `ai_call`, `error`, `log`, `plan`
+
+This UI layer does not alter backend contracts; it only visualizes existing stream events with progressive disclosure and quality-focused completion state.
+
 ---
 
 ## 2. Scribe Agent

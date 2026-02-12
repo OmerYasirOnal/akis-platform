@@ -13,6 +13,7 @@ import { Link } from 'react-router-dom';
 import Card from '../../../components/common/Card';
 import Button from '../../../components/common/Button';
 import AgentRuntimeSettingsDrawer from '../../../components/agents/AgentRuntimeSettingsDrawer';
+import LiveAgentCanvas from '../../../components/agents/LiveAgentCanvas';
 import { useI18n } from '../../../i18n/useI18n';
 import SearchableSelect, { type SelectOption } from '../../../components/common/SearchableSelect';
 import {
@@ -92,14 +93,6 @@ const DashboardAgentScribePage = () => {
 
   // Glass box panel
   const [activeTab, setActiveTab] = useState<ActiveTab>('logs');
-  const logsEndRef = useRef<HTMLDivElement>(null);
-
-  // Auto-scroll logs
-  useEffect(() => {
-    if (activeTab === 'logs' && logsEndRef.current) {
-      logsEndRef.current.scrollIntoView({ behavior: 'smooth' });
-    }
-  }, [logs, activeTab]);
 
   // Check GitHub connection status and get username
   useEffect(() => {
@@ -466,16 +459,6 @@ const DashboardAgentScribePage = () => {
     }
   };
 
-  const getLogLevelColor = (level: LogEntry['level']) => {
-    switch (level) {
-      case 'success': return 'text-green-400';
-      case 'error': return 'text-red-400';
-      case 'warning': return 'text-yellow-400';
-      case 'debug': return 'text-gray-500';
-      default: return 'text-ak-text-secondary';
-    }
-  };
-
   const isRunning = isPolling && currentJob && (currentJob.state === 'pending' || currentJob.state === 'running');
   const isComplete = currentJob && (currentJob.state === 'completed' || currentJob.state === 'failed');
   const isIdle = !currentJob || !isPolling;
@@ -824,7 +807,7 @@ const DashboardAgentScribePage = () => {
           <div className="flex items-center gap-2">
             <div className={`h-2 w-2 rounded-full ${isRunning ? 'animate-pulse bg-ak-primary' : isComplete ? 'bg-green-500' : 'bg-ak-text-secondary/30'}`} />
             <span className="text-xs text-ak-text-secondary">
-              {connectedGitHubUser && repo ? `${connectedGitHubUser}/${repo}` : 'No repo selected'}
+              {connectedGitHubUser && repo ? `${connectedGitHubUser}/${repo}` : 'No repo selected'} • {logs.length}
             </span>
           </div>
         </div>
@@ -832,32 +815,15 @@ const DashboardAgentScribePage = () => {
         {/* Tab Content */}
         <div className="flex-1 overflow-hidden">
           {activeTab === 'logs' && (
-            <div className="h-full overflow-y-auto bg-ak-bg p-4 font-mono text-sm">
-              {logs.length === 0 ? (
-                <div className="flex h-full flex-col items-center justify-center text-ak-text-secondary/50">
-                  <span className="text-4xl">🤖</span>
-                  <p className="mt-2 text-center">
-                    Press "Run Scribe" to start documentation analysis
-                  </p>
-                  <p className="mt-1 text-xs">
-                    {githubError ? 'Connect GitHub first' : 'MCP-powered workflow'}
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-1">
-                  {logs.map((log) => (
-                    <div key={log.id} className="flex gap-2">
-                      <span className="flex-shrink-0 text-ak-text-secondary/50">
-                        {log.timestamp.toLocaleTimeString()}
-                      </span>
-                      <span className={getLogLevelColor(log.level)}>
-                        {log.message}
-                      </span>
-                    </div>
-                  ))}
-                  <div ref={logsEndRef} />
-                </div>
-              )}
+            <div className="h-full overflow-y-auto bg-ak-bg p-4">
+              <LiveAgentCanvas
+                jobId={currentJob?.id ?? null}
+                isRunning={Boolean(isRunning)}
+                isCompleted={currentJob?.state === 'completed'}
+                isFailed={currentJob?.state === 'failed'}
+                qualityScore={currentJob?.qualityScore ?? null}
+                startedAt={currentJob?.createdAt ? new Date(currentJob.createdAt).getTime() : undefined}
+              />
             </div>
           )}
 

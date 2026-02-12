@@ -4,7 +4,7 @@
 > **WBS Tablosu:** [`docs/planning/WBS_EXPORT_S0.5.xlsx_compatible.md`](planning/WBS_EXPORT_S0.5.xlsx_compatible.md)  
 > **Araştırma Notu:** [`docs/planning/RESEARCH_BRIEF_S0.5_STAGING_RAG_AGENTS.md`](planning/RESEARCH_BRIEF_S0.5_STAGING_RAG_AGENTS.md)  
 > **Araştırma Temeli:** `docs/planning/RESEARCH_DEEP_DIVE_AGENT_ARCHITECTURE.md`  
-> **Son Güncelleme:** 2026-02-11
+> **Son Güncelleme:** 2026-02-12
 
 ---
 
@@ -126,6 +126,7 @@ docs/NEXT.md                                             (bu dosya — anlık ey
 | S0.5.3-SYNC-1 | Research gap güncelleme (Sec 9.1 Testing: 1391 test) + NEXT.md final senkron | Tamamlandı | Araştırma dokümanı + planlama tutarlılığı (2026-02-11) |
 | S0.5.3-UX-13 | AKIS A-mark only asset family + favicon refresh (transparent) | Tamamlandı | `akis-mark@2x/@3x` eklendi, compact UI `Logo` srcset güncellendi, favicon seti (`ico+16+32+180+512`) A-mark ile güncellendi (2026-02-11) |
 | S0.5.3-UX-14 | Scribe quality gate kalibrasyonu (result + diagnostics + artifact fallback) | Tamamlandı | `ScribeAgent` kalite metrikleri (`targetsProduced/documentsRead/filesProduced`) eklendi; `AgentOrchestrator.completeJob` quality input fallback zinciri güçlendirildi (`result` → `diagnostics` → `job_artifacts`); Job Detail fallback skoru backend ile hizalandı; backend/frontend test+build doğrulandı (2026-02-11) |
+| S0.5.3-UX-15 | Live Agent Canvas (streaming execution UI) | Tamamlandı | Scribe/Trace/Proto Logs tabları `LiveAgentCanvas` ile değiştirildi; `PhaseProgressBanner`, `InnerMonologue`, `PhaseActivityCards`, `ExpandingFileTree` eklendi; i18n TR/EN + unit testler + `prefers-reduced-motion` desteği tamamlandı (2026-02-12) |
 | S0.5.3-AUTH-2 | Signup mail fail davranışı düzeltmesi (false-success kaldırma) | Tamamlandı | `POST /auth/signup/start` artık verification mail gönderimi başarısızsa `EMAIL_DELIVERY_FAILED` (503) dönüyor ve oluşturulan `pending_verification` kullanıcıyı rollback ediyor; staging kök neden: SMTP auth `535` (2026-02-11) |
 | S0.5.3-AGT-8 | Scribe derin analiz iyileştirmesi (deep scan + multi-doc + granular progress) | Tamamlandı | 10 fazlı uygulama: (1) maxTokens pipeline fix (4096→docDepth-aware), (2) Scribe AI character prompt, (3) 4 eksik contract kaydı, (4) recursive repo scan (3 seviye, 150 dosya), (5) auto-detect doc pack, (6-7) documentsRead metrik fix + maxTokens wiring, (8) granular chat events, (9) playbook timings, (10) frontend DocScope/DocDepth UI + i18n (2026-02-12) |
 
