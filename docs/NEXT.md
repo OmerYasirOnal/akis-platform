@@ -4,7 +4,7 @@
 > **WBS Tablosu:** [`docs/planning/WBS_EXPORT_S0.5.xlsx_compatible.md`](planning/WBS_EXPORT_S0.5.xlsx_compatible.md)  
 > **Araştırma Notu:** [`docs/planning/RESEARCH_BRIEF_S0.5_STAGING_RAG_AGENTS.md`](planning/RESEARCH_BRIEF_S0.5_STAGING_RAG_AGENTS.md)  
 > **Araştırma Temeli:** `docs/planning/RESEARCH_DEEP_DIVE_AGENT_ARCHITECTURE.md`  
-> **Son Güncelleme:** 2026-02-12
+> **Son Güncelleme:** 2026-02-12 (staging deploy `a2a5e41` — 12/12 smoke ✅)
 
 ---
 
@@ -25,9 +25,9 @@ docs/NEXT.md                                             (bu dosya — anlık ey
 | Alan | Değer |
 |------|-------|
 | URL | https://staging.akisflow.com |
-| Deploy Edilen Commit | `9f2c0b4` (deploy bekleniyor — önceki: `b723c2d`, 2026-02-12 13:32 UTC) |
+| Deploy Edilen Commit | `a2a5e41` (canlı `/version` doğrulandı, 2026-02-12 16:29 UTC) |
 | S0.5 PR | [#265](https://github.com/OmerYasirOnal/akis-platform-devolopment/pull/265) — onboarding, feedback, context packs, QA docs, 750+ yeni test |
-| Smoke Testleri | Yeni deploy sonrası çalıştırılacak (önceki: 12/12 geçti, `b723c2d`, 2026-02-12 13:34 UTC) |
+| Smoke Testleri | 12/12 geçti (`staging_smoke.sh --commit a2a5e41`, 2026-02-12 16:29 UTC) |
 | Test Sayısı | Backend: 842 + Frontend: 549 = **1,391 toplam** (Phase 1-8 test kampanyası + S0.5 sprint, 2026-02-11) |
 | Kod Düzeltmeleri | MCP `/ready` durumu, OAuth hoşgeldin e-postası, agents yönlendirme `/agents/*`, logo güncelleme, güvenlik temizliği, E2E test hizalama, Scribe AGT-8 derin analiz iyileştirmesi, GitHub-style light theme tokenları, jobs user isolation (veri sızıntı fix) |
 | Şifreleme | Staging'de yapılandırıldı (`/ready` → `encryption.configured: true`) |
