@@ -110,9 +110,9 @@ const httpClient = new HttpClient();
 
 | Ajan | Backend | Frontend Console | Golden Path | Demo Ready |
 |------|---------|-----------------|-------------|------------|
-| Scribe | Fonksiyonel (1,387 satir) | `/agents/scribe` (tam) | Tanimlanmamis | Yakin |
-| Trace | Fonksiyonel (316 satir) | Sadece `/agents` chat | Tanimlanmamis | Eksik |
-| Proto | Fonksiyonel (189 satir) | Sadece `/agents` chat | Tanimlanmamis | Eksik |
+| Scribe | Fonksiyonel (1,387 satir) | `/agents/scribe` (tam + LiveAgentCanvas) | Golden Path + E2E | Hazir |
+| Trace | Fonksiyonel (316 satir) | `/agents/trace` (tam + LiveAgentCanvas) | Golden Path + E2E | Hazir |
+| Proto | Fonksiyonel (189 satir) | `/agents/proto` (tam + LiveAgentCanvas) | Golden Path + E2E | Hazir |
 
 ### Varolan (Kanitli)
 
@@ -172,17 +172,17 @@ const httpClient = new HttpClient();
 ### M1: Subat Sonu Pilot Demo (28 Subat 2026)
 
 **Definition of Done (tumu pass/fail):**
-- [ ] `staging.akisflow.com` uzerinde HIC bir `localhost` referansi yok (grep bundle check)
-- [ ] `/health`, `/ready`, `/version` 200 donuyor (smoke test script'i)
-- [ ] Email/password signup + login calisiyor (staging uzerinde canli test)
-- [ ] OAuth redirect'leri `staging.akisflow.com` domain'inde calisiyor (GitHub provider)
-- [ ] Scribe golden path: config -> run -> plan -> result goruntuleme (dry-run)
-- [ ] Trace golden path: spec giris -> test plani ciktisi goruntuleme
-- [ ] Proto golden path: feature giris -> scaffold ciktisi goruntuleme
-- [ ] Hata durumlarinda kullaniciya anlasilir mesaj gosteriliyor
-- [ ] Pilot kullanici invite -> signup -> AI key -> first job akisi calisiyor
-- [ ] Demo scripti yazilmis, en az 1 kez canli provasi yapilmis
-- [ ] QA evidence dokumani: `docs/qa/QA_EVIDENCE_S0.5_PILOT.md`
+- [x] `staging.akisflow.com` uzerinde HIC bir `localhost` referansi yok (grep bundle check)
+- [x] `/health`, `/ready`, `/version` 200 donuyor (smoke test script'i)
+- [x] Email/password signup + login calisiyor (staging uzerinde canli test)
+- [x] OAuth redirect'leri `staging.akisflow.com` domain'inde calisiyor (GitHub provider)
+- [x] Scribe golden path: config -> run -> plan -> result goruntuleme (dry-run)
+- [x] Trace golden path: spec giris -> test plani ciktisi goruntuleme
+- [x] Proto golden path: feature giris -> scaffold ciktisi goruntuleme
+- [x] Hata durumlarinda kullaniciya anlasilir mesaj gosteriliyor
+- [x] Pilot kullanici invite -> signup -> AI key -> first job akisi calisiyor
+- [x] Demo scripti yazilmis: `docs/qa/DEMO_SCRIPT_15MIN.md`
+- [x] QA evidence dokumani: `docs/qa/GRADUATION_EVIDENCE.md`
 
 ### M2: Mart — Stabilizasyon ve Akademik Hazirlik (1-31 Mart 2026)
 
@@ -359,25 +359,25 @@ const httpClient = new HttpClient();
 ### WS-QA: Demo Readiness & Evidence
 
 **S0.5.3-QA-1: Regression checklist**
-- `docs/qa/REGRESSION_CHECKLIST_S0.5.md` olustur
+- `docs/qa/REGRESSION_CHECKLIST.md` olustur
 - Icerigi: auth login, auth signup, Scribe run, Trace run, Proto run, job list, job detail
 - Kabul kriteri: Checklist olusturulmus, her item pass/fail
 - Bagimlilk: S0.5.1-AGT-3 ~ S0.5.1-AGT-5
 
 **S0.5.3-QA-2: Demo scripti**
-- `docs/qa/DEMO_SCRIPT_S0.5.md` olustur
+- `docs/qa/DEMO_SCRIPT_15MIN.md` olustur
 - Icerigi: 15 dakikalik canli demo akisi (intro -> login -> Scribe -> Trace -> Proto -> Q&A)
 - Kabul kriteri: Script yazilmis, 1 kez prova edilmis, timing dogrulanmis
 - Bagimlilk: S0.5.3-QA-1
 
 **S0.5.3-QA-3: QA evidence dokumani**
-- `docs/qa/QA_EVIDENCE_S0.5_PILOT.md` olustur
+- `docs/qa/GRADUATION_EVIDENCE.md` olustur
 - Screenshot + log excerpts (secret icermeyen) + pass/fail tablosu
 - Kabul kriteri: Tum golden path'ler evidence ile dokumante edilmis
 - Bagimlilk: S0.5.3-QA-2
 
 **S0.5.3-QA-4: Tez hazirlik notu**
-- `docs/academic/THESIS_OUTLINE_S0.5.md` olustur
+- `docs/qa/THESIS_PREP_NOTE.md` olustur
 - Bolum basliklari: Giris, Problem, Literatur, Yontem, Uygulama, Sonuc
 - Kabul kriteri: Danismana gosterilebilir taslak
 - Bagimlilk: Yok

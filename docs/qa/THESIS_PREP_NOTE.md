@@ -51,7 +51,7 @@ We describe the architecture, implementation, and deployment of AKIS on a cloud 
 | **Output Quality** | Pilot user survey | Likert scale (1-5) on documentation quality |
 | **Developer Productivity** | Time comparison | Manual vs. AKIS-generated documentation time |
 | **System Reliability** | Regression testing | 70+ regression checklist items |
-| **Code Quality** | Static analysis | TypeScript strict mode, 476+ automated tests |
+| **Code Quality** | Static analysis | TypeScript strict mode, 1,695+ automated tests |
 
 ### 3.4 Data Collection
 
@@ -101,14 +101,19 @@ We describe the architecture, implementation, and deployment of AKIS on a cloud 
 | AutoGPT / BabyAGI | General-purpose AI agents | AKIS: domain-specific agents with deterministic pipelines |
 | Sweep AI | Automated bug fixes | AKIS: broader scope (docs, tests, prototypes) |
 
-### 5.2 Agent Frameworks
+### 5.2 Agent Frameworks & UI Research (Updated Feb 2026)
 
-| Framework | Relevance |
+| Framework / Paper | Relevance |
 |-----------|-----------|
 | LangChain / LangGraph | General-purpose LLM orchestration |
 | CrewAI | Multi-agent collaboration |
 | AutoGen (Microsoft) | Conversational agent framework |
 | Model Context Protocol (MCP) | Standardized tool access for AI agents |
+| DuetUI (2025, arXiv:2509.13444) | Bidirectional context loop for human-agent co-generation — validated by AKIS LiveAgentCanvas |
+| AGDebugger (CMU, 2025) | Interactive debugging of multi-agent systems — relevant to AKIS trace/observability |
+| CodingGenie (CHI 2025, arXiv:2503.14724) | Proactive AI assistants for programmers — aligns with AKIS automation model |
+| AutoPrompter (Google, 2025, arXiv:2504.20196) | Context inference for LLM code editing — context packs solve similar challenges |
+| AgentBuilder (2025, arXiv:2510.04452) | Prototyping scaffolds for agent UX — Proto agent addresses same user need |
 
 ### 5.3 Software Engineering Automation
 
@@ -169,4 +174,15 @@ We describe the architecture, implementation, and deployment of AKIS on a cloud 
 
 ---
 
-*This note is a working draft. It will be refined iteratively during M2 (March 2026) as the thesis writing progresses.*
+---
+
+## 10. Literature Review Documents
+
+| Document | Scope | Status |
+|----------|-------|--------|
+| `docs/research/AGENT_UI_UX_LITERATURE_REVIEW.md` | Agent UI/UX patterns, streaming architecture, real-time transparency | Complete (641+ lines, 30+ sources, AKIS implementation mapping added) |
+| `docs/research/TRACE_PROTO_LITERATURE_REVIEW.md` | Test generation & prototyping automation, AI-assisted SE | Complete (286 lines, M2 expansion planned) |
+
+---
+
+*This note is a working draft. Last updated 2026-02-12 (post-S0.5.3 remediation). It will be refined during M2 (March 2026) as thesis writing progresses.*

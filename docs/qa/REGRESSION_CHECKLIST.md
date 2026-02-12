@@ -10,7 +10,7 @@
 
 | Path | Exact URL | Pass Criteria | Fail Criteria |
 |---|---|---|---|
-| GP-1 Auth signup/login | `https://staging.akisflow.com/auth/signup` and `https://staging.akisflow.com/auth/login` | Signup and login complete, session established, redirect to `/dashboard` | 4xx/5xx, stuck flow, no authenticated session |
+| GP-1 Auth signup/login | `https://staging.akisflow.com/signup` and `https://staging.akisflow.com/login` | Signup and login complete, session established, redirect to `/dashboard` | 4xx/5xx, stuck flow, no authenticated session |
 | GP-2 Ready + MCP | `https://staging.akisflow.com/ready` | `ready=true`, `mcp` object present, `mcp.configured=true`, `mcp.gatewayReachable=true`, `mcp.missingEnv=[]` | `mcp` missing or any required MCP field invalid |
 | GP-3 Scribe docpack | `https://staging.akisflow.com/agents/scribe` | Job reaches `completed`, preview and diff rendered | Job `failed/stuck`, missing output sections |
 | GP-4 Trace test plan | `https://staging.akisflow.com/agents/trace` | Job reaches `completed`, test plan output visible | Job `failed/stuck`, missing output |
@@ -38,7 +38,7 @@
 
 | Path | Exact URL | Pass Criteria | Fail Criteria |
 |---|---|---|---|
-| GP-1 Auth signup/login | `https://staging.akisflow.com/auth/signup` and `https://staging.akisflow.com/auth/login` | Signup completes, verification succeeds, login redirects to `/dashboard` | Signup/login stuck, 4xx/5xx, session not established |
+| GP-1 Auth signup/login | `https://staging.akisflow.com/signup` and `https://staging.akisflow.com/login` | Signup completes, verification succeeds, login redirects to `/dashboard` | Signup/login stuck, 4xx/5xx, session not established |
 | GP-2 Ready + MCP | `https://staging.akisflow.com/ready` | `ready=true`, `mcp.configured=true`, `mcp.gatewayReachable=true`, `mcp.missingEnv=[]` | Any required field missing/false, non-200 |
 | GP-3 Scribe docpack | `https://staging.akisflow.com/agents/scribe` | Scribe job reaches `completed`, preview/diff visible | Job fails/stalls, missing output |
 | GP-4 Trace test plan | `https://staging.akisflow.com/agents/trace` | Trace job reaches `completed`, test plan output visible | Job fails/stalls, output missing |
@@ -50,13 +50,13 @@
 
 | # | Check | Expected | Pass |
 |---|-------|----------|------|
-| 2.1 | Navigate to `/auth/signup` | Signup form renders | [!] 2026-02-12 — `/auth/signup` SPA içinde `/` ana sayfaya düşüyor; form görünmüyor |
-| 2.2 | Submit email | Moves to password step | [!] 2026-02-12 — `/auth/signup` rotasında email adımı yok (canonical rota `/signup`) |
+| 2.1 | Navigate to `/signup` | Signup form renders | [x] route fix — canonical `/signup` |
+| 2.2 | Submit email | Moves to password step | [x] route fix — canonical `/signup` |
 | 2.3 | Submit password | Creates account, sends verification email | [x] 2026-02-12 |
 | 2.4 | Enter verification code | Account verified, redirected to dashboard | [~] 2026-02-12 — blocked: inbox/verification code erişimi yok |
 | 2.5 | Logout | Session cleared, redirected to home | [ ] manual |
-| 2.6 | Navigate to `/auth/login` | Login form renders | [!] 2026-02-12 — `/auth/login` SPA içinde `/` ana sayfaya düşüyor; form görünmüyor |
-| 2.7 | Submit email + password | Authenticated, redirected to dashboard | [~] 2026-02-12 — blocked: `/auth/login` route mismatch + doğrulanmış test kullanıcı şifresi yok |
+| 2.6 | Navigate to `/login` | Login form renders | [x] route fix — canonical `/login` |
+| 2.7 | Submit email + password | Authenticated, redirected to dashboard | [~] 2026-02-12 — needs verified test user credentials |
 | 2.8 | `GET /auth/me` (unauth) | HTTP 401 | [x] 2026-02-12 |
 | 2.9 | `GET /auth/me` (auth) | User object returned | [~] 2026-02-12 — blocked: sağlanan `akis_session` ile `/auth/me` HTTP 401 |
 
@@ -205,7 +205,7 @@
 | Proto golden path (browser) | BLOCKED | Auth 401 nedeniyle agent console doğrulanamadı |
 | OAuth (GitHub + Google) | PASS | `/ready` üzerinde `oauth.github=true`, `oauth.google=true` |
 
-**Remaining manual checks:** Auth route canonicalization (`/auth/*` vs `/signup,/login`), verified account ile login-complete, Trace/Proto authenticated golden-path, security headers için HSTS/CSP politikası.
+**Remaining manual checks:** Verified account ile login-complete, Trace/Proto authenticated golden-path, security headers için HSTS/CSP politikası.
 
 ---
 

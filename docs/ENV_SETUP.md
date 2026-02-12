@@ -450,6 +450,21 @@ docker compose restart backend
 
 ---
 
+### AI Retry & Webhooks (Opsiyonel)
+
+| Değişken | Açıklama | Default |
+|----------|----------|---------|
+| `AI_PLANNER_MAX_RETRIES` | AI planner max retry count | `3` |
+| `AI_RETRY_BASE_DELAY_MS` | Base delay between retries (ms) | `1000` |
+| `GITHUB_WEBHOOK_SECRET` | Webhook signature verification | — |
+| `ATLASSIAN_OAUTH_CALLBACK_URL` | Atlassian OAuth redirect URI | `http://localhost:3000/api/integrations/atlassian/oauth/callback` |
+
+### Frontend Staging/Production Note
+
+> **Kritik:** Staging ve production build'lerinde `VITE_BACKEND_URL` **set edilmemelidir**. Frontend, API base URL'ini `window.location.origin` üzerinden `getApiBaseUrl()` fonksiyonu ile çözer. Bu, `frontend/src/services/api/config.ts` dosyasında tanımlıdır.
+
+---
+
 ## 📚 İlgili Belgeler
 
 - [LOCAL_DEV_QUICKSTART.md](local-dev/LOCAL_DEV_QUICKSTART.md) - Kapsamlı local dev rehberi

@@ -499,7 +499,7 @@ docker compose logs backend 2>&1 | grep SmtpEmailService | tail -30
 
 **Process**:
 1. Merge PR to `main`
-2. GitHub Actions `deploy-staging.yml` runs automatically
+2. GitHub Actions `oci-staging-deploy.yml` runs quality gates on push to `main`. Actual deployment requires manual `workflow_dispatch` with `confirm_deploy=deploy`.
 3. Workflow steps:
    - Build and test (backend + frontend)
    - Build Docker images
@@ -523,7 +523,7 @@ docker compose logs backend 2>&1 | grep SmtpEmailService | tail -30
    - `cd /opt/akis`
 
 3. Pull latest compose files (if needed)
-   - Copy from local: `scp devops/compose/* opc@<VM_IP>:/opt/akis/`
+   - Copy from local: `scp deploy/oci/staging/* opc@<VM_IP>:/opt/akis/`
 
 4. Pull latest images
    - `docker compose pull`
