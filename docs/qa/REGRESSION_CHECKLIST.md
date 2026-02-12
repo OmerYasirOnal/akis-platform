@@ -24,7 +24,7 @@
 |---|-------|----------|------|
 | 1.1 | `GET /health` | `{"status":"ok"}` HTTP 200 | [x] 2026-02-12 |
 | 1.2 | `GET /ready` | `{"ready":true}`, DB connected | [x] 2026-02-12 |
-| 1.3 | `GET /version` | Commit SHA matches deployed | [x] a3c8e7f 2026-02-12 |
+| 1.3 | `GET /version` | Commit SHA matches deployed | [x] b723c2d 2026-02-12 |
 | 1.4 | `GET /` | HTML with `id="root"` | [x] 2026-02-12 |
 | 1.5 | `/ready` → `.mcp` | `configured: true` | [x] 2026-02-12 |
 | 1.6 | `/ready` → `.oauth` | `github: true` or `google: true` | [x] both true 2026-02-12 |
@@ -50,15 +50,15 @@
 
 | # | Check | Expected | Pass |
 |---|-------|----------|------|
-| 2.1 | Navigate to `/auth/signup` | Signup form renders | [ ] manual |
-| 2.2 | Submit email | Moves to password step | [ ] manual |
-| 2.3 | Submit password | Creates account, sends verification email | [ ] blocked: Resend domain pending |
-| 2.4 | Enter verification code | Account verified, redirected to dashboard | [ ] blocked: Resend domain pending |
+| 2.1 | Navigate to `/auth/signup` | Signup form renders | [!] 2026-02-12 — `/auth/signup` SPA içinde `/` ana sayfaya düşüyor; form görünmüyor |
+| 2.2 | Submit email | Moves to password step | [!] 2026-02-12 — `/auth/signup` rotasında email adımı yok (canonical rota `/signup`) |
+| 2.3 | Submit password | Creates account, sends verification email | [x] 2026-02-12 |
+| 2.4 | Enter verification code | Account verified, redirected to dashboard | [~] 2026-02-12 — blocked: inbox/verification code erişimi yok |
 | 2.5 | Logout | Session cleared, redirected to home | [ ] manual |
-| 2.6 | Navigate to `/auth/login` | Login form renders | [ ] manual |
-| 2.7 | Submit email + password | Authenticated, redirected to dashboard | [ ] manual |
+| 2.6 | Navigate to `/auth/login` | Login form renders | [!] 2026-02-12 — `/auth/login` SPA içinde `/` ana sayfaya düşüyor; form görünmüyor |
+| 2.7 | Submit email + password | Authenticated, redirected to dashboard | [~] 2026-02-12 — blocked: `/auth/login` route mismatch + doğrulanmış test kullanıcı şifresi yok |
 | 2.8 | `GET /auth/me` (unauth) | HTTP 401 | [x] 2026-02-12 |
-| 2.9 | `GET /auth/me` (auth) | User object returned | [x] 2026-02-12 |
+| 2.9 | `GET /auth/me` (auth) | User object returned | [~] 2026-02-12 — blocked: sağlanan `akis_session` ile `/auth/me` HTTP 401 |
 
 ---
 
@@ -112,17 +112,17 @@
 
 | # | Check | Expected | Pass |
 |---|-------|----------|------|
-| 6.1 | Navigate to `/agents/trace` | Console page renders | [ ] |
-| 6.2 | Agent status badge | Shows Active/Inactive | [ ] |
-| 6.3 | Enter spec in textarea | Text accepted | [ ] |
-| 6.4 | "Run Trace" enabled | When spec non-empty | [ ] |
-| 6.5 | Click "Run Trace" | Job submitted (201) | [x] API completed 2026-02-12 |
-| 6.6 | Logs tab | Trace events stream | [ ] |
-| 6.7 | Status transitions | Ready → Queued → Running → Complete | [ ] |
-| 6.8 | Results tab | Test plan JSON/Markdown visible | [ ] |
-| 6.9 | Button re-enables | After completion or failure | [ ] |
-| 6.10 | Empty spec submit | Validation error shown | [ ] |
-| 6.11 | No AI key | AI_KEY_MISSING error shown | [x] API 2026-02-12 |
+| 6.1 | Navigate to `/agents/trace` | Console page renders | [~] 2026-02-12 — blocked: auth session 401 |
+| 6.2 | Agent status badge | Shows Active/Inactive | [~] 2026-02-12 — blocked: auth session 401 |
+| 6.3 | Enter spec in textarea | Text accepted | [~] 2026-02-12 — blocked: auth session 401 |
+| 6.4 | "Run Trace" enabled | When spec non-empty | [~] 2026-02-12 — blocked: auth session 401 |
+| 6.5 | Click "Run Trace" | Job submitted (201) | [~] 2026-02-12 — blocked: `/auth/me` HTTP 401, Phase 2 durduruldu |
+| 6.6 | Logs tab | Trace events stream | [~] 2026-02-12 — blocked: auth session 401 |
+| 6.7 | Status transitions | Ready → Queued → Running → Complete | [~] 2026-02-12 — blocked: auth session 401 |
+| 6.8 | Results tab | Test plan JSON/Markdown visible | [~] 2026-02-12 — blocked: auth session 401 |
+| 6.9 | Button re-enables | After completion or failure | [~] 2026-02-12 — blocked: auth session 401 |
+| 6.10 | Empty spec submit | Validation error shown | [~] 2026-02-12 — blocked: auth session 401 |
+| 6.11 | No AI key | AI_KEY_MISSING error shown | [~] 2026-02-12 — blocked: auth session 401 |
 
 ---
 
@@ -130,17 +130,17 @@
 
 | # | Check | Expected | Pass |
 |---|-------|----------|------|
-| 7.1 | Navigate to `/agents/proto` | Console page renders | [ ] |
-| 7.2 | Agent status badge | Shows Active/Inactive | [ ] |
-| 7.3 | Enter description | Text accepted | [ ] |
-| 7.4 | "Run Proto" enabled | When description non-empty | [ ] |
-| 7.5 | Click "Run Proto" | Job submitted (201) | [x] API completed 2026-02-12 |
-| 7.6 | Logs tab | Progress events stream | [ ] |
-| 7.7 | Status transitions | Ready → Queued → Running → Complete | [ ] |
-| 7.8 | Results tab | Prototype files visible | [ ] |
-| 7.9 | Button re-enables | After completion or failure | [ ] |
-| 7.10 | Empty description submit | Validation error shown | [ ] |
-| 7.11 | No AI key | AI_KEY_MISSING error shown | [x] API 2026-02-12 |
+| 7.1 | Navigate to `/agents/proto` | Console page renders | [~] 2026-02-12 — blocked: auth session 401 |
+| 7.2 | Agent status badge | Shows Active/Inactive | [~] 2026-02-12 — blocked: auth session 401 |
+| 7.3 | Enter description | Text accepted | [~] 2026-02-12 — blocked: auth session 401 |
+| 7.4 | "Run Proto" enabled | When description non-empty | [~] 2026-02-12 — blocked: auth session 401 |
+| 7.5 | Click "Run Proto" | Job submitted (201) | [~] 2026-02-12 — blocked: `/auth/me` HTTP 401, Phase 3 durduruldu |
+| 7.6 | Logs tab | Progress events stream | [~] 2026-02-12 — blocked: auth session 401 |
+| 7.7 | Status transitions | Ready → Queued → Running → Complete | [~] 2026-02-12 — blocked: auth session 401 |
+| 7.8 | Results tab | Prototype files visible | [~] 2026-02-12 — blocked: auth session 401 |
+| 7.9 | Button re-enables | After completion or failure | [~] 2026-02-12 — blocked: auth session 401 |
+| 7.10 | Empty description submit | Validation error shown | [~] 2026-02-12 — blocked: auth session 401 |
+| 7.11 | No AI key | AI_KEY_MISSING error shown | [~] 2026-02-12 — blocked: auth session 401 |
 
 ---
 
@@ -148,12 +148,13 @@
 
 | # | Check | Expected | Pass |
 |---|-------|----------|------|
-| 8.1 | `GET /api/agents/jobs` (unauth) | Returns jobs or 401 | [x] 200 2026-02-12 |
+| 8.1 | `GET /api/agents/jobs` (unauth) | HTTP 401 (S0.5.3-AUTH-3 user isolation) | [ ] verify post-merge |
 | 8.2 | `GET /api/agents/jobs/running` (unauth) | HTTP 401 | [x] 401 2026-02-12 |
 | 8.3 | `POST /api/agents/jobs` (unauth) | HTTP 401 | [~] 400 validation-before-auth |
-| 8.4 | `GET /api/settings/ai-keys/status` (auth) | Provider status JSON | [x] openai configured 2026-02-12 |
+| 8.4 | `GET /api/settings/ai-keys/status` (auth) | Provider status JSON | [~] 2026-02-12 — blocked: sağlanan session ile auth 401 |
 | 8.5 | `GET /api/usage/current-month` (auth) | Usage stats JSON | [x] 237k tokens 2026-02-12 |
 | 8.6 | `GET /brand/logo.png` | HTTP 200, image content | [x] 2026-02-12 |
+| 8.7 | Jobs user isolation (S0.5.3-AUTH-3) | User A sees only own jobs; User B gets 404 for User A's job IDs | [ ] verify post-merge |
 
 ---
 
@@ -164,7 +165,7 @@
 | 9.1 | No localhost leaks | No `localhost` or `127.0.0.1` in HTML/API | [x] 2026-02-12 |
 | 9.2 | trust-proxy active | Cookies set with `Secure` flag | [x] deployment config 2026-02-12 |
 | 9.3 | CORS headers | `Access-Control-Allow-Origin` present | [x] staging origin 2026-02-12 |
-| 9.4 | Security headers | `X-Content-Type-Options`, `X-Frame-Options`, HSTS | [x] CSP+HSTS+XFO+XCTO+XSS 2026-02-12 |
+| 9.4 | Security headers | `X-Content-Type-Options`, `X-Frame-Options`, HSTS | [!] 2026-02-12 — `X-Content-Type-Options` ve `X-Frame-Options` var, HSTS/CSP header gözlenmedi |
 | 9.5 | SPA deep links | `/agents/scribe`, `/agents/trace`, `/agents/proto` return HTML | [x] all 200 with root 2026-02-12 |
 | 9.6 | Route redirects | `/dashboard/scribe` → `/agents/scribe` | [x] SPA client-side 2026-02-12 |
 | 9.7 | Rate limiting | Rapid requests get 429 | [~] no 429 after 50 req — limit high or /health excluded |
@@ -187,21 +188,24 @@
 
 ## Latest Test Run — 2026-02-12
 
-**Tester:** Automated via API (JWT auth)
-**Staging commit:** `a3c8e7f`
+**Tester:** Codex (automated + browser verification)
+**Staging commit:** `b723c2d`
+**Main HEAD:** `b723c2d` (Scribe AGT-8 staging'de canlı)
 
 | Area | Status | Notes |
 |------|--------|-------|
-| Smoke tests (staging_smoke.sh) | 12/12 PASS | All green |
-| Infrastructure (/health, /ready, /version) | PASS | `ready=true`, MCP configured, email=resend |
-| MCP Gateway | PASS | `configured=true`, `gatewayReachable=true`, `missingEnv=[]` |
-| Scribe golden path (API dry-run) | PASS | Job `a9a8f02b` completed — plan, preview, critiques, diagnostics |
-| Trace golden path (API) | PASS | Job `49d244f5` completed — testPlan, coverageMatrix, artifacts |
-| Proto golden path (API) | PASS | Job `5a8f7a45` completed — artifacts, critique, reflectionChecks |
-| OAuth (GitHub + Google) | PASS | `/ready` shows both providers active |
-| Email signup | BLOCKED | Resend.com domain verification pending (DNS propagation); API key valid |
+| Smoke tests (staging_smoke.sh) | PASS | `./scripts/staging_smoke.sh --commit b723c2d` → 12/12 (13:34 UTC) |
+| Infrastructure (/health, /ready, /version) | PASS | `/health` 200, `/ready` healthy, `/version.commit=b723c2d` |
+| MCP Gateway | PASS | `/ready.mcp.configured=true`, `gatewayReachable=true`, `missingEnv=[]` |
+| Email signup (API) | PASS | `/auth/signup/start` → 201 `pending_verification` |
+| Email signup (browser) | PARTIAL | `/signup` akışı password adımına geçti; verify-code adımı inbox erişimi nedeniyle tamamlanamadı |
+| Trace golden path (API) | BLOCKED | Sağlanan `akis_session` ile `/auth/me` 401 döndü; kural gereği Phase 2 durduruldu |
+| Trace golden path (browser) | BLOCKED | Auth 401 nedeniyle agent console doğrulanamadı |
+| Proto golden path (API) | BLOCKED | Auth 401 nedeniyle Phase 3 durduruldu |
+| Proto golden path (browser) | BLOCKED | Auth 401 nedeniyle agent console doğrulanamadı |
+| OAuth (GitHub + Google) | PASS | `/ready` üzerinde `oauth.github=true`, `oauth.google=true` |
 
-**Remaining manual checks:** Auth flow (browser), Dashboard onboarding, SSE live stream, error handling, security headers.
+**Remaining manual checks:** Auth route canonicalization (`/auth/*` vs `/signup,/login`), verified account ile login-complete, Trace/Proto authenticated golden-path, security headers için HSTS/CSP politikası.
 
 ---
 

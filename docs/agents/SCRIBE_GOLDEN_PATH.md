@@ -8,7 +8,7 @@
 
 ## 1. What the User Does (UI Flow)
 
-1. Navigate to **Dashboard → Scribe** (`/dashboard/scribe`)
+1. Navigate to **Agents → Scribe** (`/agents/scribe`)
 2. Confirm GitHub is connected (owner field shows `@<username>`)
 3. Select a **repository** from the dropdown (populated from GitHub API)
 4. Select a **base branch** (default: `main`)
@@ -54,7 +54,7 @@
 
 ### PASS — All must be true:
 
-- [ ] Page renders at `/dashboard/scribe` with "Scribe Console" heading
+- [ ] Page renders at `/agents/scribe` with "Scribe Console" heading
 - [ ] GitHub-connected user sees their repos and branches
 - [ ] "Run Scribe" button is enabled when owner + repo + branch are selected
 - [ ] Job submission sends correct payload shape (`type: 'scribe'`, `payload.owner/repo/baseBranch`)

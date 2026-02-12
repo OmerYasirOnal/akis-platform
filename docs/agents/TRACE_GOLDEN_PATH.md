@@ -8,7 +8,7 @@
 
 ## 1. What the User Does (UI Flow)
 
-1. Navigate to **Dashboard → Trace** (`/dashboard/trace`)
+1. Navigate to **Agents → Trace** (`/agents/trace`)
 2. Confirm agent status badge shows "Active" or "Inactive"
 3. Enter a **test specification** in the textarea (acceptance criteria, user story, Gherkin, etc.)
 4. Click **"Run Trace"**
@@ -47,7 +47,7 @@
 
 ### PASS — All must be true:
 
-- [ ] Page renders at `/dashboard/trace` with "Trace Console" heading
+- [ ] Page renders at `/agents/trace` with "Trace Console" heading
 - [ ] Agent status badge visible (Active/Inactive)
 - [ ] Textarea accepts specification input
 - [ ] "Run Trace" button enables when spec is non-empty
@@ -57,7 +57,7 @@
 - [ ] Results tab shows JSON-formatted output after completion
 - [ ] On job failure: Status shows "Failed", Logs show error
 - [ ] After completion, Run Trace re-enables for retry
-- [ ] Deep link `/dashboard/trace` returns SPA HTML (not 404)
+- [ ] Deep link `/agents/trace` returns SPA HTML (not 404)
 
 ### FAIL — Any of:
 
