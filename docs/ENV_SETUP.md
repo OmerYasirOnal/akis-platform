@@ -360,6 +360,9 @@ curl -s -b cookies.txt http://localhost:3000/api/integrations/atlassian/status |
 | `LOG_LEVEL`               | ❌      | `info`              | Pino log seviyesi                |
 | `CORS_ORIGINS`            | ❌      | `http://localhost:5173` | İzin verilen CORS originleri |
 | `GITHUB_MCP_BASE_URL`     | ❌      | -                   | MCP Gateway URL'i                |
+| `EMAIL_PROVIDER`          | ❌      | `mock`              | Email: mock/resend/smtp          |
+| `RESEND_API_KEY`          | ❌      | -                   | Resend.com API key               |
+| `RESEND_FROM_EMAIL`       | ❌      | -                   | Resend sender email              |
 | `AI_PROVIDER`             | ❌      | `mock`              | AI provider: mock/openrouter/openai |
 | `AI_API_KEY`              | ❌      | -                   | AI API key (OpenRouter/OpenAI)   |
 | `AI_MODEL_DEFAULT`        | ❌      | Provider-specific   | Varsayılan LLM modeli            |
@@ -390,6 +393,24 @@ curl -s -b cookies.txt http://localhost:3000/api/integrations/atlassian/status |
 | Local Dev | `backend/.env` + `.env.local` | Geliştirme ortamı |
 | Staging | `/opt/akis/.env` | OCI staging sunucusu |
 | Production | `/opt/akis/.env` | Production sunucusu |
+
+### Email Provider (Staging/Production)
+
+| Değişken | Açıklama | Değerler |
+|----------|----------|----------|
+| `EMAIL_PROVIDER` | Email gönderim sağlayıcısı | `mock` (dev), `resend` (staging/prod), `smtp` (legacy) |
+| `RESEND_API_KEY` | Resend.com API anahtarı | `re_xxxx` |
+| `RESEND_FROM_EMAIL` | Gönderen email adresi | `noreply@akisflow.com` |
+
+**Staging'de Resend kullanımı (2026-02-12'den itibaren):**
+
+```bash
+EMAIL_PROVIDER=resend
+RESEND_API_KEY=re_xxxx
+RESEND_FROM_EMAIL=noreply@akisflow.com
+```
+
+> ⚠️ Resend kullanmak için `akisflow.com` domain'inin Resend dashboard'da doğrulanmış olması gerekir (DKIM, SPF, DMARC DNS kayıtları).
 
 ### AI Key Encryption (Staging/Production zorunlu)
 

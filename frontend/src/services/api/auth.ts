@@ -27,13 +27,14 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     let errorMessage: string;
     try {
       const errorData = JSON.parse(rawMessage);
-      errorMessage = errorData.error || errorData.message || rawMessage;
+      const errField = errorData.error;
+      errorMessage = (typeof errField === 'string' ? errField : errField?.message) || errorData.message || rawMessage;
     } catch {
       errorMessage = rawMessage;
     }
     
     // Convert technical errors to user-friendly messages
-    if (response.status === 404 || errorMessage.toLowerCase().includes('not found')) {
+    if (response.status === 404 || (typeof errorMessage === 'string' && errorMessage.toLowerCase().includes('not found'))) {
       errorMessage = 'Service temporarily unavailable. Please try again.';
     } else if (response.status >= 500) {
       errorMessage = 'Server error. Please try again later.';
