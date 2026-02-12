@@ -809,7 +809,7 @@ export async function agentsRoutes(fastify: FastifyInstance) {
     },
     async (request, reply) => {
       try {
-        // Validate params with Zod (UUID format)
+        const user = await requireAuth(request);
         const params = jobIdParamsSchema.parse(request.params);
         const query = includeQuerySchema.parse(request.query || {});
 
@@ -832,6 +832,14 @@ export async function agentsRoutes(fastify: FastifyInstance) {
             return;
           }
           job = result[0];
+          const jobPayload = job.payload as Record<string, unknown> | null;
+          const jobUserId = jobPayload?.userId as string | undefined;
+          if (jobUserId && jobUserId !== user.id) {
+            return reply.code(404).send({
+              error: { code: 'NOT_FOUND', message: `Job ${params.id} not found` },
+              requestId: request.id,
+            });
+          }
         } catch (error) {
           const errorResponse = formatErrorResponse(request, error);
           const statusCode = getStatusCodeForError(errorResponse.error.code);
@@ -1088,7 +1096,11 @@ export async function agentsRoutes(fastify: FastifyInstance) {
 
         return response;
       } catch (error) {
-        // Phase 7.E: Use unified error model
+        if (error instanceof Error && error.message === 'UNAUTHORIZED') {
+          return reply.code(401).send({
+            error: { code: 'UNAUTHORIZED', message: 'Authentication required' },
+          });
+        }
         const errorResponse = formatErrorResponse(request, error);
         const statusCode = getStatusCodeForError(errorResponse.error.code);
         reply.code(statusCode).send(errorResponse);
@@ -1147,11 +1159,11 @@ export async function agentsRoutes(fastify: FastifyInstance) {
     },
     async (request, reply) => {
       try {
-        // Validate query params with Zod
+        const user = await requireAuth(request);
         const query = jobsListQuerySchema.parse(request.query || {});
 
-        // Build where clause
-        const conditions = [];
+        // Build where clause - always filter by userId for user isolation
+        const conditions = [sql`(${jobs.payload}->>'userId')::text = ${user.id}`];
         if (query.type) {
           conditions.push(eq(jobs.type, query.type));
         }
@@ -1209,7 +1221,11 @@ export async function agentsRoutes(fastify: FastifyInstance) {
           nextCursor,
         };
       } catch (error) {
-        // Phase 7.E: Use unified error model
+        if (error instanceof Error && error.message === 'UNAUTHORIZED') {
+          return reply.code(401).send({
+            error: { code: 'UNAUTHORIZED', message: 'Authentication required' },
+          });
+        }
         const errorResponse = formatErrorResponse(request, error);
         const statusCode = getStatusCodeForError(errorResponse.error.code);
         reply.code(statusCode).send(errorResponse);
@@ -1879,12 +1895,22 @@ export async function agentsRoutes(fastify: FastifyInstance) {
     },
     async (request, reply) => {
       try {
+        const user = await requireAuth(request);
         const params = jobIdParamsSchema.parse(request.params);
 
         // Fetch job
         const [job] = await db.select().from(jobs).where(eq(jobs.id, params.id)).limit(1);
         if (!job) {
           throw new JobNotFoundError(params.id);
+        }
+
+        const jobPayload = job.payload as Record<string, unknown> | null;
+        const jobUserId = jobPayload?.userId as string | undefined;
+        if (jobUserId && jobUserId !== user.id) {
+          return reply.code(404).send({
+            error: { code: 'NOT_FOUND', message: `Job ${params.id} not found` },
+            requestId: request.id,
+          });
         }
 
         // Check if job can be cancelled (only pending or running)

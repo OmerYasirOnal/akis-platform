@@ -108,7 +108,7 @@ All quality gates pass on every commit:
 pnpm -r typecheck   → 0 errors
 pnpm -r lint        → 0 errors
 pnpm -r build       → clean build
-pnpm -r test        → 797 backend + 547 frontend = 1,344 tests
+pnpm -r test        → 842 backend + 549 frontend = 1,391 tests
 ```
 
 ---

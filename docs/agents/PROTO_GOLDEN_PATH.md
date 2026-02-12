@@ -8,7 +8,7 @@
 
 ## 1. What the User Does (UI Flow)
 
-1. Navigate to **Dashboard → Proto** (`/dashboard/proto`)
+1. Navigate to **Agents → Proto** (`/agents/proto`)
 2. Confirm agent status badge shows "Active" or "Inactive"
 3. Enter a **feature description** in the textarea
 4. Optionally configure **prototype scope** (UI component / API endpoint / full-stack)
@@ -48,7 +48,7 @@
 
 ### PASS — All must be true:
 
-- [ ] Page renders at `/dashboard/proto` with "Proto Console" heading
+- [ ] Page renders at `/agents/proto` with "Proto Console" heading
 - [ ] Agent status badge visible (Active/Inactive)
 - [ ] Textarea accepts feature description input
 - [ ] "Run Proto" button enables when description is non-empty
@@ -58,7 +58,7 @@
 - [ ] Results tab shows generated prototype content after completion
 - [ ] On job failure: Status shows "Failed", Logs show error
 - [ ] After completion, Run Proto re-enables for retry
-- [ ] Deep link `/dashboard/proto` returns SPA HTML (not 404)
+- [ ] Deep link `/agents/proto` returns SPA HTML (not 404)
 
 ### FAIL — Any of:
 

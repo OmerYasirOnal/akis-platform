@@ -110,7 +110,7 @@ const httpClient = new HttpClient();
 
 | Ajan | Backend | Frontend Console | Golden Path | Demo Ready |
 |------|---------|-----------------|-------------|------------|
-| Scribe | Fonksiyonel (1,387 satir) | `/dashboard/scribe` (tam) | Tanimlanmamis | Yakin |
+| Scribe | Fonksiyonel (1,387 satir) | `/agents/scribe` (tam) | Tanimlanmamis | Yakin |
 | Trace | Fonksiyonel (316 satir) | Sadece `/agents` chat | Tanimlanmamis | Eksik |
 | Proto | Fonksiyonel (189 satir) | Sadece `/agents` chat | Tanimlanmamis | Eksik |
 
@@ -341,13 +341,13 @@ const httpClient = new HttpClient();
 - Dosya: `frontend/src/pages/dashboard/agents/DashboardAgentTracePage.tsx`
 - Referans: `DashboardAgentScribePage.tsx` (simplified)
 - Minimal: Spec textarea + model secimi + Run butonu + sonuc goruntuleme
-- Kabul kriteri: `/dashboard/trace` route'u calisiyor, job baslatilabiliyor
+- Kabul kriteri: `/agents/trace` route'u calisiyor, job baslatilabiliyor
 - Bagimlilk: S0.5.0-OPS-6
 
 **S0.5.2-UX-2: Proto console sayfasi**
 - Dosya: `frontend/src/pages/dashboard/agents/DashboardAgentProtoPage.tsx`
 - Minimal: Feature textarea + model secimi + Run butonu + sonuc goruntuleme
-- Kabul kriteri: `/dashboard/proto` route'u calisiyor, job baslatilabiliyor
+- Kabul kriteri: `/agents/proto` route'u calisiyor, job baslatilabiliyor
 - Bagimlilk: S0.5.0-OPS-6
 
 **S0.5.2-UX-3: Dashboard "Getting Started" karti**
