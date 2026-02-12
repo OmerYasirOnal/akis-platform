@@ -1204,6 +1204,7 @@ If no issues, output: []`;
 
     const critiques = [];
     for (const file of updatedFiles) {
+      await this.traceRecorder?.emitLog('info', `Reviewing ${file.path} for quality...`);
       const critiqueStartTime = Date.now();
       this.traceRecorder?.recordToolCall({
         toolName: 'ai.critique',
@@ -1221,6 +1222,7 @@ If no issues, output: []`;
       });
       
       critiques.push({ path: file.path, critique });
+      await this.traceRecorder?.emitLog('info', `Review complete for ${file.path}: ${critique.issues?.length || 0} issue(s)`);
 
       this.traceRecorder?.recordReasoning({
         phase: 'review',
@@ -1316,6 +1318,7 @@ If no issues, output: []`;
 
     const commits = [];
     for (const file of updatedFiles) {
+      await this.traceRecorder?.emitLog('info', `Committing ${file.path} to ${workingBranch}...`);
       const commitStartTime = Date.now();
       this.traceRecorder?.recordToolCall({
         toolName: 'github.commitFile',
