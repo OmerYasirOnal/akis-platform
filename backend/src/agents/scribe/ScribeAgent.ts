@@ -438,6 +438,20 @@ export class ScribeAgent extends BaseAgent {
   }
 
   /**
+   * Auto-detect the appropriate DocPack level from repo analysis
+   */
+  private detectRequiredDocuments(repoContext: RepoContext): DocPack {
+    const fileCount = repoContext.fileCount ?? 0;
+    const structure = repoContext.sourceStructure;
+    const hasRoutes = (structure?.routes.length ?? 0) > 0;
+    const hasModels = (structure?.models.length ?? 0) > 0;
+
+    if (fileCount >= 50 || (hasRoutes && hasModels)) return 'full';
+    if (fileCount >= 10 || hasRoutes || repoContext.hasDockerfile) return 'standard';
+    return 'readme';
+  }
+
+  /**
    * Detect project type based on existing files and directories
    */
   private detectProjectType(
@@ -739,7 +753,7 @@ export class ScribeAgent extends BaseAgent {
     }
 
     // Resolve doc pack configuration with defaults
-    const docPackConfig: ResolvedDocPackConfig = resolveDocPackConfig({
+    let docPackConfig: ResolvedDocPackConfig = resolveDocPackConfig({
       docPack: task.docPack,
       docDepth: task.docDepth,
       outputTargets: task.outputTargets,
@@ -854,25 +868,67 @@ export class ScribeAgent extends BaseAgent {
       status: 'completed',
     });
 
-    // Step 2: Repo Scan & Scope Lock (contract-first playbook)
+    // Step 2: Gather Repository Context FIRST (enables auto-detection)
+    this.traceRecorder?.recordPlanStep({
+      stepId: 'gather-context',
+      title: 'Gather Repository Context',
+      description: 'Deep scanning repository for documentation evidence',
+      reasoning: 'Grounded documentation requires reading actual repository files. Deep scan enables auto-detection of required docs.',
+      status: 'running',
+    });
+
+    const repoContext = await this.gatherRepoContext(task.owner, task.repo, baseBranch);
+
+    this.traceRecorder?.recordPlanStep({
+      stepId: 'gather-context',
+      title: 'Gather Repository Context',
+      description: `Gathered context from ${repoContext.keyFiles?.length || 0} key files (${repoContext.fileCount || 0} total discovered)`,
+      reasoning: `Found: ${repoContext.techStack?.join(', ') || 'unknown stack'}, ${repoContext.packageManager || 'unknown'} package manager`,
+      status: 'completed',
+    });
+
+    // Auto-detect docPack if not explicitly set
+    if (!task.docPack) {
+      const detectedPack = this.detectRequiredDocuments(repoContext);
+      if (detectedPack !== 'readme') {
+        docPackConfig = resolveDocPackConfig({
+          docPack: detectedPack,
+          docDepth: task.docDepth,
+          maxOutputTokens: task.maxOutputTokens,
+          passes: task.passes,
+        });
+
+        this.traceRecorder?.recordDecision({
+          title: 'Auto-detected doc pack level',
+          decision: `Upgraded to "${detectedPack}" based on repo analysis`,
+          reasoning: `Repository has ${repoContext.fileCount || 0} files. Routes: ${repoContext.sourceStructure?.routes.length || 0}, Models: ${repoContext.sourceStructure?.models.length || 0}. Dockerfile: ${repoContext.hasDockerfile ? 'yes' : 'no'}.`,
+        });
+
+        await this.traceRecorder?.emitLog('info', `Auto-detected doc pack: ${detectedPack} (${docPackConfig.outputTargets.length} targets)`);
+      }
+    }
+
+    // Step 3: Repo Scan & Scope Lock (contract-first playbook)
     const targetPath = task.targetPath || 'README.md';
     const isDirectory = targetPath.endsWith('/');
-    
+
     this.traceRecorder?.recordPlanStep({
       stepId: 'repo-scan',
-      title: 'Repository Scan',
-      description: `Scanning target: ${targetPath}`,
-      reasoning: isDirectory 
+      title: 'Resolve Documentation Targets',
+      description: `Resolving targets for: ${targetPath}`,
+      reasoning: isDirectory
         ? 'Target is a directory. Will discover existing documentation files and select appropriate targets based on the task.'
-        : 'Target is a specific file. Will read existing content and apply documentation contract.',
+        : docPackConfig.outputTargets.length > 1
+          ? `Doc pack "${docPackConfig.docPack}" with ${docPackConfig.outputTargets.length} target(s)`
+          : 'Target is a specific file. Will read existing content and apply documentation contract.',
       status: 'running',
     });
 
     // Discover file targets
     const fileTargets: DocFileTarget[] = [];
 
-    // If docPack is configured, use pack targets instead of filesystem discovery
-    if (docPackConfig.outputTargets.length > 0 && task.docPack) {
+    // Use doc pack targets when available (explicit or auto-detected)
+    if (docPackConfig.outputTargets.length > 0) {
       this.traceRecorder?.recordDecision({
         title: 'Doc Pack mode active',
         decision: `Using doc pack "${docPackConfig.docPack}" with ${docPackConfig.outputTargets.length} target(s)`,
@@ -997,27 +1053,7 @@ export class ScribeAgent extends BaseAgent {
       reasoning: `Selected files based on task requirements and documentation contracts. Priority order: ${fileTargets.map(f => `${f.path} (priority ${f.priority})`).join(', ')}`,
     });
 
-    // Step 2.5: Gather Repository Context for grounded documentation
-    this.traceRecorder?.recordPlanStep({
-      stepId: 'gather-context',
-      title: 'Gather Repository Context',
-      description: 'Reading key repository files for grounded documentation',
-      reasoning: 'Grounded documentation requires reading actual repository files to avoid hallucination.',
-      status: 'running',
-    });
-
-    // Use baseBranch for reading context (workingBranch may not exist yet)
-    const repoContext = await this.gatherRepoContext(task.owner, task.repo, baseBranch);
-    
-    this.traceRecorder?.recordPlanStep({
-      stepId: 'gather-context',
-      title: 'Gather Repository Context',
-      description: `Gathered context from ${repoContext.keyFiles?.length || 0} key files`,
-      reasoning: `Found: ${repoContext.techStack?.join(', ') || 'unknown stack'}, ${repoContext.packageManager || 'unknown'} package manager`,
-      status: 'completed',
-    });
-
-    // Step 3: Generate contract-compliant content for each target
+    // Step 4: Generate contract-compliant content for each target
     this.traceRecorder?.recordPlanStep({
       stepId: 'generate-content',
       title: 'Generate Documentation',
