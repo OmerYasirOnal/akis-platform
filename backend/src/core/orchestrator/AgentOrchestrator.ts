@@ -18,6 +18,7 @@ import { StaticCheckRunner, type AllChecksResult } from '../../services/checks/i
 import { createTraceRecorder, type TraceRecorder } from '../tracing/TraceRecorder.js';
 import { jobEventBus } from '../events/JobEventBus.js';
 import { computeQualityScore, type QualityInput } from '../../services/quality/QualityScoring.js';
+import { getCrewRunManager } from '../../api/crew.js';
 
 export const DEV_GITHUB_BOOTSTRAP_TOKEN_PLACEHOLDER = '__DEV_GITHUB_BOOTSTRAP__';
 
@@ -1164,6 +1165,24 @@ export class AgentOrchestrator {
     } catch (error) {
       throw new DatabaseError(`Failed to update job: ${error instanceof Error ? error.message : String(error)}`, error);
     }
+
+    // M2: Notify CrewRunManager if this job is part of a crew run
+    try {
+      const [completedJob] = await db.select().from(jobs).where(eq(jobs.id, jobId)).limit(1);
+      if (completedJob?.crewRunId) {
+        const crewManager = getCrewRunManager();
+        if (crewManager) {
+          await crewManager.onWorkerCompleted(
+            completedJob.crewRunId,
+            jobId,
+            completedJob.workerRole ?? 'unknown',
+            result,
+          );
+        }
+      }
+    } catch (crewErr) {
+      console.warn('[AgentOrchestrator] Crew notification on complete failed:', crewErr);
+    }
   }
 
   /**
@@ -1317,6 +1336,24 @@ export class AgentOrchestrator {
         .where(eq(jobs.id, jobId));
     } catch (err) {
       throw new DatabaseError(`Failed to update job: ${err instanceof Error ? err.message : String(err)}`, err);
+    }
+
+    // M2: Notify CrewRunManager if this job is part of a crew run
+    try {
+      const [failedJob] = await db.select().from(jobs).where(eq(jobs.id, jobId)).limit(1);
+      if (failedJob?.crewRunId) {
+        const crewManager = getCrewRunManager();
+        if (crewManager) {
+          await crewManager.onWorkerFailed(
+            failedJob.crewRunId,
+            jobId,
+            failedJob.workerRole ?? 'unknown',
+            rawError,
+          );
+        }
+      }
+    } catch (crewErr) {
+      console.warn('[AgentOrchestrator] Crew notification on fail failed:', crewErr);
     }
   }
 
