@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type {
   StreamEvent,
   StageStreamEvent,
@@ -216,6 +216,9 @@ export function InnerMonologue({
   const t = useCallback((key: string) => translate(key as never), [translate]);
 
   const logRef = useRef<HTMLDivElement | null>(null);
+  const isNearBottomRef = useRef(true);
+  const [showNewMessages, setShowNewMessages] = useState(false);
+  const prevCountRef = useRef(0);
 
   const sourceEvents = useMemo<StreamEvent[]>(() => {
     if (events.length > 0) {
@@ -233,20 +236,53 @@ export function InnerMonologue({
   const latestMessage = monologueMessages[monologueMessages.length - 1];
   const { displayedText, isTyping } = useTypewriter(latestMessage?.text ?? '');
 
+  // Track scroll position to determine if user is near bottom
   useEffect(() => {
     const node = logRef.current;
     if (!node) return;
 
-    node.scrollTop = node.scrollHeight;
+    const handleScroll = () => {
+      const threshold = 60;
+      const distanceFromBottom = node.scrollHeight - node.scrollTop - node.clientHeight;
+      isNearBottomRef.current = distanceFromBottom <= threshold;
+      if (isNearBottomRef.current) {
+        setShowNewMessages(false);
+      }
+    };
+
+    node.addEventListener('scroll', handleScroll, { passive: true });
+    return () => node.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  // Smart auto-scroll: only scroll if user is near bottom
+  useEffect(() => {
+    const node = logRef.current;
+    if (!node) return;
+
+    const hasNewMessages = monologueMessages.length > prevCountRef.current;
+    prevCountRef.current = monologueMessages.length;
+
+    if (isNearBottomRef.current) {
+      node.scrollTop = node.scrollHeight;
+    } else if (hasNewMessages) {
+      setShowNewMessages(true);
+    }
   }, [monologueMessages.length]);
 
+  const scrollToBottom = useCallback(() => {
+    const node = logRef.current;
+    if (!node) return;
+    node.scrollTo({ top: node.scrollHeight, behavior: 'smooth' });
+    setShowNewMessages(false);
+  }, []);
+
   return (
-    <div className="rounded-lg bg-ak-surface p-4">
+    <div className="relative rounded-lg bg-ak-surface p-4">
       <div
         ref={logRef}
         role="log"
         aria-live="polite"
-        className="max-h-[300px] overflow-y-auto pr-1 font-mono text-sm"
+        className="max-h-[60vh] overflow-y-auto pr-1 font-mono text-sm"
       >
         {monologueMessages.length === 0 && (
           <p className="text-ak-text-secondary" role="status">
@@ -288,6 +324,17 @@ export function InnerMonologue({
           );
         })}
       </div>
+
+      {/* Floating "new messages" pill */}
+      {showNewMessages && (
+        <button
+          type="button"
+          onClick={scrollToBottom}
+          className="absolute bottom-6 left-1/2 -translate-x-1/2 rounded-full bg-ak-primary px-4 py-1.5 text-xs font-medium text-ak-on-primary shadow-lg transition-all hover:shadow-xl hover:brightness-110"
+        >
+          {t('agentCanvas.monologue.newMessages')}
+        </button>
+      )}
     </div>
   );
 }
