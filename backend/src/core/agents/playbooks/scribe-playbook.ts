@@ -103,6 +103,5 @@ export const scribePlaybook: AgentPlaybook = {
   outputArtifacts: [
     'markdown-docs',
     'pull-request',
-    'coverage-report',
   ],
 };

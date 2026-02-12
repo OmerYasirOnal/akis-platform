@@ -1,8 +1,8 @@
 import { AgentFactory, type AgentDependencies } from '../agents/AgentFactory.js';
 import { AgentStateMachine } from '../state/AgentStateMachine.js';
 import { db } from '../../db/client.js';
-import { jobs, jobPlans, jobAudits, jobArtifacts, oauthAccounts, type NewJob, type NewJobPlan, type NewJobAudit } from '../../db/schema.js';
-import { eq, and } from 'drizzle-orm';
+import { jobs, jobPlans, jobAudits, jobArtifacts, jobAiCalls, oauthAccounts, type NewJob, type NewJobPlan, type NewJobAudit } from '../../db/schema.js';
+import { eq, and, sql } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
 import { JobNotFoundError, InvalidStateTransitionError, DatabaseError, AIProviderError, MissingAIKeyError, SkillContractViolationError } from '../errors.js';
 import { createAIService, type AIService, type AIServiceObserver, type AIServiceRuntimeOptions } from '../../services/ai/AIService.js';
@@ -1076,7 +1076,8 @@ export class AgentOrchestrator {
         const resultDocumentsRead = asNumber(resultObj?.documentsRead) ?? 0;
         const documentsRead = Math.max(resultDocumentsRead, artifactDocReads);
 
-        const resultFilesProduced = asNumber(resultObj?.filesProduced) ?? 0;
+        const resultFilesProduced = asNumber(resultObj?.filesProduced) ??
+          asNumber((resultObj?.metadata as Record<string, unknown> | undefined)?.filesCreated) ?? 0;
         const filesProduced = Math.max(
           resultFilesProduced,
           diagnosticOperationFiles.length,
@@ -1087,17 +1088,36 @@ export class AgentOrchestrator {
 
         const payloadPasses = asNumber(payload?.passes) ?? 0;
         const resultPasses = asNumber(docPackConfig?.passes) ?? 0;
+        const aiCallCountResult = await db
+          .select({ count: sql<number>`count(*)` })
+          .from(jobAiCalls)
+          .where(eq(jobAiCalls.jobId, jobId));
+        const aiCallCount = Number(aiCallCountResult[0]?.count ?? 0);
         const multiPass =
           payload?.multiPass === true ||
           payloadPasses >= 2 ||
           resultPasses >= 2 ||
           payload?.docPack === 'full' ||
-          docPackConfig?.docPack === 'full';
+          docPackConfig?.docPack === 'full' ||
+          aiCallCount >= 2;
 
         const totalTokens =
           asNumber(resultObj?.totalTokens) ??
           asNumber(job.aiTotalTokens) ??
           null;
+
+        // Extract trace-specific metrics for quality scoring
+        const resultMetadata = resultObj?.metadata as Record<string, unknown> | undefined;
+        const traceMetrics = job.type === 'trace' && resultMetadata ? {
+          scenarioCount: asNumber(resultMetadata.scenarioCount) ?? 0,
+          priorityBreakdown: resultMetadata.priorityBreakdown as Record<string, number> | undefined,
+          layerBreakdown: resultMetadata.layerBreakdown as Record<string, number> | undefined,
+          hasPlaywrightCode: artifacts.some(a => a.path?.includes('.test.ts') || a.path?.includes('playwright')),
+          hasRiskAssessment: artifacts.some(a => a.path?.includes('risk-assessment')),
+          hasCoverageMatrix: artifacts.some(a => a.path?.includes('coverage-matrix')),
+          repoScanned: !!resultMetadata.repoContext,
+          existingTestCount: asNumber((resultMetadata.repoContext as Record<string, unknown> | undefined)?.existingTests) ?? 0,
+        } : undefined;
 
         const qualityInput: QualityInput = {
           jobType: job.type,
@@ -1109,6 +1129,7 @@ export class AgentOrchestrator {
           docDepth: resolveDocDepth(payload, resultObj),
           multiPass,
           totalTokens,
+          traceMetrics,
         };
         
         const quality = computeQualityScore(qualityInput);

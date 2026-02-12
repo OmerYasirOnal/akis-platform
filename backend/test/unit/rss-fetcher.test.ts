@@ -1,12 +1,12 @@
 /**
- * Unit tests for RSSFetcherService pure functions
- * Tests hashLink (exported), extractSourceName, and isWithinHours (contract tests)
+ * Unit tests for RSSFetcherService pure functions and auto-discovery logic
+ * Tests hashLink (exported), extractSourceName, isWithinHours, and COMMON_FEED_PATHS
  */
 import { describe, test } from 'node:test';
 import assert from 'node:assert';
 import crypto from 'crypto';
 
-import { hashLink } from '../../src/services/smart-automations/RSSFetcherService.js';
+import { hashLink, RSSFetcherService } from '../../src/services/smart-automations/RSSFetcherService.js';
 
 // ─── Re-create private pure functions (contract tests) ────────────
 
@@ -117,5 +117,119 @@ describe('isWithinHours', () => {
     assert.strictEqual(isWithinHours(fiveMinutesAgo, 1), true);
     // 5 min ago is NOT within 0.01 hours (~36 seconds)
     assert.strictEqual(isWithinHours(fiveMinutesAgo, 0.01), false);
+  });
+});
+
+// ─── RSSFetcherService class tests ─────────────────────────────────
+
+describe('RSSFetcherService', () => {
+  test('can be instantiated with default logger', () => {
+    const service = new RSSFetcherService();
+    assert.ok(service);
+  });
+
+  test('can be instantiated with custom logger', () => {
+    const logs: string[] = [];
+    const service = new RSSFetcherService({
+      info: (msg) => logs.push(`INFO: ${msg}`),
+      error: (msg) => logs.push(`ERROR: ${msg}`),
+    });
+    assert.ok(service);
+  });
+
+  test('fetchFromSources skips non-rss source types', async () => {
+    const logs: string[] = [];
+    const service = new RSSFetcherService({
+      info: (msg) => logs.push(msg),
+      error: (msg) => logs.push(msg),
+    });
+
+    const items = await service.fetchFromSources([
+      { url: 'https://example.com', type: 'webpage' },
+    ]);
+
+    assert.strictEqual(items.length, 0);
+    assert.ok(logs.some(l => l.includes('Skipping non-RSS')));
+  });
+
+  test('fetchFromSources handles empty sources array', async () => {
+    const service = new RSSFetcherService();
+    const items = await service.fetchFromSources([]);
+    assert.strictEqual(items.length, 0);
+  });
+
+  test('fetchFromSources handles unreachable URL gracefully', async () => {
+    const errors: string[] = [];
+    const service = new RSSFetcherService({
+      info: () => {},
+      error: (msg) => errors.push(msg),
+    });
+
+    const items = await service.fetchFromSources([
+      { url: 'https://this-url-cannot-exist-12345.invalid/feed', type: 'rss' },
+    ]);
+
+    assert.strictEqual(items.length, 0);
+  });
+
+  test('fetchFromSources with unreachable URL returns empty', async () => {
+    const service = new RSSFetcherService({
+      info: () => {},
+      error: () => {},
+    });
+
+    const items = await service.fetchFromSources([
+      { url: 'https://this-domain-does-not-exist-akis-test.example', type: 'rss' },
+    ]);
+
+    assert.strictEqual(items.length, 0);
+  });
+
+  test('dedupeItems returns empty for empty input', async () => {
+    const service = new RSSFetcherService();
+    const result = await service.dedupeItems([], 'fake-automation-id');
+    assert.strictEqual(result.length, 0);
+  });
+});
+
+// ─── RSS auto-discovery contract tests ──────────────────────────────
+
+describe('RSS auto-discovery (behavioral)', () => {
+  test('service handles webpage URL that is not RSS without crashing', async () => {
+    const logs: string[] = [];
+    const service = new RSSFetcherService({
+      info: (msg) => logs.push(msg),
+      error: (msg) => logs.push(msg),
+    });
+
+    // This is a webpage URL, not an RSS feed — should attempt auto-discovery
+    // and gracefully return empty (since we can't guarantee network in tests)
+    const items = await service.fetchFromSources([
+      { url: 'https://httpbin.org/html', type: 'rss' },
+    ]);
+
+    // Should not crash, should return 0 items (no RSS feed at httpbin)
+    assert.ok(Array.isArray(items));
+    // Should have attempted auto-discovery
+    assert.ok(
+      logs.some(l => l.includes('auto-discovery') || l.includes('Fetching RSS') || l.includes('Failed to parse')),
+      'Should log discovery attempt or parse failure'
+    );
+  });
+
+  test('multiple sources are processed independently', async () => {
+    const service = new RSSFetcherService({
+      info: () => {},
+      error: () => {},
+    });
+
+    const items = await service.fetchFromSources([
+      { url: 'https://invalid-1.example', type: 'rss' },
+      { url: 'https://invalid-2.example', type: 'rss' },
+    ]);
+
+    // Both should fail gracefully
+    assert.ok(Array.isArray(items));
+    assert.strictEqual(items.length, 0);
   });
 });

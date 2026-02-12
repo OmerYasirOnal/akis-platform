@@ -337,8 +337,7 @@ const DashboardAgentScribePage = () => {
       try {
         const aiStatus = await getMultiProviderStatus();
         
-        // DEBUG: Log full status for troubleshooting
-        console.log('[Scribe] AI Status Response:', JSON.stringify(aiStatus, null, 2));
+        // AI status resolved
         
         if (aiStatus.activeProvider === null) {
           // No provider explicitly set - auto-select based on configured USER keys (not ENV)
@@ -348,7 +347,7 @@ const DashboardAgentScribePage = () => {
           const openaiHasUserKey = aiStatus.providers.openai.configured;
           const openrouterHasUserKey = aiStatus.providers.openrouter.configured;
           
-          console.log(`[Scribe] Auto-select: openai.userKey=${openaiHasUserKey}, openrouter.userKey=${openrouterHasUserKey}`);
+          // Auto-selected provider based on user keys
           
           if (openaiHasUserKey) {
             aiProvider = 'openai';
@@ -358,16 +357,15 @@ const DashboardAgentScribePage = () => {
             throw new Error('No AI provider configured. Please add an API key in Settings > API Keys.');
           }
           
-          console.log(`[Scribe] No active provider set, auto-selected: ${aiProvider}`);
+          // No active provider set, auto-selected
         } else {
           // Use explicitly set active provider
           aiProvider = aiStatus.activeProvider;
           providerSource = 'account-default';
-          console.log(`[Scribe] Using account active provider: ${aiProvider}`);
+          // Using account active provider
         }
         
-        // DEBUG: Final resolved provider
-        console.log(`[Scribe] Final provider resolution: provider=${aiProvider}, source=${providerSource}`);
+        // Provider resolved
         
       } catch (aiError) {
         // Show user-friendly error instead of silent fallback
@@ -400,7 +398,7 @@ const DashboardAgentScribePage = () => {
         jobPayload.aiProviderSource = providerSource; // For debugging
       }
       
-      console.log('[Scribe] Job payload:', JSON.stringify(jobPayload, null, 2));
+      // Job payload prepared
 
       // Submit job to backend
       const response = await agentsApi.runAgent({
