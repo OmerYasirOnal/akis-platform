@@ -215,11 +215,11 @@ describe('DashboardAgentScribePage', () => {
     });
   });
 
-  it('shows "MCP-powered workflow" message when idle and connected', async () => {
+  it('shows LiveAgentCanvas in logs tab when idle', async () => {
     renderWithRouter(<DashboardAgentScribePage />);
 
     await waitFor(() => {
-      expect(screen.getByText(/MCP-powered workflow/i)).toBeInTheDocument();
+      expect(screen.getByTestId('live-agent-canvas')).toBeInTheDocument();
     });
   });
 
