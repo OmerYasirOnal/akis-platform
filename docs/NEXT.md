@@ -131,6 +131,7 @@ docs/NEXT.md                                             (bu dosya — anlık ey
 | S0.5.3-AUTH-2 | Signup mail fail davranışı düzeltmesi (false-success kaldırma) | Tamamlandı | `POST /auth/signup/start` artık verification mail gönderimi başarısızsa `EMAIL_DELIVERY_FAILED` (503) dönüyor ve oluşturulan `pending_verification` kullanıcıyı rollback ediyor; staging kök neden: SMTP auth `535` (2026-02-11) |
 | S0.5.3-AGT-8 | Scribe derin analiz iyileştirmesi (deep scan + multi-doc + granular progress) | Tamamlandı | 10 fazlı uygulama: (1) maxTokens pipeline fix (4096→docDepth-aware), (2) Scribe AI character prompt, (3) 4 eksik contract kaydı, (4) recursive repo scan (3 seviye, 150 dosya), (5) auto-detect doc pack, (6-7) documentsRead metrik fix + maxTokens wiring, (8) granular chat events, (9) playbook timings, (10) frontend DocScope/DocDepth UI + i18n (2026-02-12) |
 | S0.5.3-AUTH-3 | Jobs user isolation (data leak fix) | Tamamlandı | GET /api/agents/jobs, GET /api/agents/jobs/:id, POST cancel, GET stream — requireAuth + payload->>userId filter; 4 integration test (2026-02-12) |
+| S0.5.3-UX-16 | GitHub-style light theme tokens | Tamamlandı | theme.tokens.css light palette (Primer), UI_DESIGN_SYSTEM.md token tablosu, SOCIAL_PLATFORM_VISION.md (M2/M3 vizyon) (2026-02-12) |
 
 ---
 
@@ -253,6 +254,7 @@ docs/NEXT.md                                             (bu dosya — anlık ey
 | [`docs/deploy/STAGING_SMOKE_TEST_CHECKLIST.md`](deploy/STAGING_SMOKE_TEST_CHECKLIST.md) | Smoke test kontrol listesi |
 | [`docs/qa/REGRESSION_CHECKLIST.md`](qa/REGRESSION_CHECKLIST.md) | Pilot demo regresyon kontrol listesi |
 | [`docs/agents/CONTEXT_PACKS.md`](agents/CONTEXT_PACKS.md) | Bağlam paketleri mimari kararı |
+| [`docs/planning/SOCIAL_PLATFORM_VISION.md`](planning/SOCIAL_PLATFORM_VISION.md) | M2/M3 social platform vizyonu (feed, marketplace, showcase) |
 
 ---
 

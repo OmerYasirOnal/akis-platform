@@ -87,6 +87,7 @@
 ## M2: Stabilizasyon — Tamamlanma Kriterleri (31 Mart 2026)
 
 - [ ] Pilot geri bildirimleri toplanmış ve sınıflandırılmış
+- Vizyon: Social platform taslağı mevcut — [`docs/planning/SOCIAL_PLATFORM_VISION.md`](planning/SOCIAL_PLATFORM_VISION.md)
 - [ ] P0/P1 hatalar sıfır
 - [ ] Golden path başarı oranı %90+
 - [ ] pg_trgm retrieval prototip (opsiyonel)
