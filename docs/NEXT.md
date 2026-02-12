@@ -25,17 +25,18 @@ docs/NEXT.md                                             (bu dosya — anlık ey
 | Alan | Değer |
 |------|-------|
 | URL | https://staging.akisflow.com |
-| Deploy Edilen Commit | `b723c2d` (canlı `/version` doğrulandı, 2026-02-12 13:32 UTC) |
+| Deploy Edilen Commit | `9f2c0b4` (deploy bekleniyor — önceki: `b723c2d`, 2026-02-12 13:32 UTC) |
 | S0.5 PR | [#265](https://github.com/OmerYasirOnal/akis-platform-devolopment/pull/265) — onboarding, feedback, context packs, QA docs, 750+ yeni test |
-| Smoke Testleri | 12/12 geçti (`staging_smoke.sh --commit b723c2d`, 2026-02-12 13:34 UTC) |
+| Smoke Testleri | Yeni deploy sonrası çalıştırılacak (önceki: 12/12 geçti, `b723c2d`, 2026-02-12 13:34 UTC) |
 | Test Sayısı | Backend: 842 + Frontend: 549 = **1,391 toplam** (Phase 1-8 test kampanyası + S0.5 sprint, 2026-02-11) |
-| Kod Düzeltmeleri | MCP `/ready` durumu, OAuth hoşgeldin e-postası, agents yönlendirme `/agents/*`, logo güncelleme, güvenlik temizliği, E2E test hizalama, Scribe AGT-8 derin analiz iyileştirmesi |
+| Kod Düzeltmeleri | MCP `/ready` durumu, OAuth hoşgeldin e-postası, agents yönlendirme `/agents/*`, logo güncelleme, güvenlik temizliği, E2E test hizalama, Scribe AGT-8 derin analiz iyileştirmesi, GitHub-style light theme tokenları, jobs user isolation (veri sızıntı fix) |
 | Şifreleme | Staging'de yapılandırıldı (`/ready` → `encryption.configured: true`) |
 | E-posta | Resend.com aktif (`EMAIL_PROVIDER=resend`); `noreply@akisflow.com` domain verified, DKIM+SPF+DMARC geçerli (2026-02-12) |
 | Google OAuth | `/ready` → `oauth.google`, `oauth.github`, `oauth.callbackBase` gösteriyor — staging `.env` kimlik bilgilerini doğrulayın |
 | MCP Gateway | Always-on staging stack'te (profile kaldırıldı); CI pipeline (PR #266); `GITHUB_TOKEN` aktif, gateway reachable |
 | Agent Yönlendirme | Scribe/Trace/Proto → `/agents/*` taşındı; `/dashboard/scribe\|trace\|proto` yeni rotalara yönlendirme yapıyor |
-| Scribe AGT-8 | `b723c2d` ile merge + staging deploy tamamlandı (2026-02-12); önceki “deploy bekliyor” durumu kapandı |
+| Scribe AGT-8 | `b723c2d` ile merge + staging deploy tamamlandı (2026-02-12) |
+| Son Merge'ler | PR #307 (light theme), PR #305 (jobs user isolation), PR #303 (live agent canvas), PR #302 (scribe AGT-8) — tümü `main`'de |
 | Logo | Full wordmark korunuyor (`frontend/src/assets/branding/akis-official-logo@*`), compact/favikon için A-mark only ailesi güncellendi (`frontend/src/assets/branding/akis-a-mark.png`, `akis-mark@2x.png`, `akis-mark@3x.png`, `frontend/public/brand/favicon*`) |
 
 ---
