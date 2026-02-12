@@ -2,7 +2,7 @@
 
 > **Kanonik Plan:** [`docs/planning/DELIVERY_PLAN_S0.5_FEB_TO_GRADUATION.md`](planning/DELIVERY_PLAN_S0.5_FEB_TO_GRADUATION.md)  
 > **Anlık Eylemler:** [`docs/NEXT.md`](NEXT.md)  
-> **Son Güncelleme:** 2026-02-11
+> **Son Güncelleme:** 2026-02-12
 
 ---
 
@@ -22,7 +22,7 @@
 
 | Kilometre Taşı | Hedef Tarih | Odak | Durum |
 |-----------------|-------------|------|-------|
-| **M1: Pilot Demo** | 28 Şubat 2026 | Staging düzeltme + Scribe/Trace/Proto golden path + pilot katılım | **Devam Ediyor** (32/32 görev, 1,391 test; A-mark only favicon/compact logo + signup email false-success fix tamamlandı, staging SMTP auth credential düzeltmesi bekleniyor) |
+| **M1: Pilot Demo** | 28 Şubat 2026 | Staging düzeltme + Scribe/Trace/Proto golden path + pilot katılım | **Devam Ediyor** (32/32 görev + S0.5.3-UX-15 LiveAgentCanvas tamamlandı; kalan işler demo rehearsal ve final staging deploy doğrulaması) |
 | **M2: Stabilizasyon** | 31 Mart 2026 | Hata düzeltme, pilot geri bildirim, pg_trgm prototip, tez taslağı | Başlanmadı |
 | **M3: Mezuniyet** | Mayıs 2026 | Final rapor, sunum, demo video, teslim paketi | Başlanmadı |
 
@@ -55,7 +55,7 @@
 | S0.5.0 | 7-9 Şub | Staging base URL düzeltme + trust-proxy + deploy | WS-OPS | ✅ 8/8 görev tamamlandı |
 | S0.5.1 | 10-21 Şub | Pilot erişim + agent güvenilirliği | WS-WAITLIST, WS-AGENTS | ✅ 11/11 görev tamamlandı |
 | S0.5.2 | 10-23 Şub | Demo UX + RAG araştırma | WS-UX, WS-RAG | ✅ 7/7 görev tamamlandı |
-| S0.5.3 | 24-28 Şub | KG kanıt + demo senaryosu + M1 | WS-QA | ✅ 4/4 görev tamamlandı |
+| S0.5.3 | 24-28 Şub | KG kanıt + demo senaryosu + M1 + Live Agent Canvas | WS-QA, WS-UX | ✅ 5/5 görev tamamlandı |
 
 ### Gelecek Fazlar
 
