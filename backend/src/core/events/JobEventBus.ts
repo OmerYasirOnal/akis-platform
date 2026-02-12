@@ -6,7 +6,7 @@ import { formatSSEMessage, redactSensitiveText } from '../../types/stream-events
 export type { StreamEvent, StageEvent, PlanEvent, ToolEvent, ArtifactEvent, LogEvent, ErrorEvent, TraceEvent, AiCallEvent };
 
 // Legacy types for backward compatibility
-export type JobPhase = 'thinking' | 'discovery' | 'reading' | 'creating' | 'publishing' | 'done' | 'error';
+export type JobPhase = 'thinking' | 'discovery' | 'reading' | 'creating' | 'reviewing' | 'publishing' | 'done' | 'error';
 
 export interface JobEvent {
   phase: JobPhase;

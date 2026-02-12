@@ -63,7 +63,19 @@ interface AutomationExecutionSummary {
   featuresCovered: number;
   featuresTotal: number;
   featureCoverageRate: number;
-  mode: 'syntactic';
+  mode: 'syntactic' | 'ai-enhanced';
+  priorityBreakdown?: Record<string, number>;
+  layerBreakdown?: Record<string, number>;
+}
+
+interface JobMetadata {
+  scenarioCount?: number;
+  totalTestCases?: number;
+  priorityBreakdown?: Record<string, number>;
+  layerBreakdown?: Record<string, number>;
+  repoContext?: { fileCount: number; routes: number; models: number } | null;
+  automationSummary?: AutomationExecutionSummary;
+  automationExecution?: AutomationExecutionSummary;
 }
 
 const DashboardAgentTracePage = () => {
@@ -326,12 +338,16 @@ const DashboardAgentTracePage = () => {
   const results = currentJob?.result && typeof currentJob.result === 'object'
     ? JSON.stringify(currentJob.result, null, 2)
     : null;
-  const automationExecution: AutomationExecutionSummary | null = (() => {
+  const jobMetadata: JobMetadata | null = (() => {
     if (!currentJob?.result || typeof currentJob.result !== 'object') return null;
     const metadata = (currentJob.result as { metadata?: unknown }).metadata;
     if (!metadata || typeof metadata !== 'object') return null;
-    const raw = (metadata as { automationSummary?: unknown; automationExecution?: unknown }).automationSummary
-      ?? (metadata as { automationExecution?: unknown }).automationExecution;
+    return metadata as JobMetadata;
+  })();
+
+  const automationExecution: AutomationExecutionSummary | null = (() => {
+    if (!jobMetadata) return null;
+    const raw = jobMetadata.automationSummary ?? jobMetadata.automationExecution;
     if (!raw || typeof raw !== 'object') return null;
     const value = raw as Partial<AutomationExecutionSummary>;
     if (
@@ -342,7 +358,7 @@ const DashboardAgentTracePage = () => {
       typeof value.featuresCovered !== 'number' ||
       typeof value.featuresTotal !== 'number' ||
       typeof value.featureCoverageRate !== 'number' ||
-      value.mode !== 'syntactic'
+      (value.mode !== 'syntactic' && value.mode !== 'ai-enhanced')
     ) {
       return null;
     }
@@ -520,10 +536,54 @@ const DashboardAgentTracePage = () => {
               </p>
             </div>
           </div>
+          {/* Priority & Layer Breakdown */}
+          {jobMetadata?.priorityBreakdown && (
+            <div className="mt-3 grid gap-2 sm:grid-cols-2">
+              <div className="rounded-lg border border-ak-border bg-ak-surface p-3">
+                <p className="text-[10px] uppercase tracking-wide text-ak-text-secondary/70 mb-2">Priority Distribution</p>
+                <div className="flex gap-2">
+                  {Object.entries(jobMetadata.priorityBreakdown).map(([priority, count]) => (
+                    <div key={priority} className={`flex-1 rounded px-2 py-1 text-center ${
+                      priority === 'P0' ? 'bg-red-500/10 border border-red-500/20' :
+                      priority === 'P1' ? 'bg-orange-500/10 border border-orange-500/20' :
+                      priority === 'P2' ? 'bg-blue-500/10 border border-blue-500/20' :
+                      'bg-ak-surface-2 border border-ak-border'
+                    }`}>
+                      <p className="text-[10px] font-bold text-ak-text-primary">{priority}</p>
+                      <p className="text-sm font-semibold text-ak-text-primary">{count}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              {jobMetadata.layerBreakdown && (
+                <div className="rounded-lg border border-ak-border bg-ak-surface p-3">
+                  <p className="text-[10px] uppercase tracking-wide text-ak-text-secondary/70 mb-2">Test Layers</p>
+                  <div className="flex gap-2">
+                    {Object.entries(jobMetadata.layerBreakdown).map(([layer, count]) => (
+                      <div key={layer} className="flex-1 rounded bg-ak-surface-2 border border-ak-border px-2 py-1 text-center">
+                        <p className="text-[10px] font-bold text-ak-text-primary capitalize">{layer}</p>
+                        <p className="text-sm font-semibold text-ak-text-primary">{count}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           {automationExecution && (
-            <div className="mt-4 space-y-3 rounded-lg border border-ak-border bg-ak-surface p-3 text-xs text-ak-text-secondary">
+            <div className="mt-3 space-y-3 rounded-lg border border-ak-border bg-ak-surface p-3 text-xs text-ak-text-secondary">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <p className="font-semibold text-ak-text-primary">{t('traceConsole.summary.title')}</p>
+                <div className="flex items-center gap-2">
+                  <p className="font-semibold text-ak-text-primary">{t('traceConsole.summary.title')}</p>
+                  <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                    automationExecution.mode === 'ai-enhanced'
+                      ? 'bg-purple-500/10 text-purple-400 border border-purple-500/20'
+                      : 'bg-ak-surface-2 text-ak-text-secondary border border-ak-border'
+                  }`}>
+                    {automationExecution.mode === 'ai-enhanced' ? 'AI-Enhanced' : 'Syntactic'}
+                  </span>
+                </div>
                 {automationExecution.targetBaseUrl && (
                   <span className="rounded bg-ak-bg px-2 py-1 text-[11px] text-ak-text-secondary">
                     {automationExecution.targetBaseUrl}
@@ -598,7 +658,7 @@ const DashboardAgentTracePage = () => {
           <div className="flex items-center gap-2">
             <div className={`h-2 w-2 rounded-full ${isRunning ? 'animate-pulse bg-blue-400' : isComplete ? 'bg-green-500' : 'bg-ak-text-secondary/30'}`} />
             <span className="text-xs text-ak-text-secondary">
-              {spec.trim() ? `${spec.trim().substring(0, 40)}...` : 'No spec provided'} • {logs.length}
+              {spec.trim() ? (spec.trim().length > 40 ? `${spec.trim().substring(0, 40)}...` : spec.trim()) : 'No spec provided'} • {logs.length}
             </span>
           </div>
         </div>
@@ -622,9 +682,53 @@ const DashboardAgentTracePage = () => {
             <div className="h-full overflow-y-auto bg-ak-bg p-4">
               {results ? (
                 <div className="space-y-3">
+                  {/* Priority & Layer Summary in Results */}
+                  {jobMetadata?.priorityBreakdown && (
+                    <div className="rounded-lg border border-ak-border bg-ak-surface-2 p-3 text-xs">
+                      <p className="mb-2 text-sm font-semibold text-ak-text-primary">Test Classification</p>
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <div>
+                          <p className="text-[10px] uppercase tracking-wide text-ak-text-secondary/70 mb-1">By Priority</p>
+                          <div className="space-y-1">
+                            {Object.entries(jobMetadata.priorityBreakdown).map(([p, c]) => (
+                              <div key={p} className="flex items-center justify-between">
+                                <span className={`font-medium ${
+                                  p === 'P0' ? 'text-red-400' : p === 'P1' ? 'text-orange-400' : p === 'P2' ? 'text-blue-400' : 'text-ak-text-secondary'
+                                }`}>{p} {p === 'P0' ? '(Critical)' : p === 'P1' ? '(High)' : p === 'P2' ? '(Medium)' : '(Low)'}</span>
+                                <span className="text-ak-text-primary font-semibold">{c}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                        {jobMetadata.layerBreakdown && (
+                          <div>
+                            <p className="text-[10px] uppercase tracking-wide text-ak-text-secondary/70 mb-1">By Layer</p>
+                            <div className="space-y-1">
+                              {Object.entries(jobMetadata.layerBreakdown).map(([l, c]) => (
+                                <div key={l} className="flex items-center justify-between">
+                                  <span className="text-ak-text-secondary capitalize">{l}</span>
+                                  <span className="text-ak-text-primary font-semibold">{c}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
                   {automationExecution && (
                     <div className="rounded-lg border border-ak-border bg-ak-surface-2 p-3 text-xs text-ak-text-secondary">
-                      <p className="mb-2 text-sm font-semibold text-ak-text-primary">{t('traceConsole.summary.automationCoverage')}</p>
+                      <div className="flex items-center gap-2 mb-2">
+                        <p className="text-sm font-semibold text-ak-text-primary">{t('traceConsole.summary.automationCoverage')}</p>
+                        <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                          automationExecution.mode === 'ai-enhanced'
+                            ? 'bg-purple-500/10 text-purple-400'
+                            : 'bg-ak-surface text-ak-text-secondary'
+                        }`}>
+                          {automationExecution.mode}
+                        </span>
+                      </div>
                       <div className="grid gap-2 sm:grid-cols-2">
                         <p>{t('traceConsole.summary.scenarios')}: {automationExecution.passedScenarios}/{automationExecution.executedScenarios}</p>
                         <p>{t('traceConsole.summary.featureCoverage')}: {automationExecution.featuresCovered}/{automationExecution.featuresTotal} (%{automationExecution.featureCoverageRate})</p>
@@ -636,12 +740,17 @@ const DashboardAgentTracePage = () => {
                   {generatedTestSnippet && (
                     <div className="rounded-lg border border-ak-border bg-ak-surface-2 p-3">
                       <p className="mb-2 text-sm font-semibold text-ak-text-primary">{t('traceConsole.summary.generatedTestPreview')}</p>
-                      <pre className="overflow-x-auto text-xs text-ak-text-secondary">{generatedTestSnippet}</pre>
+                      <pre className="overflow-x-auto rounded bg-ak-bg p-2 text-xs text-ak-text-secondary font-mono">{generatedTestSnippet}</pre>
                     </div>
                   )}
-                  <pre className="whitespace-pre-wrap rounded-lg bg-ak-surface-2 p-4 text-sm text-ak-text-primary">
-                    {results}
-                  </pre>
+                  <details className="rounded-lg border border-ak-border bg-ak-surface-2">
+                    <summary className="px-3 py-2 text-sm font-medium text-ak-text-primary cursor-pointer hover:bg-ak-surface-3 rounded-lg">
+                      Raw JSON Response
+                    </summary>
+                    <pre className="whitespace-pre-wrap p-4 text-xs text-ak-text-secondary max-h-96 overflow-y-auto">
+                      {results}
+                    </pre>
+                  </details>
                 </div>
               ) : (
                 <div className="flex h-full flex-col items-center justify-center text-ak-text-secondary/50">

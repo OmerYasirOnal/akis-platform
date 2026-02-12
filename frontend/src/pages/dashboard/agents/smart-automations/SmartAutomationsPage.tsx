@@ -96,11 +96,23 @@ export default function SmartAutomationsPage() {
     try {
       setRunningIds((prev) => new Set(prev).add(id));
       const result = await smartAutomationsApi.runNow(id);
-      if (result.success) {
+      if (result.success && result.itemCount > 0) {
         // Reload to get updated status
         await loadAutomations();
-      } else {
+      } else if (result.errorCode === 'NO_CONTENT') {
+        setError('Kaynaklardan içerik bulunamadı. RSS feed URL\'ini kontrol edin (örn. https://example.com/feed veya /rss.xml).');
+        await loadAutomations();
+      } else if (result.errorCode === 'ALL_DUPLICATES') {
+        setError('Tüm içerikler daha önce kullanılmış. Yeni içerik yayınlandığında tekrar deneyin.');
+        await loadAutomations();
+      } else if (result.errorCode === 'NO_RELEVANT_CONTENT') {
+        setError('Konularınızla eşleşen içerik bulunamadı. Konu başlıklarını genişletmeyi deneyin.');
+        await loadAutomations();
+      } else if (!result.success) {
         setError(result.error || 'Çalıştırma başarısız');
+      } else {
+        // success but 0 items (edge case)
+        await loadAutomations();
       }
     } catch (err) {
       setError('Çalıştırma başarısız');

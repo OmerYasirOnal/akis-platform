@@ -17,6 +17,9 @@ import {
   PLAN_SYSTEM_PROMPT,
   buildPlanUserPrompt,
   GENERATE_SYSTEM_PROMPT,
+  SCRIBE_GENERATE_SYSTEM_PROMPT,
+  TRACE_GENERATE_SYSTEM_PROMPT,
+  PROTO_GENERATE_SYSTEM_PROMPT,
   buildGenerateUserPrompt,
   REFLECT_SYSTEM_PROMPT,
   VALIDATE_SYSTEM_PROMPT,
@@ -134,5 +137,60 @@ describe('Prompt Builders (AGT-2)', () => {
     const longResponse = 'x'.repeat(3000);
     const prompt = buildRepairPrompt('{}', longResponse);
     assert.ok(prompt.length < 3000, 'Prompt should truncate long responses');
+  });
+});
+
+describe('Agent-Specific System Prompts', () => {
+  test('SCRIBE_GENERATE_SYSTEM_PROMPT is comprehensive', () => {
+    assert.ok(SCRIBE_GENERATE_SYSTEM_PROMPT.length > 200, 'Scribe prompt should be detailed');
+    assert.ok(SCRIBE_GENERATE_SYSTEM_PROMPT.includes('AKIS'), 'Should reference AKIS platform');
+    assert.ok(SCRIBE_GENERATE_SYSTEM_PROMPT.includes('TODO:'), 'Should mention TODO for missing info');
+    assert.ok(SCRIBE_GENERATE_SYSTEM_PROMPT.includes('Markdown'), 'Should mention Markdown format');
+    assert.ok(SCRIBE_GENERATE_SYSTEM_PROMPT.includes('hallucinate') || SCRIBE_GENERATE_SYSTEM_PROMPT.includes('invent'), 'Should warn against hallucination');
+  });
+
+  test('TRACE_GENERATE_SYSTEM_PROMPT is comprehensive', () => {
+    assert.ok(TRACE_GENERATE_SYSTEM_PROMPT.length > 300, 'Trace prompt should be detailed');
+    assert.ok(TRACE_GENERATE_SYSTEM_PROMPT.includes('AKIS Trace'), 'Should identify as AKIS Trace');
+    assert.ok(TRACE_GENERATE_SYSTEM_PROMPT.includes('CODE-AWARE'), 'Should emphasize code awareness');
+    assert.ok(TRACE_GENERATE_SYSTEM_PROMPT.includes('Gherkin'), 'Should mention Gherkin syntax');
+    assert.ok(TRACE_GENERATE_SYSTEM_PROMPT.includes('Playwright'), 'Should mention Playwright');
+    assert.ok(TRACE_GENERATE_SYSTEM_PROMPT.includes('P0') || TRACE_GENERATE_SYSTEM_PROMPT.includes('priority'), 'Should mention priority classification');
+    assert.ok(TRACE_GENERATE_SYSTEM_PROMPT.includes('coverage'), 'Should mention coverage');
+    assert.ok(TRACE_GENERATE_SYSTEM_PROMPT.includes('HONEST') || TRACE_GENERATE_SYSTEM_PROMPT.includes('TODO'), 'Should warn against fabrication');
+  });
+
+  test('PROTO_GENERATE_SYSTEM_PROMPT is comprehensive', () => {
+    assert.ok(PROTO_GENERATE_SYSTEM_PROMPT.length > 200, 'Proto prompt should be detailed');
+    assert.ok(PROTO_GENERATE_SYSTEM_PROMPT.includes('AKIS Proto'), 'Should identify as AKIS Proto');
+    assert.ok(PROTO_GENERATE_SYSTEM_PROMPT.includes('RUNNABLE'), 'Should emphasize runnable output');
+    assert.ok(PROTO_GENERATE_SYSTEM_PROMPT.includes('path:'), 'Should specify output format with path:');
+    assert.ok(PROTO_GENERATE_SYSTEM_PROMPT.includes('README'), 'Should mention README generation');
+    assert.ok(PROTO_GENERATE_SYSTEM_PROMPT.includes('.gitignore'), 'Should mention .gitignore');
+    assert.ok(PROTO_GENERATE_SYSTEM_PROMPT.includes('STACK-AWARE'), 'Should emphasize stack awareness');
+  });
+
+  test('all three agent prompts are distinct', () => {
+    assert.notStrictEqual(SCRIBE_GENERATE_SYSTEM_PROMPT, TRACE_GENERATE_SYSTEM_PROMPT);
+    assert.notStrictEqual(SCRIBE_GENERATE_SYSTEM_PROMPT, PROTO_GENERATE_SYSTEM_PROMPT);
+    assert.notStrictEqual(TRACE_GENERATE_SYSTEM_PROMPT, PROTO_GENERATE_SYSTEM_PROMPT);
+    assert.notStrictEqual(SCRIBE_GENERATE_SYSTEM_PROMPT, GENERATE_SYSTEM_PROMPT);
+    assert.notStrictEqual(TRACE_GENERATE_SYSTEM_PROMPT, GENERATE_SYSTEM_PROMPT);
+    assert.notStrictEqual(PROTO_GENERATE_SYSTEM_PROMPT, GENERATE_SYSTEM_PROMPT);
+  });
+
+  test('all agent prompts are significantly longer than generic prompt', () => {
+    assert.ok(
+      SCRIBE_GENERATE_SYSTEM_PROMPT.length > GENERATE_SYSTEM_PROMPT.length * 2,
+      'Scribe prompt should be much longer than generic'
+    );
+    assert.ok(
+      TRACE_GENERATE_SYSTEM_PROMPT.length > GENERATE_SYSTEM_PROMPT.length * 2,
+      'Trace prompt should be much longer than generic'
+    );
+    assert.ok(
+      PROTO_GENERATE_SYSTEM_PROMPT.length > GENERATE_SYSTEM_PROMPT.length * 2,
+      'Proto prompt should be much longer than generic'
+    );
   });
 });
