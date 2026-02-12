@@ -44,6 +44,14 @@ interface ChatMessage {
   automationId?: string;
   automationRunId?: string;
   artifact?: { path: string; type: string };
+  /** Reasoning summary from agent thinking process */
+  reasoningSummary?: string;
+  /** Tool call explainability: Asked/Did/Why */
+  toolCall?: { asked: string; did: string; why: string };
+  /** Decision point with reasoning */
+  decision?: { title: string; reasoning: string };
+  /** Whether this is a thinking/reasoning message (visual distinction) */
+  isThinking?: boolean;
 }
 
 type SessionKind = 'scribe' | 'trace' | 'proto' | 'automation';
@@ -212,6 +220,8 @@ const builtInAgents: AgentDefinition[] = [
 
 const PHASE_LABELS: Record<string, { icon: string; label: string }> = {
   thinking: { icon: '...', label: 'Thinking' },
+  reasoning: { icon: '?', label: 'Reasoning' },
+  decision: { icon: '!', label: 'Decision' },
   discovery: { icon: '?', label: 'Discovery' },
   reading: { icon: '>', label: 'Reading' },
   creating: { icon: '+', label: 'Creating' },
@@ -875,6 +885,9 @@ export default function AgentsHubPage() {
   }));
 
   const mapTraceToPhase = (eventType: string): string => {
+    if (eventType === 'reasoning') return 'reasoning';
+    if (eventType === 'decision') return 'decision';
+    if (eventType.includes('plan_step')) return 'thinking';
     if (eventType.includes('plan') || eventType === 'ai_call') return 'thinking';
     if (eventType.includes('doc_read') || eventType.includes('mcp_connect')) return 'discovery';
     if (eventType.includes('tool_call') || eventType.includes('reading')) return 'reading';
@@ -1113,7 +1126,15 @@ export default function AgentsHubPage() {
           const job = await agentsApi.getJob(response.jobId, { include: ['trace', 'artifacts'] });
           setCurrentJob(job);
 
-          const traces = (job.trace as Array<{ title?: string; eventType?: string; detail?: string }>) || [];
+          const traces = (job.trace as Array<{
+            title?: string;
+            eventType?: string;
+            detail?: string;
+            reasoningSummary?: string;
+            askedWhat?: string;
+            didWhat?: string;
+            whyReason?: string;
+          }>) || [];
           if (traces.length > lastTraceCount) {
             const newTraces = traces.slice(lastTraceCount);
             for (const trace of newTraces) {
@@ -1122,10 +1143,18 @@ export default function AgentsHubPage() {
               if (!seenMessages.has(msgKey)) {
                 seenMessages.add(msgKey);
                 const phase = mapTraceToPhase(trace.eventType || '');
+                const isThinkingEvent = trace.eventType === 'reasoning' || trace.eventType === 'decision' || trace.eventType === 'plan_step';
                 appendMessageToSession(sessionId, {
                   role: 'agent',
                   content,
                   phase,
+                  reasoningSummary: trace.reasoningSummary || undefined,
+                  toolCall: trace.askedWhat ? {
+                    asked: trace.askedWhat,
+                    did: trace.didWhat || '',
+                    why: trace.whyReason || '',
+                  } : undefined,
+                  isThinking: isThinkingEvent,
                 });
               }
             }
@@ -1907,14 +1936,51 @@ export default function AgentsHubPage() {
                     ? 'bg-red-500/[0.08] border border-red-500/20 text-red-300'
                     : msg.isSuccess
                       ? 'bg-emerald-500/[0.08] border border-emerald-500/20 text-emerald-300'
-                      : msg.artifact
-                        ? 'bg-ak-surface border border-ak-border text-ak-text-primary font-mono text-xs'
-                        : 'bg-ak-surface border border-ak-border text-ak-text-primary'
+                      : msg.isThinking
+                        ? 'bg-indigo-500/[0.06] border border-indigo-500/15 text-ak-text-primary'
+                        : msg.artifact
+                          ? 'bg-ak-surface border border-ak-border text-ak-text-primary font-mono text-xs'
+                          : 'bg-ak-surface border border-ak-border text-ak-text-primary'
               )}>
                 {msg.phase && PHASE_LABELS[msg.phase] && !msg.isError && !msg.isSuccess && (
-                  <span className="text-[10px] font-medium uppercase tracking-wider text-ak-text-secondary/60 block mb-0.5">
+                  <span className={cn(
+                    'text-[10px] font-medium uppercase tracking-wider block mb-0.5',
+                    msg.isThinking ? 'text-indigo-400/70' : 'text-ak-text-secondary/60'
+                  )}>
                     {PHASE_LABELS[msg.phase].label}
                   </span>
+                )}
+                {/* Reasoning summary - agent thinking display */}
+                {msg.reasoningSummary && (
+                  <div className="mb-1.5 rounded-md bg-ak-bg/50 border border-indigo-500/10 px-2.5 py-1.5 text-xs text-ak-text-secondary/80 italic leading-relaxed">
+                    {msg.reasoningSummary}
+                  </div>
+                )}
+                {/* Tool call explainability - Asked/Did/Why */}
+                {msg.toolCall && (
+                  <div className="mb-1.5 space-y-0.5 text-xs">
+                    <div className="flex gap-1.5">
+                      <span className="text-ak-text-secondary/50 font-medium shrink-0 w-10">Asked</span>
+                      <span className="text-ak-text-secondary/80">{msg.toolCall.asked}</span>
+                    </div>
+                    <div className="flex gap-1.5">
+                      <span className="text-emerald-400/50 font-medium shrink-0 w-10">Did</span>
+                      <span className="text-ak-text-secondary/80">{msg.toolCall.did}</span>
+                    </div>
+                    {msg.toolCall.why && (
+                      <div className="flex gap-1.5">
+                        <span className="text-indigo-400/50 font-medium shrink-0 w-10">Why</span>
+                        <span className="text-ak-text-secondary/80">{msg.toolCall.why}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+                {/* Decision display */}
+                {msg.decision && (
+                  <div className="mb-1.5 rounded-md bg-amber-500/[0.05] border border-amber-500/10 px-2.5 py-1.5 text-xs leading-relaxed">
+                    <span className="font-medium text-amber-400/70">{msg.decision.title}</span>
+                    <p className="mt-0.5 text-ak-text-secondary/70">{msg.decision.reasoning}</p>
+                  </div>
                 )}
                 <p className="whitespace-pre-wrap leading-relaxed">{msg.content}</p>
                 {msg.jobId && msg.isSuccess && (

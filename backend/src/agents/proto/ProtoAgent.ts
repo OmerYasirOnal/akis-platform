@@ -85,6 +85,17 @@ export class ProtoAgent extends BaseAgent {
 
     // ── Phase 1: AI scaffold generation ──────────────────────────────────
     if (this.aiService) {
+      this.traceRecorder?.recordReasoning({
+        phase: 'Scaffold Planning',
+        summary: `Analyzing requirements to determine project structure. ${payload?.stack ? `Using preferred stack: ${payload.stack}.` : 'Auto-detecting optimal tech stack based on requirements.'} ${plan?.steps?.length ? `Following ${plan.steps.length} planned steps from the planning phase.` : 'No pre-planned steps — AI will determine file structure.'}`,
+      });
+      this.traceRecorder?.recordPlanStep({
+        stepId: 'ai-scaffold',
+        title: 'Generate MVP Scaffold',
+        description: `AI generating complete project scaffold from requirements (${requirements.length} chars)`,
+        reasoning: `Using AI to generate production-ready files including README, config files, source code, and test stubs. Output format enforces structured "### path: <filepath>" headers for reliable file parsing.`,
+        status: 'running',
+      });
       this.emitLog('Generating AI-powered scaffold', {
         requirementsLength: requirements.length,
         stack: payload?.stack,
@@ -127,6 +138,18 @@ export class ProtoAgent extends BaseAgent {
 
       const parsed = this.parseScaffoldOutput(scaffoldResult.content);
       artifacts.push(...parsed);
+      this.traceRecorder?.recordPlanStep({
+        stepId: 'ai-scaffold',
+        title: 'MVP Scaffold Generated',
+        description: `Parsed AI output into ${parsed.length} files`,
+        reasoning: `${parsed.length === 1 && parsed[0].filePath === 'scaffold-output.md' ? 'Could not parse structured files from AI output — stored as raw markdown. Consider re-running with clearer requirements.' : `Successfully extracted ${parsed.length} files: ${parsed.map(a => a.filePath).join(', ')}. Each file contains working code generated from the requirements.`}`,
+        status: 'completed',
+      });
+      this.traceRecorder?.recordDecision({
+        title: 'Scaffold Structure',
+        decision: `Generated ${parsed.length} files for the MVP scaffold`,
+        reasoning: `File breakdown: ${parsed.map(a => a.filePath).join(', ')}. ${parsed.some(a => a.filePath.endsWith('.test.ts') || a.filePath.endsWith('.test.js') || a.filePath.includes('test')) ? 'Test files included.' : 'No test files generated — consider adding test stubs.'} ${parsed.some(a => a.filePath === 'README.md') ? 'README included for documentation.' : 'No README — project documentation missing.'}`,
+      });
       this.emitLog('Scaffold parsed into files', { fileCount: parsed.length, files: parsed.map(a => a.filePath) });
     } else {
       this.emitLog('No AI service available, using template scaffold');
@@ -155,6 +178,13 @@ export class ProtoAgent extends BaseAgent {
         : `proto/scaffold-${Date.now()}`;
 
       try {
+        this.traceRecorder?.recordPlanStep({
+          stepId: 'github-commit',
+          title: 'Commit to Repository',
+          description: `Committing ${artifacts.length} scaffold files to ${payload.owner}/${payload.repo}`,
+          reasoning: `Branch strategy: ${payload.branchStrategy === 'manual' ? 'manual (using existing branch)' : `auto (creating feature branch: ${branchName})`}. Creating feature branch keeps main clean and enables code review via pull request.`,
+          status: 'running',
+        });
         this.emitLog('Committing scaffold to GitHub', { branch: branchName, fileCount: artifacts.length });
 
         if (payload.branchStrategy !== 'manual') {
@@ -211,6 +241,11 @@ export class ProtoAgent extends BaseAgent {
         };
       }
     }
+
+    this.traceRecorder?.recordReasoning({
+      phase: 'Scaffold Complete',
+      summary: `Generated ${artifacts.length} scaffold files (${payload?.dryRun ? 'dry run — files not committed' : 'no GitHub repo configured — files returned inline'}). Total duration: ${Math.round((Date.now() - startedAt) / 1000)}s.`,
+    });
 
     return {
       ok: true, agent: 'proto',
