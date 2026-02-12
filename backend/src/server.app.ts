@@ -31,6 +31,7 @@ import { feedbackRoutes } from './api/feedback.js';
 import { conversationsRoutes } from './api/conversations.js';
 import { studioRoutes } from './api/studio.js';
 import { knowledgeRoutes } from './api/knowledge.js';
+import { crewRoutes, initCrewRunManager } from './api/crew.js';
 import { AgentOrchestrator } from './core/orchestrator/AgentOrchestrator.js';
 import { createAIService } from './services/ai/AIService.js';
 import type { MCPTools } from './services/mcp/adapters/index.js';
@@ -96,6 +97,12 @@ export async function buildApp() {
   const orchestrator = new AgentOrchestrator({}, aiService, mcpTools);
   setOrchestrator(orchestrator);
   setWebhookOrchestrator(orchestrator);
+
+  // M2: Initialize Crew Run Manager (Agent Teams)
+  initCrewRunManager(async (payload) => {
+    const jobId = await orchestrator.submitJob(payload as never);
+    return { id: jobId };
+  });
 
   // Start stale job watchdog
   const watchdog = new StaleJobWatchdog();
@@ -211,6 +218,7 @@ export async function buildApp() {
   await app.register(conversationsRoutes);
   await app.register(studioRoutes, { prefix: '/api/studio' });
   await app.register(knowledgeRoutes);
+  await app.register(crewRoutes);
   if (env.NODE_ENV !== 'production' && process.env.SCRIBE_DEV_GITHUB_BOOTSTRAP === 'true') {
     await app.register(testHelpersRoutes, { prefix: '/test' });
   }
