@@ -25,11 +25,11 @@ docs/NEXT.md                                             (bu dosya — anlık ey
 | Alan | Değer |
 |------|-------|
 | URL | https://staging.akisflow.com |
-| Deploy Edilen Commit | `a2a5e41` (canlı `/version` doğrulandı, 2026-02-12 16:29 UTC) |
+| Deploy Edilen Commit | `43b86e7` (canlı `/version` doğrulandı, 2026-02-12 19:55 UTC) |
 | S0.5 PR | [#265](https://github.com/OmerYasirOnal/akis-platform-devolopment/pull/265) — onboarding, feedback, context packs, QA docs, 750+ yeni test |
-| Smoke Testleri | 12/12 geçti (`staging_smoke.sh --commit a2a5e41`, 2026-02-12 16:29 UTC) |
+| Smoke Testleri | 12/12 geçti (`staging_smoke.sh --commit 43b86e7`, 2026-02-12 19:55 UTC) |
 | Test Sayısı | Backend: 842 + Frontend: 549 = **1,391 toplam** (Phase 1-8 test kampanyası + S0.5 sprint, 2026-02-11) |
-| Kod Düzeltmeleri | MCP `/ready` durumu, OAuth hoşgeldin e-postası, agents yönlendirme `/agents/*`, logo güncelleme, güvenlik temizliği, E2E test hizalama, Scribe AGT-8 derin analiz iyileştirmesi, GitHub-style light theme tokenları, jobs user isolation (veri sızıntı fix) |
+| Kod Düzeltmeleri | MCP `/ready` durumu, OAuth hoşgeldin e-postası, agents yönlendirme `/agents/*`, logo güncelleme, güvenlik temizliği, E2E test hizalama, Scribe AGT-8 derin analiz iyileştirmesi, GitHub-style light theme tokenları, jobs user isolation (veri sızıntı fix), expandable logs + smart auto-scroll + light theme kontrast düzeltmesi |
 | Şifreleme | Staging'de yapılandırıldı (`/ready` → `encryption.configured: true`) |
 | E-posta | Resend.com aktif (`EMAIL_PROVIDER=resend`); `noreply@akisflow.com` domain verified, DKIM+SPF+DMARC geçerli (2026-02-12) |
 | Google OAuth | `/ready` → `oauth.google`, `oauth.github`, `oauth.callbackBase` gösteriyor — staging `.env` kimlik bilgilerini doğrulayın |
