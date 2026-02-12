@@ -63,10 +63,15 @@ export default {
           '33%': { transform: 'translate(-25px, 10px) scale(1.08)', opacity: '0.15' },
           '66%': { transform: 'translate(15px, -20px) scale(0.92)', opacity: '0.10' },
         },
+        'slide-in-right': {
+          '0%': { opacity: '0', transform: 'translateX(12px)' },
+          '100%': { opacity: '1', transform: 'translateX(0)' },
+        },
       },
       animation: {
         'blob-drift': 'blob-drift 20s ease-in-out infinite',
         'blob-drift-alt': 'blob-drift-alt 25s ease-in-out infinite',
+        'slide-in-right': 'slide-in-right 200ms ease-out',
       },
     },
   },
@@ -74,4 +79,3 @@ export default {
     require('@tailwindcss/typography'),
   ],
 }
-

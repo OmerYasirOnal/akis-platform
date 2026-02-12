@@ -1515,6 +1515,31 @@ function StatusBadge({ status, children }) {
 }
 ```
 
+### 12.3 LiveAgentCanvas (S0.5.3-UX-15)
+
+`LiveAgentCanvas`, ajan konsollarında (Scribe/Trace/Proto) Logs sekmesinin varsayılan yürütme yüzeyidir.
+
+**Konumlar**
+- `frontend/src/components/agents/LiveAgentCanvas.tsx`
+- `frontend/src/components/agents/PhaseProgressBanner.tsx`
+- `frontend/src/components/agents/InnerMonologue.tsx`
+- `frontend/src/components/agents/PhaseActivityCards.tsx`
+- `frontend/src/components/agents/ExpandingFileTree.tsx`
+
+**Görsel katmanlar (progressive disclosure)**
+- `Stream` görünümü: `PhaseProgressBanner` + `InnerMonologue` + `PhaseActivityCards`
+- `Timeline` görünümü: mevcut `StepTimeline` (SSE trace event'leriyle)
+- `Quality` görünümü: quality snapshot + `ExpandingFileTree`
+
+**A11y ve motion**
+- Streaming içerik: `role=\"log\"` + `aria-live=\"polite\"`
+- Faz kartları: klavye ile genişletilebilir (button semantics)
+- Typewriter ve file-tree animasyonları: `prefers-reduced-motion` ile sadeleşir
+
+**Araştırma referansı (tasarım temeli)**
+- `docs/research/AGENT_UI_UX_LITERATURE_REVIEW.md`
+- Özellikle: progressive disclosure, temporal progress, trust calibration, inner monologue pattern
+
 ---
 
 ## 13. Tailwind Config Özeti
@@ -1732,4 +1757,3 @@ Bu design system dokümanı, AKIS Platform'un tüm UI bileşenlerini, renk palet
 - Tüm değişiklikleri git'e commit'leyin
 
 **Bu doküman, frontend takımının referans rehberidir ve codebase ile senkron tutulmalıdır.**
-
