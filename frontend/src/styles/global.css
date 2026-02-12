@@ -54,12 +54,11 @@ body {
   transition: background-color var(--transition-base, 200ms), color var(--transition-base, 200ms);
 }
 
-/* Light mode subtle gradient adjustment */
+/* Light mode subtle gradient adjustment (on #f6f8fa canvas) */
 [data-theme='light'] body {
-  background-image: 
-    radial-gradient(ellipse 80% 50% at 50% -10%, rgba(7, 209, 175, 0.04), transparent 70%),
-    radial-gradient(ellipse 60% 40% at 100% 100%, rgba(7, 209, 175, 0.03), transparent 50%),
-    linear-gradient(180deg, transparent 0%, rgba(7, 209, 175, 0.01) 100%);
+  background-image:
+    radial-gradient(ellipse 80% 50% at 50% -10%, rgba(7, 209, 175, 0.03), transparent 70%),
+    radial-gradient(ellipse 60% 40% at 100% 100%, rgba(7, 209, 175, 0.02), transparent 50%);
 }
 
 h1, h2, h3, h4, h5, h6 {
