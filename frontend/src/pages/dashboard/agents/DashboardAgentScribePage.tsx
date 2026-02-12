@@ -13,6 +13,7 @@ import { Link } from 'react-router-dom';
 import Card from '../../../components/common/Card';
 import Button from '../../../components/common/Button';
 import AgentRuntimeSettingsDrawer from '../../../components/agents/AgentRuntimeSettingsDrawer';
+import { useI18n } from '../../../i18n/useI18n';
 import SearchableSelect, { type SelectOption } from '../../../components/common/SearchableSelect';
 import {
   githubDiscoveryApi,
@@ -46,6 +47,9 @@ interface Artifact {
 }
 
 const DashboardAgentScribePage = () => {
+  const { t: _t } = useI18n();
+  const t = useCallback((key: string) => _t(key as never), [_t]);
+
   // GitHub OAuth user (read-only owner)
   const [connectedGitHubUser, setConnectedGitHubUser] = useState<string>('');
   
@@ -73,8 +77,8 @@ const DashboardAgentScribePage = () => {
   const [isPolling, setIsPolling] = useState(false);
   const pollingIntervalRef = useRef<number | null>(null);
 
-  // Doc Pack Generator state
-  const [docPack, setDocPack] = useState<DocPack>('standard');
+  // Doc Pack Generator state (empty string = auto-detect)
+  const [docPack, setDocPack] = useState<DocPack | ''>('');
   const [docDepth, setDocDepth] = useState<DocDepth>('standard');
   const [outputTargets, setOutputTargets] = useState<DocTarget[]>(['README', 'ARCHITECTURE', 'API', 'DEVELOPMENT']);
 
@@ -380,9 +384,9 @@ const DashboardAgentScribePage = () => {
         baseBranch,
         targetPath,
         dryRun,
-        docPack,
+        ...(docPack ? { docPack } : {}),
         docDepth,
-        outputTargets,
+        ...(docPack ? { outputTargets } : {}),
         ...(analyzeCommits ? { analyzeLastNCommits: analyzeCommits } : {}),
       };
       
@@ -567,35 +571,42 @@ const DashboardAgentScribePage = () => {
 
           {/* Doc Pack Configuration */}
           <div className="border-t border-ak-border pt-4">
-            <h3 className="mb-3 text-sm font-semibold text-ak-text-primary">Documentation Pack</h3>
+            <h3 className="mb-3 text-sm font-semibold text-ak-text-primary">{t('agents.scribe.docScope.label')}</h3>
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
               {/* Doc Pack Selector */}
               <div className="space-y-2">
-                <label className="block text-xs font-medium text-ak-text-secondary">Pack</label>
+                <label className="block text-xs font-medium text-ak-text-secondary">{t('agents.scribe.docScope.label')}</label>
                 <select
                   value={docPack}
                   onChange={(e) => {
-                    const pack = e.target.value as DocPack;
-                    setDocPack(pack);
-                    const defaultTargets: Record<DocPack, DocTarget[]> = {
-                      readme: ['README'],
-                      standard: ['README', 'ARCHITECTURE', 'API', 'DEVELOPMENT'],
-                      full: ['README', 'ARCHITECTURE', 'API', 'DEVELOPMENT', 'DEPLOYMENT', 'CONTRIBUTING', 'FAQ', 'CHANGELOG'],
-                    };
-                    setOutputTargets(defaultTargets[pack]);
+                    const val = e.target.value;
+                    if (val === '') {
+                      setDocPack('');
+                      setOutputTargets(['README', 'ARCHITECTURE', 'API', 'DEVELOPMENT']);
+                    } else {
+                      const pack = val as DocPack;
+                      setDocPack(pack);
+                      const defaultTargets: Record<DocPack, DocTarget[]> = {
+                        readme: ['README'],
+                        standard: ['README', 'ARCHITECTURE', 'API', 'DEVELOPMENT'],
+                        full: ['README', 'ARCHITECTURE', 'API', 'DEVELOPMENT', 'DEPLOYMENT', 'CONTRIBUTING', 'FAQ', 'CHANGELOG'],
+                      };
+                      setOutputTargets(defaultTargets[pack]);
+                    }
                   }}
                   disabled={!!isRunning}
                   className="w-full rounded-lg border border-ak-border bg-ak-surface-2 px-3 py-2 text-sm text-ak-text-primary focus:border-ak-primary focus:outline-none focus:ring-1 focus:ring-ak-primary disabled:opacity-50"
                 >
-                  <option value="readme">Quick README</option>
-                  <option value="standard">Standard Docs</option>
-                  <option value="full">Deep Doc Pack</option>
+                  <option value="">{t('agents.scribe.docScope.auto')}</option>
+                  <option value="readme">{t('agents.scribe.docScope.readme')}</option>
+                  <option value="standard">{t('agents.scribe.docScope.standard')}</option>
+                  <option value="full">{t('agents.scribe.docScope.full')}</option>
                 </select>
               </div>
 
               {/* Depth Selector */}
               <div className="space-y-2">
-                <label className="block text-xs font-medium text-ak-text-secondary">Depth</label>
+                <label className="block text-xs font-medium text-ak-text-secondary">{t('agents.scribe.docDepth.label')}</label>
                 <div className="flex gap-2">
                   {(['lite', 'standard', 'deep'] as DocDepth[]).map((d) => (
                     <button
@@ -609,7 +620,7 @@ const DashboardAgentScribePage = () => {
                           : 'border-ak-border bg-ak-surface-2 text-ak-text-secondary hover:text-ak-text-primary'
                       } disabled:opacity-50`}
                     >
-                      {d.charAt(0).toUpperCase() + d.slice(1)}
+                      {t(`agents.scribe.docDepth.${d}`)}
                     </button>
                   ))}
                 </div>
@@ -630,8 +641,8 @@ const DashboardAgentScribePage = () => {
               </div>
             </div>
 
-            {/* Output Targets Checklist */}
-            <div className="mt-4 space-y-2">
+            {/* Output Targets Checklist — hidden in auto-detect mode */}
+            {docPack && <div className="mt-4 space-y-2">
               <label className="block text-xs font-medium text-ak-text-secondary">Output Targets</label>
               <div className="flex flex-wrap gap-2">
                 {(['README', 'ARCHITECTURE', 'API', 'DEVELOPMENT', 'DEPLOYMENT', 'CONTRIBUTING', 'FAQ', 'CHANGELOG'] as DocTarget[]).map((target) => (
@@ -660,7 +671,14 @@ const DashboardAgentScribePage = () => {
                   </label>
                 ))}
               </div>
-            </div>
+            </div>}
+
+            {/* Auto-detect hint */}
+            {!docPack && (
+              <div className="mt-3 rounded-lg bg-ak-primary/5 px-3 py-2 text-xs text-ak-text-secondary">
+                {t('agents.scribe.docScope.autoHint')}
+              </div>
+            )}
           </div>
 
           {/* Advanced Options */}
