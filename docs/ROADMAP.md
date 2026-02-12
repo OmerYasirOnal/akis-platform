@@ -22,7 +22,7 @@
 
 | Kilometre Taşı | Hedef Tarih | Odak | Durum |
 |-----------------|-------------|------|-------|
-| **M1: Pilot Demo** | 28 Şubat 2026 | Staging düzeltme + Scribe/Trace/Proto golden path + pilot katılım | **Devam Ediyor** (32/32 görev + S0.5.3-UX-15 LiveAgentCanvas tamamlandı; kalan işler demo rehearsal ve final staging deploy doğrulaması) |
+| **M1: Pilot Demo** | 28 Şubat 2026 | Staging düzeltme + Scribe/Trace/Proto golden path + pilot katılım | **Devam Ediyor** (32/32 görev + S0.5.3-UX-15 LiveAgentCanvas + AUTH-3 user isolation tamamlandı; kalan: demo provası + final staging deploy doğrulaması) |
 | **M2: Stabilizasyon** | 31 Mart 2026 | Hata düzeltme, pilot geri bildirim, pg_trgm prototip, tez taslağı | Başlanmadı |
 | **M3: Mezuniyet** | Mayıs 2026 | Final rapor, sunum, demo video, teslim paketi | Başlanmadı |
 

@@ -4,6 +4,7 @@ import { jobEventBus, type StreamEvent } from '../core/events/JobEventBus.js';
 import { db } from '../db/client.js';
 import { jobs } from '../db/schema.js';
 import { eq } from 'drizzle-orm';
+import { requireAuth } from '../utils/auth.js';
 
 const TERMINAL_STATES = new Set(['completed', 'failed']);
 const streamQuerySchema = z.object({
@@ -42,14 +43,21 @@ export async function jobEventsRoutes(fastify: FastifyInstance) {
       },
     },
     async (request, reply) => {
-      const { id } = request.params as { id: string };
-      const query = streamQuerySchema.parse(request.query);
-      const includeHistory = query.includeHistory ?? true;
+      try {
+        const user = await requireAuth(request);
+        const { id } = request.params as { id: string };
+        const query = streamQuerySchema.parse(request.query);
+        const includeHistory = query.includeHistory ?? true;
 
-      const [job] = await db.select({ state: jobs.state }).from(jobs).where(eq(jobs.id, id)).limit(1);
-      if (!job) {
-        return reply.code(404).send({ error: { code: 'NOT_FOUND', message: 'Job not found' } });
-      }
+        const [job] = await db.select({ state: jobs.state, payload: jobs.payload }).from(jobs).where(eq(jobs.id, id)).limit(1);
+        if (!job) {
+          return reply.code(404).send({ error: { code: 'NOT_FOUND', message: 'Job not found' } });
+        }
+        const jobPayload = job.payload as Record<string, unknown> | null;
+        const jobUserId = jobPayload?.userId as string | undefined;
+        if (jobUserId && jobUserId !== user.id) {
+          return reply.code(404).send({ error: { code: 'NOT_FOUND', message: 'Job not found' } });
+        }
 
       // Access raw Node.js response for SSE
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -108,6 +116,14 @@ export async function jobEventsRoutes(fastify: FastifyInstance) {
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       ((request as any).raw as import('http').IncomingMessage).on('close', cleanup);
+      } catch (error) {
+        if (error instanceof Error && error.message === 'UNAUTHORIZED') {
+          return reply.code(401).send({
+            error: { code: 'UNAUTHORIZED', message: 'Authentication required' },
+          });
+        }
+        throw error;
+      }
     }
   );
 }

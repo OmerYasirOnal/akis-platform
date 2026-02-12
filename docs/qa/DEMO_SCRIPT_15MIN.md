@@ -168,7 +168,7 @@ If job execution fails:
    - "Context packs provide repo files to agents deterministically"
 
 3. **Quality & testing:**
-   - "382+ backend unit tests, 94 frontend tests"
+   - "842 backend + 549 frontend = 1,391 total tests"
    - "E2E golden path tests for each agent (Playwright)"
    - "Regression checklist with 70+ checks"
 
@@ -194,7 +194,7 @@ If job execution fails:
 | "Can agents call each other?" | "No. The orchestrator controls the lifecycle. Agents are isolated by design." |
 | "What happens if the AI API is down?" | "Structured error: AI_RATE_LIMITED or AI_PROVIDER_ERROR, with retry logic." |
 | "Is this deployed somewhere?" | "Yes, staging.akisflow.com on OCI Free Tier. Single VM, Docker Compose." |
-| "What's the testing coverage?" | "382 backend + 94 frontend tests. E2E golden path tests per agent." |
+| "What's the testing coverage?" | "842 backend + 549 frontend = 1,391 tests. E2E golden path tests per agent." |
 
 ---
 

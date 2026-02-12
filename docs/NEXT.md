@@ -25,16 +25,17 @@ docs/NEXT.md                                             (bu dosya — anlık ey
 | Alan | Değer |
 |------|-------|
 | URL | https://staging.akisflow.com |
-| Deploy Edilen Commit | `be6552b` (PR #299 merge sonrası staging deploy, 2026-02-11) |
+| Deploy Edilen Commit | `b723c2d` (canlı `/version` doğrulandı, 2026-02-12 13:32 UTC) |
 | S0.5 PR | [#265](https://github.com/OmerYasirOnal/akis-platform-devolopment/pull/265) — onboarding, feedback, context packs, QA docs, 750+ yeni test |
-| Smoke Testleri | 12/12 geçti (`staging_smoke.sh --commit be6552b`, 2026-02-11) |
+| Smoke Testleri | 12/12 geçti (`staging_smoke.sh --commit b723c2d`, 2026-02-12 13:34 UTC) |
 | Test Sayısı | Backend: 842 + Frontend: 549 = **1,391 toplam** (Phase 1-8 test kampanyası + S0.5 sprint, 2026-02-11) |
-| Kod Düzeltmeleri | MCP `/ready` durumu, OAuth hoşgeldin e-postası, agents yönlendirme `/agents/*`, logo güncelleme, güvenlik temizliği, E2E test hizalama |
+| Kod Düzeltmeleri | MCP `/ready` durumu, OAuth hoşgeldin e-postası, agents yönlendirme `/agents/*`, logo güncelleme, güvenlik temizliği, E2E test hizalama, Scribe AGT-8 derin analiz iyileştirmesi |
 | Şifreleme | Staging'de yapılandırıldı (`/ready` → `encryption.configured: true`) |
 | E-posta | Resend.com aktif (`EMAIL_PROVIDER=resend`); `noreply@akisflow.com` domain verified, DKIM+SPF+DMARC geçerli (2026-02-12) |
 | Google OAuth | `/ready` → `oauth.google`, `oauth.github`, `oauth.callbackBase` gösteriyor — staging `.env` kimlik bilgilerini doğrulayın |
 | MCP Gateway | Always-on staging stack'te (profile kaldırıldı); CI pipeline (PR #266); `GITHUB_TOKEN` aktif, gateway reachable |
 | Agent Yönlendirme | Scribe/Trace/Proto → `/agents/*` taşındı; `/dashboard/scribe\|trace\|proto` yeni rotalara yönlendirme yapıyor |
+| Scribe AGT-8 | `b723c2d` ile merge + staging deploy tamamlandı (2026-02-12); önceki “deploy bekliyor” durumu kapandı |
 | Logo | Full wordmark korunuyor (`frontend/src/assets/branding/akis-official-logo@*`), compact/favikon için A-mark only ailesi güncellendi (`frontend/src/assets/branding/akis-a-mark.png`, `akis-mark@2x.png`, `akis-mark@3x.png`, `frontend/public/brand/favicon*`) |
 
 ---
@@ -129,6 +130,7 @@ docs/NEXT.md                                             (bu dosya — anlık ey
 | S0.5.3-UX-15 | Live Agent Canvas (streaming execution UI) | Tamamlandı | Scribe/Trace/Proto Logs tabları `LiveAgentCanvas` ile değiştirildi; `PhaseProgressBanner`, `InnerMonologue`, `PhaseActivityCards`, `ExpandingFileTree` eklendi; i18n TR/EN + unit testler + `prefers-reduced-motion` desteği tamamlandı (2026-02-12) |
 | S0.5.3-AUTH-2 | Signup mail fail davranışı düzeltmesi (false-success kaldırma) | Tamamlandı | `POST /auth/signup/start` artık verification mail gönderimi başarısızsa `EMAIL_DELIVERY_FAILED` (503) dönüyor ve oluşturulan `pending_verification` kullanıcıyı rollback ediyor; staging kök neden: SMTP auth `535` (2026-02-11) |
 | S0.5.3-AGT-8 | Scribe derin analiz iyileştirmesi (deep scan + multi-doc + granular progress) | Tamamlandı | 10 fazlı uygulama: (1) maxTokens pipeline fix (4096→docDepth-aware), (2) Scribe AI character prompt, (3) 4 eksik contract kaydı, (4) recursive repo scan (3 seviye, 150 dosya), (5) auto-detect doc pack, (6-7) documentsRead metrik fix + maxTokens wiring, (8) granular chat events, (9) playbook timings, (10) frontend DocScope/DocDepth UI + i18n (2026-02-12) |
+| S0.5.3-AUTH-3 | Jobs user isolation (data leak fix) | Tamamlandı | GET /api/agents/jobs, GET /api/agents/jobs/:id, POST cancel, GET stream — requireAuth + payload->>userId filter; 4 integration test (2026-02-12) |
 
 ---
 

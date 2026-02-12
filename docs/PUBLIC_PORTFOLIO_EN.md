@@ -86,7 +86,7 @@ React SPA → Caddy (auto-TLS) → Fastify API → PostgreSQL
 
 | Metric | Value |
 |--------|-------|
-| Automated tests | **1,344** (797 backend + 547 frontend) |
+| Automated tests | **1,391** (842 backend + 549 frontend) |
 | Test files | 106 (unit, component, E2E) |
 | Source files | 322 TypeScript/TSX |
 | Lines of code | ~58,000 |
