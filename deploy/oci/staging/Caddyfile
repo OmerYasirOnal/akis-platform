@@ -30,6 +30,8 @@ staging.akisflow.com {
         X-XSS-Protection "1; mode=block"
         # Referrer policy
         Referrer-Policy "strict-origin-when-cross-origin"
+        # HSTS — enforce HTTPS for 1 year
+        Strict-Transport-Security "max-age=31536000; includeSubDomains"
         # Remove server header
         -Server
     }

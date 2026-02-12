@@ -628,6 +628,23 @@ LiveAgentCanvas (NEW)
 - A2A Protocol (2025). Streaming & Asynchronous Operations. https://a2a-protocol.org/dev/topics/streaming-and-async
 - ProAgenticWorkflows (2024). Best Practices for Streaming LLM Responses in Front-End Stack. https://proagenticworkflows.ai
 
+### Interactive Multi-Agent Debugging
+
+- AGDebugger (CMU, 2025). Interactive Debugging and Steering of Multi-Agent AI Systems. https://dig.cmu.edu/publications/2025-agdebugger.html — Formative interviews identified difficulty reviewing long agent conversations, lack of interactive debugging support; tool features message browsing/editing and interactive resets.
+
+### Agent Prototyping Scaffolds
+
+- AgentBuilder (2025). Prototyping Scaffolds for Agent UX Development. arXiv:2510.04452 — Requirements elicitation with 12 participants identified key activities; validated design requirements for prototyping systems with 14 participants.
+
+### Proactive AI Assistants for Developers
+
+- CodingGenie (CHI 2025 area). Proactive Chat Assistants for Programmers. arXiv:2503.14724 — Found proactive assistants significantly benefit productivity; allows task customization while agent identifies improvement opportunities.
+- AutoPrompter (Google, 2025). Improving LLM Code Editing via Context Inference. arXiv:2504.20196 — Analysis of real-world LLM usage; identified 5 categories of missing information in prompts; achieved 27% improvement in edit correctness.
+
+### Agentic IDE Evolution (2025-2026)
+
+- Builder.io (2026). The Best Agentic IDEs Heading Into 2026. https://builder.io/blog/agentic-ide — Survey of Git-native AI coding tools with genuine codebase context understanding, multi-file editing, and autonomous PR creation capabilities.
+
 ### Industry Systems (Non-Academic Reference)
 
 - Cursor IDE (2025-2026). Debug Mode, Plan Mode, Multi-Agent Judging. https://cursor.com/changelog
@@ -637,4 +654,18 @@ LiveAgentCanvas (NEW)
 
 ---
 
-*This document is a comprehensive literature review for the AKIS Platform thesis, covering the theoretical foundations and empirical evidence for real-time, transparent, and explainable AI agent user interfaces. All primary references are from Q1 venues (CHI, UIST, NeurIPS, EMNLP, CSCW) or peer-reviewed publications.*
+### AKIS Implementation Mapping (Post-S0.5.3 Update)
+
+The LiveAgentCanvas implementation (PR #303, 2026-02-12) directly validates several theoretical findings from this review:
+
+| Literature Concept | AKIS Implementation | Component |
+|---|---|---|
+| DuetUI bidirectional context loop | PhaseProgressBanner + InnerMonologue real-time streaming | `LiveAgentCanvas.tsx` |
+| AGDebugger message browsing | PhaseActivityCards with expandable trace events | `PhaseActivityCards.tsx` |
+| Streaming architecture (AG-UI, A2A) | SSE-based job event streaming with useTypewriter | `useTypewriter.ts` |
+| Loom-style holistic UX (Agentic Era) | Unified canvas across Scribe/Trace/Proto consoles | Console page integration |
+| ReAct inner monologue display | InnerMonologue component with typewriter animation | `InnerMonologue.tsx` |
+
+---
+
+*This document is a comprehensive literature review for the AKIS Platform thesis, covering the theoretical foundations and empirical evidence for real-time, transparent, and explainable AI agent user interfaces. All primary references are from Q1 venues (CHI, UIST, NeurIPS, EMNLP, CSCW) or peer-reviewed publications. Last updated: 2026-02-12 (post-S0.5.3 remediation).*

@@ -50,6 +50,9 @@
 | 16 | Route redirect (browser) | Navigate to `/dashboard/scribe` in browser | Redirects to `/agents/scribe` |
 | 17 | OAuth welcome email | Sign in with new Google/GitHub account | Welcome email arrives (check inbox + backend logs for `SmtpEmailService`) |
 | 18 | Agent job MCP | Run Scribe dry-run job from `/agents/scribe` | No `MISSING_DEPENDENCY` error; job completes or produces expected output |
+| 19 | LiveAgentCanvas (S0.5.3-UX-15) | Navigate to `/agents/scribe`, run job, switch to Logs tab | PhaseProgressBanner, InnerMonologue, PhaseActivityCards render in real-time |
+| 20 | Agent console routes | Navigate to `/agents/scribe`, `/agents/trace`, `/agents/proto` | Each renders dedicated console with LiveAgentCanvas |
+| 21 | Jobs user isolation (S0.5.3-AUTH-3) | With User A session, `GET /api/agents/jobs`; then try User A's job ID with User B's session | User B gets 404, no cross-user data leak |
 
 ---
 

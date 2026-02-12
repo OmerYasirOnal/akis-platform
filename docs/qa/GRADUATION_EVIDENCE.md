@@ -88,15 +88,15 @@
 
 | Category | Count | Notes |
 |----------|-------|-------|
-| Unit Tests | 797 | `node:test` runner |
-| Test Suites | 184 | |
-| Key Areas | AI Service, Agent FSM, Scribe, Error Handling, Crypto, SSE, Trust Proxy, Email, Invite, Feedback, Context Packs, Prompt Determinism, Model Catalog, Session Service, Stream Events, HTTP Client, User AI Keys, Agent Config Schemas, Health Routes, Dashboard Metrics, Config Validation, Agent API Schemas | |
+| Unit Tests | 1,098 | `node:test` runner |
+| Test Suites | 241 | |
+| Key Areas | AI Service, Agent FSM, Scribe, Error Handling, Crypto, SSE, Trust Proxy, Email, Invite, Feedback, Context Packs, Prompt Determinism, Model Catalog, Session Service, Stream Events, HTTP Client, User AI Keys, Agent Config Schemas, Health Routes, Dashboard Metrics, Config Validation, Agent API Schemas, Jobs User Isolation, Integrations API, Billing Service | |
 
 ### Frontend Tests
 
 | Category | Count | Notes |
 |----------|-------|-------|
-| Component Tests (Vitest) | 547 | 48 test files |
+| Component Tests (Vitest) | 597 | 58 test files |
 | E2E Tests (Playwright) | 14 specs | Golden paths for Scribe/Trace/Proto |
 | Key Areas | Dashboard, Layout, Jobs, Scribe Console, Health, API Client, Branding, Feedback, Getting Started, UI Components (Badge, Pill, Skeleton, Pagination, Button, Input), Hooks (useAgentStatus, useJobs, useCreateJob), Timeline Helpers, Artifact Preview, Job Stream, Pricing, API Config, Error Boundary, Profile Menu, Footer | |
 
@@ -108,7 +108,7 @@ All quality gates pass on every commit:
 pnpm -r typecheck   → 0 errors
 pnpm -r lint        → 0 errors
 pnpm -r build       → clean build
-pnpm -r test        → 842 backend + 549 frontend = 1,391 tests
+pnpm -r test        → 1,098 backend + 597 frontend = 1,695 tests
 ```
 
 ---
@@ -137,7 +137,7 @@ pnpm -r test        → 842 backend + 549 frontend = 1,391 tests
 | Health Endpoint | `GET /health` → `{"status":"ok"}` |
 | Readiness Endpoint | `GET /ready` → service status JSON |
 | Version Endpoint | `GET /version` → commit SHA |
-| Smoke Test Script | `./scripts/staging_smoke.sh` (10 checks) |
+| Smoke Test Script | `./scripts/staging_smoke.sh` (11 checks + agent route verification) |
 
 ---
 
@@ -147,10 +147,10 @@ pnpm -r test        → 842 backend + 549 frontend = 1,391 tests
 |--------|-------|-------|----------|
 | S0.5.0 | 7-9 Feb | Staging base URL + deploy | 8/8 complete |
 | S0.5.1 | 10-21 Feb | Pilot access + agent reliability | 11/11 complete |
-| S0.5.2 | 10-23 Feb | Demo UX + RAG | 6/6 complete |
-| S0.5.3 | 24-28 Feb | QA + demo + graduation | 4/4 complete |
+| S0.5.2 | 10-23 Feb | Demo UX + RAG | 7/7 complete |
+| S0.5.3 | 24-28 Feb | QA + demo + Live Agent Canvas + AUTH-3 | 5/5 complete |
 
-**Total: 30/30 tasks complete (100%)**
+**Total: 66/66 tasks complete (100%)**
 
 ---
 

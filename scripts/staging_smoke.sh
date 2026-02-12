@@ -412,6 +412,26 @@ else
 fi
 
 # =============================================================================
+# Test 11: Agent console routes (Scribe, Trace, Proto)
+# =============================================================================
+echo "Test 11: Agent console routes"
+AGENT_ROUTES_OK=true
+for AGENT_ROUTE in "/agents/scribe" "/agents/trace" "/agents/proto"; do
+  AGENT_CODE=$(curl -s -o /dev/null -w "%{http_code}" "https://${HOST}${AGENT_ROUTE}" 2>/dev/null || echo "000")
+  if [ "$AGENT_CODE" = "200" ]; then
+    echo -e "${GREEN}  ✅ ${AGENT_ROUTE}: ${AGENT_CODE} (SPA served)${NC}"
+  else
+    echo -e "${RED}  ❌ ${AGENT_ROUTE}: ${AGENT_CODE} (expected 200)${NC}"
+    AGENT_ROUTES_OK=false
+  fi
+done
+if [ "$AGENT_ROUTES_OK" = true ]; then
+  TESTS_PASSED=$((TESTS_PASSED + 1))
+else
+  TESTS_FAILED=$((TESTS_FAILED + 1))
+fi
+
+# =============================================================================
 # Summary
 # =============================================================================
 echo ""

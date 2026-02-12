@@ -4,6 +4,7 @@
 **Hazırlanma Tarihi:** Kasım 2025  
 **Amaç:** AKIS Platform web sitesinin kapsamlı bilgi mimarisi, sayfa yapıları ve kullanıcı akışları
 **Güncelleme Notu (Phase 9.1):** Solid dark hero, ak-surface-2 kart desenleri ve /login + /signup karanlık temalarıyla güncellendi.
+**Güncelleme Notu (S0.5.3):** Agent rotaları `/dashboard/agents/*` yerine `/agents/*` kanonik olarak güncellendi. LiveAgentCanvas, Studio ve Smart Automations eklendi.
 
 ---
 
@@ -161,15 +162,17 @@ AKIS Platform (Public + Private Areas)
     │   ├── /dashboard/jobs/:id (Job Detail)
     │   └── /dashboard/jobs/new (Create Job)
     │
-    ├── /dashboard/agents
-    │   ├── /dashboard/agents/scribe
-    │   ├── /dashboard/agents/trace
-    │   └── /dashboard/agents/proto
+    ├── /agents (Agents Hub — canonical)
+    │   ├── /agents/scribe (Scribe Console)
+    │   ├── /agents/trace (Trace Console)
+    │   ├── /agents/proto (Proto Console)
+    │   ├── /agents/studio (Agent Studio)
+    │   └── /agents/smart-automations (Smart Automations)
+    │       └── /agents/smart-automations/:id (Automation Detail)
+    │
+    │   Note: /dashboard/agents/* redirects to /agents/* (legacy compat)
     │
     ├── /dashboard/integrations
-    │
-    ├── /agents/smart-automations (Smart Automations)
-    │   └── /agents/smart-automations/:id (Automation Detail)
     │
     ├── /dashboard/analytics
     │
@@ -1505,7 +1508,7 @@ Actions:
 
 ### 5.3 Scribe Single-Page Console
 
-**Path:** `/dashboard/agents/scribe`
+**Path:** `/agents/scribe` (canonical; `/dashboard/agents/scribe` redirects here)
 
 **Purpose:** Run Scribe documentation agent from a single workspace with real-time monitoring.
 
