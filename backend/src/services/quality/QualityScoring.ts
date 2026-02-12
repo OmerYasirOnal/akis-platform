@@ -4,7 +4,7 @@
  * Pure function: same inputs → same output
  */
 
-export const QUALITY_VERSION = 'v1.0';
+export const QUALITY_VERSION = 'v1.1';
 
 export interface QualityBreakdownItem {
   label: string;
@@ -30,6 +30,10 @@ export interface QualityInput {
   docDepth: 'lite' | 'standard' | 'deep';
   multiPass: boolean;
   totalTokens?: number | null;
+  /** S0.6: Evidence/attribution quality gate */
+  contextPackId?: string | null;
+  citationCount?: number | null;
+  verifiedCitationCount?: number | null;
 }
 
 function normalizeTarget(value: string): string {
@@ -138,8 +142,41 @@ export function computeQualityScore(input: QualityInput): QualityResult {
     breakdown.push({ label: 'Multi-pass review', value: 'No', points: 0 });
   }
 
+  // S0.6: Evidence/attribution quality gate
+  // When a context pack is used, agent output must include citations.
+  // Missing citations → penalty; verified citations → bonus.
+  if (input.contextPackId) {
+    const citations = input.citationCount ?? 0;
+    const verified = input.verifiedCitationCount ?? 0;
+
+    if (citations === 0) {
+      const penalty = -15;
+      breakdown.push({
+        label: 'Evidence citations',
+        value: 'No citations (knowledge pack used)',
+        points: penalty,
+      });
+      score += penalty;
+    } else if (verified > 0) {
+      const ratio = Math.min(verified / citations, 1);
+      const bonus = Math.round(ratio * 10);
+      breakdown.push({
+        label: 'Evidence citations',
+        value: `${verified}/${citations} verified`,
+        points: bonus,
+      });
+      score += bonus;
+    } else {
+      breakdown.push({
+        label: 'Evidence citations',
+        value: `${citations} unverified`,
+        points: 0,
+      });
+    }
+  }
+
   return {
-    score: Math.min(score, 100),
+    score: Math.max(0, Math.min(score, 100)),
     breakdown,
     version: QUALITY_VERSION,
     computedAt: new Date(),
@@ -186,6 +223,10 @@ export function generateQualitySuggestions(result: QualityResult, input: Quality
 
   if (!input.multiPass) {
     suggestions.push('Enable multi-pass review for better accuracy');
+  }
+
+  if (input.contextPackId && (input.citationCount ?? 0) === 0) {
+    suggestions.push('Add source citations when using knowledge packs for higher trust scores');
   }
 
   return suggestions.slice(0, 2);
