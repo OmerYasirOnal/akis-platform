@@ -11,7 +11,7 @@
 /**
  * Supported documentation file types
  */
-export type DocFileType = 
+export type DocFileType =
   | 'readme'          // README.md (project overview)
   | 'guide'           // User/developer guides in docs/
   | 'changelog'       // CHANGELOG.md (version history)
@@ -19,6 +19,10 @@ export type DocFileType =
   | 'api'             // API documentation
   | 'setup'           // Setup/installation guides
   | 'contributing'    // CONTRIBUTING.md
+  | 'architecture'    // ARCHITECTURE.md (system design)
+  | 'deployment'      // DEPLOYMENT.md (deploy guides)
+  | 'development'     // DEVELOPMENT.md (dev setup)
+  | 'faq'             // FAQ.md (frequently asked questions)
   | 'other';          // Other documentation files
 
 /**
@@ -208,6 +212,52 @@ export const DOC_CONTRACTS: Record<DocFileType, DocTypeContract> = {
   readme: README_CONTRACT,
   guide: GUIDE_CONTRACT,
   setup: SETUP_CONTRACT,
+  architecture: {
+    fileType: 'architecture',
+    patterns: ['docs/ARCHITECTURE.md'],
+    sections: [
+      { name: 'Overview', required: true, description: 'High-level system design and component diagram' },
+      { name: 'Components', required: true, description: 'Major components/services with responsibilities' },
+      { name: 'Data Flow', required: true, description: 'How data moves through the system' },
+      { name: 'Technology Stack', required: false, description: 'Languages, frameworks, infrastructure' },
+      { name: 'Diagrams', required: false, description: 'Mermaid or other diagrams', hints: ['Use mermaid fenced blocks'] },
+    ],
+    qualityRules: { minLength: 800, requireCodeExamples: false, tone: 'technical' },
+  },
+  deployment: {
+    fileType: 'deployment',
+    patterns: ['docs/DEPLOYMENT.md'],
+    sections: [
+      { name: 'Prerequisites', required: true, description: 'Infrastructure requirements' },
+      { name: 'Environment Variables', required: true, description: 'Required env vars with descriptions' },
+      { name: 'Build & Deploy', required: true, description: 'Step-by-step deployment process' },
+      { name: 'Monitoring', required: false, description: 'Health checks, logging, alerting' },
+      { name: 'Rollback', required: false, description: 'How to rollback a bad deploy' },
+    ],
+    qualityRules: { minLength: 500, requireCodeExamples: true, tone: 'technical' },
+  },
+  development: {
+    fileType: 'development',
+    patterns: ['docs/DEVELOPMENT.md'],
+    sections: [
+      { name: 'Prerequisites', required: true, description: 'Required tools and versions' },
+      { name: 'Local Setup', required: true, description: 'Steps to get running locally' },
+      { name: 'Commands', required: true, description: 'Dev, build, test, lint commands' },
+      { name: 'Environment Variables', required: true, description: 'Required env vars' },
+      { name: 'Troubleshooting', required: false, description: 'Common issues and fixes' },
+    ],
+    qualityRules: { minLength: 500, requireCodeExamples: true, tone: 'technical' },
+  },
+  faq: {
+    fileType: 'faq',
+    patterns: ['docs/FAQ.md'],
+    sections: [
+      { name: 'General', required: true, description: 'Common questions about the project' },
+      { name: 'Setup Issues', required: false, description: 'Installation and setup problems' },
+      { name: 'Usage', required: false, description: 'How-to questions' },
+    ],
+    qualityRules: { minLength: 300, tone: 'friendly' },
+  },
   changelog: {
     fileType: 'changelog',
     patterns: ['CHANGELOG.md'],
@@ -291,15 +341,19 @@ export const DOC_CONTRACTS: Record<DocFileType, DocTypeContract> = {
  */
 export function detectDocFileType(path: string): DocFileType {
   const lower = path.toLowerCase();
-  
+
   if (lower.includes('readme')) return 'readme';
   if (lower.includes('changelog')) return 'changelog';
   if (lower.includes('adr') || lower.includes('decisions')) return 'adr';
+  if (lower.includes('architecture')) return 'architecture';
+  if (lower.includes('deployment') || lower.includes('deploy')) return 'deployment';
+  if (lower.includes('development') || lower.includes('dev_setup') || lower.includes('dev-setup')) return 'development';
+  if (lower.includes('faq')) return 'faq';
   if (lower.includes('api')) return 'api';
   if (lower.includes('contributing')) return 'contributing';
   if (lower.includes('setup') || lower.includes('install')) return 'setup';
   if (lower.startsWith('docs/')) return 'guide';
-  
+
   return 'other';
 }
 
@@ -344,6 +398,23 @@ export interface RepoContext {
   techStack?: string[];
   /** License type */
   license?: string;
+  /** Total files discovered during scan */
+  fileCount?: number;
+  /** Detected project type */
+  projectType?: string;
+  /** Analyzed source structure */
+  sourceStructure?: {
+    entryPoints: string[];
+    routes: string[];
+    models: string[];
+    middleware: string[];
+    testDirs: string[];
+    configFiles: string[];
+  };
+  /** Whether repo has Dockerfile or deploy configs */
+  hasDockerfile?: boolean;
+  /** Whether repo has route/controller definitions */
+  hasRouteOrController?: boolean;
 }
 
 /**
@@ -481,7 +552,7 @@ export function targetToPath(target: DocTarget): string {
 // ============================================================================
 
 export const ARCHITECTURE_CONTRACT: DocTypeContract = {
-  fileType: 'guide',
+  fileType: 'architecture',
   patterns: ['docs/ARCHITECTURE.md'],
   sections: [
     { name: 'Overview', required: true, description: 'High-level system design and component diagram' },
@@ -498,7 +569,7 @@ export const ARCHITECTURE_CONTRACT: DocTypeContract = {
 // ============================================================================
 
 export const DEPLOYMENT_CONTRACT: DocTypeContract = {
-  fileType: 'guide',
+  fileType: 'deployment',
   patterns: ['docs/DEPLOYMENT.md'],
   sections: [
     { name: 'Prerequisites', required: true, description: 'Infrastructure requirements' },
@@ -515,7 +586,7 @@ export const DEPLOYMENT_CONTRACT: DocTypeContract = {
 // ============================================================================
 
 export const DEVELOPMENT_CONTRACT: DocTypeContract = {
-  fileType: 'setup',
+  fileType: 'development',
   patterns: ['docs/DEVELOPMENT.md'],
   sections: [
     { name: 'Prerequisites', required: true, description: 'Required tools and versions' },
@@ -532,7 +603,7 @@ export const DEVELOPMENT_CONTRACT: DocTypeContract = {
 // ============================================================================
 
 export const FAQ_CONTRACT: DocTypeContract = {
-  fileType: 'guide',
+  fileType: 'faq',
   patterns: ['docs/FAQ.md'],
   sections: [
     { name: 'General', required: true, description: 'Common questions about the project' },

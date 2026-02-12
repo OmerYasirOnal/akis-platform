@@ -5,6 +5,7 @@ import type { AIService, Plan, Planner } from '../../services/ai/AIService.js';
 import type { MCPTools } from '../../services/mcp/adapters/index.js';
 import type { TraceRecorder } from '../../core/tracing/TraceRecorder.js';
 import { getContractForPath, buildContractPrompt, detectDocFileType, type RepoContext, resolveDocPackConfig, targetToPath, type DocPack, type DocDepth, type ResolvedDocPackConfig } from './DocContract.js';
+import { SCRIBE_GENERATE_SYSTEM_PROMPT } from '../../services/ai/prompt-constants.js';
 import { createPlanGenerator, type PlanContext, type GeneratedPlan } from '../../core/planning/PlanGenerator.js';
 import { db } from '../../db/client.js';
 import { jobPlans } from '../../db/schema.js';
@@ -230,12 +231,11 @@ export class ScribeAgent extends BaseAgent {
    * Configuration for full-repo context scanning
    */
   private static readonly REPO_SCAN_CONFIG = {
-    // Maximum number of files to read
-    maxFiles: 50,
-    // Maximum bytes per file (truncate larger files)
+    maxFiles: 150,
     maxBytesPerFile: 20000,
-    // Preview length for AI prompt injection (increased for richer context)
-    previewLength: 4000,
+    previewLength: 8000,
+    maxDepth: 3,
+    maxFilesPerDir: 10,
   };
 
   /**
@@ -380,6 +380,79 @@ export class ScribeAgent extends BaseAgent {
   }
 
   /**
+   * Recursively scan a directory, accumulating discovered files
+   */
+  private async scanDirectoryRecursive(
+    owner: string,
+    repo: string,
+    branch: string,
+    dirPath: string,
+    depth: number,
+    maxDepth: number,
+    accumulated: { path: string; type: 'file' | 'dir' }[]
+  ): Promise<void> {
+    if (depth > maxDepth) return;
+    if (accumulated.length >= ScribeAgent.REPO_SCAN_CONFIG.maxFiles) return;
+
+    const listing = await this.listDirectorySafe(owner, repo, branch, dirPath);
+    if (!listing) return;
+
+    for (const item of listing) {
+      if (accumulated.length >= ScribeAgent.REPO_SCAN_CONFIG.maxFiles) break;
+      if (this.shouldExcludeFile(item.path)) continue;
+
+      accumulated.push({ path: item.path, type: item.type });
+
+      if (item.type === 'dir' && depth < maxDepth) {
+        await this.scanDirectoryRecursive(owner, repo, branch, item.path, depth + 1, maxDepth, accumulated);
+      }
+    }
+  }
+
+  /**
+   * Analyze discovered files to build a source structure map
+   */
+  private analyzeSourceStructure(
+    allFiles: { path: string; type: 'file' | 'dir' }[]
+  ): NonNullable<import('./DocContract.js').RepoContext['sourceStructure']> {
+    const structure = {
+      entryPoints: [] as string[],
+      routes: [] as string[],
+      models: [] as string[],
+      middleware: [] as string[],
+      testDirs: [] as string[],
+      configFiles: [] as string[],
+    };
+
+    for (const f of allFiles) {
+      if (f.type !== 'file') continue;
+      const p = f.path.toLowerCase();
+      if (/^(src\/)?(index|main|app|server)\.(ts|js|tsx|jsx)$/.test(p)) structure.entryPoints.push(f.path);
+      if (/route/i.test(p) && /\.(ts|js|tsx|jsx|py|go|rb)$/.test(p)) structure.routes.push(f.path);
+      if (/(model|schema|entity)/i.test(p) && /\.(ts|js|tsx|jsx|py|go|rb)$/.test(p)) structure.models.push(f.path);
+      if (/(middleware|interceptor|guard)/i.test(p) && /\.(ts|js|py|go|rb)$/.test(p)) structure.middleware.push(f.path);
+      if (/(test|spec|__tests__)/i.test(p)) structure.testDirs.push(f.path);
+      if (/\.(json|ya?ml|toml|env)$/.test(p) && !p.includes('node_modules')) structure.configFiles.push(f.path);
+    }
+
+    return structure;
+  }
+
+  /**
+   * Auto-detect the appropriate DocPack level from repo analysis
+   */
+  private detectRequiredDocuments(repoContext: RepoContext): DocPack {
+    const fileCount = repoContext.fileCount ?? 0;
+    const structure = repoContext.sourceStructure;
+    const hasRoutes = (structure?.routes.length ?? 0) > 0;
+    const hasModels = (structure?.models.length ?? 0) > 0;
+
+    if (fileCount >= 50 || (hasRoutes && hasModels)) return 'full';
+    if (fileCount >= 10 || hasRoutes || repoContext.hasDockerfile) return 'standard';
+    return 'readme';
+  }
+
+  /**
    * Detect project type based on existing files and directories
    */
   private detectProjectType(
@@ -435,88 +508,87 @@ export class ScribeAgent extends BaseAgent {
     const context: RepoContext = {
       keyFiles: [],
       techStack: [],
+      fileCount: 0,
+      hasDockerfile: false,
+      hasRouteOrController: false,
     };
 
     if (!this.githubMCP) {
       return context;
     }
 
-    const { maxFiles, previewLength } = ScribeAgent.REPO_SCAN_CONFIG;
+    const { maxFiles, previewLength, maxDepth, maxFilesPerDir } = ScribeAgent.REPO_SCAN_CONFIG;
     const readFiles: { path: string; content: string; priority: number }[] = [];
 
-    // STEP 1: Discover repo structure first (avoids blind probing)
+    // STEP 1: Discover repo structure
+    await this.traceRecorder?.emitLog('info', 'Scanning root directory structure...');
     const rootListing = await this.listDirectorySafe(owner, repo, branch, '');
-    
+
     if (rootListing) {
       const rootFiles = new Set(rootListing.filter(f => f.type === 'file').map(f => f.name));
       const rootDirs = new Set(rootListing.filter(f => f.type === 'dir').map(f => f.name));
-      
-      // Detect project type for smarter file selection
+
       const projectType = this.detectProjectType(rootFiles, rootDirs);
+      context.projectType = projectType;
+      await this.traceRecorder?.emitLog('info', `Detected project type: ${projectType}`);
       this.traceRecorder?.recordInfo(`Detected project type: ${projectType}, root files: ${Array.from(rootFiles).slice(0, 10).join(', ')}`);
-      
-      // STEP 2: Build targeted file list based on what EXISTS
+
+      // STEP 2: Build targeted file list from root
       const filesToRead: string[] = [];
-      
-      // Always read if present in root
-      if (rootFiles.has('README.md')) filesToRead.push('README.md');
-      if (rootFiles.has('README')) filesToRead.push('README');
-      if (rootFiles.has('readme.md')) filesToRead.push('readme.md');
-      if (rootFiles.has('package.json')) filesToRead.push('package.json');
-      if (rootFiles.has('server.js')) filesToRead.push('server.js');
-      if (rootFiles.has('index.js')) filesToRead.push('index.js');
-      if (rootFiles.has('app.js')) filesToRead.push('app.js');
-      if (rootFiles.has('tsconfig.json')) filesToRead.push('tsconfig.json');
-      if (rootFiles.has('.env.example')) filesToRead.push('.env.example');
-      if (rootFiles.has('Dockerfile')) filesToRead.push('Dockerfile');
-      if (rootFiles.has('docker-compose.yml')) filesToRead.push('docker-compose.yml');
-      
-      // Read files based on project type
-      if (projectType === 'node-express' || projectType === 'node-generic') {
-        // Check for routes/public directories
-        const backendDirs = ['routes', 'controllers', 'api', 'lib', 'models', 'middleware'];
-        for (const dir of backendDirs) {
-          if (rootDirs.has(dir)) {
-            const listing = await this.listDirectorySafe(owner, repo, branch, dir);
-            if (listing) {
-              for (const file of listing.filter(f => f.type === 'file').slice(0, 3)) {
-                filesToRead.push(`${dir}/${file.name}`);
-              }
-            }
-          }
-        }
-        if (rootDirs.has('public')) {
-          this.traceRecorder?.recordInfo('Found public/ directory');
+
+      for (const name of rootFiles) {
+        if (!this.shouldExcludeFile(name)) filesToRead.push(name);
+      }
+
+      // Detect Dockerfile
+      if (rootFiles.has('Dockerfile') || rootFiles.has('docker-compose.yml') || rootFiles.has('docker-compose.yaml')) {
+        context.hasDockerfile = true;
+      }
+
+      // STEP 3: Deep recursive scan for source directories
+      const sourceDirs = ['src', 'lib', 'app', 'server', 'backend', 'frontend', 'api', 'routes', 'controllers', 'models', 'middleware', 'services'];
+      const allDiscovered: { path: string; type: 'file' | 'dir' }[] = [];
+
+      for (const dir of sourceDirs) {
+        if (rootDirs.has(dir)) {
+          await this.traceRecorder?.emitLog('info', `Scanning ${dir}/ recursively...`);
+          await this.scanDirectoryRecursive(owner, repo, branch, dir, 0, maxDepth, allDiscovered);
         }
       }
 
-      // Scan docs/ directory for existing documentation
+      // Also scan docs/ recursively for .md files
       if (rootDirs.has('docs')) {
-        const docsListing = await this.listDirectorySafe(owner, repo, branch, 'docs');
-        if (docsListing) {
-          for (const file of docsListing.filter(f => f.type === 'file' && /\.(md|txt|rst)$/i.test(f.name)).slice(0, 5)) {
-            filesToRead.push(`docs/${file.name}`);
-          }
-        }
+        await this.scanDirectoryRecursive(owner, repo, branch, 'docs', 0, 2, allDiscovered);
       }
-      
-      if (projectType === 'react' || projectType === 'next') {
-        if (rootDirs.has('src')) {
-          const srcListing = await this.listDirectorySafe(owner, repo, branch, 'src');
-          if (srcListing) {
-            const srcFiles = srcListing.filter(f => f.type === 'file').map(f => f.name);
-            if (srcFiles.includes('App.tsx')) filesToRead.push('src/App.tsx');
-            if (srcFiles.includes('App.jsx')) filesToRead.push('src/App.jsx');
-            if (srcFiles.includes('main.tsx')) filesToRead.push('src/main.tsx');
-            if (srcFiles.includes('index.tsx')) filesToRead.push('src/index.tsx');
-          }
-        }
+
+      context.fileCount = rootFiles.size + allDiscovered.filter(f => f.type === 'file').length;
+
+      // Analyze source structure
+      context.sourceStructure = this.analyzeSourceStructure(allDiscovered);
+      context.hasRouteOrController = context.sourceStructure.routes.length > 0 || context.sourceStructure.middleware.length > 0;
+
+      // Add source files to read list (prioritized, capped per dir)
+      const sourceExtensions = /\.(ts|js|tsx|jsx|py|go|rs|java|rb|php)$/i;
+      const dirFileCounts = new Map<string, number>();
+
+      for (const item of allDiscovered) {
+        if (item.type !== 'file') continue;
+        if (this.shouldExcludeFile(item.path)) continue;
+        if (!sourceExtensions.test(item.path) && !/\.(md|json|ya?ml|toml)$/i.test(item.path)) continue;
+
+        const dir = item.path.split('/').slice(0, -1).join('/');
+        const count = dirFileCounts.get(dir) || 0;
+        if (count >= maxFilesPerDir) continue;
+        dirFileCounts.set(dir, count + 1);
+
+        filesToRead.push(item.path);
       }
-      
-      // STEP 3: Read discovered files
-      for (const filePath of filesToRead.slice(0, maxFiles)) {
-        if (this.shouldExcludeFile(filePath)) continue;
-        
+
+      // STEP 4: Read discovered files
+      const uniquePaths = [...new Set(filesToRead)];
+      uniquePaths.sort((a, b) => this.getFilePriority(a) - this.getFilePriority(b));
+
+      for (const filePath of uniquePaths.slice(0, maxFiles)) {
         const fileData = await this.githubMCP.getFileContentSafe(owner, repo, branch, filePath);
         if (fileData) {
           readFiles.push({
@@ -524,20 +596,20 @@ export class ScribeAgent extends BaseAgent {
             content: fileData.content,
             priority: this.getFilePriority(filePath),
           });
+          await this.traceRecorder?.emitLog('info', `Reading ${filePath} (${fileData.content.length} bytes)`);
         }
       }
     } else {
-      // Fallback: If directory listing fails, use minimal targeted probes
-      this.traceRecorder?.recordInfo('Could not list root directory, using minimal probe fallback');
-      
+      // Fallback: minimal targeted probes
+      await this.traceRecorder?.emitLog('info', 'Root listing failed, using minimal probe fallback');
+
       const minimalPaths = [
         'README.md', 'package.json', 'server.js', 'index.js', 'app.js',
         'src/index.ts', 'src/App.tsx', 'src/main.tsx',
       ];
-      
+
       for (const filePath of minimalPaths) {
         if (readFiles.length >= maxFiles) break;
-        
         const fileData = await this.githubMCP.getFileContentSafe(owner, repo, branch, filePath);
         if (fileData) {
           readFiles.push({
@@ -548,44 +620,33 @@ export class ScribeAgent extends BaseAgent {
         }
       }
     }
-
-    // Log summary
-    this.traceRecorder?.recordInfo(`Discovered ${readFiles.length} files for context`);
 
     // Sort by priority and take top maxFiles
     readFiles.sort((a, b) => a.priority - b.priority);
     const topFiles = readFiles.slice(0, maxFiles);
 
     // Build context
+    let totalBytes = 0;
     for (const file of topFiles) {
       const preview = file.content.length > previewLength
         ? file.content.substring(0, previewLength) + '\n... [truncated]'
         : file.content;
 
-      context.keyFiles!.push({
-        path: file.path,
-        preview,
-      });
+      context.keyFiles!.push({ path: file.path, preview });
+      totalBytes += file.content.length;
 
-      // Detect tech stack from package.json files
       if (/package\.json$/i.test(file.path)) {
         this.detectTechStack(file.content, context);
       }
-
-      // Detect license
       if (/^LICENSE/i.test(file.path)) {
         this.detectLicense(file.content, context);
       }
 
-      // Record trace
       this.traceRecorder?.recordDocRead(file.path, file.content.length, preview.substring(0, 100));
     }
 
-    // Log summary
+    await this.traceRecorder?.emitLog('info', `Context gathering complete: ${topFiles.length} files read, ${Math.round(totalBytes / 1024)}KB analyzed`);
     console.log(`[gatherRepoContext] Read ${topFiles.length} files for ${owner}/${repo}:${branch}`);
-    if (topFiles.length > 0) {
-      console.log(`[gatherRepoContext] Files: ${topFiles.map(f => f.path).join(', ')}`);
-    }
 
     return context;
   }
@@ -693,7 +754,7 @@ export class ScribeAgent extends BaseAgent {
     }
 
     // Resolve doc pack configuration with defaults
-    const docPackConfig: ResolvedDocPackConfig = resolveDocPackConfig({
+    let docPackConfig: ResolvedDocPackConfig = resolveDocPackConfig({
       docPack: task.docPack,
       docDepth: task.docDepth,
       outputTargets: task.outputTargets,
@@ -808,25 +869,67 @@ export class ScribeAgent extends BaseAgent {
       status: 'completed',
     });
 
-    // Step 2: Repo Scan & Scope Lock (contract-first playbook)
+    // Step 2: Gather Repository Context FIRST (enables auto-detection)
+    this.traceRecorder?.recordPlanStep({
+      stepId: 'gather-context',
+      title: 'Gather Repository Context',
+      description: 'Deep scanning repository for documentation evidence',
+      reasoning: 'Grounded documentation requires reading actual repository files. Deep scan enables auto-detection of required docs.',
+      status: 'running',
+    });
+
+    const repoContext = await this.gatherRepoContext(task.owner, task.repo, baseBranch);
+
+    this.traceRecorder?.recordPlanStep({
+      stepId: 'gather-context',
+      title: 'Gather Repository Context',
+      description: `Gathered context from ${repoContext.keyFiles?.length || 0} key files (${repoContext.fileCount || 0} total discovered)`,
+      reasoning: `Found: ${repoContext.techStack?.join(', ') || 'unknown stack'}, ${repoContext.packageManager || 'unknown'} package manager`,
+      status: 'completed',
+    });
+
+    // Auto-detect docPack if not explicitly set
+    if (!task.docPack) {
+      const detectedPack = this.detectRequiredDocuments(repoContext);
+      if (detectedPack !== 'readme') {
+        docPackConfig = resolveDocPackConfig({
+          docPack: detectedPack,
+          docDepth: task.docDepth,
+          maxOutputTokens: task.maxOutputTokens,
+          passes: task.passes,
+        });
+
+        this.traceRecorder?.recordDecision({
+          title: 'Auto-detected doc pack level',
+          decision: `Upgraded to "${detectedPack}" based on repo analysis`,
+          reasoning: `Repository has ${repoContext.fileCount || 0} files. Routes: ${repoContext.sourceStructure?.routes.length || 0}, Models: ${repoContext.sourceStructure?.models.length || 0}. Dockerfile: ${repoContext.hasDockerfile ? 'yes' : 'no'}.`,
+        });
+
+        await this.traceRecorder?.emitLog('info', `Auto-detected doc pack: ${detectedPack} (${docPackConfig.outputTargets.length} targets)`);
+      }
+    }
+
+    // Step 3: Repo Scan & Scope Lock (contract-first playbook)
     const targetPath = task.targetPath || 'README.md';
     const isDirectory = targetPath.endsWith('/');
-    
+
     this.traceRecorder?.recordPlanStep({
       stepId: 'repo-scan',
-      title: 'Repository Scan',
-      description: `Scanning target: ${targetPath}`,
-      reasoning: isDirectory 
+      title: 'Resolve Documentation Targets',
+      description: `Resolving targets for: ${targetPath}`,
+      reasoning: isDirectory
         ? 'Target is a directory. Will discover existing documentation files and select appropriate targets based on the task.'
-        : 'Target is a specific file. Will read existing content and apply documentation contract.',
+        : docPackConfig.outputTargets.length > 1
+          ? `Doc pack "${docPackConfig.docPack}" with ${docPackConfig.outputTargets.length} target(s)`
+          : 'Target is a specific file. Will read existing content and apply documentation contract.',
       status: 'running',
     });
 
     // Discover file targets
     const fileTargets: DocFileTarget[] = [];
 
-    // If docPack is configured, use pack targets instead of filesystem discovery
-    if (docPackConfig.outputTargets.length > 0 && task.docPack) {
+    // Use doc pack targets when available (explicit or auto-detected)
+    if (docPackConfig.outputTargets.length > 0) {
       this.traceRecorder?.recordDecision({
         title: 'Doc Pack mode active',
         decision: `Using doc pack "${docPackConfig.docPack}" with ${docPackConfig.outputTargets.length} target(s)`,
@@ -951,27 +1054,7 @@ export class ScribeAgent extends BaseAgent {
       reasoning: `Selected files based on task requirements and documentation contracts. Priority order: ${fileTargets.map(f => `${f.path} (priority ${f.priority})`).join(', ')}`,
     });
 
-    // Step 2.5: Gather Repository Context for grounded documentation
-    this.traceRecorder?.recordPlanStep({
-      stepId: 'gather-context',
-      title: 'Gather Repository Context',
-      description: 'Reading key repository files for grounded documentation',
-      reasoning: 'Grounded documentation requires reading actual repository files to avoid hallucination.',
-      status: 'running',
-    });
-
-    // Use baseBranch for reading context (workingBranch may not exist yet)
-    const repoContext = await this.gatherRepoContext(task.owner, task.repo, baseBranch);
-    
-    this.traceRecorder?.recordPlanStep({
-      stepId: 'gather-context',
-      title: 'Gather Repository Context',
-      description: `Gathered context from ${repoContext.keyFiles?.length || 0} key files`,
-      reasoning: `Found: ${repoContext.techStack?.join(', ') || 'unknown stack'}, ${repoContext.packageManager || 'unknown'} package manager`,
-      status: 'completed',
-    });
-
-    // Step 3: Generate contract-compliant content for each target
+    // Step 4: Generate contract-compliant content for each target
     this.traceRecorder?.recordPlanStep({
       stepId: 'generate-content',
       title: 'Generate Documentation',
@@ -981,6 +1064,7 @@ export class ScribeAgent extends BaseAgent {
     });
 
     const updatedFiles: Array<{ path: string; content: string; linesAdded: number }> = [];
+    const perFileTokenBudget = Math.floor(docPackConfig.maxOutputTokens / Math.max(fileTargets.length, 1));
 
     for (const target of fileTargets) {
       const docType = detectDocFileType(target.path);
@@ -1013,15 +1097,19 @@ export class ScribeAgent extends BaseAgent {
         durationMs: Date.now() - genStartTime,
       });
 
-      // Generate content using AI
+      // Generate content using AI with depth-aware token budget
+      await this.traceRecorder?.emitLog('info', `Generating ${target.path} (${fileTargets.indexOf(target) + 1}/${fileTargets.length})...`);
       const aiResult = await this.aiService.generateWorkArtifact({
         task: contractPrompt,
-        context: { ...task, filePath: target.path, docType, repoContext },
+        context: { ...task, filePath: target.path, docType },
+        maxTokens: perFileTokenBudget,
+        systemPrompt: SCRIBE_GENERATE_SYSTEM_PROMPT,
       });
       const newContent = aiResult.content;
 
       const linesAdded = newContent.split('\n').length - target.existingContent.split('\n').length;
-      
+      await this.traceRecorder?.emitLog('info', `Generated ${target.path}: ${newContent.split('\n').length} lines`);
+
       updatedFiles.push({
         path: target.path,
         content: newContent,
@@ -1096,14 +1184,12 @@ If no issues, output: []`;
       });
     }
 
-    // Enforce maxOutputTokens: truncate any file exceeding the per-file token budget
-    const perFileTokenBudget = Math.floor(docPackConfig.maxOutputTokens / Math.max(updatedFiles.length, 1));
+    // Safety truncation fallback (AI call already respects perFileTokenBudget)
+    const safetyCharLimit = perFileTokenBudget * 4;
     for (const file of updatedFiles) {
-      // Rough approximation: 1 token ≈ 4 chars
-      const charLimit = perFileTokenBudget * 4;
-      if (file.content.length > charLimit) {
-        file.content = file.content.substring(0, charLimit) + '\n\n<!-- Content truncated: exceeded token budget -->';
-        this.traceRecorder?.recordInfo(`Truncated ${file.path} to ~${perFileTokenBudget} tokens (maxOutputTokens enforcement)`);
+      if (file.content.length > safetyCharLimit) {
+        file.content = file.content.substring(0, safetyCharLimit) + '\n\n<!-- Content truncated: exceeded token budget -->';
+        this.traceRecorder?.recordInfo(`Safety truncated ${file.path} to ~${perFileTokenBudget} tokens`);
       }
     }
 
@@ -1118,6 +1204,7 @@ If no issues, output: []`;
 
     const critiques = [];
     for (const file of updatedFiles) {
+      await this.traceRecorder?.emitLog('info', `Reviewing ${file.path} for quality...`);
       const critiqueStartTime = Date.now();
       this.traceRecorder?.recordToolCall({
         toolName: 'ai.critique',
@@ -1135,6 +1222,7 @@ If no issues, output: []`;
       });
       
       critiques.push({ path: file.path, critique });
+      await this.traceRecorder?.emitLog('info', `Review complete for ${file.path}: ${critique.issues?.length || 0} issue(s)`);
 
       this.traceRecorder?.recordReasoning({
         phase: 'review',
@@ -1148,7 +1236,7 @@ If no issues, output: []`;
     results.critiques = critiques;
     const totalIssues = critiques.reduce((sum, c) => sum + (c.critique.issues?.length || 0), 0);
     const targetsProduced = updatedFiles.map((file) => file.path);
-    const documentsRead = Math.max((repoContext.keyFiles?.length || 0) + fileTargets.length, fileTargets.length);
+    const documentsRead = repoContext.keyFiles?.length || 0;
     const filesProduced = updatedFiles.length;
 
     this.traceRecorder?.recordPlanStep({
@@ -1230,6 +1318,7 @@ If no issues, output: []`;
 
     const commits = [];
     for (const file of updatedFiles) {
+      await this.traceRecorder?.emitLog('info', `Committing ${file.path} to ${workingBranch}...`);
       const commitStartTime = Date.now();
       this.traceRecorder?.recordToolCall({
         toolName: 'github.commitFile',
