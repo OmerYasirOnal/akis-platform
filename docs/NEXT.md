@@ -4,7 +4,9 @@
 > **WBS Tablosu:** [`docs/planning/WBS_EXPORT_S0.5.xlsx_compatible.md`](planning/WBS_EXPORT_S0.5.xlsx_compatible.md)  
 > **Araştırma Notu:** [`docs/planning/RESEARCH_BRIEF_S0.5_STAGING_RAG_AGENTS.md`](planning/RESEARCH_BRIEF_S0.5_STAGING_RAG_AGENTS.md)  
 > **Araştırma Temeli:** `docs/planning/RESEARCH_DEEP_DIVE_AGENT_ARCHITECTURE.md`  
-> **Son Güncelleme:** 2026-02-12 (staging deploy `a2a5e41` — 12/12 smoke ✅)
+> **Operasyonel Playbook:** [`docs/planning/AKIS_OPERATIONAL_PLAYBOOK.md`](planning/AKIS_OPERATIONAL_PLAYBOOK.md) (4 Pillar + Moonshot — teyit edilmiş hedef)  
+> **Uygulama Haritası:** [`docs/planning/PLAYBOOK_IMPLEMENTATION_MAP.md`](planning/PLAYBOOK_IMPLEMENTATION_MAP.md)  
+> **Son Güncelleme:** 2026-02-13 (playbook entegrasyonu + M2 görev planı)
 
 ---
 
@@ -226,8 +228,56 @@ docs/NEXT.md                                             (bu dosya — anlık ey
 
 | Kilometre Taşı | Hedef | Odak |
 |-----------------|-------|------|
-| M2: Stabilizasyon | Mart 2026 | Hata düzeltme, pilot geri bildirim, pg_trgm prototip, tez taslağı, demo video |
+| M2: Stabilizasyon | Mart 2026 | Hata düzeltme, pilot geri bildirim, RAG entegrasyonu, tez taslağı, demo video |
 | M3: Mezuniyet | Nisan-Mayıs 2026 | Final rapor, sunum slaytları, savunma provası, teslim paketi |
+
+### M2 — Operasyonel Playbook 4 Pillar MVP + RAG
+
+> **Stratejik Hedef:** [`docs/planning/AKIS_OPERATIONAL_PLAYBOOK.md`](planning/AKIS_OPERATIONAL_PLAYBOOK.md)  
+> **Gap Analizi:** [`docs/planning/PLAYBOOK_IMPLEMENTATION_MAP.md`](planning/PLAYBOOK_IMPLEMENTATION_MAP.md) (22 görev, 3 sprint)  
+> **RAG Plan:** [`docs/planning/RAG_INTEGRATION_PLAN_M2.md`](planning/RAG_INTEGRATION_PLAN_M2.md)  
+> **Prototip:** `~/my_small_llm/` (tamamlandı 2026-02-12)  
+> **Cursor promptu:** `.cursor/prompts/rag-integration-m2.md`
+
+#### M2 Sprint 1 (1-14 Mart) — Knowledge + Verification Temelleri
+
+| # | Görev | Pillar | Kapsam | Durum |
+|---|-------|--------|--------|-------|
+| M2-KI-1 | GroundednessScorer | P1 | Claim extraction + evidence matching + 0-1 score | Başlanmadı |
+| M2-KI-2 | ClaimDecomposer | P1 | AI-powered atomic claim extraction | Başlanmadı |
+| M2-VF-1 | VerificationGateEngine | P2 | Configurable thresholds + pass/fail/warn | Başlanmadı |
+| M2-VF-2 | Scribe Verification Gates | P2 | Citation ≥80%, Hallucination ≤5%, Freshness ≤6mo, Conflict=0 | Başlanmadı |
+| M2-VF-6 | Agent Risk Profiles | P2 | P0/P1/P2 → gate strictness config | Başlanmadı |
+
+#### M2 Sprint 2 (10-21 Mart) — Full Pipeline + UI
+
+| # | Görev | Pillar | Kapsam | Durum |
+|---|-------|--------|--------|-------|
+| M2-KI-3 | ConflictDetector | P1 | Kaynak çakışma tespiti | Başlanmadı |
+| M2-KI-4 | Cite-or-Block Gate | P1 | AgentOrchestrator enforcement | Başlanmadı |
+| M2-VF-3 | Trace Verification Gates | P2 | Coverage ≥90%, Edge Cases ≥5/mod, Validity ≥95% | Başlanmadı |
+| M2-VF-4 | Proto Verification Gates | P2 | Build 100%, Security 0 kritik, Convention ≥90% | Başlanmadı |
+| M2-FP-1 | FreshnessScheduler | P3 | Cron → stale knowledge detection | Başlanmadı |
+| M2-FP-2 | GitHub Releases Sinyal | P3 | MCP adapter genişletme | Başlanmadı |
+| M2-UI-1 | CitationBadge | P4 | verified/unverified/blocked/conflict states | Başlanmadı |
+| M2-UI-2 | ConfidenceIndicator | P4 | 0-100 + renk kodlaması | Başlanmadı |
+| M2-UI-3 | FreshnessLabel | P4 | Tarih + stale/fresh/unknown | Başlanmadı |
+| M2-UI-4 | ConflictWarning | P4 | Turuncu uyarı + kaynak listesi | Başlanmadı |
+| M2-UI-6 | i18n Integrity Keys | P4 | TR/EN citation/confidence/freshness | Başlanmadı |
+
+#### M2 Sprint 3 (17-31 Mart) — Entegrasyon + RAG
+
+| # | Görev | Pillar | Kapsam | Durum |
+|---|-------|--------|--------|-------|
+| M2-KI-5 | RAG Integration | P1 | Python microservice bağlantısı | Başlanmadı |
+| M2-VF-5 | Orchestrator Gate | P2 | completeJob'da gate check | Başlanmadı |
+| M2-FP-3 | CVE/Security Advisory | P3 | NVD + GitHub Security Advisories | Başlanmadı |
+| M2-FP-5 | Knowledge Approval Workflow | P3 | API + UI approval flow | Başlanmadı |
+| M2-UI-5 | Inline Provenance | P4 | ArtifactPreview citation + kaynak | Başlanmadı |
+| M2-RAG-1 | Python RAG Microservice | — | FastAPI + FAISS + sentence-transformers, Docker | Başlanmadı |
+| M2-RAG-2 | Hybrid Search | — | Keyword + vector birleştirme | Başlanmadı |
+| M2-RAG-3 | RAG Evaluation UI | — | 5 metrik dashboard + halüsinasyon tespiti | Başlanmadı |
+| M2-RAG-4 | Knowledge Base Yönetim UI | — | Doküman upload, indeks, semantic search | Başlanmadı |
 
 ---
 
@@ -248,6 +298,8 @@ docs/NEXT.md                                             (bu dosya — anlık ey
 | Doküman | Amaç |
 |---------|------|
 | [`docs/planning/DELIVERY_PLAN_S0.5_FEB_TO_GRADUATION.md`](planning/DELIVERY_PLAN_S0.5_FEB_TO_GRADUATION.md) | Kanonik plan (tek doğru kaynak) |
+| [`docs/planning/AKIS_OPERATIONAL_PLAYBOOK.md`](planning/AKIS_OPERATIONAL_PLAYBOOK.md) | Operasyonel hedef doküman (4 Pillar + Moonshot) |
+| [`docs/planning/PLAYBOOK_IMPLEMENTATION_MAP.md`](planning/PLAYBOOK_IMPLEMENTATION_MAP.md) | Playbook → codebase gap analizi + aksiyon planı |
 | [`docs/planning/WBS_EXPORT_S0.5.xlsx_compatible.md`](planning/WBS_EXPORT_S0.5.xlsx_compatible.md) | WBS tablosu + CSV |
 | [`docs/planning/RESEARCH_BRIEF_S0.5_STAGING_RAG_AGENTS.md`](planning/RESEARCH_BRIEF_S0.5_STAGING_RAG_AGENTS.md) | Araştırma notu |
 | [`docs/ROADMAP.md`](ROADMAP.md) | Kilometre taşları genel bakış |
@@ -256,6 +308,7 @@ docs/NEXT.md                                             (bu dosya — anlık ey
 | [`docs/qa/REGRESSION_CHECKLIST.md`](qa/REGRESSION_CHECKLIST.md) | Pilot demo regresyon kontrol listesi |
 | [`docs/agents/CONTEXT_PACKS.md`](agents/CONTEXT_PACKS.md) | Bağlam paketleri mimari kararı |
 | [`docs/planning/SOCIAL_PLATFORM_VISION.md`](planning/SOCIAL_PLATFORM_VISION.md) | M2/M3 social platform vizyonu (feed, marketplace, showcase) |
+| [`docs/planning/RAG_INTEGRATION_PLAN_M2.md`](planning/RAG_INTEGRATION_PLAN_M2.md) | M2 RAG entegrasyon planı (mimari + fazlar) |
 
 ---
 

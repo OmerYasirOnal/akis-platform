@@ -1,8 +1,10 @@
 # AKIS Platform — Yol Haritası ve Kilometre Taşları
 
 > **Kanonik Plan:** [`docs/planning/DELIVERY_PLAN_S0.5_FEB_TO_GRADUATION.md`](planning/DELIVERY_PLAN_S0.5_FEB_TO_GRADUATION.md)  
+> **Operasyonel Playbook:** [`docs/planning/AKIS_OPERATIONAL_PLAYBOOK.md`](planning/AKIS_OPERATIONAL_PLAYBOOK.md) (4 Pillar + Moonshot — teyit edilmiş hedef)  
+> **Uygulama Haritası:** [`docs/planning/PLAYBOOK_IMPLEMENTATION_MAP.md`](planning/PLAYBOOK_IMPLEMENTATION_MAP.md)  
 > **Anlık Eylemler:** [`docs/NEXT.md`](NEXT.md)  
-> **Son Güncelleme:** 2026-02-12
+> **Son Güncelleme:** 2026-02-13
 
 ---
 
@@ -84,15 +86,71 @@
 
 ---
 
-## M2: Stabilizasyon — Tamamlanma Kriterleri (31 Mart 2026)
+## M2: Stabilizasyon + 4 Pillar MVP — Tamamlanma Kriterleri (31 Mart 2026)
+
+> **Stratejik Hedef:** [`docs/planning/AKIS_OPERATIONAL_PLAYBOOK.md`](planning/AKIS_OPERATIONAL_PLAYBOOK.md)  
+> **Uygulama Haritası:** [`docs/planning/PLAYBOOK_IMPLEMENTATION_MAP.md`](planning/PLAYBOOK_IMPLEMENTATION_MAP.md)  
+> **Vizyon:** [`docs/planning/SOCIAL_PLATFORM_VISION.md`](planning/SOCIAL_PLATFORM_VISION.md)
+
+### Tamamlanma Kriterleri
 
 - [ ] Pilot geri bildirimleri toplanmış ve sınıflandırılmış
-- Vizyon: Social platform taslağı mevcut — [`docs/planning/SOCIAL_PLATFORM_VISION.md`](planning/SOCIAL_PLATFORM_VISION.md)
 - [ ] P0/P1 hatalar sıfır
 - [ ] Golden path başarı oranı %90+
-- [ ] pg_trgm retrieval prototip (opsiyonel)
 - [ ] Tez taslağı: giriş + literatür + yöntem
 - [ ] Demo videosu kaydedilmiş (5-10 dk)
+- [ ] **P1 (Knowledge Integrity): Groundedness score + cite-or-block enforcement MVP**
+- [ ] **P2 (Agent Verification): Scribe verification gates (4 metrik + eşik)**
+- [ ] **P3 (Freshness): Freshness scheduler + GitHub releases sinyal toplama**
+- [ ] **P4 (UI/UX Integrity): Citation badge + confidence indicator + freshness label bileşenleri**
+
+### M2 Sprint Planı (Playbook 4 Pillar)
+
+> 22 görev, 3 sprint'e dağıtılmış. Detaylar → [`PLAYBOOK_IMPLEMENTATION_MAP.md`](planning/PLAYBOOK_IMPLEMENTATION_MAP.md)
+
+| Sprint | Tarih | Odak | Görev Sayısı |
+|--------|-------|------|-------------|
+| Sprint 1 (Hafta 1-2) | 1-14 Mart | P1: GroundednessScorer + ClaimDecomposer; P2: VerificationGateEngine + ScribeGates + RiskProfiles | 5 |
+| Sprint 2 (Hafta 2-3) | 10-21 Mart | P1: ConflictDetector + CiteOrBlock; P2: Trace/ProtoGates; P3: Scheduler + GitHubReleases; P4: Citation/Confidence/Freshness/Conflict UI | 11 |
+| Sprint 3 (Hafta 3-4) | 17-31 Mart | P1: RAG integration; P2: Orchestrator gate; P3: CVE + Approval workflow; P4: Inline provenance | 5 |
+
+### M2-RAG: Semantic Retrieval Entegrasyonu
+
+> **Plan:** [`docs/planning/RAG_INTEGRATION_PLAN_M2.md`](planning/RAG_INTEGRATION_PLAN_M2.md)  
+> **Prototip:** `~/my_small_llm/` (tamamlandı 2026-02-12)
+
+| Görev | Açıklama | Durum |
+|-------|----------|-------|
+| M2-RAG-1 | Python RAG microservice (FastAPI + FAISS + sentence-transformers) | Başlanmadı |
+| M2-RAG-2 | Hybrid semantic + keyword search (`KnowledgeRetrievalService` genişletme) | Başlanmadı |
+| M2-RAG-3 | RAG Evaluation UI (5 boyutlu kalite + halüsinasyon tespiti) | Başlanmadı |
+| M2-RAG-4 | Knowledge Base yönetim UI (upload, indeks, semantic search test) | Başlanmadı |
+
+### M2 — 4 Pillar Görevleri
+
+| Görev ID | Pillar | Görev | Durum |
+|----------|--------|-------|-------|
+| M2-KI-1 | P1 | GroundednessScorer service (claim extraction + evidence matching + 0-1 score) | Başlanmadı |
+| M2-KI-2 | P1 | ClaimDecomposer utility (AI-powered atomic claim extraction) | Başlanmadı |
+| M2-KI-3 | P1 | ConflictDetector service (kaynak çakışma tespiti) | Başlanmadı |
+| M2-KI-4 | P1 | Cite-or-block gate (AgentOrchestrator enforcement) | Başlanmadı |
+| M2-KI-5 | P1 | RAG microservice entegrasyonu | Başlanmadı |
+| M2-VF-1 | P2 | VerificationGateEngine service (configurable thresholds) | Başlanmadı |
+| M2-VF-2 | P2 | Scribe verification gates (4 metrik + eşik) | Başlanmadı |
+| M2-VF-3 | P2 | Trace verification gates (3 metrik + eşik) | Başlanmadı |
+| M2-VF-4 | P2 | Proto verification gates (3 metrik + eşik) | Başlanmadı |
+| M2-VF-5 | P2 | Orchestrator gate integration (completeJob check) | Başlanmadı |
+| M2-VF-6 | P2 | Agent risk profile config (P0/P1/P2 → gate strictness) | Başlanmadı |
+| M2-FP-1 | P3 | FreshnessScheduler (stale knowledge detection) | Başlanmadı |
+| M2-FP-2 | P3 | GitHub Releases sinyal (MCP adapter genişletme) | Başlanmadı |
+| M2-FP-3 | P3 | CVE/Security Advisory sinyal entegrasyonu | Başlanmadı |
+| M2-FP-5 | P3 | Knowledge approval workflow (API + UI) | Başlanmadı |
+| M2-UI-1 | P4 | CitationBadge component (4 state) | Başlanmadı |
+| M2-UI-2 | P4 | ConfidenceIndicator component (0-100 + renk) | Başlanmadı |
+| M2-UI-3 | P4 | FreshnessLabel component (tarih + stale/fresh) | Başlanmadı |
+| M2-UI-4 | P4 | ConflictWarning component (turuncu uyarı) | Başlanmadı |
+| M2-UI-5 | P4 | ArtifactPreview inline citation + provenance | Başlanmadı |
+| M2-UI-6 | P4 | i18n: citation/confidence/freshness key'leri | Başlanmadı |
 
 ---
 
@@ -145,9 +203,12 @@
 | Doküman | Amaç |
 |---------|------|
 | [`docs/planning/DELIVERY_PLAN_S0.5_FEB_TO_GRADUATION.md`](planning/DELIVERY_PLAN_S0.5_FEB_TO_GRADUATION.md) | Kanonik plan (tek doğru kaynak) |
+| [`docs/planning/AKIS_OPERATIONAL_PLAYBOOK.md`](planning/AKIS_OPERATIONAL_PLAYBOOK.md) | Operasyonel hedef doküman (4 Pillar + Moonshot) |
+| [`docs/planning/PLAYBOOK_IMPLEMENTATION_MAP.md`](planning/PLAYBOOK_IMPLEMENTATION_MAP.md) | Playbook → codebase gap analizi + aksiyon planı |
 | [`docs/planning/WBS_EXPORT_S0.5.xlsx_compatible.md`](planning/WBS_EXPORT_S0.5.xlsx_compatible.md) | WBS + CSV |
 | [`docs/planning/RESEARCH_BRIEF_S0.5_STAGING_RAG_AGENTS.md`](planning/RESEARCH_BRIEF_S0.5_STAGING_RAG_AGENTS.md) | Araştırma notu |
 | [`docs/NEXT.md`](NEXT.md) | Anlık eylem öğeleri |
+| [`docs/planning/RAG_INTEGRATION_PLAN_M2.md`](planning/RAG_INTEGRATION_PLAN_M2.md) | M2 RAG entegrasyon planı |
 | [`docs/PROJECT_TRACKING_BASELINE.md`](PROJECT_TRACKING_BASELINE.md) | Geçmiş takvim çapası |
 | [`docs/deploy/OCI_STAGING_RUNBOOK.md`](deploy/OCI_STAGING_RUNBOOK.md) | Staging operasyonları |
 
