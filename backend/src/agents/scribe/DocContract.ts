@@ -398,6 +398,23 @@ export interface RepoContext {
   techStack?: string[];
   /** License type */
   license?: string;
+  /** Total files discovered during scan */
+  fileCount?: number;
+  /** Detected project type */
+  projectType?: string;
+  /** Analyzed source structure */
+  sourceStructure?: {
+    entryPoints: string[];
+    routes: string[];
+    models: string[];
+    middleware: string[];
+    testDirs: string[];
+    configFiles: string[];
+  };
+  /** Whether repo has Dockerfile or deploy configs */
+  hasDockerfile?: boolean;
+  /** Whether repo has route/controller definitions */
+  hasRouteOrController?: boolean;
 }
 
 /**
