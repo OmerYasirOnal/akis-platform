@@ -1253,6 +1253,114 @@ export const knowledgeChunksRelations = relations(knowledgeChunks, ({ one }) => 
   }),
 }));
 
+// ============================================================================
+// Knowledge Source Registry — Provenance-aware ingestion pipeline
+// S0.6: Verified Knowledge Acquisition + Source Provenance
+// ============================================================================
+
+export const knowledgeSourceLicenseEnum = pgEnum('knowledge_source_license', [
+  'apache-2.0', 'mit', 'bsd-2-clause', 'bsd-3-clause', 'cc-by-4.0', 'cc-by-sa-4.0',
+  'cc0-1.0', 'mpl-2.0', 'isc', 'unlicense', 'public-domain', 'custom-open', 'unknown',
+]);
+
+export const knowledgeSourceAccessEnum = pgEnum('knowledge_source_access', [
+  'api', 'git_clone', 'http_scrape', 'rss', 'manual_upload',
+]);
+
+export const knowledgeVerificationStatusEnum = pgEnum('knowledge_verification_status', [
+  'unverified', 'single_source', 'cross_verified', 'stale', 'conflicted',
+]);
+
+export const knowledgeSources = pgTable('knowledge_sources', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  name: varchar('name', { length: 300 }).notNull(),
+  sourceUrl: varchar('source_url', { length: 2000 }).notNull(),
+  licenseType: knowledgeSourceLicenseEnum('license_type').notNull().default('unknown'),
+  accessMethod: knowledgeSourceAccessEnum('access_method').notNull(),
+  domain: varchar('domain', { length: 100 }).notNull(),
+  refreshIntervalHours: integer('refresh_interval_hours').default(168),
+  lastFetchedAt: timestamp('last_fetched_at', { withTimezone: true }),
+  nextFetchAt: timestamp('next_fetch_at', { withTimezone: true }),
+  contentHash: varchar('content_hash', { length: 64 }),
+  verificationStatus: knowledgeVerificationStatusEnum('verification_status').notNull().default('unverified'),
+  staleAt: timestamp('stale_at', { withTimezone: true }),
+  isActive: boolean('is_active').notNull().default(true),
+  metadata: jsonb('metadata').$type<Record<string, unknown>>(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  domainIdx: index('idx_knowledge_sources_domain').on(table.domain),
+  activeIdx: index('idx_knowledge_sources_active').on(table.isActive),
+  verificationIdx: index('idx_knowledge_sources_verification').on(table.verificationStatus),
+  nextFetchIdx: index('idx_knowledge_sources_next_fetch').on(table.nextFetchAt),
+}));
+
+export type KnowledgeSource = typeof knowledgeSources.$inferSelect;
+export type NewKnowledgeSource = typeof knowledgeSources.$inferInsert;
+
+export const knowledgeSourcesRelations = relations(knowledgeSources, ({ many }) => ({
+  provenance: many(knowledgeProvenance),
+}));
+
+/**
+ * Provenance links: each knowledge chunk → source(s) that contributed it.
+ * Enables citation generation and cross-source verification.
+ */
+export const knowledgeProvenance = pgTable('knowledge_provenance', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  chunkId: uuid('chunk_id').notNull().references(() => knowledgeChunks.id, { onDelete: 'cascade' }),
+  sourceId: uuid('source_id').notNull().references(() => knowledgeSources.id, { onDelete: 'cascade' }),
+  sourceUrl: varchar('source_url', { length: 2000 }).notNull(),
+  retrievedAt: timestamp('retrieved_at', { withTimezone: true }).notNull(),
+  contentHash: varchar('content_hash', { length: 64 }).notNull(),
+  licenseSnapshot: knowledgeSourceLicenseEnum('license_snapshot').notNull(),
+  verificationStatus: knowledgeVerificationStatusEnum('verification_status').notNull().default('unverified'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  chunkIdx: index('idx_knowledge_provenance_chunk').on(table.chunkId),
+  sourceIdx: index('idx_knowledge_provenance_source').on(table.sourceId),
+  verificationIdx: index('idx_knowledge_provenance_verification').on(table.verificationStatus),
+}));
+
+export type KnowledgeProvenance = typeof knowledgeProvenance.$inferSelect;
+export type NewKnowledgeProvenance = typeof knowledgeProvenance.$inferInsert;
+
+export const knowledgeProvenanceRelations = relations(knowledgeProvenance, ({ one }) => ({
+  chunk: one(knowledgeChunks, {
+    fields: [knowledgeProvenance.chunkId],
+    references: [knowledgeChunks.id],
+  }),
+  source: one(knowledgeSources, {
+    fields: [knowledgeProvenance.sourceId],
+    references: [knowledgeSources.id],
+  }),
+}));
+
+/**
+ * Knowledge tags: domain labels for agent-specific retrieval.
+ * E.g. "react", "typescript", "devops", "testing"
+ */
+export const knowledgeTags = pgTable('knowledge_tags', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  chunkId: uuid('chunk_id').notNull().references(() => knowledgeChunks.id, { onDelete: 'cascade' }),
+  tag: varchar('tag', { length: 100 }).notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  chunkIdx: index('idx_knowledge_tags_chunk').on(table.chunkId),
+  tagIdx: index('idx_knowledge_tags_tag').on(table.tag),
+  uniqueChunkTag: index('idx_knowledge_tags_chunk_tag').on(table.chunkId, table.tag),
+}));
+
+export type KnowledgeTag = typeof knowledgeTags.$inferSelect;
+export type NewKnowledgeTag = typeof knowledgeTags.$inferInsert;
+
+export const knowledgeTagsRelations = relations(knowledgeTags, ({ one }) => ({
+  chunk: one(knowledgeChunks, {
+    fields: [knowledgeTags.chunkId],
+    references: [knowledgeChunks.id],
+  }),
+}));
+
 /**
  * Platform feedback - pilot user feedback capture
  * S0.5.1-WL-3: Floating feedback widget for pilot demo

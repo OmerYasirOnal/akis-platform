@@ -98,6 +98,76 @@ describe('QualityScoring', () => {
     });
   });
 
+  describe('evidence/attribution quality gate (S0.6)', () => {
+    it('penalizes -15 points when context pack used but no citations', () => {
+      const input: QualityInput = {
+        ...baseInput,
+        contextPackId: 'pack-react-v1',
+        citationCount: 0,
+        verifiedCitationCount: 0,
+      };
+      const result = computeQualityScore(input);
+      const baseline = computeQualityScore(baseInput);
+
+      assert.strictEqual(result.score, baseline.score - 15);
+      const evidenceItem = result.breakdown.find(b => b.label === 'Evidence citations');
+      assert.ok(evidenceItem, 'Should have evidence breakdown item');
+      assert.strictEqual(evidenceItem!.points, -15);
+    });
+
+    it('awards bonus for verified citations', () => {
+      const input: QualityInput = {
+        ...baseInput,
+        contextPackId: 'pack-react-v1',
+        citationCount: 10,
+        verifiedCitationCount: 8,
+      };
+      const result = computeQualityScore(input);
+      const baseline = computeQualityScore(baseInput);
+
+      assert.ok(result.score > baseline.score, 'Verified citations should add bonus');
+      const evidenceItem = result.breakdown.find(b => b.label === 'Evidence citations');
+      assert.ok(evidenceItem, 'Should have evidence breakdown item');
+      assert.strictEqual(evidenceItem!.points, 8); // round(0.8 * 10) = 8
+    });
+
+    it('gives 0 points for unverified citations (present but not verified)', () => {
+      const input: QualityInput = {
+        ...baseInput,
+        contextPackId: 'pack-react-v1',
+        citationCount: 5,
+        verifiedCitationCount: 0,
+      };
+      const result = computeQualityScore(input);
+      const evidenceItem = result.breakdown.find(b => b.label === 'Evidence citations');
+      assert.ok(evidenceItem);
+      assert.strictEqual(evidenceItem!.points, 0);
+    });
+
+    it('does not apply evidence gate when no context pack is used', () => {
+      const input: QualityInput = { ...baseInput, contextPackId: null };
+      const result = computeQualityScore(input);
+      const evidenceItem = result.breakdown.find(b => b.label === 'Evidence citations');
+      assert.ok(!evidenceItem, 'No evidence item without context pack');
+    });
+
+    it('never produces negative total score', () => {
+      const input: QualityInput = {
+        ...baseInput,
+        targetsConfigured: [],
+        targetsProduced: [],
+        documentsRead: 0,
+        filesProduced: 0,
+        docDepth: 'lite',
+        multiPass: false,
+        contextPackId: 'pack-test',
+        citationCount: 0,
+      };
+      const result = computeQualityScore(input);
+      assert.ok(result.score >= 0, `Score should never be negative, got ${result.score}`);
+    });
+  });
+
   describe('generateQualitySuggestions', () => {
     it('suggests provider check for AI_PROVIDER_ERROR', () => {
       const input: QualityInput = {
