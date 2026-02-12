@@ -120,6 +120,8 @@ export interface WorkerInput {
   task: string;
   context?: unknown;
   previousSteps?: string[];
+  maxTokens?: number;
+  systemPrompt?: string;
 }
 
 export interface ReflectionInput {
@@ -730,15 +732,16 @@ class RealAIService implements AIService {
    */
   async generateWorkArtifact(input: WorkerInput): Promise<WorkerResult> {
     const temps = this.getTemperatures();
+    const systemPrompt = input.systemPrompt ?? GENERATE_SYSTEM_PROMPT;
     const userPrompt = buildGenerateUserPrompt(input.task, input.context, input.previousSteps);
 
     const response = await this.chatCompletion(
       [
-        { role: 'system', content: GENERATE_SYSTEM_PROMPT },
+        { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt },
       ],
       this.config.modelDefault,
-      { temperature: temps.generate, maxTokens: 4096 },
+      { temperature: temps.generate, maxTokens: input.maxTokens ?? 4096 },
       'generate'
     );
 
