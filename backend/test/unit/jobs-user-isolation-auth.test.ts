@@ -46,17 +46,22 @@ function simulateRequireAuth(cookieHeader: string | undefined, cookieName: strin
 }
 
 /**
- * Simulates the ownership check pattern used in agents.ts:
+ * Simulates the ownership check pattern used in agents.ts/job-events.ts:
  * - Extract userId from job.payload
- * - If userId exists and doesn't match authenticated user → 404
- * - If userId matches or is missing → allow access
+ * - If userId is missing/empty OR doesn't match authenticated user → 404
+ * - Only exact owner match is allowed
  */
 function checkOwnership(
   jobPayload: Record<string, unknown> | null,
   authenticatedUserId: string
 ): { allowed: boolean; code?: string } {
-  const jobUserId = jobPayload?.userId as string | undefined;
-  if (jobUserId && jobUserId !== authenticatedUserId) {
+  const rawJobUserId = jobPayload?.userId;
+  const jobUserId =
+    typeof rawJobUserId === 'string' && rawJobUserId.trim().length > 0
+      ? rawJobUserId.trim()
+      : null;
+
+  if (!jobUserId || jobUserId !== authenticatedUserId) {
     return { allowed: false, code: 'NOT_FOUND' };
   }
   return { allowed: true };
@@ -175,25 +180,28 @@ describe('Ownership Check — payload.userId comparison', () => {
     assert.strictEqual(result.code, 'NOT_FOUND');
   });
 
-  test('allows access when payload has no userId (legacy jobs)', () => {
+  test('denies access when payload has no userId', () => {
     const result = checkOwnership({ spec: 'legacy job without userId' }, USER_A.id);
-    assert.strictEqual(result.allowed, true);
+    assert.strictEqual(result.allowed, false);
+    assert.strictEqual(result.code, 'NOT_FOUND');
   });
 
-  test('allows access when payload is null', () => {
+  test('denies access when payload is null', () => {
     const result = checkOwnership(null, USER_A.id);
-    assert.strictEqual(result.allowed, true);
+    assert.strictEqual(result.allowed, false);
+    assert.strictEqual(result.code, 'NOT_FOUND');
   });
 
-  test('allows access when userId is undefined', () => {
+  test('denies access when userId is undefined', () => {
     const result = checkOwnership({ userId: undefined, spec: 'test' } as Record<string, unknown>, USER_A.id);
-    assert.strictEqual(result.allowed, true);
+    assert.strictEqual(result.allowed, false);
+    assert.strictEqual(result.code, 'NOT_FOUND');
   });
 
-  test('denies access with empty string userId (treated as truthy)', () => {
-    // Empty string is falsy, so this should be allowed (same behavior as undefined)
+  test('denies access with empty string userId', () => {
     const result = checkOwnership({ userId: '', spec: 'test' }, USER_A.id);
-    assert.strictEqual(result.allowed, true);
+    assert.strictEqual(result.allowed, false);
+    assert.strictEqual(result.code, 'NOT_FOUND');
   });
 
   test('uses NOT_FOUND (404) instead of FORBIDDEN (403) for information hiding', () => {
@@ -367,10 +375,11 @@ describe('SSE Stream — Auth + Ownership Guard', () => {
     assert.strictEqual(result.allowed, true);
   });
 
-  test('stream allows access to legacy jobs without userId', () => {
+  test('stream denies access to jobs without userId', () => {
     const jobPayload = { spec: 'legacy' };
     const result = checkOwnership(jobPayload, USER_A.id);
-    assert.strictEqual(result.allowed, true);
+    assert.strictEqual(result.allowed, false);
+    assert.strictEqual(result.code, 'NOT_FOUND');
   });
 });
 
@@ -411,7 +420,7 @@ describe('Cross-Cutting — Security Invariants', () => {
     assert.deepStrictEqual(responseForMissing, responseForOtherUser);
   });
 
-  test('Trace/Proto auth is optional for job creation but userId is injected', () => {
+  test('Trace/Proto auth is optional for job creation but access requires userId ownership', () => {
     // agents.ts: For non-scribe types, auth failure is caught and ignored
     // BUT if auth succeeds, userId is added to payload
     // This means existing Trace/Proto jobs can have or not have userId
@@ -423,10 +432,10 @@ describe('Cross-Cutting — Security Invariants', () => {
       checkOwnership(withUserId, USER_A.id).allowed,
       true
     );
-    // Filter should include legacy jobs without userId (backward compat)
+    // Jobs without userId should be denied to avoid cross-user leakage
     assert.strictEqual(
       checkOwnership(withoutUserId, USER_A.id).allowed,
-      true
+      false
     );
     // Filter should exclude jobs with different userId
     assert.strictEqual(

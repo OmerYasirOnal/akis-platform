@@ -1,4 +1,4 @@
-import { FastifyInstance } from 'fastify';
+import { FastifyInstance, FastifyReply } from 'fastify';
 import { z } from 'zod';
 import { AgentOrchestrator } from '../core/orchestrator/AgentOrchestrator.js';
 import { db } from '../db/client.js';
@@ -266,6 +266,26 @@ const includeQuerySchema = z.object({
   include: z.string().optional(), // Comma-separated: 'plan,audit'
 });
 
+function extractJobUserId(payload: unknown): string | null {
+  if (!payload || typeof payload !== 'object') return null;
+  const rawUserId = (payload as Record<string, unknown>).userId;
+  if (typeof rawUserId !== 'string') return null;
+  const normalizedUserId = rawUserId.trim();
+  return normalizedUserId.length > 0 ? normalizedUserId : null;
+}
+
+function isJobOwnedByUser(payload: unknown, userId: string): boolean {
+  const jobUserId = extractJobUserId(payload);
+  return jobUserId === userId;
+}
+
+function sendJobNotFound(reply: FastifyReply, jobId: string, requestId?: string) {
+  return reply.code(404).send({
+    error: { code: 'NOT_FOUND', message: `Job ${jobId} not found` },
+    ...(requestId ? { requestId } : {}),
+  });
+}
+
 function extractCorrelationIdFromText(value: unknown): string | null {
   if (typeof value !== 'string' || value.length === 0) return null;
   const match = value.match(/Correlation ID:\s*([A-Za-z0-9._-]+)/i);
@@ -401,13 +421,20 @@ export async function agentsRoutes(fastify: FastifyInstance) {
               .limit(1);
 
             if (existingJob.length > 0) {
+              const duplicateDetails = {
+                existingJobId: existingJob[0].id,
+                existingJobState: existingJob[0].state,
+                owner,
+                repo,
+                type: body.type,
+              };
               return reply.code(409).send({
                 error: {
                   code: 'DUPLICATE_JOB',
                   message: `A ${body.type} job is already running for ${owner}/${repo}. Please wait for it to complete.`,
+                  details: duplicateDetails,
                 },
-                existingJobId: existingJob[0].id,
-                existingJobState: existingJob[0].state,
+                ...duplicateDetails,
               });
             }
           }
@@ -841,13 +868,8 @@ export async function agentsRoutes(fastify: FastifyInstance) {
             return;
           }
           job = result[0];
-          const jobPayload = job.payload as Record<string, unknown> | null;
-          const jobUserId = jobPayload?.userId as string | undefined;
-          if (jobUserId && jobUserId !== user.id) {
-            return reply.code(404).send({
-              error: { code: 'NOT_FOUND', message: `Job ${params.id} not found` },
-              requestId: request.id,
-            });
+          if (!isJobOwnedByUser(job.payload, user.id)) {
+            return sendJobNotFound(reply, params.id, request.id);
           }
         } catch (error) {
           const errorResponse = formatErrorResponse(request, error);
@@ -1393,6 +1415,9 @@ export async function agentsRoutes(fastify: FastifyInstance) {
         if (!job) {
           throw new JobNotFoundError(params.id);
         }
+        if (!isJobOwnedByUser(job.payload, user.id)) {
+          return sendJobNotFound(reply, params.id, request.id);
+        }
 
         // Validate approval eligibility
         if (!job.requiresApproval) {
@@ -1492,6 +1517,9 @@ export async function agentsRoutes(fastify: FastifyInstance) {
         if (!job) {
           throw new JobNotFoundError(params.id);
         }
+        if (!isJobOwnedByUser(job.payload, user.id)) {
+          return sendJobNotFound(reply, params.id, request.id);
+        }
 
         // Validate rejection eligibility
         if (!job.requiresApproval) {
@@ -1561,12 +1589,16 @@ export async function agentsRoutes(fastify: FastifyInstance) {
     },
     async (request, reply) => {
       try {
+        const user = await requireAuth(request);
         const params = jobIdParamsSchema.parse(request.params);
 
         // Verify job exists
         const [job] = await db.select().from(jobs).where(eq(jobs.id, params.id)).limit(1);
         if (!job) {
           throw new JobNotFoundError(params.id);
+        }
+        if (!isJobOwnedByUser(job.payload, user.id)) {
+          return sendJobNotFound(reply, params.id, request.id);
         }
 
         // Get comments
@@ -1620,6 +1652,9 @@ export async function agentsRoutes(fastify: FastifyInstance) {
         const [job] = await db.select().from(jobs).where(eq(jobs.id, params.id)).limit(1);
         if (!job) {
           throw new JobNotFoundError(params.id);
+        }
+        if (!isJobOwnedByUser(job.payload, user.id)) {
+          return sendJobNotFound(reply, params.id, request.id);
         }
 
         // Insert comment
@@ -1699,6 +1734,9 @@ export async function agentsRoutes(fastify: FastifyInstance) {
         const [parentJob] = await db.select().from(jobs).where(eq(jobs.id, params.id)).limit(1);
         if (!parentJob) {
           throw new JobNotFoundError(params.id);
+        }
+        if (!isJobOwnedByUser(parentJob.payload, user.id)) {
+          return sendJobNotFound(reply, params.id, request.id);
         }
 
         // Validate parent job is completed or failed (can revise either)
@@ -1823,12 +1861,16 @@ export async function agentsRoutes(fastify: FastifyInstance) {
     },
     async (request, reply) => {
       try {
+        const user = await requireAuth(request);
         const params = jobIdParamsSchema.parse(request.params);
 
         // Verify job exists
         const [job] = await db.select().from(jobs).where(eq(jobs.id, params.id)).limit(1);
         if (!job) {
           throw new JobNotFoundError(params.id);
+        }
+        if (!isJobOwnedByUser(job.payload, user.id)) {
+          return sendJobNotFound(reply, params.id, request.id);
         }
 
         // Get child revisions
@@ -1912,14 +1954,8 @@ export async function agentsRoutes(fastify: FastifyInstance) {
         if (!job) {
           throw new JobNotFoundError(params.id);
         }
-
-        const jobPayload = job.payload as Record<string, unknown> | null;
-        const jobUserId = jobPayload?.userId as string | undefined;
-        if (jobUserId && jobUserId !== user.id) {
-          return reply.code(404).send({
-            error: { code: 'NOT_FOUND', message: `Job ${params.id} not found` },
-            requestId: request.id,
-          });
+        if (!isJobOwnedByUser(job.payload, user.id)) {
+          return sendJobNotFound(reply, params.id, request.id);
         }
 
         // Check if job can be cancelled (only pending or running)
