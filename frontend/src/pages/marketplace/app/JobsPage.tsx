@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 import { useI18n } from '../../../i18n/useI18n';
 import { marketplaceApi, type JobPostItem } from '../../../services/api/marketplace';
@@ -10,22 +10,22 @@ export default function JobsPage() {
   const [ingesting, setIngesting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const loadJobs = async () => {
+  const loadJobs = useCallback(async (fallbackMessage = 'Failed to load jobs') => {
     setLoading(true);
     setError(null);
     try {
       const response = await marketplaceApi.listJobs({ limit: 30, offset: 0 });
       setItems(response.items);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t('marketplace.jobs.errorLoad'));
+      setError(err instanceof Error ? err.message : fallbackMessage);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     void loadJobs();
-  }, []);
+  }, [loadJobs]);
 
   const handleIngestSample = async () => {
     setIngesting(true);
@@ -48,7 +48,7 @@ export default function JobsPage() {
           },
         ],
       });
-      await loadJobs();
+      await loadJobs(t('marketplace.jobs.errorLoad'));
     } catch (err) {
       setError(err instanceof Error ? err.message : t('marketplace.jobs.errorIngest'));
     } finally {
