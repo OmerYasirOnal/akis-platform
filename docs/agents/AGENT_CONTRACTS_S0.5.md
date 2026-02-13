@@ -1,17 +1,17 @@
 # Agent Contracts — S0.5
 
 > ## Özet (TR)
-> Bu belge Scribe, Trace ve Proto ajanlarının girdi/çıktı sözleşmelerini, hata kodlarını,
+> Bu belge Scribe, Trace, Proto ve Piri ajanlarının girdi/çıktı sözleşmelerini, hata kodlarını,
 > golden path senaryolarını ve kalite metriklerini tanımlar. Her ajanın typed Contract + Playbook
 > yapısı, deterministic prompt kuralları (temperature=0) ve standart hata zarfı burada belgelenmiştir.
 > Teknik detaylar aşağıda İngilizce olarak sunulmaktadır.
 
 > **Task ID:** S0.5.1-AGT-1 (updated by AGT-6)
-> **Version:** 1.1.0
-> **Date:** 2026-02-09
+> **Version:** 1.2.0
+> **Date:** 2026-02-13
 > **Source of truth:** Backend agent implementations in `backend/src/agents/`
 
-This document specifies the input/output schemas and error taxonomy for the three AKIS agents: **Scribe**, **Trace**, and **Proto**. Each section includes the API-level payload schema, the agent-level result schema, and shared error codes.
+This document specifies the input/output schemas and error taxonomy for the four AKIS agents: **Scribe**, **Trace**, **Proto**, and **Piri**. Piri runs as a standalone service; Scribe, Trace, and Proto are orchestrated by the backend. Each section includes the API-level payload schema, the agent-level result schema, and shared error codes.
 
 ---
 
@@ -21,9 +21,10 @@ This document specifies the input/output schemas and error taxonomy for the thre
 2. [Scribe Agent](#2-scribe-agent)
 3. [Trace Agent](#3-trace-agent)
 4. [Proto Agent](#4-proto-agent)
-5. [Error Taxonomy](#5-error-taxonomy)
-6. [API Envelope](#6-api-envelope)
-7. [Example Requests & Responses](#7-example-requests--responses)
+5. [Piri Agent](#5-piri-agent)
+6. [Error Taxonomy](#6-error-taxonomy)
+7. [API Envelope](#7-api-envelope)
+8. [Example Requests & Responses](#8-example-requests--responses)
 
 ---
 
@@ -357,9 +358,26 @@ When AI generation fails or is unavailable, Proto produces a minimal scaffold:
 
 ---
 
-## 5. Error Taxonomy
+## 5. Piri Agent
 
-### 5.0 Standard Error Envelope (AGT-6)
+**Purpose:** RAG + web search motoru. Bilgi tabanında ve internette arama yaparak sorulara cevap verir.
+
+Piri, Scribe/Trace/Proto'dan farklı olarak **standalone FastAPI servisi** olarak çalışır (`devagents/piri`, port 8000). AKIS backend ile henüz HTTP entegrasyonu yok (M2-RAG-5 planında).
+
+| Özellik | Değer |
+|---------|-------|
+| **Route** | `http://localhost:8000` (standalone) |
+| **API** | `/rag/query`, `/rag/web-search`, `/rag/evaluate`, `/generate` |
+| **Kaynak** | `piri/main.py`, `piri/piri/engine.py` |
+| **Doküman** | [PIRI.md](PIRI.md) |
+
+> **Detaylı sözleşme:** [docs/agents/PIRI.md](PIRI.md)
+
+---
+
+## 6. Error Taxonomy
+
+### 6.0 Standard Error Envelope (AGT-6)
 
 **All** backend error responses MUST use this shape:
 
@@ -387,7 +405,7 @@ When AI generation fails or is unavailable, Proto produces a minimal scaffold:
 
 **Global error handler:** Registered in `server.app.ts`. Catches unhandled `ZodError` (→ `VALIDATION_ERROR`), Fastify schema validation errors, and known application errors. Unknown errors map to `INTERNAL_ERROR` with no internal detail leakage.
 
-### 5.1 Error Codes — AI / Agent
+### 6.1 Error Codes — AI / Agent
 
 All agents use structured error codes stored in `job.errorCode`:
 
@@ -402,7 +420,7 @@ All agents use structured error codes stored in `job.errorCode`:
 | `AI_MODEL_NOT_FOUND` | Configuration | 404 | Model not available | "The requested model is not available." |
 | `MODEL_NOT_ALLOWED` | Configuration | 400 | Model not in allowlist | "This model is not allowed. Choose from the approved list." |
 
-### 5.1b Error Codes — Auth
+### 6.1b Error Codes — Auth
 
 | Code | HTTP | Description |
 |---|---|---|
@@ -418,7 +436,7 @@ All agents use structured error codes stored in `job.errorCode`:
 | `INVALID_PROVIDER` | 400 | Unknown OAuth provider |
 | `OAUTH_NOT_CONFIGURED` | 503 | OAuth provider not configured on server |
 
-### 5.1c Error Codes — Settings / Config
+### 6.1c Error Codes — Settings / Config
 
 | Code | HTTP | Description |
 |---|---|---|
@@ -426,7 +444,7 @@ All agents use structured error codes stored in `job.errorCode`:
 | `DUPLICATE_KEY` | 409 | API key already exists for this provider |
 | `FORBIDDEN` | 403 | Insufficient permissions |
 
-### 5.1d Error Codes — Core
+### 6.1d Error Codes — Core
 
 | Code | HTTP | Description |
 |---|---|---|
@@ -436,7 +454,7 @@ All agents use structured error codes stored in `job.errorCode`:
 | `DATABASE_ERROR` | 500 | Database operation failure (details not leaked) |
 | `INTERNAL_ERROR` | 500 | Catch-all for unknown errors (details not leaked) |
 
-### 5.2 Error Classes (Backend)
+### 6.2 Error Classes (Backend)
 
 ```
 AgentError (base)
@@ -449,7 +467,7 @@ AgentError (base)
     └── ModelNotAllowedError      — model not in allowlist
 ```
 
-### 5.3 Agent-Level Errors
+### 6.3 Agent-Level Errors
 
 | Scenario | Error Behavior |
 |---|---|
@@ -462,9 +480,9 @@ AgentError (base)
 
 ---
 
-## 6. API Envelope
+## 7. API Envelope
 
-### 6.1 Submit Job
+### 7.1 Submit Job
 
 ```
 POST /api/agents/jobs
@@ -483,7 +501,7 @@ Content-Type: application/json
 }
 ```
 
-### 6.2 Get Job
+### 7.2 Get Job
 
 ```
 GET /api/agents/jobs/:id?include=plan,audit,trace,artifacts
@@ -515,7 +533,7 @@ GET /api/agents/jobs/:id?include=plan,audit,trace,artifacts
 }
 ```
 
-### 6.3 List Jobs
+### 7.3 List Jobs
 
 ```
 GET /api/agents/jobs?type=scribe&state=completed&limit=20&cursor=...
@@ -527,7 +545,7 @@ GET /api/agents/jobs?type=scribe&state=completed&limit=20&cursor=...
 }
 ```
 
-### 6.4 Cancel Job
+### 7.4 Cancel Job
 
 ```
 POST /api/agents/jobs/:id/cancel
@@ -540,7 +558,7 @@ POST /api/agents/jobs/:id/cancel
 }
 ```
 
-### 6.5 Revision Chain (PR-2)
+### 7.5 Revision Chain (PR-2)
 
 ```
 POST /api/agents/jobs/:id/revise
@@ -560,7 +578,7 @@ POST /api/agents/jobs/:id/revise
 
 ---
 
-## 7. Example Requests & Responses
+## 8. Example Requests & Responses
 
 ### 7.1 Scribe — Generate README
 
