@@ -42,6 +42,7 @@ const BlogIndexPage = lazy(() => import('./pages/public/BlogIndexPage'));
 const LearnLandingPage = lazy(() => import('./pages/public/LearnLandingPage'));
 const WaitlistPage = lazy(() => import('./pages/public/WaitlistPage'));
 const ContactPage = lazy(() => import('./pages/public/ContactPage'));
+const TechnologyPage = lazy(() => import('./pages/public/TechnologyPage'));
 
 const DocsLayout = lazy(() => import('./components/docs/DocsLayout'));
 const DocsIndexPage = lazy(() => import('./pages/docs/DocsIndexPage'));
@@ -97,6 +98,8 @@ function App() {
             <Route path="blog" element={<Suspense fallback={<PageLoader />}><BlogIndexPage /></Suspense>} />
             <Route path="learn" element={<Suspense fallback={<PageLoader />}><LearnLandingPage /></Suspense>} />
             <Route path="waitlist" element={<Suspense fallback={<PageLoader />}><WaitlistPage /></Suspense>} />
+            <Route path="technology" element={<Suspense fallback={<PageLoader />}><TechnologyPage /></Suspense>} />
+            <Route path="teknoloji" element={<Suspense fallback={<PageLoader />}><TechnologyPage /></Suspense>} />
             <Route path="contact" element={<Suspense fallback={<PageLoader />}><ContactPage /></Suspense>} />
             <Route path="iletisim" element={<Suspense fallback={<PageLoader />}><ContactPage /></Suspense>} />
             <Route path="legal">
