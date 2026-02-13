@@ -8,6 +8,8 @@ import { AgentChatPanel } from './views/AgentChatPanel.js';
 import { JobDetailPanel } from './views/JobDetailPanel.js';
 import { IndexedFilesProvider } from './providers/IndexedFilesProvider.js';
 import { CodeSearchService } from './services/CodeSearchService.js';
+import { WorkspaceContextProvider } from './services/WorkspaceContextProvider.js';
+import { DiagnosticsWatcher } from './services/DiagnosticsWatcher.js';
 import { runAgent } from './commands/runAgent.js';
 import { indexWorkspace } from './commands/indexWorkspace.js';
 import { searchCode } from './commands/searchCode.js';
@@ -24,6 +26,8 @@ export function activate(context: vscode.ExtensionContext): void {
   const fileIndexer = new FileIndexer();
   const codeSearch = new CodeSearchService();
   const terminalProvider = new AkisTerminalProvider();
+  const contextProvider = new WorkspaceContextProvider();
+  const diagnosticsWatcher = new DiagnosticsWatcher();
 
   // Sidebar tree providers
   const agentTreeProvider = new AkisAgentTreeProvider(apiClient);
@@ -178,12 +182,28 @@ export function activate(context: vscode.ExtensionContext): void {
     }),
   );
 
+  // Diagnostics → notify chat panel about errors
+  context.subscriptions.push(
+    diagnosticsWatcher.onDiagnosticEvent((event) => {
+      if (event.type === 'new_error' && AgentChatPanel.currentPanel) {
+        AgentChatPanel.currentPanel.appendContext(
+          event.file || 'workspace',
+          `New error: ${event.message || 'unknown'}`,
+        );
+      }
+      outputChannel.appendLine(
+        `[Diagnostics] ${event.type}: ${event.errorCount} errors, ${event.warningCount} warnings`,
+      );
+    }),
+  );
+
   // Cleanup
   context.subscriptions.push({
     dispose: () => {
       statusBar?.dispose();
       jobTreeProvider?.stopPolling();
       terminalProvider.dispose();
+      diagnosticsWatcher.dispose();
     },
   });
 

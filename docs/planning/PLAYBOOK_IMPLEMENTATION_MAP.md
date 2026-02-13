@@ -53,7 +53,7 @@ Bu doküman, AKIS Operational Playbook'taki 4 sütunu mevcut codebase ile eşle�
 | P1-G5 | Cite-or-Block Enforcement | Kaynaksız kritik iddia → hard gate (blok veya uyarı) | P0 | M2 |
 | P1-G6 | Unknown Obligation | "Bilinmiyor/belirsiz" yapısal işaretleme | P2 | M2-M3 |
 | P1-G7 | Citation Verification | Kaynak referanslarının gerçek doğrulaması | P1 | M2 |
-| P1-G8 | Semantic/Vector RAG | FAISS + sentence-transformers hybrid search | P0 | M2 (plan mevcut) |
+| P1-G8 | Semantic/Vector RAG | FAISS + sentence-transformers; Piri v3 submodule hazır (2026-02-13) | P0 | M2 (Piri temel altyapı tamam) |
 
 ### Aksiyon Planı
 
