@@ -37,3 +37,8 @@
 
 - Prefer Scribe quality score to reflect real execution evidence (accuracy + coverage), not sparse payload defaults.
   Example: Derive quality metrics from agent result, diagnostics, and artifacts so completed runs do not stay at `10/100` when docs are actually produced.
+
+## 2026-02-13
+
+- Prefer security-first fixes for cross-user data isolation issues in staging before UX polishing.
+  Example: When jobs visibility leaks are reported, prioritize strict ownership guards across all related endpoints and only then improve duplicate-run UX.
