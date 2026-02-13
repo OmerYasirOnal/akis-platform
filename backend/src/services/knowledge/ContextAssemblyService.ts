@@ -1,5 +1,6 @@
 import { knowledgeRetrievalService } from './retrieval/KnowledgeRetrievalService.js';
 import type { RetrievalResult, RetrievalFilter } from './retrieval/types.js';
+import { getPiriRAGService } from '../rag/PiriRAGService.js';
 
 export interface ContextLayer {
   role: 'system' | 'instruction' | 'data';
@@ -22,6 +23,8 @@ export interface ContextAssemblyOptions {
   retrievalFilters?: RetrievalFilter;
   maxKnowledgeTokens?: number;
   includeProposedKnowledge?: boolean;
+  piriContextQuery?: string;
+  piriAdditionalContext?: string;
 }
 
 const PLATFORM_POLICY = `You are an AI agent in the AKIS platform.
@@ -56,6 +59,8 @@ export class ContextAssemblyService {
       retrievalFilters = {},
       maxKnowledgeTokens = 2000,
       includeProposedKnowledge = false,
+      piriContextQuery,
+      piriAdditionalContext,
     } = options;
 
     const layers: ContextLayer[] = [];
@@ -106,6 +111,44 @@ export class ContextAssemblyService {
         });
         totalTokens += this.estimateTokens(knowledgeContent);
       }
+    }
+
+    // Piri RAG Knowledge layer — automatic RAG query if contextQuery is provided
+    if (piriContextQuery) {
+      const piriService = getPiriRAGService();
+      if (piriService) {
+        try {
+          const piriResult = await piriService.query(piriContextQuery, 5, 500, 0.3);
+          const piriContent = [
+            `**Question:** ${piriResult.question}`,
+            `**Answer:** ${piriResult.answer}`,
+            ...(piriResult.sources.length > 0
+              ? ['**Sources:**', ...piriResult.sources.map((s, i) => `  ${i + 1}. [${s.source}] ${s.content.slice(0, 300)}`)]
+              : []),
+          ].join('\n');
+
+          layers.push({
+            role: 'data',
+            label: 'Piri RAG Knowledge',
+            content: piriContent,
+            provenance: 'piri-rag-engine',
+          });
+          totalTokens += this.estimateTokens(piriContent);
+        } catch (piriError) {
+          console.warn(`[ContextAssembly] Piri RAG query failed (non-blocking): ${piriError instanceof Error ? piriError.message : String(piriError)}`);
+        }
+      }
+    }
+
+    // User-provided additional context from Piri sidebar (pre-fetched on frontend)
+    if (piriAdditionalContext) {
+      layers.push({
+        role: 'data',
+        label: 'User-Provided Piri Context',
+        content: piriAdditionalContext,
+        provenance: 'user-piri-sidebar',
+      });
+      totalTokens += this.estimateTokens(piriAdditionalContext);
     }
 
     if (jobInput) {
