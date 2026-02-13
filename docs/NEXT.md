@@ -274,7 +274,7 @@ docs/NEXT.md                                             (bu dosya — anlık ey
 | M2-FP-3 | CVE/Security Advisory | P3 | NVD + GitHub Security Advisories | Başlanmadı |
 | M2-FP-5 | Knowledge Approval Workflow | P3 | API + UI approval flow | Başlanmadı |
 | M2-UI-5 | Inline Provenance | P4 | ArtifactPreview citation + kaynak + VerificationSummary | Tamamlandı (2026-02-13) |
-| M2-RAG-1 | Python RAG Microservice | — | Piri v3 submodule entegre (Wikipedia+DDG, relevance filter, 2026-02-13) | Tamamlandı |
+| M2-RAG-1 | Python RAG Microservice | — | Piri v3 submodule + Dockerfile + compose overlay + /health (2026-02-13) | Tamamlandı |
 | M2-RAG-2 | Hybrid Search | — | Keyword + vector birleştirme | Başlanmadı |
 | M2-RAG-3 | RAG Evaluation UI | — | 5 metrik dashboard + halüsinasyon tespiti | Başlanmadı |
 | M2-RAG-4 | Knowledge Base Yönetim UI | — | Doküman upload, indeks, semantic search | Başlanmadı |
