@@ -71,6 +71,7 @@ const DashboardAgentStudioPage = lazy(() => import('./pages/dashboard/agents/stu
 const SmartAutomationsPage = lazy(() => import('./pages/dashboard/agents/smart-automations/SmartAutomationsPage'));
 const AutomationDetailPage = lazy(() => import('./pages/dashboard/agents/smart-automations/AutomationDetailPage'));
 const CrewRunPage = lazy(() => import('./pages/dashboard/agents/CrewRunPage'));
+const DashboardRAGPage = lazy(() => import('./pages/dashboard/DashboardRAGPage'));
 
 const PageLoader = () => (
   <div className="flex min-h-[200px] items-center justify-center">
@@ -213,6 +214,7 @@ function App() {
                 </Suspense>
               }
             />
+            <Route path="knowledge" element={<Suspense fallback={<PageLoader />}><DashboardRAGPage /></Suspense>} />
             <Route path="settings">
               <Route index element={<Navigate to="profile" replace />} />
               <Route path="profile" element={<Suspense fallback={<PageLoader />}><DashboardSettingsProfilePage /></Suspense>} />
