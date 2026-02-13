@@ -243,18 +243,18 @@ docs/NEXT.md                                             (bu dosya — anlık ey
 
 | # | Görev | Pillar | Kapsam | Durum |
 |---|-------|--------|--------|-------|
-| M2-KI-1 | GroundednessScorer | P1 | Claim extraction + evidence matching + 0-1 score | Başlanmadı |
-| M2-KI-2 | ClaimDecomposer | P1 | AI-powered atomic claim extraction | Başlanmadı |
-| M2-VF-1 | VerificationGateEngine | P2 | Configurable thresholds + pass/fail/warn | Başlanmadı |
+| M2-KI-1 | GroundednessScorer | P1 | Claim extraction + evidence matching + 0-1 score | Tamamlandı (2026-02-13) |
+| M2-KI-2 | ClaimDecomposer | P1 | AI-powered atomic claim extraction | Tamamlandı (2026-02-13) |
+| M2-VF-1 | VerificationGateEngine | P2 | Configurable thresholds + pass/fail/warn | Tamamlandı (2026-02-13) |
 | M2-VF-2 | Scribe Verification Gates | P2 | Citation ≥80%, Hallucination ≤5%, Freshness ≤6mo, Conflict=0 | Başlanmadı |
-| M2-VF-6 | Agent Risk Profiles | P2 | P0/P1/P2 → gate strictness config | Başlanmadı |
+| M2-VF-6 | Agent Risk Profiles | P2 | P0/P1/P2 → gate strictness config | Tamamlandı (2026-02-13) |
 
 #### M2 Sprint 2 (10-21 Mart) — Full Pipeline + UI
 
 | # | Görev | Pillar | Kapsam | Durum |
 |---|-------|--------|--------|-------|
-| M2-KI-3 | ConflictDetector | P1 | Kaynak çakışma tespiti | Başlanmadı |
-| M2-KI-4 | Cite-or-Block Gate | P1 | AgentOrchestrator enforcement | Başlanmadı |
+| M2-KI-3 | ConflictDetector | P1 | Kaynak çakışma tespiti | Tamamlandı (2026-02-13) |
+| M2-KI-4 | Cite-or-Block Gate | P1 | AgentOrchestrator enforcement | Tamamlandı (2026-02-13) |
 | M2-VF-3 | Trace Verification Gates | P2 | Coverage ≥90%, Edge Cases ≥5/mod, Validity ≥95% | Başlanmadı |
 | M2-VF-4 | Proto Verification Gates | P2 | Build 100%, Security 0 kritik, Convention ≥90% | Başlanmadı |
 | M2-FP-1 | FreshnessScheduler | P3 | Cron → stale knowledge detection | Başlanmadı |
