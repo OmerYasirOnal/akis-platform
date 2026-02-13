@@ -43,6 +43,12 @@ const LearnLandingPage = lazy(() => import('./pages/public/LearnLandingPage'));
 const WaitlistPage = lazy(() => import('./pages/public/WaitlistPage'));
 const ContactPage = lazy(() => import('./pages/public/ContactPage'));
 const TechnologyPage = lazy(() => import('./pages/public/TechnologyPage'));
+const MarketplaceOverviewPage = lazy(() => import('./pages/marketplace/MarketplaceOverviewPage'));
+const MarketplaceAppShell = lazy(() => import('./pages/marketplace/app/MarketplaceAppShell'));
+const OnboardingPage = lazy(() => import('./pages/marketplace/app/OnboardingPage'));
+const MarketplaceJobsPage = lazy(() => import('./pages/marketplace/app/JobsPage'));
+const MatchesPage = lazy(() => import('./pages/marketplace/app/MatchesPage'));
+const ProposalsPage = lazy(() => import('./pages/marketplace/app/ProposalsPage'));
 
 const DocsLayout = lazy(() => import('./components/docs/DocsLayout'));
 const DocsIndexPage = lazy(() => import('./pages/docs/DocsIndexPage'));
@@ -99,6 +105,7 @@ function App() {
             <Route path="blog" element={<Suspense fallback={<PageLoader />}><BlogIndexPage /></Suspense>} />
             <Route path="learn" element={<Suspense fallback={<PageLoader />}><LearnLandingPage /></Suspense>} />
             <Route path="waitlist" element={<Suspense fallback={<PageLoader />}><WaitlistPage /></Suspense>} />
+            <Route path="marketplace" element={<Suspense fallback={<PageLoader />}><MarketplaceOverviewPage /></Suspense>} />
             <Route path="technology" element={<Suspense fallback={<PageLoader />}><TechnologyPage /></Suspense>} />
             <Route path="teknoloji" element={<Suspense fallback={<PageLoader />}><TechnologyPage /></Suspense>} />
             <Route path="contact" element={<Suspense fallback={<PageLoader />}><ContactPage /></Suspense>} />
@@ -241,6 +248,23 @@ function App() {
               />
               <Route path="notifications" element={<Suspense fallback={<PageLoader />}><DashboardSettingsNotificationsPage /></Suspense>} />
             </Route>
+          </Route>
+
+          <Route
+            path="/app"
+            element={
+              <ProtectedRoute>
+                <Suspense fallback={<PageLoader />}>
+                  <MarketplaceAppShell />
+                </Suspense>
+              </ProtectedRoute>
+            }
+          >
+            <Route index element={<Navigate to="onboarding" replace />} />
+            <Route path="onboarding" element={<Suspense fallback={<PageLoader />}><OnboardingPage /></Suspense>} />
+            <Route path="jobs" element={<Suspense fallback={<PageLoader />}><MarketplaceJobsPage /></Suspense>} />
+            <Route path="matches" element={<Suspense fallback={<PageLoader />}><MatchesPage /></Suspense>} />
+            <Route path="proposals" element={<Suspense fallback={<PageLoader />}><ProposalsPage /></Suspense>} />
           </Route>
 
           {/* Docs */}
