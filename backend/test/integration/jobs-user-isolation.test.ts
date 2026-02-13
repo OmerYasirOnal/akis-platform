@@ -29,6 +29,7 @@ test('Jobs user isolation', { skip: !hasDatabase }, async (t) => {
   const userAEmail = `jobs-isolation-a-${Date.now()}@test.local`;
   const userBEmail = `jobs-isolation-b-${Date.now()}@test.local`;
   const password = 'test-password-123';
+  let orphanJobId: string | null = null;
 
   const cleanup = async () => {
     try {
@@ -38,6 +39,9 @@ test('Jobs user isolation', { skip: !hasDatabase }, async (t) => {
           sql`(${jobs.payload}->>'userId')::text = ${userBId}`
         )
       );
+      if (orphanJobId) {
+        await db.delete(jobs).where(eq(jobs.id, orphanJobId));
+      }
       await db.delete(users).where(eq(users.id, userAId));
       await db.delete(users).where(eq(users.id, userBId));
     } catch (err) {
@@ -147,6 +151,123 @@ test('Jobs user isolation', { skip: !hasDatabase }, async (t) => {
 
     const [after] = await db.select({ state: jobs.state }).from(jobs).where(eq(jobs.id, jobBObj.id)).limit(1);
     assert.strictEqual(after?.state, 'pending', 'Job should still be pending (cancel rejected)');
+  });
+
+  await t.test('T5: GET /api/agents/jobs/:id returns 404 when payload.userId is missing', async () => {
+    orphanJobId = randomUUID();
+    await db.insert(jobs).values({
+      id: orphanJobId,
+      type: 'trace',
+      state: 'completed',
+      payload: { spec: 'orphan-no-owner' },
+    });
+
+    const jwtA = await sign({ sub: userAId, email: userAEmail, name: 'User A' });
+    const cookieA = `${authEnv.AUTH_COOKIE_NAME}=${(jwtA as unknown as string)}`;
+
+    const response = await app.inject({
+      method: 'GET',
+      url: `/api/agents/jobs/${orphanJobId}`,
+      headers: { cookie: cookieA },
+    });
+
+    assert.strictEqual(response.statusCode, 404);
+    const body = JSON.parse(response.body);
+    assert.strictEqual(body.error?.code, 'NOT_FOUND');
+  });
+
+  await t.test('T6: GET /api/agents/jobs/:id/comments returns 401 without auth', async () => {
+    const jobAList = await db
+      .select({ id: jobs.id })
+      .from(jobs)
+      .where(sql`(${jobs.payload}->>'userId')::text = ${userAId}`)
+      .limit(1);
+    const jobAObj = jobAList[0];
+    if (!jobAObj) {
+      assert.fail('No job for user A found');
+    }
+
+    const response = await app.inject({
+      method: 'GET',
+      url: `/api/agents/jobs/${jobAObj.id}/comments`,
+    });
+    assert.strictEqual(response.statusCode, 401);
+    const body = JSON.parse(response.body);
+    assert.strictEqual(body.error?.code, 'UNAUTHORIZED');
+  });
+
+  await t.test('T7: GET /api/agents/jobs/:id/comments returns 404 for another user job', async () => {
+    const jobBList = await db
+      .select({ id: jobs.id })
+      .from(jobs)
+      .where(sql`(${jobs.payload}->>'userId')::text = ${userBId}`)
+      .limit(1);
+    const jobBObj = jobBList[0];
+    if (!jobBObj) {
+      assert.fail('No job for user B found');
+    }
+
+    const jwtA = await sign({ sub: userAId, email: userAEmail, name: 'User A' });
+    const cookieA = `${authEnv.AUTH_COOKIE_NAME}=${(jwtA as unknown as string)}`;
+
+    const response = await app.inject({
+      method: 'GET',
+      url: `/api/agents/jobs/${jobBObj.id}/comments`,
+      headers: { cookie: cookieA },
+    });
+    assert.strictEqual(response.statusCode, 404);
+    const body = JSON.parse(response.body);
+    assert.strictEqual(body.error?.code, 'NOT_FOUND');
+  });
+
+  await t.test('T8: GET /api/agents/jobs/:id/revisions returns 401 without auth', async () => {
+    const jobAList = await db
+      .select({ id: jobs.id })
+      .from(jobs)
+      .where(sql`(${jobs.payload}->>'userId')::text = ${userAId}`)
+      .limit(1);
+    const jobAObj = jobAList[0];
+    if (!jobAObj) {
+      assert.fail('No job for user A found');
+    }
+
+    const response = await app.inject({
+      method: 'GET',
+      url: `/api/agents/jobs/${jobAObj.id}/revisions`,
+    });
+    assert.strictEqual(response.statusCode, 401);
+    const body = JSON.parse(response.body);
+    assert.strictEqual(body.error?.code, 'UNAUTHORIZED');
+  });
+
+  await t.test('T9: POST /api/agents/jobs/:id/approve returns 404 for another user job', async () => {
+    const jobBList = await db
+      .select({ id: jobs.id })
+      .from(jobs)
+      .where(sql`(${jobs.payload}->>'userId')::text = ${userBId}`)
+      .limit(1);
+    const jobBObj = jobBList[0];
+    if (!jobBObj) {
+      assert.fail('No job for user B found');
+    }
+
+    await db
+      .update(jobs)
+      .set({ state: 'awaiting_approval', requiresApproval: true, updatedAt: new Date() })
+      .where(eq(jobs.id, jobBObj.id));
+
+    const jwtA = await sign({ sub: userAId, email: userAEmail, name: 'User A' });
+    const cookieA = `${authEnv.AUTH_COOKIE_NAME}=${(jwtA as unknown as string)}`;
+
+    const response = await app.inject({
+      method: 'POST',
+      url: `/api/agents/jobs/${jobBObj.id}/approve`,
+      headers: { cookie: cookieA },
+      payload: { comment: 'approve test' },
+    });
+    assert.strictEqual(response.statusCode, 404);
+    const body = JSON.parse(response.body);
+    assert.strictEqual(body.error?.code, 'NOT_FOUND');
   });
 
   await cleanup();
