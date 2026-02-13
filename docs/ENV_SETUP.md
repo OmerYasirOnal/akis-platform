@@ -504,6 +504,16 @@ docker compose restart backend
 
 > Piri Docker Compose overlay ile eklenir: `docker compose -f docker-compose.yml -f docker-compose.piri.yml up -d`
 
+### Marketplace Feature Flag (MVP)
+
+| Değişken | Açıklama | Default |
+|----------|----------|---------|
+| `MARKETPLACE_PROPOSAL_LLM_ENABLED` | Workstream proposal üretiminde opsiyonel LLM hook yolunu açar | `false` |
+
+Önerilen kullanım:
+- `false` (default): Template-only güvenli üretim.
+- `true`: Sadece kontrollü ortamlarda, güvenli prompt/fallback ile LLM destekli üretim.
+
 ### Frontend Staging/Production Note
 
 > **Kritik:** Staging ve production build'lerinde `VITE_BACKEND_URL` **set edilmemelidir**. Frontend, API base URL'ini `window.location.origin` üzerinden `getApiBaseUrl()` fonksiyonu ile çözer. Bu, `frontend/src/services/api/config.ts` dosyasında tanımlıdır.
@@ -515,4 +525,3 @@ docker compose restart backend
 - [LOCAL_DEV_QUICKSTART.md](local-dev/LOCAL_DEV_QUICKSTART.md) - Kapsamlı local dev rehberi
 - [GITHUB_MCP_SETUP.md](GITHUB_MCP_SETUP.md) - MCP Gateway kurulumu
 - [deploy/OCI_STAGING_RUNBOOK.md](deploy/OCI_STAGING_RUNBOOK.md) - Staging operations
-

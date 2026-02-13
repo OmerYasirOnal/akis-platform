@@ -6,7 +6,7 @@
 > **Araştırma Temeli:** `docs/planning/RESEARCH_DEEP_DIVE_AGENT_ARCHITECTURE.md`  
 > **Operasyonel Playbook:** [`docs/planning/AKIS_OPERATIONAL_PLAYBOOK.md`](planning/AKIS_OPERATIONAL_PLAYBOOK.md) (4 Pillar + Moonshot — teyit edilmiş hedef)  
 > **Uygulama Haritası:** [`docs/planning/PLAYBOOK_IMPLEMENTATION_MAP.md`](planning/PLAYBOOK_IMPLEMENTATION_MAP.md)  
-> **Son Güncelleme:** 2026-02-13 (playbook entegrasyonu + M2 görev planı)
+> **Son Güncelleme:** 2026-02-13 (playbook entegrasyonu + M2 görev planı + marketplace MVP)
 
 ---
 
@@ -312,6 +312,44 @@ docs/NEXT.md                                             (bu dosya — anlık ey
 | [`docs/planning/SOCIAL_PLATFORM_VISION.md`](planning/SOCIAL_PLATFORM_VISION.md) | M2/M3 social platform vizyonu (feed, marketplace, showcase) |
 | [`docs/planning/RAG_INTEGRATION_PLAN_M2.md`](planning/RAG_INTEGRATION_PLAN_M2.md) | M2 RAG entegrasyon planı (mimari + fazlar) |
 | Crew System Plan | M2 Crew System (Agent Teams) planı — `.cursor/plans/crew_system_+_research_c5c05ba8.plan.md` |
+| [`carreer_assistant/docs/CAREER_ASSISTANT_SPEC.md`](../carreer_assistant/docs/CAREER_ASSISTANT_SPEC.md) | Career Assistant + Freelance Automation spesifikasyonu (M2+ spike) |
+| [`docs/marketplace/PRD.md`](marketplace/PRD.md) | AKIS Workstream Marketplace MVP ürün/mimari paketi |
+
+---
+
+### M2+ Spike: Career Assistant (Freelance Automation)
+
+> **Spec:** [`carreer_assistant/docs/CAREER_ASSISTANT_SPEC.md`](../carreer_assistant/docs/CAREER_ASSISTANT_SPEC.md)
+> **Mimari:** [`carreer_assistant/docs/FREELANCE_AGENT_ARCHITECTURE.md`](../carreer_assistant/docs/FREELANCE_AGENT_ARCHITECTURE.md)
+> **Durum:** Phase 0-5 tamamlandı (spec + code + 63 test, 2026-02-13)
+
+| ID | Görev | Durum |
+|----|-------|-------|
+| M2-CA-0 | Spec dokümanları + proje iskelesi | Tamamlandı (2026-02-13) |
+| M2-CA-1 | Skorlama motoru + sert filtreler + günlük limitler | Tamamlandı (2026-02-13) |
+| M2-CA-2 | Platform adaptörleri (Upwork API, Freelancer API, Fiverr/Bionluk/LinkedIn browser) | Tamamlandı (2026-02-13) |
+| M2-CA-3 | AI entegrasyonu (proposal üretimi, PersonaEngine, template sistemi) | Tamamlandı (2026-02-13) |
+| M2-CA-4 | Telegram bildirim + onay workflow | Tamamlandı (2026-02-13) |
+| M2-CA-5 | CLI aracı (discover, score, apply, status, profile, approve) | Tamamlandı (2026-02-13) |
+| M2-CA-6 | Platform API credential'ları + gerçek entegrasyon testi | Başlanmadı |
+| M2-CA-7 | AKIS AgentFactory entegrasyonu (CareerAgent olarak kayıt) | Başlanmadı |
+
+---
+
+### S0.5.4 Spike: AKIS Workstream Marketplace MVP
+
+> **PRD:** [`docs/marketplace/PRD.md`](marketplace/PRD.md)  
+> **Mimari:** [`docs/marketplace/MARKETPLACE_ARCHITECTURE.md`](marketplace/MARKETPLACE_ARCHITECTURE.md)  
+> **Runbook:** [`docs/marketplace/HOW_TO_RUN_MVP.md`](marketplace/HOW_TO_RUN_MVP.md)  
+> **Durum:** Docs + backend + frontend + test + quality gates tamamlandı (2026-02-13)
+
+| ID | Görev | Durum |
+|----|-------|-------|
+| S0.5.4-MKT-1 | Marketplace ürün doküman paketi (`PRD`, `ARCHITECTURE`, `DATA_MODEL`, `API_SPEC`, `MATCHING_MODEL`, `ROADMAP`) | Tamamlandı (2026-02-13) |
+| S0.5.4-MKT-2 | Backend schema + migration + marketplace endpointleri + audit log | Tamamlandı (2026-02-13) |
+| S0.5.4-MKT-3 | Frontend `/marketplace` + `/app/*` akışları + explainability UI | Tamamlandı (2026-02-13) |
+| S0.5.4-MKT-4 | Unit testler (matching/proposal + matches page smoke) | Tamamlandı (2026-02-13) |
+| S0.5.4-MKT-5 | Reflect gate'leri (`backend/frontend lint typecheck test build`) | Tamamlandı (2026-02-13) |
 
 ---
 
