@@ -473,7 +473,7 @@ export class AgentOrchestrator {
 
       if (contextQuery || additionalContext) {
         try {
-          traceRecorder.emitStage('context', 'started', 'Assembling Piri RAG context...');
+          traceRecorder.emitStage('init', 'progress', 'Assembling Piri RAG context...');
           const assembled = await contextAssemblyService.assembleContext({
             agentType: job.type,
             jobInput: typeof context === 'string' ? context : JSON.stringify(context),
@@ -488,10 +488,10 @@ export class AgentOrchestrator {
             contextLayers: assembled.layers.length,
             contextTokens: assembled.totalTokens,
           };
-          traceRecorder.emitStage('context', 'completed', `Context assembled: ${assembled.layers.length} layers, ~${assembled.totalTokens} tokens`);
+          traceRecorder.emitStage('init', 'completed', `Context assembled: ${assembled.layers.length} layers, ~${assembled.totalTokens} tokens`);
         } catch (contextError) {
           console.warn(`[AgentOrchestrator] Context assembly failed (non-blocking): ${contextError instanceof Error ? contextError.message : String(contextError)}`);
-          traceRecorder.emitStage('context', 'completed', 'Context assembly failed (non-blocking), proceeding without enrichment');
+          traceRecorder.emitStage('init', 'completed', 'Context assembly failed (non-blocking), proceeding without enrichment');
         }
       }
 
