@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 import { useI18n } from '../../../i18n/useI18n';
 import { marketplaceApi, type MatchItem } from '../../../services/api/marketplace';
@@ -10,7 +10,7 @@ export default function MatchesPage() {
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const loadMatches = async () => {
+  const loadMatches = useCallback(async (fallbackMessage = 'Failed to load matches') => {
     setLoading(true);
     setError(null);
 
@@ -18,22 +18,22 @@ export default function MatchesPage() {
       const response = await marketplaceApi.listMatches({ limit: 30, offset: 0 });
       setItems(response.items);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t('marketplace.matches.errorLoad'));
+      setError(err instanceof Error ? err.message : fallbackMessage);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     void loadMatches();
-  }, []);
+  }, [loadMatches]);
 
   const handleRunMatch = async () => {
     setRunning(true);
     setError(null);
     try {
       await marketplaceApi.runMatch();
-      await loadMatches();
+      await loadMatches(t('marketplace.matches.errorLoad'));
     } catch (err) {
       setError(err instanceof Error ? err.message : t('marketplace.matches.errorRun'));
     } finally {

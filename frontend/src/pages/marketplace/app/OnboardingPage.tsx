@@ -1,4 +1,4 @@
-import { FormEvent, useState } from 'react';
+import { type FormEvent, useState } from 'react';
 
 import { useI18n } from '../../../i18n/useI18n';
 import { marketplaceApi } from '../../../services/api/marketplace';

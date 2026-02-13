@@ -34,7 +34,7 @@ export interface MatchFactorScores {
   keyword_relevance: number;
 }
 
-export interface MatchExplanation {
+export interface MatchExplanation extends Record<string, unknown> {
   top_factors: string[];
   factor_scores: MatchFactorScores;
   missing_skills: string[];

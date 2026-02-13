@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 import { useI18n } from '../../../i18n/useI18n';
 import { marketplaceApi, type JobPostItem, type ProposalItem } from '../../../services/api/marketplace';
@@ -11,22 +11,22 @@ export default function ProposalsPage() {
   const [generatingJobId, setGeneratingJobId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    const load = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const response = await marketplaceApi.listJobs({ limit: 20, offset: 0 });
-        setJobs(response.items);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : t('marketplace.proposals.errorLoad'));
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    void load();
+  const loadJobs = useCallback(async (fallbackMessage = 'Failed to load jobs') => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await marketplaceApi.listJobs({ limit: 20, offset: 0 });
+      setJobs(response.items);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : fallbackMessage);
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    void loadJobs();
+  }, [loadJobs]);
 
   const handleGenerate = async (jobId: string) => {
     setGeneratingJobId(jobId);
