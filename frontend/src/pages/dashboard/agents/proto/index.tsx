@@ -169,10 +169,14 @@ const DashboardAgentProtoPage = () => {
         return;
       }
 
+      // Inject Piri context if available
+      const piriContext = piri.getSelectedContext();
+
       const payload: Record<string, unknown> = {
         requirements: requirements.trim(),
         ...(stack.trim() && { stack: stack.trim() }),
         ...(aiProvider && { aiProvider }),
+        ...(piriContext && { additionalContext: piriContext }),
       };
 
       const response = await agentsApi.runAgent({
