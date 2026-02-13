@@ -19,6 +19,9 @@ import { createTraceRecorder, type TraceRecorder } from '../tracing/TraceRecorde
 import { jobEventBus } from '../events/JobEventBus.js';
 import { computeQualityScore, type QualityInput } from '../../services/quality/QualityScoring.js';
 import { getCrewRunManager } from '../../api/crew.js';
+import { GroundednessScorer } from '../../services/knowledge/verification/GroundednessScorer.js';
+import { VerificationGateEngine, type GateInput, type VerificationResult } from '../../services/knowledge/verification/VerificationGateEngine.js';
+import { getAgentRiskConfig, createAgentVerificationEngine } from '../../config/agentRiskProfiles.js';
 
 export const DEV_GITHUB_BOOTSTRAP_TOKEN_PLACEHOLDER = '__DEV_GITHUB_BOOTSTRAP__';
 
@@ -1146,6 +1149,68 @@ export class AgentOrchestrator {
       console.warn('[AgentOrchestrator] Quality score computation failed:', qualityError);
     }
 
+    // M2-KI-4: Run verification gates on agent output (non-blocking best-effort)
+    let verificationResult: VerificationResult | null = null;
+    try {
+      const [jobForVerification] = await db.select().from(jobs).where(eq(jobs.id, jobId)).limit(1);
+      if (jobForVerification) {
+        const agentType = jobForVerification.type;
+        const { riskProfile, overrides } = createAgentVerificationEngine(agentType);
+        const gateEngine = new VerificationGateEngine(riskProfile);
+
+        // Apply agent-specific gate overrides
+        for (const [gateName, gateOverride] of Object.entries(overrides)) {
+          gateEngine.overrideGate(gateName, gateOverride);
+        }
+
+        // Compute groundedness for text-based results
+        const resultText = this.extractResultText(result);
+        const groundednessInput: GateInput = {};
+
+        if (resultText && resultText.length > 50) {
+          const scorer = new GroundednessScorer();
+          const groundedness = await scorer.score(resultText, {
+            passThreshold: 0.5,
+            decomposeOptions: { maxClaims: 30 },
+          });
+
+          groundednessInput.groundednessScore = groundedness.overallScore;
+          groundednessInput.weightedGroundednessScore = groundedness.weightedScore;
+          groundednessInput.criticalUnsupported = groundedness.stats.criticalUnsupported;
+          groundednessInput.hallucinationRate =
+            groundedness.stats.totalClaims > 0
+              ? (groundedness.stats.unsupported + groundedness.stats.contradicted) / groundedness.stats.totalClaims
+              : 0;
+        }
+
+        // Add quality score as a coverage proxy
+        if (qualityData) {
+          groundednessInput.topicCoverage = qualityData.qualityScore / 100;
+        }
+
+        verificationResult = gateEngine.evaluate(groundednessInput);
+
+        // Attach verification metadata to result
+        if (verificationResult && typeof result === 'object' && result !== null) {
+          (result as Record<string, unknown>).verificationGates = {
+            status: verificationResult.overallStatus,
+            blocked: verificationResult.blocked,
+            summary: verificationResult.summary,
+            gates: verificationResult.gates.map(g => ({
+              name: g.name,
+              status: g.status,
+              score: g.score,
+              threshold: g.threshold,
+            })),
+            riskProfile,
+          };
+        }
+      }
+    } catch (verificationError) {
+      // Verification is best-effort; never block job completion
+      console.warn('[AgentOrchestrator] Verification gate check failed:', verificationError);
+    }
+
     // Update database with result and quality
     try {
       await db
@@ -1183,6 +1248,50 @@ export class AgentOrchestrator {
     } catch (crewErr) {
       console.warn('[AgentOrchestrator] Crew notification on complete failed:', crewErr);
     }
+  }
+
+  /**
+   * Extract human-readable text from agent result for verification scoring
+   */
+  private extractResultText(result: unknown): string | null {
+    if (!result || typeof result !== 'object') { return null; }
+    const r = result as Record<string, unknown>;
+
+    // Try common result text fields
+    const candidates = [
+      r.content,
+      r.documentation,
+      r.testPlan,
+      r.summary,
+      r.generatedDocs,
+      r.markdown,
+    ];
+
+    for (const c of candidates) {
+      if (typeof c === 'string' && c.length > 50) { return c; }
+    }
+
+    // Try files array
+    if (Array.isArray(r.files)) {
+      const texts = r.files
+        .map((f: unknown) => {
+          if (typeof f === 'object' && f !== null) {
+            const file = f as Record<string, unknown>;
+            return typeof file.content === 'string' ? file.content : '';
+          }
+          return '';
+        })
+        .filter((t: string) => t.length > 50);
+      if (texts.length > 0) { return texts.join('\n\n'); }
+    }
+
+    // Try metadata.content
+    if (typeof r.metadata === 'object' && r.metadata !== null) {
+      const meta = r.metadata as Record<string, unknown>;
+      if (typeof meta.content === 'string') { return meta.content; }
+    }
+
+    return null;
   }
 
   /**
