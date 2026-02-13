@@ -22,6 +22,7 @@ import { getCrewRunManager } from '../../api/crew.js';
 import { GroundednessScorer } from '../../services/knowledge/verification/GroundednessScorer.js';
 import { VerificationGateEngine, type GateInput, type VerificationResult } from '../../services/knowledge/verification/VerificationGateEngine.js';
 import { createAgentVerificationEngine } from '../../config/agentRiskProfiles.js';
+import { contextAssemblyService } from '../../services/knowledge/ContextAssemblyService.js';
 
 export const DEV_GITHUB_BOOTSTRAP_TOKEN_PLACEHOLDER = '__DEV_GITHUB_BOOTSTRAP__';
 
@@ -465,15 +466,42 @@ export class AgentOrchestrator {
         }
       }
 
+      // Piri Context Assembly — inject RAG knowledge if contextQuery or additionalContext is present
+      let enrichedContext = context;
+      const contextQuery = payload.contextQuery as string | undefined;
+      const additionalContext = payload.additionalContext as string | undefined;
+
+      if (contextQuery || additionalContext) {
+        try {
+          traceRecorder.emitStage('context', 'started', 'Assembling Piri RAG context...');
+          const assembled = await contextAssemblyService.assembleContext({
+            agentType: job.type,
+            jobInput: typeof context === 'string' ? context : JSON.stringify(context),
+            piriContextQuery: contextQuery,
+            piriAdditionalContext: additionalContext,
+          });
+
+          const formattedContext = contextAssemblyService.formatForPrompt(assembled);
+          enrichedContext = {
+            ...(typeof context === 'object' && context !== null ? context : {}),
+            assembledContext: formattedContext,
+            contextLayers: assembled.layers.length,
+            contextTokens: assembled.totalTokens,
+          };
+          traceRecorder.emitStage('context', 'completed', `Context assembled: ${assembled.layers.length} layers, ~${assembled.totalTokens} tokens`);
+        } catch (contextError) {
+          console.warn(`[AgentOrchestrator] Context assembly failed (non-blocking): ${contextError instanceof Error ? contextError.message : String(contextError)}`);
+          traceRecorder.emitStage('context', 'completed', 'Context assembly failed (non-blocking), proceeding without enrichment');
+        }
+      }
+
       // Phase 5.D: Execution phase
       jobEventBus.emitJobEvent(jobId, { phase: 'creating', message: 'Executing agent...', ts: new Date().toISOString() });
       let executionResult: unknown;
       if (agent.executeWithTools && this.mcpTools) {
-        // Use executeWithTools if available (preferred for complex agents)
-        executionResult = await agent.executeWithTools(this.mcpTools, plan, context);
+        executionResult = await agent.executeWithTools(this.mcpTools, plan, enrichedContext);
       } else {
-        // Fallback to regular execute
-        executionResult = await agent.execute(context);
+        executionResult = await agent.execute(enrichedContext);
       }
 
       // Audit: log execute phase
