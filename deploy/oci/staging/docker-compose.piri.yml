@@ -1,0 +1,66 @@
+# =============================================================================
+# AKIS Platform - Piri RAG Engine (Docker Compose Overlay)
+# =============================================================================
+#
+# Usage (standalone Piri on staging):
+#   docker compose -f docker-compose.yml -f docker-compose.piri.yml up -d piri
+#
+# Usage (full stack with Piri):
+#   docker compose -f docker-compose.yml -f docker-compose.piri.yml up -d
+#
+# =============================================================================
+
+services:
+  # =========================================================================
+  # Piri - RAG Engine (Python FastAPI + FAISS)
+  # =========================================================================
+  # Handles: Semantic search, document ingestion, web search, RAG Q&A
+  # Port: 8000 (internal only — backend connects via Docker network)
+  # =========================================================================
+  piri:
+    build:
+      context: ../../../piri
+      dockerfile: Dockerfile
+    image: akis-piri:${PIRI_VERSION:-latest}
+    container_name: akis-staging-piri
+    restart: unless-stopped
+    expose:
+      - "8000"
+    environment:
+      # OpenAI backend (recommended for quality)
+      OPENAI_API_KEY: ${PIRI_OPENAI_API_KEY:-${OPENAI_API_KEY:-}}
+      OPENAI_MODEL: ${PIRI_OPENAI_MODEL:-gpt-4o-mini}
+      # Piri engine config
+      PIRI_RERANKING: ${PIRI_RERANKING:-true}
+      PIRI_EMBEDDING_MODEL: ${PIRI_EMBEDDING_MODEL:-intfloat/multilingual-e5-small}
+    volumes:
+      - piri_vector_store:/app/vector_store
+      - piri_knowledge:/app/knowledge_base
+    networks:
+      - akis-staging
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 120s
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 512M
+
+  # Backend needs to know about Piri
+  backend:
+    environment:
+      PIRI_BASE_URL: ${PIRI_BASE_URL:-http://piri:8000}
+    depends_on:
+      piri:
+        condition: service_healthy
+
+volumes:
+  piri_vector_store:
+    name: akis-staging-piri-vectors
+  piri_knowledge:
+    name: akis-staging-piri-knowledge

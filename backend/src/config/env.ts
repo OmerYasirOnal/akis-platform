@@ -146,6 +146,12 @@ const envSchema = z
     STRIPE_PRICE_PRO_PLUS: z.string().optional(),   // price_xxx for Pro+ plan
     STRIPE_PRICE_TEAM: z.string().optional(),        // price_xxx for Team plan
 
+    // Piri RAG Engine (M2)
+    PIRI_BASE_URL: z.preprocess(
+      (val) => (val === '' || val === undefined ? undefined : val),
+      z.string().url().optional()
+    ),
+
     // Slack Integration (Smart Automations)
     SLACK_BOT_TOKEN: z.string().optional(),         // xoxb-xxx Bot token
     SLACK_DEFAULT_CHANNEL: z.string().optional(),   // C0123456789 or #channel-name
