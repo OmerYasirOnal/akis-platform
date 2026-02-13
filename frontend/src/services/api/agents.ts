@@ -106,6 +106,11 @@ const agents: AgentDefinition[] = [
   // NOTE: Coder and Developer agents shelved for S0.5 scope freeze.
 ];
 
+export interface PiriContextPayload {
+  contextQuery?: string;
+  additionalContext?: string;
+}
+
 export interface RunAgentRequest {
   type: AgentType;
   payload: unknown;

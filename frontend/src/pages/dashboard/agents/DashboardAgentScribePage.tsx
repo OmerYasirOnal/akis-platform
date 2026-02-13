@@ -407,6 +407,12 @@ const DashboardAgentScribePage = () => {
       
       // Job payload prepared
 
+      // Inject Piri context if available
+      const piriContext = piri.getSelectedContext();
+      if (piriContext) {
+        jobPayload.additionalContext = piriContext;
+      }
+
       // Submit job to backend
       const response = await agentsApi.runAgent({
         type: 'scribe',
