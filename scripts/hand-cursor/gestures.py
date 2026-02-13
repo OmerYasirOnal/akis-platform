@@ -1,28 +1,33 @@
 """
-Hand gesture recognition from MediaPipe Hands landmarks.
+Hand gesture recognition v3 — Drag, double-click, adaptive thresholds.
 
-Supported gestures:
-  - Pinch (thumb + index) → left click
-  - Right-click pinch (thumb + middle) → right click
-  - Scroll pinch (thumb + ring) → scroll mode
-  - Fist (all fingers closed) → pause tracking
-  - Open palm → tracking active
+Gesture hierarchy (priority order):
+  1. FIST → pause tracking
+  2. OPEN_PALM → stop/reset
+  3. PINCH (thumb+index touching) → click / drag
+  4. RIGHT_CLICK (thumb+middle touching)
+  5. SCROLL (thumb+ring touching)
+  6. PINCH_READY (approaching) → visual indicator
+  7. POINT (index extended) → move cursor
+  8. NONE
 
-Uses temporal stability: a gesture must be detected for N consecutive
-frames before it is considered active, reducing false positives.
+New in v3:
+  - DRAG mode: pinch held for >0.3s while moving = drag
+  - Double-click: two pinches within 0.4s
+  - Better finger state detection using PIP joints
 """
 
 from __future__ import annotations
 
 import math
+import time
 from enum import Enum, auto
-from typing import List, Optional, Tuple
+from typing import Optional, Tuple
 
 
-# ─── MediaPipe Hand Landmark IDs ────────────────────────────────────────────
+# ─── Landmark IDs ────────────────────────────────────────────────────────────
 
 class LM:
-    """MediaPipe Hands landmark indices."""
     WRIST = 0
     THUMB_CMC = 1
     THUMB_MCP = 2
@@ -50,209 +55,222 @@ class LM:
 
 class GestureType(Enum):
     NONE = auto()
-    PINCH = auto()          # thumb + index → left click
-    RIGHT_CLICK = auto()    # thumb + middle → right click
-    SCROLL = auto()         # thumb + ring → scroll mode
-    FIST = auto()           # all fingers closed → pause
-    OPEN_PALM = auto()      # all fingers open → active
+    POINT = auto()
+    PINCH = auto()
+    PINCH_READY = auto()
+    DRAG = auto()           # NEW: pinch held + hand moving
+    RIGHT_CLICK = auto()
+    SCROLL = auto()
+    FIST = auto()
+    OPEN_PALM = auto()
 
 
-# ─── Utility Functions ──────────────────────────────────────────────────────
+# ─── Helpers ─────────────────────────────────────────────────────────────────
 
 def _distance(a, b) -> float:
-    """Euclidean distance between two landmarks (using x, y)."""
     return math.sqrt((a.x - b.x) ** 2 + (a.y - b.y) ** 2)
 
 
-def _distance_3d(a, b) -> float:
-    """Euclidean distance between two landmarks (using x, y, z)."""
-    return math.sqrt(
-        (a.x - b.x) ** 2 + (a.y - b.y) ** 2 + (a.z - b.z) ** 2
-    )
-
-
-def _is_finger_closed(landmarks, tip_id: int, mcp_id: int) -> bool:
-    """
-    Check if a finger is closed (curled).
-    A finger is closed when its tip is closer to the wrist than its MCP joint.
-    """
+def _is_finger_extended(landmarks, tip_id: int, pip_id: int, mcp_id: int) -> bool:
     wrist = landmarks[LM.WRIST]
     tip = landmarks[tip_id]
-    mcp = landmarks[mcp_id]
-    return _distance(tip, wrist) < _distance(mcp, wrist)
+    pip_j = landmarks[pip_id]
+    return _distance(tip, wrist) > _distance(pip_j, wrist)
 
 
-# ─── Gesture Detector ───────────────────────────────────────────────────────
+def _is_finger_curled(landmarks, tip_id: int, pip_id: int, mcp_id: int) -> bool:
+    return not _is_finger_extended(landmarks, tip_id, pip_id, mcp_id)
+
+
+# ─── Gesture Detector v3 ────────────────────────────────────────────────────
 
 class GestureDetector:
     """
-    Detects hand gestures from MediaPipe Hand landmarks with temporal stability.
-
-    Parameters
-    ----------
-    pinch_threshold : float
-        Normalized distance threshold for pinch detection.
-    right_click_threshold : float
-        Normalized distance threshold for right-click pinch.
-    scroll_threshold : float
-        Normalized distance threshold for scroll pinch.
-    pinch_frames : int
-        Number of consecutive frames to confirm a pinch.
-    release_frames : int
-        Number of consecutive frames to confirm a release.
+    v3 gesture detector with drag support and double-click.
     """
 
     def __init__(
         self,
-        pinch_threshold: float = 0.045,
-        right_click_threshold: float = 0.045,
-        scroll_threshold: float = 0.045,
-        pinch_frames: int = 2,
+        pinch_threshold: float = 0.030,
+        right_click_threshold: float = 0.035,
+        scroll_threshold: float = 0.040,
+        pinch_ready_threshold: float = 0.065,
+        pinch_frames: int = 3,
         release_frames: int = 2,
+        drag_hold_time: float = 0.35,
+        double_click_window: float = 0.45,
     ):
         self.pinch_threshold = pinch_threshold
         self.right_click_threshold = right_click_threshold
         self.scroll_threshold = scroll_threshold
+        self.pinch_ready_threshold = pinch_ready_threshold
         self.pinch_frames = pinch_frames
         self.release_frames = release_frames
+        self.drag_hold_time = drag_hold_time
+        self.double_click_window = double_click_window
 
-        # State tracking
+        # Temporal state
         self._active_gesture = GestureType.NONE
         self._candidate_gesture = GestureType.NONE
         self._candidate_count = 0
         self._release_count = 0
 
-        # Scroll tracking
+        # Drag tracking
+        self._pinch_start_time: Optional[float] = None
+        self._is_dragging = False
+
+        # Double-click tracking
+        self._last_click_time: float = 0.0
+        self._click_count: int = 0
+
+        # Scroll
         self._scroll_anchor_y: Optional[float] = None
+
+        # Debug
+        self.debug_distances: dict = {}
 
     @property
     def active_gesture(self) -> GestureType:
-        """Currently active (confirmed) gesture."""
         return self._active_gesture
 
+    @property
+    def is_dragging(self) -> bool:
+        return self._is_dragging
+
     def reset(self):
-        """Reset all gesture state."""
         self._active_gesture = GestureType.NONE
         self._candidate_gesture = GestureType.NONE
         self._candidate_count = 0
         self._release_count = 0
+        self._pinch_start_time = None
+        self._is_dragging = False
         self._scroll_anchor_y = None
 
     def detect(self, landmarks) -> GestureType:
-        """
-        Detect gesture from MediaPipe hand landmarks.
+        raw = self._detect_raw(landmarks)
+        filtered = self._apply_temporal_filter(raw)
 
-        Parameters
-        ----------
-        landmarks : list
-            MediaPipe hand landmarks (21 points).
+        # Drag logic: pinch held for drag_hold_time → becomes DRAG
+        now = time.time()
+        if filtered == GestureType.PINCH:
+            if self._pinch_start_time is None:
+                self._pinch_start_time = now
+            elif (now - self._pinch_start_time) > self.drag_hold_time:
+                self._is_dragging = True
+                return GestureType.DRAG
+        else:
+            if self._is_dragging:
+                self._is_dragging = False
+            self._pinch_start_time = None
 
-        Returns
-        -------
-        GestureType
-            The currently active gesture after temporal filtering.
+        return filtered
+
+    def check_double_click(self) -> bool:
         """
-        raw_gesture = self._detect_raw(landmarks)
-        return self._apply_temporal_filter(raw_gesture)
+        Call this when a PINCH is first detected (edge trigger).
+        Returns True if this is a double-click.
+        """
+        now = time.time()
+        if (now - self._last_click_time) < self.double_click_window:
+            self._click_count += 1
+        else:
+            self._click_count = 1
+        self._last_click_time = now
+
+        if self._click_count >= 2:
+            self._click_count = 0
+            return True
+        return False
 
     def get_scroll_delta(self, landmarks) -> float:
-        """
-        Get scroll delta when in scroll mode.
-
-        Returns
-        -------
-        float
-            Vertical scroll amount (positive = up, negative = down).
-            Returns 0 if not in scroll mode.
-        """
         if self._active_gesture != GestureType.SCROLL:
             self._scroll_anchor_y = None
             return 0.0
 
         index_y = landmarks[LM.INDEX_TIP].y
-
         if self._scroll_anchor_y is None:
             self._scroll_anchor_y = index_y
             return 0.0
 
-        delta = (self._scroll_anchor_y - index_y) * 20.0  # amplify
+        delta = (self._scroll_anchor_y - index_y) * 15.0
         self._scroll_anchor_y = index_y
         return delta
 
     def get_pointer_position(self, landmarks) -> Tuple[float, float]:
-        """
-        Get the pointer position from the index finger tip.
-
-        Returns
-        -------
-        tuple of (float, float)
-            Normalized (x, y) position of the index finger tip.
-        """
         tip = landmarks[LM.INDEX_TIP]
         return (tip.x, tip.y)
 
     def _detect_raw(self, landmarks) -> GestureType:
-        """Detect raw gesture without temporal filtering."""
-        # Check fist first (all fingers closed = pause)
-        if self._is_fist(landmarks):
-            return GestureType.FIST
-
-        # Check pinch gestures (priority: left click > right click > scroll)
         thumb = landmarks[LM.THUMB_TIP]
         index = landmarks[LM.INDEX_TIP]
         middle = landmarks[LM.MIDDLE_TIP]
         ring = landmarks[LM.RING_TIP]
 
-        thumb_index_dist = _distance(thumb, index)
-        thumb_middle_dist = _distance(thumb, middle)
-        thumb_ring_dist = _distance(thumb, ring)
+        d_ti = _distance(thumb, index)
+        d_tm = _distance(thumb, middle)
+        d_tr = _distance(thumb, ring)
 
-        if thumb_index_dist < self.pinch_threshold:
-            return GestureType.PINCH
+        self.debug_distances = {
+            "thumb_index": d_ti,
+            "thumb_middle": d_tm,
+            "thumb_ring": d_tr,
+        }
 
-        if thumb_middle_dist < self.right_click_threshold:
-            return GestureType.RIGHT_CLICK
+        if self._is_fist(landmarks):
+            return GestureType.FIST
 
-        if thumb_ring_dist < self.scroll_threshold:
-            return GestureType.SCROLL
-
-        # Check open palm
         if self._is_open_palm(landmarks):
             return GestureType.OPEN_PALM
 
+        if d_ti < self.pinch_threshold:
+            return GestureType.PINCH
+
+        if d_tm < self.right_click_threshold:
+            return GestureType.RIGHT_CLICK
+
+        if d_tr < self.scroll_threshold:
+            return GestureType.SCROLL
+
+        if d_ti < self.pinch_ready_threshold:
+            return GestureType.PINCH_READY
+
+        if self._is_pointing(landmarks):
+            return GestureType.POINT
+
         return GestureType.NONE
 
-    def _apply_temporal_filter(self, raw_gesture: GestureType) -> GestureType:
-        """Apply temporal stability filtering to raw gesture detection."""
-        if raw_gesture == self._active_gesture:
-            # Same as active — reset release counter
+    def _apply_temporal_filter(self, raw: GestureType) -> GestureType:
+        if raw == GestureType.PINCH_READY:
+            if self._active_gesture in (GestureType.NONE, GestureType.POINT, GestureType.PINCH_READY):
+                return GestureType.PINCH_READY
+            return self._active_gesture
+
+        if raw == self._active_gesture:
             self._release_count = 0
             self._candidate_gesture = GestureType.NONE
             self._candidate_count = 0
             return self._active_gesture
 
-        if raw_gesture == GestureType.NONE or raw_gesture == GestureType.OPEN_PALM:
-            # Trying to release active gesture
-            if self._active_gesture != GestureType.NONE:
+        if raw in (GestureType.NONE, GestureType.POINT):
+            if self._active_gesture not in (GestureType.NONE, GestureType.POINT, GestureType.PINCH_READY):
                 self._release_count += 1
                 if self._release_count >= self.release_frames:
-                    self._active_gesture = raw_gesture
+                    self._active_gesture = raw
                     self._release_count = 0
                     self._scroll_anchor_y = None
                 return self._active_gesture
             else:
-                self._active_gesture = raw_gesture
-                return raw_gesture
+                self._active_gesture = raw
+                return raw
 
-        # New gesture candidate
-        if raw_gesture == self._candidate_gesture:
+        if raw == self._candidate_gesture:
             self._candidate_count += 1
         else:
-            self._candidate_gesture = raw_gesture
+            self._candidate_gesture = raw
             self._candidate_count = 1
 
         if self._candidate_count >= self.pinch_frames:
-            self._active_gesture = raw_gesture
+            self._active_gesture = raw
             self._candidate_gesture = GestureType.NONE
             self._candidate_count = 0
             self._release_count = 0
@@ -260,28 +278,25 @@ class GestureDetector:
         return self._active_gesture
 
     def _is_fist(self, landmarks) -> bool:
-        """Check if hand is making a fist (all 4 fingers closed)."""
         fingers = [
-            (LM.INDEX_TIP, LM.INDEX_MCP),
-            (LM.MIDDLE_TIP, LM.MIDDLE_MCP),
-            (LM.RING_TIP, LM.RING_MCP),
-            (LM.PINKY_TIP, LM.PINKY_MCP),
+            (LM.INDEX_TIP, LM.INDEX_PIP, LM.INDEX_MCP),
+            (LM.MIDDLE_TIP, LM.MIDDLE_PIP, LM.MIDDLE_MCP),
+            (LM.RING_TIP, LM.RING_PIP, LM.RING_MCP),
+            (LM.PINKY_TIP, LM.PINKY_PIP, LM.PINKY_MCP),
         ]
-        closed_count = sum(
-            1 for tip, mcp in fingers if _is_finger_closed(landmarks, tip, mcp)
-        )
-        return closed_count >= 4
+        return sum(1 for t, p, m in fingers if _is_finger_curled(landmarks, t, p, m)) >= 4
 
     def _is_open_palm(self, landmarks) -> bool:
-        """Check if hand is an open palm (all 4 fingers extended)."""
         fingers = [
-            (LM.INDEX_TIP, LM.INDEX_MCP),
-            (LM.MIDDLE_TIP, LM.MIDDLE_MCP),
-            (LM.RING_TIP, LM.RING_MCP),
-            (LM.PINKY_TIP, LM.PINKY_MCP),
+            (LM.INDEX_TIP, LM.INDEX_PIP, LM.INDEX_MCP),
+            (LM.MIDDLE_TIP, LM.MIDDLE_PIP, LM.MIDDLE_MCP),
+            (LM.RING_TIP, LM.RING_PIP, LM.RING_MCP),
+            (LM.PINKY_TIP, LM.PINKY_PIP, LM.PINKY_MCP),
         ]
-        open_count = sum(
-            1 for tip, mcp in fingers
-            if not _is_finger_closed(landmarks, tip, mcp)
-        )
-        return open_count >= 4
+        return sum(1 for t, p, m in fingers if _is_finger_extended(landmarks, t, p, m)) >= 4
+
+    def _is_pointing(self, landmarks) -> bool:
+        index_ext = _is_finger_extended(landmarks, LM.INDEX_TIP, LM.INDEX_PIP, LM.INDEX_MCP)
+        middle_curled = _is_finger_curled(landmarks, LM.MIDDLE_TIP, LM.MIDDLE_PIP, LM.MIDDLE_MCP)
+        ring_curled = _is_finger_curled(landmarks, LM.RING_TIP, LM.RING_PIP, LM.RING_MCP)
+        return index_ext and (middle_curled or ring_curled)

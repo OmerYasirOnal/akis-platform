@@ -1,11 +1,10 @@
 """
-Cursor smoothing filters for hand tracking.
+Cursor smoothing filters for hand tracking — v3 (production anti-jitter).
 
-Implements the One Euro Filter — an adaptive low-pass filter that balances
-jitter reduction at low speeds with minimal lag at high speeds.
-
-Reference: Casiez et al., "1€ Filter: A Simple Speed-based Low-pass Filter
-for Noisy Input in Interactive Systems", CHI 2012.
+Multi-stage pipeline:
+  1. One Euro Filter (adaptive low-pass) — removes high-frequency jitter
+  2. Dead zone gate — ignores micro-movements (hand tremor)
+  3. Velocity-dependent interpolation — extra smooth when barely moving
 """
 
 from __future__ import annotations
@@ -17,22 +16,15 @@ from typing import Optional, Tuple
 
 class OneEuroFilter:
     """
-    One Euro Filter for a single dimension.
+    One Euro Filter — adaptive low-pass filter.
 
-    Parameters
-    ----------
-    min_cutoff : float
-        Minimum cutoff frequency (Hz). Lower = smoother but more lag.
-    beta : float
-        Speed coefficient. Higher = less lag at fast movements.
-    d_cutoff : float
-        Cutoff frequency for the derivative filter.
+    v3 tuning: even more aggressive at low speeds, fast response at high speeds.
     """
 
     def __init__(
         self,
-        min_cutoff: float = 1.5,
-        beta: float = 0.5,
+        min_cutoff: float = 0.3,   # Lower = smoother when still
+        beta: float = 0.8,          # Higher = faster response when moving
         d_cutoff: float = 1.0,
     ):
         self.min_cutoff = min_cutoff
@@ -44,66 +36,39 @@ class OneEuroFilter:
         self._t_prev: Optional[float] = None
 
     def reset(self):
-        """Reset the filter state."""
         self._x_prev = None
         self._dx_prev = 0.0
         self._t_prev = None
 
     @staticmethod
-    def _smoothing_factor(t_e: float, cutoff: float) -> float:
-        """Compute the exponential smoothing factor alpha."""
+    def _alpha(t_e: float, cutoff: float) -> float:
         r = 2.0 * math.pi * cutoff * t_e
         return r / (r + 1.0)
 
-    @staticmethod
-    def _exponential_smoothing(alpha: float, x: float, x_prev: float) -> float:
-        """Apply exponential smoothing."""
-        return alpha * x + (1.0 - alpha) * x_prev
-
     def __call__(self, x: float, t: Optional[float] = None) -> float:
-        """
-        Filter a new value.
-
-        Parameters
-        ----------
-        x : float
-            New raw value.
-        t : float, optional
-            Timestamp in seconds. If None, uses time.time().
-
-        Returns
-        -------
-        float
-            Filtered value.
-        """
         if t is None:
             t = time.time()
 
         if self._t_prev is None:
-            # First sample — initialize and return as-is
             self._x_prev = x
             self._dx_prev = 0.0
             self._t_prev = t
             return x
 
-        # Time delta
-        t_e = t - self._t_prev
-        if t_e <= 0:
-            t_e = 1e-6  # avoid division by zero
+        t_e = max(t - self._t_prev, 1e-6)
 
-        # Filter the derivative (speed estimate)
-        a_d = self._smoothing_factor(t_e, self.d_cutoff)
+        # Filter derivative
+        a_d = self._alpha(t_e, self.d_cutoff)
         dx = (x - self._x_prev) / t_e
-        dx_hat = self._exponential_smoothing(a_d, dx, self._dx_prev)
+        dx_hat = a_d * dx + (1.0 - a_d) * self._dx_prev
 
-        # Adaptive cutoff based on speed
+        # Adaptive cutoff
         cutoff = self.min_cutoff + self.beta * abs(dx_hat)
 
-        # Filter the signal
-        a = self._smoothing_factor(t_e, cutoff)
-        x_hat = self._exponential_smoothing(a, x, self._x_prev)
+        # Filter signal
+        a = self._alpha(t_e, cutoff)
+        x_hat = a * x + (1.0 - a) * self._x_prev
 
-        # Store state
         self._x_prev = x_hat
         self._dx_prev = dx_hat
         self._t_prev = t
@@ -113,66 +78,62 @@ class OneEuroFilter:
 
 class CursorSmoother:
     """
-    2D cursor smoother using paired One Euro Filters + dead zone.
-
-    Parameters
-    ----------
-    min_cutoff : float
-        One Euro Filter min cutoff frequency.
-    beta : float
-        One Euro Filter speed coefficient.
-    d_cutoff : float
-        One Euro Filter derivative cutoff.
-    dead_zone : float
-        Minimum pixel movement to register (smaller movements are ignored).
+    2D cursor smoother v3:
+      - One Euro Filter (per axis)
+      - Dead zone (ignore tremor)
+      - Velocity interpolation (blend towards target when moving slowly)
     """
 
     def __init__(
         self,
-        min_cutoff: float = 1.5,
-        beta: float = 0.5,
+        min_cutoff: float = 0.3,
+        beta: float = 0.8,
         d_cutoff: float = 1.0,
-        dead_zone: float = 3.0,
+        dead_zone: float = 4.0,
+        velocity_lerp_threshold: float = 15.0,
     ):
         self._filter_x = OneEuroFilter(min_cutoff, beta, d_cutoff)
         self._filter_y = OneEuroFilter(min_cutoff, beta, d_cutoff)
         self.dead_zone = dead_zone
+        self.velocity_lerp_threshold = velocity_lerp_threshold
         self._last_output: Optional[Tuple[float, float]] = None
+        self._last_time: Optional[float] = None
 
     def reset(self):
-        """Reset both axis filters and output state."""
         self._filter_x.reset()
         self._filter_y.reset()
         self._last_output = None
+        self._last_time = None
 
     def update(
         self, x: float, y: float, t: Optional[float] = None
     ) -> Tuple[float, float]:
-        """
-        Smooth a new cursor position.
+        if t is None:
+            t = time.time()
 
-        Parameters
-        ----------
-        x, y : float
-            Raw cursor position in pixels.
-        t : float, optional
-            Timestamp in seconds.
-
-        Returns
-        -------
-        tuple of (float, float)
-            Smoothed cursor position.
-        """
         sx = self._filter_x(x, t)
         sy = self._filter_y(y, t)
 
-        # Apply dead zone
-        if self._last_output is not None:
-            dx = sx - self._last_output[0]
-            dy = sy - self._last_output[1]
-            dist = math.sqrt(dx * dx + dy * dy)
-            if dist < self.dead_zone:
-                return self._last_output
+        if self._last_output is None:
+            self._last_output = (sx, sy)
+            self._last_time = t
+            return (sx, sy)
+
+        dx = sx - self._last_output[0]
+        dy = sy - self._last_output[1]
+        dist = math.sqrt(dx * dx + dy * dy)
+
+        # Dead zone: completely ignore tremor-level movements
+        if dist < self.dead_zone:
+            return self._last_output
+
+        # Velocity interpolation: blend more when moving slowly
+        if dist < self.velocity_lerp_threshold:
+            blend = dist / self.velocity_lerp_threshold
+            blend = blend * blend  # quadratic easing
+            sx = self._last_output[0] + dx * blend
+            sy = self._last_output[1] + dy * blend
 
         self._last_output = (sx, sy)
+        self._last_time = t
         return (sx, sy)

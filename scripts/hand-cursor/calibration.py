@@ -1,34 +1,28 @@
 """
-Hand position to screen coordinate mapping and calibration.
+Hand position to screen coordinate mapping — TRACKPAD MODE v3.
 
-Maps normalized MediaPipe hand coordinates (0-1) to screen pixel
-coordinates, with support for:
-  - Linear mapping with sensitivity amplification
-  - Screen edge padding (dead zones at edges)
-  - Movement amplification from a center anchor point
+Key features:
+  - Relative movement (trackpad-style, not absolute mapping)
+  - Adaptive pointer acceleration curve (slow=precise, fast=coarse)
+  - Hand loss recovery (smooth re-anchor when hand returns)
+  - Screen edge clamping
 """
 
 from __future__ import annotations
 
+import math
 import subprocess
+import time
 from typing import Tuple, Optional
 
 
 def get_screen_size() -> Tuple[int, int]:
-    """
-    Get the main display resolution on macOS.
-
-    Returns
-    -------
-    tuple of (int, int)
-        (width, height) in pixels.
-    """
+    """Get the main display resolution on macOS."""
     try:
         from Quartz import CGDisplayBounds, CGMainDisplayID
         bounds = CGDisplayBounds(CGMainDisplayID())
         return (int(bounds.size.width), int(bounds.size.height))
     except ImportError:
-        # Fallback: use system_profiler
         try:
             result = subprocess.run(
                 ["system_profiler", "SPDisplaysDataType"],
@@ -39,44 +33,41 @@ def get_screen_size() -> Tuple[int, int]:
                     parts = line.split()
                     for i, p in enumerate(parts):
                         if p == "x" and i > 0 and i < len(parts) - 1:
-                            w = int(parts[i - 1])
-                            h = int(parts[i + 1])
-                            return (w, h)
+                            return (int(parts[i - 1]), int(parts[i + 1]))
         except Exception:
             pass
-        # Default fallback
         return (1920, 1080)
 
 
-class ScreenMapper:
+def get_current_cursor_pos() -> Tuple[float, float]:
+    """Get current macOS cursor position."""
+    try:
+        from Quartz import CGEventCreate, CGEventGetLocation
+        event = CGEventCreate(None)
+        pos = CGEventGetLocation(event)
+        return (pos.x, pos.y)
+    except ImportError:
+        return (960.0, 540.0)
+
+
+class TrackpadMapper:
     """
-    Maps normalized hand coordinates to screen pixel coordinates.
+    Maps hand movement to cursor movement with adaptive acceleration.
 
-    The mapping uses a "virtual trackpad" model:
-    - The hand's position within the camera frame maps to the full screen
-    - Screen padding creates dead zones at the edges
-    - Sensitivity amplifies small movements
+    Acceleration curve:
+      - Very slow hand movement → 1:1 mapping (precise)
+      - Medium speed → 2-3x amplification (normal)
+      - Fast movement → 4-6x amplification (crossing screen quickly)
 
-    Parameters
-    ----------
-    screen_width : int
-        Screen width in pixels.
-    screen_height : int
-        Screen height in pixels.
-    sensitivity : float
-        Movement amplification factor (1.0 = 1:1 mapping).
-    padding : float
-        Fraction of screen to use as edge dead zone (0.1 = 10%).
-    flip_x : bool
-        Mirror the X axis (True for selfie-mode webcam).
+    This mimics how macOS trackpad acceleration works.
     """
 
     def __init__(
         self,
         screen_width: Optional[int] = None,
         screen_height: Optional[int] = None,
-        sensitivity: float = 1.8,
-        padding: float = 0.10,
+        sensitivity: float = 3.0,
+        acceleration: float = 1.3,
         flip_x: bool = True,
     ):
         if screen_width is None or screen_height is None:
@@ -85,65 +76,95 @@ class ScreenMapper:
         self.screen_width = screen_width
         self.screen_height = screen_height
         self.sensitivity = sensitivity
-        self.padding = padding
+        self.acceleration = acceleration
         self.flip_x = flip_x
 
-        # Anchor point for relative movement (center of hand range)
-        self._anchor: Optional[Tuple[float, float]] = None
-        self._screen_anchor: Optional[Tuple[float, float]] = None
+        self._prev_hand: Optional[Tuple[float, float]] = None
+        self._cursor_x: float = 0.0
+        self._cursor_y: float = 0.0
+        self._initialized = False
+        self._frames_since_reset = 0
 
     def reset(self):
-        """Reset the anchor point."""
-        self._anchor = None
-        self._screen_anchor = None
+        """Reset — next detection starts fresh."""
+        self._prev_hand = None
+        self._frames_since_reset = 0
+
+    def initialize_cursor(self):
+        """Sync cursor position with macOS."""
+        cx, cy = get_current_cursor_pos()
+        self._cursor_x = cx
+        self._cursor_y = cy
+        self._initialized = True
+
+    def _acceleration_curve(self, speed: float) -> float:
+        """
+        Compute acceleration factor from hand speed.
+
+        speed is normalized (0-1 range per frame delta).
+
+        Returns multiplier:
+          - speed < 0.002 → 0.8x (decelerate for precision)
+          - speed ~ 0.01  → 1.5x (normal)
+          - speed ~ 0.03  → 3.0x (fast)
+          - speed > 0.05  → 5.0x (very fast, cap)
+        """
+        if speed < 0.001:
+            return 0.5   # almost still → strong deceleration
+        elif speed < 0.003:
+            return 0.8   # very slow → slight deceleration (precision mode)
+        elif speed < 0.008:
+            return 1.2   # slow → slight acceleration
+        elif speed < 0.015:
+            return 2.0   # medium → moderate acceleration
+        elif speed < 0.03:
+            return 3.0   # fast → strong acceleration
+        elif speed < 0.06:
+            return 4.5   # very fast → cross-screen
+        else:
+            return 6.0   # extremely fast → cap
 
     def map(self, hand_x: float, hand_y: float) -> Tuple[float, float]:
-        """
-        Map normalized hand position to screen coordinates.
+        """Map hand delta to cursor position with adaptive acceleration."""
+        if not self._initialized:
+            self.initialize_cursor()
 
-        Parameters
-        ----------
-        hand_x : float
-            Normalized hand X position (0-1, left to right in camera frame).
-        hand_y : float
-            Normalized hand Y position (0-1, top to bottom in camera frame).
-
-        Returns
-        -------
-        tuple of (float, float)
-            Screen coordinates (x, y) in pixels.
-        """
-        # Mirror X for selfie-mode
         if self.flip_x:
             hand_x = 1.0 - hand_x
 
-        # Apply padding: map hand range [padding, 1-padding] to screen [0, size]
-        pad = self.padding
-        effective_range = 1.0 - 2.0 * pad
+        if self._prev_hand is None:
+            self._prev_hand = (hand_x, hand_y)
+            self._frames_since_reset = 0
+            return (self._cursor_x, self._cursor_y)
 
-        # Normalize to [0, 1] within the effective range
-        norm_x = (hand_x - pad) / effective_range
-        norm_y = (hand_y - pad) / effective_range
+        self._frames_since_reset += 1
 
-        # Clamp to [0, 1]
-        norm_x = max(0.0, min(1.0, norm_x))
-        norm_y = max(0.0, min(1.0, norm_y))
+        # Skip first 2 frames after reset (anchor stabilization)
+        if self._frames_since_reset <= 2:
+            self._prev_hand = (hand_x, hand_y)
+            return (self._cursor_x, self._cursor_y)
 
-        # Apply sensitivity amplification from center
-        center_x, center_y = 0.5, 0.5
-        diff_x = (norm_x - center_x) * self.sensitivity
-        diff_y = (norm_y - center_y) * self.sensitivity
+        # Delta
+        dx = hand_x - self._prev_hand[0]
+        dy = hand_y - self._prev_hand[1]
+        self._prev_hand = (hand_x, hand_y)
 
-        # Clamp amplified values
-        final_x = max(0.0, min(1.0, center_x + diff_x))
-        final_y = max(0.0, min(1.0, center_y + diff_y))
+        # Speed (Euclidean)
+        speed = math.sqrt(dx * dx + dy * dy)
 
-        # Map to screen pixels
-        screen_x = final_x * self.screen_width
-        screen_y = final_y * self.screen_height
+        # Adaptive acceleration
+        accel = self._acceleration_curve(speed)
 
-        # Clamp to screen bounds
-        screen_x = max(0.0, min(float(self.screen_width - 1), screen_x))
-        screen_y = max(0.0, min(float(self.screen_height - 1), screen_y))
+        # Apply sensitivity + acceleration
+        pixel_dx = dx * self.screen_width * self.sensitivity * accel
+        pixel_dy = dy * self.screen_height * self.sensitivity * accel
 
-        return (screen_x, screen_y)
+        # Update position
+        self._cursor_x += pixel_dx
+        self._cursor_y += pixel_dy
+
+        # Clamp
+        self._cursor_x = max(0.0, min(float(self.screen_width - 1), self._cursor_x))
+        self._cursor_y = max(0.0, min(float(self.screen_height - 1), self._cursor_y))
+
+        return (self._cursor_x, self._cursor_y)
