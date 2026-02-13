@@ -65,11 +65,16 @@ const StudioIcon = () => (
   </svg>
 );
 
+const PiriDot = () => (
+  <span className="ml-auto h-1.5 w-1.5 rounded-full bg-emerald-400" title="Piri context available" />
+);
+
 interface NavItem {
   to: string;
   label: string;
   icon: React.ReactNode;
   end?: boolean;
+  piriEnabled?: boolean;
 }
 
 interface NavGroup {
@@ -90,7 +95,7 @@ const navGroups: NavGroup[] = [
   {
     title: 'Agents',
     items: [
-      { to: '/agents', label: 'Agents Hub', icon: <AgentsHubIcon /> },
+      { to: '/agents', label: 'Agents Hub', icon: <AgentsHubIcon />, piriEnabled: true },
       { to: '/agents/studio', label: 'Studio', icon: <StudioIcon /> },
       { to: '/agents/smart-automations', label: 'Automations', icon: <AutomationsIcon /> },
     ],
@@ -153,6 +158,7 @@ export function DashboardSidebar({
                   >
                     <span className="flex-shrink-0">{item.icon}</span>
                     <span>{item.label}</span>
+                    {item.piriEnabled && <PiriDot />}
                   </NavLink>
                 </li>
               ))}
