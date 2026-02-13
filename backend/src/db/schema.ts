@@ -544,6 +544,161 @@ export const users = pgTable('users', {
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
 
+// ============================================================================
+// Marketplace: AKIS Workstream (Freelancer Marketplace MVP)
+// ============================================================================
+
+export const profiles = pgTable('profiles', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  headline: varchar('headline', { length: 255 }),
+  bio: text('bio'),
+  seniority: varchar('seniority', { length: 50 }).notNull().default('mid'),
+  languages: jsonb('languages').$type<string[]>().notNull().default([]),
+  preferredLocations: jsonb('preferred_locations').$type<string[]>().notNull().default([]),
+  remoteOnly: boolean('remote_only').notNull().default(false),
+  salaryFloor: integer('salary_floor'),
+  excludedIndustries: jsonb('excluded_industries').$type<string[]>().notNull().default([]),
+  verificationStatus: varchar('verification_status', { length: 50 }).notNull().default('unverified'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  userIdUnique: uniqueIndex('idx_profiles_user_id_unique').on(table.userId),
+  verificationIdx: index('idx_profiles_verification').on(table.verificationStatus),
+}));
+
+export type Profile = typeof profiles.$inferSelect;
+export type NewProfile = typeof profiles.$inferInsert;
+
+export const skills = pgTable('skills', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  profileId: uuid('profile_id').notNull().references(() => profiles.id, { onDelete: 'cascade' }),
+  name: varchar('name', { length: 120 }).notNull(),
+  level: integer('level').notNull().default(3),
+  yearsExperience: numeric('years_experience', { precision: 4, scale: 1 }),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  profileIdIdx: index('idx_skills_profile_id').on(table.profileId),
+  profileSkillUnique: uniqueIndex('idx_skills_profile_name_unique').on(table.profileId, table.name),
+}));
+
+export type Skill = typeof skills.$inferSelect;
+export type NewSkill = typeof skills.$inferInsert;
+
+export const portfolios = pgTable('portfolios', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  profileId: uuid('profile_id').notNull().references(() => profiles.id, { onDelete: 'cascade' }),
+  title: varchar('title', { length: 255 }).notNull(),
+  description: text('description'),
+  url: varchar('url', { length: 2000 }),
+  tags: jsonb('tags').$type<string[]>().notNull().default([]),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  profileIdIdx: index('idx_portfolios_profile_id').on(table.profileId),
+}));
+
+export type Portfolio = typeof portfolios.$inferSelect;
+export type NewPortfolio = typeof portfolios.$inferInsert;
+
+export const jobSources = pgTable('job_sources', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  name: varchar('name', { length: 255 }).notNull(),
+  type: varchar('type', { length: 50 }).notNull().default('manual'),
+  baseUrl: varchar('base_url', { length: 2000 }),
+  isActive: boolean('is_active').notNull().default(true),
+  rateLimitPerMinute: integer('rate_limit_per_minute').notNull().default(60),
+  metadata: jsonb('metadata').$type<Record<string, unknown>>().notNull().default({}),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  typeIdx: index('idx_job_sources_type').on(table.type),
+  activeIdx: index('idx_job_sources_active').on(table.isActive),
+}));
+
+export type JobSource = typeof jobSources.$inferSelect;
+export type NewJobSource = typeof jobSources.$inferInsert;
+
+export const jobPosts = pgTable('job_posts', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  sourceId: uuid('source_id').notNull().references(() => jobSources.id, { onDelete: 'restrict' }),
+  externalId: varchar('external_id', { length: 255 }),
+  title: varchar('title', { length: 500 }).notNull(),
+  description: text('description').notNull(),
+  requiredSkills: jsonb('required_skills').$type<string[]>().notNull().default([]),
+  keywords: jsonb('keywords').$type<string[]>().notNull().default([]),
+  seniority: varchar('seniority', { length: 50 }),
+  language: varchar('language', { length: 20 }),
+  location: varchar('location', { length: 255 }),
+  remoteAllowed: boolean('remote_allowed').notNull().default(true),
+  budgetMin: numeric('budget_min', { precision: 12, scale: 2 }),
+  budgetMax: numeric('budget_max', { precision: 12, scale: 2 }),
+  currency: varchar('currency', { length: 8 }).notNull().default('USD'),
+  rawPayload: jsonb('raw_payload').$type<Record<string, unknown>>(),
+  ingestedAt: timestamp('ingested_at', { withTimezone: true }).defaultNow().notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  sourceIdIdx: index('idx_job_posts_source_id').on(table.sourceId),
+  sourceExternalUnique: uniqueIndex('idx_job_posts_source_external_unique').on(table.sourceId, table.externalId),
+  ingestedAtIdx: index('idx_job_posts_ingested_at').on(table.ingestedAt),
+}));
+
+export type JobPost = typeof jobPosts.$inferSelect;
+export type NewJobPost = typeof jobPosts.$inferInsert;
+
+export const matches = pgTable('matches', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  profileId: uuid('profile_id').notNull().references(() => profiles.id, { onDelete: 'cascade' }),
+  jobPostId: uuid('job_post_id').notNull().references(() => jobPosts.id, { onDelete: 'cascade' }),
+  score: numeric('score', { precision: 5, scale: 4 }).notNull(),
+  explanation: jsonb('explanation').$type<Record<string, unknown>>().notNull(),
+  status: varchar('status', { length: 30 }).notNull().default('suggested'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  profileIdx: index('idx_matches_profile_id').on(table.profileId),
+  jobPostIdx: index('idx_matches_job_post_id').on(table.jobPostId),
+  profileJobUnique: uniqueIndex('idx_matches_profile_job_unique').on(table.profileId, table.jobPostId),
+}));
+
+export type Match = typeof matches.$inferSelect;
+export type NewMatch = typeof matches.$inferInsert;
+
+export const proposals = pgTable('proposals', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  profileId: uuid('profile_id').notNull().references(() => profiles.id, { onDelete: 'cascade' }),
+  jobPostId: uuid('job_post_id').notNull().references(() => jobPosts.id, { onDelete: 'cascade' }),
+  content: text('content').notNull(),
+  source: varchar('source', { length: 30 }).notNull().default('template'),
+  metadata: jsonb('metadata').$type<Record<string, unknown>>(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  profileIdx: index('idx_proposals_profile_id').on(table.profileId),
+  jobPostIdx: index('idx_proposals_job_post_id').on(table.jobPostId),
+}));
+
+export type Proposal = typeof proposals.$inferSelect;
+export type NewProposal = typeof proposals.$inferInsert;
+
+export const auditLog = pgTable('audit_log', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').references(() => users.id, { onDelete: 'set null' }),
+  eventType: varchar('event_type', { length: 100 }).notNull(),
+  entityType: varchar('entity_type', { length: 100 }).notNull(),
+  entityId: uuid('entity_id'),
+  payload: jsonb('payload').$type<Record<string, unknown>>().notNull().default({}),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  userIdx: index('idx_audit_log_user_id').on(table.userId),
+  eventTypeIdx: index('idx_audit_log_event_type').on(table.eventType),
+  entityIdx: index('idx_audit_log_entity').on(table.entityType, table.entityId),
+}));
+
+export type AuditLog = typeof auditLog.$inferSelect;
+export type NewAuditLog = typeof auditLog.$inferInsert;
+
 // Relations (optional, for query convenience)
 export const jobsRelations = relations(jobs, ({ many }) => ({
   plans: many(jobPlans),
@@ -663,12 +818,80 @@ export type NewUserAiKey = typeof userAiKeys.$inferInsert;
 // Users relations - includes oauth accounts
 export const usersRelations = relations(users, ({ many }) => ({
   oauthAccounts: many(oauthAccounts),
+  profiles: many(profiles),
   conversationThreads: many(conversationThreads),
   conversationMessages: many(conversationMessages),
   threadTasks: many(threadTasks),
   planCandidates: many(planCandidates),
   planCandidateBuilds: many(planCandidateBuilds),
   threadTrustSnapshots: many(threadTrustSnapshots),
+}));
+
+export const profilesRelations = relations(profiles, ({ one, many }) => ({
+  user: one(users, {
+    fields: [profiles.userId],
+    references: [users.id],
+  }),
+  skills: many(skills),
+  portfolios: many(portfolios),
+  matches: many(matches),
+  proposals: many(proposals),
+}));
+
+export const skillsRelations = relations(skills, ({ one }) => ({
+  profile: one(profiles, {
+    fields: [skills.profileId],
+    references: [profiles.id],
+  }),
+}));
+
+export const portfoliosRelations = relations(portfolios, ({ one }) => ({
+  profile: one(profiles, {
+    fields: [portfolios.profileId],
+    references: [profiles.id],
+  }),
+}));
+
+export const jobSourcesRelations = relations(jobSources, ({ many }) => ({
+  jobPosts: many(jobPosts),
+}));
+
+export const jobPostsRelations = relations(jobPosts, ({ one, many }) => ({
+  source: one(jobSources, {
+    fields: [jobPosts.sourceId],
+    references: [jobSources.id],
+  }),
+  matches: many(matches),
+  proposals: many(proposals),
+}));
+
+export const matchesRelations = relations(matches, ({ one }) => ({
+  profile: one(profiles, {
+    fields: [matches.profileId],
+    references: [profiles.id],
+  }),
+  jobPost: one(jobPosts, {
+    fields: [matches.jobPostId],
+    references: [jobPosts.id],
+  }),
+}));
+
+export const proposalsRelations = relations(proposals, ({ one }) => ({
+  profile: one(profiles, {
+    fields: [proposals.profileId],
+    references: [profiles.id],
+  }),
+  jobPost: one(jobPosts, {
+    fields: [proposals.jobPostId],
+    references: [jobPosts.id],
+  }),
+}));
+
+export const auditLogRelations = relations(auditLog, ({ one }) => ({
+  user: one(users, {
+    fields: [auditLog.userId],
+    references: [users.id],
+  }),
 }));
 
 // OAuth accounts relations
