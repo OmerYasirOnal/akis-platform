@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useI18n } from '../../i18n/useI18n';
 import { ragApi, type RAGQueryResponse, type RAGSearchResponse, type RAGWebSearchResponse, type RAGLearnResponse, type RAGStatus, type RAGStats } from '../../services/api/rag';
 
@@ -433,6 +434,101 @@ function StatsPanel({ stats }: { stats: RAGStats | null }) {
   );
 }
 
+function QuickActionsPanel() {
+  const navigate = useNavigate();
+
+  const actions = [
+    {
+      label: 'Open Scribe with Context',
+      description: 'Use knowledge base context while generating docs',
+      icon: (
+        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+        </svg>
+      ),
+      path: '/agents/scribe',
+    },
+    {
+      label: 'Open Trace with Context',
+      description: 'Generate tests informed by knowledge base',
+      icon: (
+        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M9.75 3.104v5.714a2.25 2.25 0 01-.659 1.591L5 14.5M9.75 3.104c-.251.023-.501.05-.75.082m.75-.082a24.301 24.301 0 014.5 0m0 0v5.714c0 .597.237 1.17.659 1.591L19.8 15.3M14.25 3.104c.251.023.501.05.75.082M19.8 15.3l-1.57.393A9.065 9.065 0 0112 15a9.065 9.065 0 00-6.23.693L5 14.5m14.8.8l1.402 1.402c1.232 1.232.65 3.318-1.067 3.611A48.309 48.309 0 0112 21c-2.773 0-5.491-.235-8.135-.687-1.718-.293-2.3-2.379-1.067-3.61L5 14.5" />
+        </svg>
+      ),
+      path: '/agents/trace',
+    },
+    {
+      label: 'Open Proto with Context',
+      description: 'Scaffold MVPs using knowledge base insights',
+      icon: (
+        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" />
+        </svg>
+      ),
+      path: '/agents/proto',
+    },
+  ];
+
+  return (
+    <div className="rounded-xl border border-ak-border bg-ak-surface p-4">
+      <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-ak-text-secondary">
+        Quick Actions
+      </h3>
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+        {actions.map((action) => (
+          <button
+            key={action.path}
+            onClick={() => navigate(action.path)}
+            className="flex items-start gap-3 rounded-lg border border-ak-border/50 bg-ak-bg p-3 text-left transition-colors hover:border-ak-primary/30 hover:bg-ak-primary/5"
+          >
+            <span className="flex-shrink-0 text-ak-primary">{action.icon}</span>
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-ak-text-primary">{action.label}</p>
+              <p className="text-[10px] text-ak-text-secondary">{action.description}</p>
+            </div>
+          </button>
+        ))}
+      </div>
+      <p className="mt-3 text-[10px] text-ak-text-secondary/60">
+        Open the Piri Context sidebar on any agent page to query your knowledge base while configuring jobs.
+      </p>
+    </div>
+  );
+}
+
+function AgentIntegrationInfo() {
+  return (
+    <div className="rounded-xl border border-ak-border bg-ak-surface p-4">
+      <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-ak-text-secondary">
+        Agent Integration
+      </h3>
+      <div className="space-y-3">
+        <div className="flex items-center gap-3 rounded-lg border border-ak-border/50 bg-ak-bg p-3">
+          <span className="h-2 w-2 flex-shrink-0 rounded-full bg-emerald-400" />
+          <div>
+            <p className="text-sm font-medium text-ak-text-primary">Context Sidebar Active</p>
+            <p className="text-[10px] text-ak-text-secondary">
+              All agent consoles (Scribe, Trace, Proto) have a Piri Context sidebar.
+              Ask questions or search your knowledge base to inject context into agent runs.
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-3 rounded-lg border border-ak-border/50 bg-ak-bg p-3">
+          <span className="h-2 w-2 flex-shrink-0 rounded-full bg-emerald-400" />
+          <div>
+            <p className="text-sm font-medium text-ak-text-primary">Automatic RAG Injection</p>
+            <p className="text-[10px] text-ak-text-secondary">
+              When you select Piri context entries in the sidebar, they are automatically included 
+              in the agent's execution context via the Context Assembly Service.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function DashboardRAGPage() {
   const { t } = useI18n();
   const [activeTab, setActiveTab] = useState<RAGTab>('ask');
@@ -488,8 +584,14 @@ function DashboardRAGPage() {
         </div>
       ) : (
         <>
-          {/* Stats */}
-          <StatsPanel stats={stats} />
+          {/* Stats + Quick Actions */}
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            <StatsPanel stats={stats} />
+            <QuickActionsPanel />
+          </div>
+
+          {/* Agent Integration Info */}
+          <AgentIntegrationInfo />
 
           {/* Tabs */}
           <div className="flex gap-1 rounded-lg bg-ak-surface p-1">
