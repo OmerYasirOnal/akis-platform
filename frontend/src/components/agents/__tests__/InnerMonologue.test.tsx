@@ -66,7 +66,9 @@ describe('InnerMonologue', () => {
       />
     );
 
-    expect(await screen.findByText(withTemplate(translations['agentCanvas.monologue.reading'], 'README.md'))).toBeInTheDocument();
+    expect(
+      await screen.findByText((content) => content.includes('📄 Reading `README.md`'))
+    ).toBeInTheDocument();
   });
 
   it('animates latest message with typewriter effect', async () => {
