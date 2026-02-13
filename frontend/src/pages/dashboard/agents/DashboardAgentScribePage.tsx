@@ -13,8 +13,10 @@ import { Link } from 'react-router-dom';
 import Card from '../../../components/common/Card';
 import Button from '../../../components/common/Button';
 import AgentRuntimeSettingsDrawer from '../../../components/agents/AgentRuntimeSettingsDrawer';
+import PiriContextSidebar from '../../../components/agents/PiriContextSidebar';
 import LiveAgentCanvas from '../../../components/agents/LiveAgentCanvas';
 import { useI18n } from '../../../i18n/useI18n';
+import { usePiriContext } from '../../../hooks/usePiriContext';
 import SearchableSelect, { type SelectOption } from '../../../components/common/SearchableSelect';
 import {
   githubDiscoveryApi,
@@ -50,6 +52,11 @@ interface Artifact {
 const DashboardAgentScribePage = () => {
   const { t: _t } = useI18n();
   const t = useCallback((key: string) => _t(key as never), [_t]);
+
+  // Piri Context
+  const piri = usePiriContext();
+  const [piriOpen, setPiriOpen] = useState(false);
+  const piriSelectedCount = piri.entries.filter((e) => e.selected).length;
 
   // GitHub OAuth user (read-only owner)
   const [connectedGitHubUser, setConnectedGitHubUser] = useState<string>('');
@@ -917,6 +924,20 @@ const DashboardAgentScribePage = () => {
             commandLevel: next.commandLevel,
           })
         }
+      />
+      <PiriContextSidebar
+        open={piriOpen}
+        onToggle={() => setPiriOpen((v) => !v)}
+        entries={piri.entries}
+        isLoading={piri.isLoading}
+        error={piri.error}
+        isHealthy={piri.isHealthy}
+        onAsk={piri.askPiri}
+        onSearch={piri.searchPiri}
+        onToggleEntry={piri.toggleEntry}
+        onRemoveEntry={piri.removeEntry}
+        onClear={piri.clearEntries}
+        selectedCount={piriSelectedCount}
       />
     </>
   );
