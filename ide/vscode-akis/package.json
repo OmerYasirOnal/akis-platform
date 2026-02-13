@@ -81,6 +81,16 @@
       {
         "command": "akis.configure",
         "title": "AKIS: Configure Connection"
+      },
+      {
+        "command": "akis.refreshIndex",
+        "title": "AKIS: Refresh Index",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "akis.sendFileToAgent",
+        "title": "AKIS: Send File to Agent",
+        "icon": "$(arrow-up)"
       }
     ],
     "menus": {
@@ -94,6 +104,17 @@
           "command": "akis.runAgent",
           "when": "view == akis-agents",
           "group": "navigation"
+        },
+        {
+          "command": "akis.refreshIndex",
+          "when": "view == akis-files",
+          "group": "navigation"
+        }
+      ],
+      "editor/context": [
+        {
+          "command": "akis.sendFileToAgent",
+          "group": "akis@1"
         }
       ]
     },
