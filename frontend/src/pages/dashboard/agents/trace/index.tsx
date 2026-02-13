@@ -268,12 +268,16 @@ const DashboardAgentTracePage = () => {
         return;
       }
 
+      // Inject Piri context if available
+      const piriContext = piri.getSelectedContext();
+
       const response = await agentsApi.runAgent({
         type: 'trace',
         payload: {
           spec: spec.trim(),
           tracePreferences,
           ...(aiProvider && { aiProvider }),
+          ...(piriContext && { additionalContext: piriContext }),
         },
         runtimeOverride,
       });

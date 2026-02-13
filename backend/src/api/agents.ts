@@ -37,6 +37,9 @@ const scribePayloadSchema = z.object({
   passes: z.number().int().min(1).max(2).optional(),
   skill: z.enum(['DocPackFromRepo', 'ReleaseNotesFromPRs', 'ChecklistFromRunbook']).optional(),
   skillInput: z.unknown().optional(),
+  // Piri context fields
+  contextQuery: z.string().max(2000).optional(),
+  additionalContext: z.string().max(10000).optional(),
 });
 
 // Config-aware payload schema (S0.4.6)
@@ -62,6 +65,9 @@ const tracePayloadSchema = z.object({
     browserTarget: z.enum(['chromium', 'cross_browser', 'mobile']),
     strictness: z.enum(['fast', 'balanced', 'strict']),
   }).optional(),
+  // Piri context fields
+  contextQuery: z.string().max(2000).optional(),
+  additionalContext: z.string().max(10000).optional(),
 }).passthrough();
 
 const protoPayloadSchema = z.object({
@@ -73,6 +79,9 @@ const protoPayloadSchema = z.object({
   baseBranch: z.string().optional(),
   branchStrategy: z.enum(['auto', 'manual']).optional(),
   dryRun: z.boolean().optional(),
+  // Piri context fields
+  contextQuery: z.string().max(2000).optional(),
+  additionalContext: z.string().max(10000).optional(),
 }).passthrough().superRefine((data, ctx) => {
   if (!data.requirements && !data.goal) {
     ctx.addIssue({
