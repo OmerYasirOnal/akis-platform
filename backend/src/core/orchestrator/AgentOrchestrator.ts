@@ -21,7 +21,7 @@ import { computeQualityScore, type QualityInput } from '../../services/quality/Q
 import { getCrewRunManager } from '../../api/crew.js';
 import { GroundednessScorer } from '../../services/knowledge/verification/GroundednessScorer.js';
 import { VerificationGateEngine, type GateInput, type VerificationResult } from '../../services/knowledge/verification/VerificationGateEngine.js';
-import { getAgentRiskConfig, createAgentVerificationEngine } from '../../config/agentRiskProfiles.js';
+import { createAgentVerificationEngine } from '../../config/agentRiskProfiles.js';
 
 export const DEV_GITHUB_BOOTSTRAP_TOKEN_PLACEHOLDER = '__DEV_GITHUB_BOOTSTRAP__';
 

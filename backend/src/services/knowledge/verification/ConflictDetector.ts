@@ -271,7 +271,7 @@ export class ConflictDetector {
     if (!topic) { return null; }
 
     const newer = sourceA.timestamp > sourceB.timestamp ? sourceA : sourceB;
-    const older = sourceA.timestamp > sourceB.timestamp ? sourceB : sourceA;
+    const _older = sourceA.timestamp > sourceB.timestamp ? sourceB : sourceA;
 
     return {
       type: 'temporal_conflict',
