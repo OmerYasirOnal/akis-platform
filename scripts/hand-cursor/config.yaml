@@ -1,0 +1,39 @@
+# Hand Cursor — El Takibi ile Cursor Kontrolu
+# ─────────────────────────────────────────────
+
+camera:
+  device: 0              # Webcam device index
+  width: 640             # Capture width (dusuk = daha hizli)
+  height: 480
+  fps: 30
+
+tracking:
+  max_hands: 1           # Performans icin tek el
+  detection_confidence: 0.7
+  tracking_confidence: 0.5
+
+gestures:
+  pinch_threshold: 0.045   # Basparmak-isaret parmagi pinch mesafe esigi
+  right_click_threshold: 0.045  # Basparmak-orta parmak mesafe esigi
+  scroll_threshold: 0.045  # Basparmak-yuzuk parmagi mesafe esigi
+  fist_pause: true         # Yumruk = tracking duraklat
+  # Temporal stability: kac ardisik frame'de gesture algilanmali
+  pinch_frames: 2
+  release_frames: 2
+
+cursor:
+  sensitivity: 1.8         # Hareket carpani (1.0 = 1:1, >1 = amplified)
+  dead_zone: 3             # Piksel — bu kadar kucuk hareket ignore edilir
+  screen_padding: 0.10     # Ekran kenari dead zone (%10)
+
+smoothing:
+  # One Euro Filter parametreleri
+  min_cutoff: 1.5          # Dusuk = daha az jitter, daha cok lag
+  beta: 0.5                # Yuksek = daha az lag, daha cok jitter
+  d_cutoff: 1.0            # Turev filtre cutoff
+
+display:
+  show_preview: true       # Webcam onizleme penceresi goster
+  show_landmarks: true     # El landmarklerini ciz
+  show_gestures: true      # Gesture durum etiketi goster
+  preview_width: 400       # Onizleme pencere genisligi

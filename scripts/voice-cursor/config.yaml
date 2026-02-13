@@ -1,0 +1,38 @@
+# Jarvis — Voice-to-Cursor Configuration
+# ----------------------------------------
+
+hotkey:
+  # Push-to-talk key combination (hold to record, release to transcribe)
+  # Available modifiers: ctrl, shift, alt, cmd
+  combo: ctrl+shift+space
+
+whisper:
+  # HuggingFace model repo (mlx-community models recommended for Apple Silicon)
+  model: mlx-community/whisper-large-v3-turbo
+  # Language: auto (auto-detect) | tr (Turkish) | en (English)
+  language: auto
+
+dispatch:
+  # Delivery mode: ide (keyboard simulation) | cli (Cursor agent CLI)
+  mode: ide
+  # Workspace path for agent CLI mode
+  workspace: null
+  # Agent CLI model override (null = default)
+  cli_model: null
+  # Agent CLI mode: null (normal) | plan | ask
+  cli_mode: null
+
+prompt:
+  # Text prepended to every transcription
+  prefix: ""
+  # Text appended to every transcription
+  suffix: ""
+  # Custom template — use {text} as placeholder for transcription
+  # Example: "In the AKIS project, {text}"
+  template: null
+
+notifications:
+  # Play system sound on record start/stop
+  sound: true
+  # Show macOS notification banner
+  banner: true

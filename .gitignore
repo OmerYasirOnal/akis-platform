@@ -111,3 +111,12 @@ CURSOR_PROMPT*.md
 STAGING_DEPLOY_CHECKLIST.md
 staging_env_template.env
 staging_smoke_test.sh
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Playwright
+.playwright-cli/
+
