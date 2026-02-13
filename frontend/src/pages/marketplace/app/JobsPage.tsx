@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
 
+import { useI18n } from '../../../i18n/useI18n';
 import { marketplaceApi, type JobPostItem } from '../../../services/api/marketplace';
 
 export default function JobsPage() {
+  const { t } = useI18n();
   const [items, setItems] = useState<JobPostItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [ingesting, setIngesting] = useState(false);
@@ -15,7 +17,7 @@ export default function JobsPage() {
       const response = await marketplaceApi.listJobs({ limit: 30, offset: 0 });
       setItems(response.items);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load jobs');
+      setError(err instanceof Error ? err.message : t('marketplace.jobs.errorLoad'));
     } finally {
       setLoading(false);
     }
@@ -48,7 +50,7 @@ export default function JobsPage() {
       });
       await loadJobs();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to ingest sample job');
+      setError(err instanceof Error ? err.message : t('marketplace.jobs.errorIngest'));
     } finally {
       setIngesting(false);
     }
@@ -57,21 +59,21 @@ export default function JobsPage() {
   return (
     <section className="rounded-xl border border-ak-border bg-ak-surface p-5">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-xl font-semibold text-ak-text-primary">Job feed</h2>
+        <h2 className="text-xl font-semibold text-ak-text-primary">{t('marketplace.jobs.title')}</h2>
         <button
           type="button"
           className="rounded-lg bg-ak-primary px-4 py-2 text-sm font-semibold text-[color:var(--ak-on-primary)] hover:brightness-110 disabled:opacity-70"
           onClick={handleIngestSample}
           disabled={ingesting}
         >
-          {ingesting ? 'Ingesting...' : 'Ingest sample job'}
+          {ingesting ? t('marketplace.jobs.actions.ingesting') : t('marketplace.jobs.actions.ingestSample')}
         </button>
       </div>
 
-      {loading && <p className="text-sm text-ak-text-secondary">Loading jobs...</p>}
+      {loading && <p className="text-sm text-ak-text-secondary">{t('marketplace.jobs.loading')}</p>}
       {error && <p role="alert" className="text-sm text-ak-danger">{error}</p>}
       {!loading && !error && items.length === 0 && (
-        <p className="text-sm text-ak-text-secondary">No jobs yet. Use “Ingest sample job” to seed data.</p>
+        <p className="text-sm text-ak-text-secondary">{t('marketplace.jobs.empty')}</p>
       )}
 
       {!loading && !error && items.length > 0 && (
@@ -81,8 +83,9 @@ export default function JobsPage() {
               <h3 className="text-base font-semibold text-ak-text-primary">{job.title}</h3>
               <p className="mt-1 text-sm text-ak-text-secondary">{job.description}</p>
               <p className="mt-2 text-xs text-ak-text-secondary">
-                {job.location ?? 'Unknown location'} · {job.remoteAllowed ? 'Remote allowed' : 'On-site'} ·{' '}
-                {job.language ?? 'Language n/a'}
+                {job.location ?? t('marketplace.jobs.unknownLocation')} ·{' '}
+                {job.remoteAllowed ? t('marketplace.jobs.remoteAllowed') : t('marketplace.jobs.onSite')} ·{' '}
+                {job.language ?? t('marketplace.jobs.languageNA')}
               </p>
             </li>
           ))}

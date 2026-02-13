@@ -1,5 +1,6 @@
 import { FormEvent, useState } from 'react';
 
+import { useI18n } from '../../../i18n/useI18n';
 import { marketplaceApi } from '../../../services/api/marketplace';
 
 function splitComma(value: string): string[] {
@@ -10,6 +11,7 @@ function splitComma(value: string): string[] {
 }
 
 export default function OnboardingPage() {
+  const { t } = useI18n();
   const [headline, setHeadline] = useState('');
   const [bio, setBio] = useState('');
   const [seniority, setSeniority] = useState('mid');
@@ -37,9 +39,9 @@ export default function OnboardingPage() {
         skills: splitComma(skills).map((name) => ({ name })),
       });
 
-      setSuccess('Profile saved successfully.');
+      setSuccess(t('marketplace.onboarding.success'));
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save profile');
+      setError(err instanceof Error ? err.message : t('marketplace.onboarding.errorSave'));
     } finally {
       setSaving(false);
     }
@@ -47,11 +49,11 @@ export default function OnboardingPage() {
 
   return (
     <section className="rounded-xl border border-ak-border bg-ak-surface p-5">
-      <h2 className="mb-4 text-xl font-semibold text-ak-text-primary">Talent onboarding</h2>
+      <h2 className="mb-4 text-xl font-semibold text-ak-text-primary">{t('marketplace.onboarding.title')}</h2>
 
       <form className="grid gap-4" onSubmit={handleSubmit}>
         <label className="grid gap-1 text-sm text-ak-text-secondary" htmlFor="headline">
-          Headline
+          {t('marketplace.onboarding.fields.headline')}
           <input
             id="headline"
             className="rounded-lg border border-ak-border bg-ak-surface-2 px-3 py-2 text-ak-text-primary"
@@ -62,7 +64,7 @@ export default function OnboardingPage() {
         </label>
 
         <label className="grid gap-1 text-sm text-ak-text-secondary" htmlFor="bio">
-          Bio
+          {t('marketplace.onboarding.fields.bio')}
           <textarea
             id="bio"
             className="min-h-[120px] rounded-lg border border-ak-border bg-ak-surface-2 px-3 py-2 text-ak-text-primary"
@@ -73,22 +75,22 @@ export default function OnboardingPage() {
         </label>
 
         <label className="grid gap-1 text-sm text-ak-text-secondary" htmlFor="seniority">
-          Seniority
+          {t('marketplace.onboarding.fields.seniority')}
           <select
             id="seniority"
             className="rounded-lg border border-ak-border bg-ak-surface-2 px-3 py-2 text-ak-text-primary"
             value={seniority}
             onChange={(event) => setSeniority(event.target.value)}
           >
-            <option value="junior">Junior</option>
-            <option value="mid">Mid</option>
-            <option value="senior">Senior</option>
-            <option value="lead">Lead</option>
+            <option value="junior">{t('marketplace.onboarding.seniority.junior')}</option>
+            <option value="mid">{t('marketplace.onboarding.seniority.mid')}</option>
+            <option value="senior">{t('marketplace.onboarding.seniority.senior')}</option>
+            <option value="lead">{t('marketplace.onboarding.seniority.lead')}</option>
           </select>
         </label>
 
         <label className="grid gap-1 text-sm text-ak-text-secondary" htmlFor="languages">
-          Languages (comma-separated)
+          {t('marketplace.onboarding.fields.languages')}
           <input
             id="languages"
             className="rounded-lg border border-ak-border bg-ak-surface-2 px-3 py-2 text-ak-text-primary"
@@ -98,7 +100,7 @@ export default function OnboardingPage() {
         </label>
 
         <label className="grid gap-1 text-sm text-ak-text-secondary" htmlFor="preferred-locations">
-          Preferred locations (comma-separated)
+          {t('marketplace.onboarding.fields.preferredLocations')}
           <input
             id="preferred-locations"
             className="rounded-lg border border-ak-border bg-ak-surface-2 px-3 py-2 text-ak-text-primary"
@@ -108,7 +110,7 @@ export default function OnboardingPage() {
         </label>
 
         <label className="grid gap-1 text-sm text-ak-text-secondary" htmlFor="skills">
-          Skills (comma-separated)
+          {t('marketplace.onboarding.fields.skills')}
           <input
             id="skills"
             className="rounded-lg border border-ak-border bg-ak-surface-2 px-3 py-2 text-ak-text-primary"
@@ -125,7 +127,7 @@ export default function OnboardingPage() {
           className="inline-flex w-fit items-center rounded-lg bg-ak-primary px-4 py-2 text-sm font-semibold text-[color:var(--ak-on-primary)] hover:brightness-110 disabled:opacity-70"
           disabled={saving}
         >
-          {saving ? 'Saving...' : 'Save profile'}
+          {saving ? t('marketplace.onboarding.actions.saving') : t('marketplace.onboarding.actions.save')}
         </button>
       </form>
     </section>

@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
 
+import { useI18n } from '../../../i18n/useI18n';
 import { marketplaceApi, type MatchItem } from '../../../services/api/marketplace';
 
 export default function MatchesPage() {
+  const { t } = useI18n();
   const [items, setItems] = useState<MatchItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [running, setRunning] = useState(false);
@@ -16,7 +18,7 @@ export default function MatchesPage() {
       const response = await marketplaceApi.listMatches({ limit: 30, offset: 0 });
       setItems(response.items);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load matches');
+      setError(err instanceof Error ? err.message : t('marketplace.matches.errorLoad'));
     } finally {
       setLoading(false);
     }
@@ -33,7 +35,7 @@ export default function MatchesPage() {
       await marketplaceApi.runMatch();
       await loadMatches();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to run matching');
+      setError(err instanceof Error ? err.message : t('marketplace.matches.errorRun'));
     } finally {
       setRunning(false);
     }
@@ -42,21 +44,21 @@ export default function MatchesPage() {
   return (
     <section className="rounded-xl border border-ak-border bg-ak-surface p-5">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-xl font-semibold text-ak-text-primary">Match results</h2>
+        <h2 className="text-xl font-semibold text-ak-text-primary">{t('marketplace.matches.title')}</h2>
         <button
           type="button"
           className="rounded-lg bg-ak-primary px-4 py-2 text-sm font-semibold text-[color:var(--ak-on-primary)] hover:brightness-110 disabled:opacity-70"
           onClick={handleRunMatch}
           disabled={running}
         >
-          {running ? 'Running match...' : 'Run match'}
+          {running ? t('marketplace.matches.actions.running') : t('marketplace.matches.actions.run')}
         </button>
       </div>
 
-      {loading && <p className="text-sm text-ak-text-secondary">Loading matches...</p>}
+      {loading && <p className="text-sm text-ak-text-secondary">{t('marketplace.matches.loading')}</p>}
       {error && <p role="alert" className="text-sm text-ak-danger">{error}</p>}
       {!loading && !error && items.length === 0 && (
-        <p className="text-sm text-ak-text-secondary">No matches yet. Run matching after onboarding and job ingest.</p>
+        <p className="text-sm text-ak-text-secondary">{t('marketplace.matches.empty')}</p>
       )}
 
       {!loading && !error && items.length > 0 && (
@@ -66,7 +68,7 @@ export default function MatchesPage() {
               <div className="flex items-center justify-between gap-4">
                 <h3 className="text-base font-semibold text-ak-text-primary">{item.jobTitle}</h3>
                 <span className="rounded-full bg-ak-primary/15 px-3 py-1 text-xs font-semibold text-ak-primary">
-                  Score {Math.round(item.score * 100)}%
+                  {t('marketplace.matches.scoreLabel')} {Math.round(item.score * 100)}%
                 </span>
               </div>
 
@@ -74,7 +76,7 @@ export default function MatchesPage() {
 
               <div className="mt-3 grid gap-3 sm:grid-cols-2">
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.1em] text-ak-text-secondary">Top factors</p>
+                  <p className="text-xs font-semibold uppercase tracking-[0.1em] text-ak-text-secondary">{t('marketplace.matches.topFactors')}</p>
                   <ul className="mt-1 flex flex-wrap gap-2 text-xs text-ak-text-primary">
                     {item.explanation.top_factors.map((factor) => (
                       <li key={factor} className="rounded border border-ak-border px-2 py-1">
@@ -84,9 +86,9 @@ export default function MatchesPage() {
                   </ul>
                 </div>
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.1em] text-ak-text-secondary">Missing skills</p>
+                  <p className="text-xs font-semibold uppercase tracking-[0.1em] text-ak-text-secondary">{t('marketplace.matches.missingSkills')}</p>
                   {item.explanation.missing_skills.length === 0 ? (
-                    <p className="mt-1 text-xs text-ak-text-secondary">No missing skills detected.</p>
+                    <p className="mt-1 text-xs text-ak-text-secondary">{t('marketplace.matches.noMissingSkills')}</p>
                   ) : (
                     <ul className="mt-1 flex flex-wrap gap-2 text-xs text-ak-text-primary">
                       {item.explanation.missing_skills.map((skill) => (
@@ -100,7 +102,7 @@ export default function MatchesPage() {
               </div>
 
               <details className="mt-3 rounded border border-ak-border p-2">
-                <summary className="cursor-pointer text-xs font-semibold text-ak-text-secondary">View explanation JSON</summary>
+                <summary className="cursor-pointer text-xs font-semibold text-ak-text-secondary">{t('marketplace.matches.viewJson')}</summary>
                 <pre className="mt-2 overflow-auto rounded bg-ak-bg p-2 text-xs text-ak-text-primary">
                   {JSON.stringify(item.explanation, null, 2)}
                 </pre>
