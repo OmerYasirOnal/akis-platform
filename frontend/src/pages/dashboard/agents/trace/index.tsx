@@ -13,8 +13,10 @@ import { Link } from 'react-router-dom';
 import Card from '../../../../components/common/Card';
 import Button from '../../../../components/common/Button';
 import AgentRuntimeSettingsDrawer from '../../../../components/agents/AgentRuntimeSettingsDrawer';
+import PiriContextSidebar from '../../../../components/agents/PiriContextSidebar';
 import LiveAgentCanvas from '../../../../components/agents/LiveAgentCanvas';
 import { useAgentStatus } from '../../../../hooks/useAgentStatus';
+import { usePiriContext } from '../../../../hooks/usePiriContext';
 import { useI18n } from '../../../../i18n/useI18n';
 import { agentsApi, type JobDetail, type RuntimeOverride } from '../../../../services/api/agents';
 import { getMultiProviderStatus, type AIKeyProvider } from '../../../../services/api/ai-keys';
@@ -81,6 +83,11 @@ interface JobMetadata {
 const DashboardAgentTracePage = () => {
   const { t } = useI18n();
   const { status: agentStatus } = useAgentStatus('trace');
+
+  // Piri Context
+  const piri = usePiriContext();
+  const [piriOpen, setPiriOpen] = useState(false);
+  const piriSelectedCount = piri.entries.filter((e) => e.selected).length;
 
   // Form state
   const [spec, setSpec] = useState('');
@@ -773,6 +780,20 @@ const DashboardAgentTracePage = () => {
             commandLevel: next.commandLevel,
           })
         }
+      />
+      <PiriContextSidebar
+        open={piriOpen}
+        onToggle={() => setPiriOpen((v) => !v)}
+        entries={piri.entries}
+        isLoading={piri.isLoading}
+        error={piri.error}
+        isHealthy={piri.isHealthy}
+        onAsk={piri.askPiri}
+        onSearch={piri.searchPiri}
+        onToggleEntry={piri.toggleEntry}
+        onRemoveEntry={piri.removeEntry}
+        onClear={piri.clearEntries}
+        selectedCount={piriSelectedCount}
       />
     </div>
   );
