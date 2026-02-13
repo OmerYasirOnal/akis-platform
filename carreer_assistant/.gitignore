@@ -1,0 +1,19 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# Database and runtime data
+data/
+*.db
+*.db-journal
+
+# Screenshots from browser automation
+data/screenshots/
+
+# Environment
+.env
+
+# Logs
+*.log
