@@ -32,6 +32,8 @@ import { conversationsRoutes } from './api/conversations.js';
 import { studioRoutes } from './api/studio.js';
 import { knowledgeRoutes } from './api/knowledge.js';
 import { crewRoutes, initCrewRunManager } from './api/crew.js';
+import { ragRoutes } from './api/rag.js';
+import { initPiriRAGService } from './services/rag/PiriRAGService.js';
 import { AgentOrchestrator } from './core/orchestrator/AgentOrchestrator.js';
 import { createAIService } from './services/ai/AIService.js';
 import type { MCPTools } from './services/mcp/adapters/index.js';
@@ -219,6 +221,14 @@ export async function buildApp() {
   await app.register(studioRoutes, { prefix: '/api/studio' });
   await app.register(knowledgeRoutes);
   await app.register(crewRoutes);
+  await app.register(ragRoutes);
+
+  // Initialize Piri RAG service if configured
+  if (env.PIRI_BASE_URL) {
+    initPiriRAGService(env.PIRI_BASE_URL);
+    app.log.info(`Piri RAG service configured: ${env.PIRI_BASE_URL}`);
+  }
+
   if (env.NODE_ENV !== 'production' && process.env.SCRIBE_DEV_GITHUB_BOOTSTRAP === 'true') {
     await app.register(testHelpersRoutes, { prefix: '/test' });
   }
