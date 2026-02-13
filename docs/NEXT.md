@@ -246,7 +246,7 @@ docs/NEXT.md                                             (bu dosya — anlık ey
 | M2-KI-1 | GroundednessScorer | P1 | Claim extraction + evidence matching + 0-1 score | Tamamlandı (2026-02-13) |
 | M2-KI-2 | ClaimDecomposer | P1 | AI-powered atomic claim extraction | Tamamlandı (2026-02-13) |
 | M2-VF-1 | VerificationGateEngine | P2 | Configurable thresholds + pass/fail/warn | Tamamlandı (2026-02-13) |
-| M2-VF-2 | Scribe Verification Gates | P2 | Citation ≥80%, Hallucination ≤5%, Freshness ≤6mo, Conflict=0 | Başlanmadı |
+| M2-VF-2 | Scribe Verification Gates | P2 | Citation ≥80%, Hallucination ≤5%, Freshness ≤6mo, Conflict=0 | Tamamlandı (2026-02-13) |
 | M2-VF-6 | Agent Risk Profiles | P2 | P0/P1/P2 → gate strictness config | Tamamlandı (2026-02-13) |
 
 #### M2 Sprint 2 (10-21 Mart) — Full Pipeline + UI
@@ -255,14 +255,14 @@ docs/NEXT.md                                             (bu dosya — anlık ey
 |---|-------|--------|--------|-------|
 | M2-KI-3 | ConflictDetector | P1 | Kaynak çakışma tespiti | Tamamlandı (2026-02-13) |
 | M2-KI-4 | Cite-or-Block Gate | P1 | AgentOrchestrator enforcement | Tamamlandı (2026-02-13) |
-| M2-VF-3 | Trace Verification Gates | P2 | Coverage ≥90%, Edge Cases ≥5/mod, Validity ≥95% | Başlanmadı |
-| M2-VF-4 | Proto Verification Gates | P2 | Build 100%, Security 0 kritik, Convention ≥90% | Başlanmadı |
-| M2-FP-1 | FreshnessScheduler | P3 | Cron → stale knowledge detection | Başlanmadı |
+| M2-VF-3 | Trace Verification Gates | P2 | Coverage ≥90%, Edge Cases ≥5/mod, Validity ≥95% | Tamamlandı (2026-02-13) |
+| M2-VF-4 | Proto Verification Gates | P2 | Build 100%, Security 0 kritik, Convention ≥90% | Tamamlandı (2026-02-13) |
+| M2-FP-1 | FreshnessScheduler | P3 | Cron → stale knowledge detection | Tamamlandı (2026-02-13) |
 | M2-FP-2 | GitHub Releases Sinyal | P3 | MCP adapter genişletme | Başlanmadı |
-| M2-UI-1 | CitationBadge | P4 | verified/unverified/blocked/conflict states | Başlanmadı |
-| M2-UI-2 | ConfidenceIndicator | P4 | 0-100 + renk kodlaması | Başlanmadı |
-| M2-UI-3 | FreshnessLabel | P4 | Tarih + stale/fresh/unknown | Başlanmadı |
-| M2-UI-4 | ConflictWarning | P4 | Turuncu uyarı + kaynak listesi | Başlanmadı |
+| M2-UI-1 | CitationBadge | P4 | verified/unverified/blocked/conflict states | Tamamlandı (2026-02-13) |
+| M2-UI-2 | ConfidenceIndicator | P4 | 0-100 + renk kodlaması | Tamamlandı (2026-02-13) |
+| M2-UI-3 | FreshnessLabel | P4 | Tarih + stale/fresh/unknown | Tamamlandı (2026-02-13) |
+| M2-UI-4 | ConflictWarning | P4 | Turuncu uyarı + kaynak listesi | Tamamlandı (2026-02-13) |
 | M2-UI-6 | i18n Integrity Keys | P4 | TR/EN citation/confidence/freshness | Başlanmadı |
 
 #### M2 Sprint 3 (17-31 Mart) — Entegrasyon + RAG
@@ -270,10 +270,10 @@ docs/NEXT.md                                             (bu dosya — anlık ey
 | # | Görev | Pillar | Kapsam | Durum |
 |---|-------|--------|--------|-------|
 | M2-KI-5 | RAG Integration | P1 | Python microservice bağlantısı | Başlanmadı |
-| M2-VF-5 | Orchestrator Gate | P2 | completeJob'da gate check | Başlanmadı |
+| M2-VF-5 | Orchestrator Gate | P2 | completeJob'da gate check | Tamamlandı (2026-02-13, M2-KI-4 ile birlikte) |
 | M2-FP-3 | CVE/Security Advisory | P3 | NVD + GitHub Security Advisories | Başlanmadı |
 | M2-FP-5 | Knowledge Approval Workflow | P3 | API + UI approval flow | Başlanmadı |
-| M2-UI-5 | Inline Provenance | P4 | ArtifactPreview citation + kaynak | Başlanmadı |
+| M2-UI-5 | Inline Provenance | P4 | ArtifactPreview citation + kaynak + VerificationSummary | Tamamlandı (2026-02-13) |
 | M2-RAG-1 | Python RAG Microservice | — | Piri v3 submodule entegre (Wikipedia+DDG, relevance filter, 2026-02-13) | Tamamlandı |
 | M2-RAG-2 | Hybrid Search | — | Keyword + vector birleştirme | Başlanmadı |
 | M2-RAG-3 | RAG Evaluation UI | — | 5 metrik dashboard + halüsinasyon tespiti | Başlanmadı |
