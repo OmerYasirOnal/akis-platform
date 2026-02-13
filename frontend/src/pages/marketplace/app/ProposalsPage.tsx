@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
 
+import { useI18n } from '../../../i18n/useI18n';
 import { marketplaceApi, type JobPostItem, type ProposalItem } from '../../../services/api/marketplace';
 
 export default function ProposalsPage() {
+  const { t } = useI18n();
   const [jobs, setJobs] = useState<JobPostItem[]>([]);
   const [proposals, setProposals] = useState<ProposalItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -17,7 +19,7 @@ export default function ProposalsPage() {
         const response = await marketplaceApi.listJobs({ limit: 20, offset: 0 });
         setJobs(response.items);
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load jobs for proposals');
+        setError(err instanceof Error ? err.message : t('marketplace.proposals.errorLoad'));
       } finally {
         setLoading(false);
       }
@@ -33,7 +35,7 @@ export default function ProposalsPage() {
       const response = await marketplaceApi.generateProposal(jobId);
       setProposals((prev) => [response.proposal, ...prev]);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to generate proposal');
+      setError(err instanceof Error ? err.message : t('marketplace.proposals.errorGenerate'));
     } finally {
       setGeneratingJobId(null);
     }
@@ -41,13 +43,13 @@ export default function ProposalsPage() {
 
   return (
     <section className="rounded-xl border border-ak-border bg-ak-surface p-5">
-      <h2 className="mb-4 text-xl font-semibold text-ak-text-primary">Proposal helper</h2>
+      <h2 className="mb-4 text-xl font-semibold text-ak-text-primary">{t('marketplace.proposals.title')}</h2>
 
-      {loading && <p className="text-sm text-ak-text-secondary">Loading jobs...</p>}
+      {loading && <p className="text-sm text-ak-text-secondary">{t('marketplace.proposals.loading')}</p>}
       {error && <p role="alert" className="text-sm text-ak-danger">{error}</p>}
 
       {!loading && jobs.length === 0 && (
-        <p className="text-sm text-ak-text-secondary">No jobs found. Ingest jobs first in the Jobs tab.</p>
+        <p className="text-sm text-ak-text-secondary">{t('marketplace.proposals.emptyJobs')}</p>
       )}
 
       {!loading && jobs.length > 0 && (
@@ -64,7 +66,7 @@ export default function ProposalsPage() {
                 onClick={() => handleGenerate(job.id)}
                 disabled={generatingJobId === job.id}
               >
-                {generatingJobId === job.id ? 'Generating...' : 'Generate proposal'}
+                {generatingJobId === job.id ? t('marketplace.proposals.actions.generating') : t('marketplace.proposals.actions.generate')}
               </button>
             </li>
           ))}
@@ -72,14 +74,16 @@ export default function ProposalsPage() {
       )}
 
       <div className="mt-6">
-        <h3 className="mb-3 text-base font-semibold text-ak-text-primary">Generated drafts</h3>
+        <h3 className="mb-3 text-base font-semibold text-ak-text-primary">{t('marketplace.proposals.generatedTitle')}</h3>
         {proposals.length === 0 ? (
-          <p className="text-sm text-ak-text-secondary">No proposal generated yet in this session.</p>
+          <p className="text-sm text-ak-text-secondary">{t('marketplace.proposals.generatedEmpty')}</p>
         ) : (
           <ul className="grid gap-3">
             {proposals.map((proposal) => (
               <li key={proposal.id} className="rounded-lg border border-ak-border bg-ak-bg p-4">
-                <p className="mb-2 text-xs uppercase tracking-[0.12em] text-ak-text-secondary">Source: {proposal.source}</p>
+                <p className="mb-2 text-xs uppercase tracking-[0.12em] text-ak-text-secondary">
+                  {t('marketplace.proposals.sourceLabel')} {proposal.source}
+                </p>
                 <pre className="whitespace-pre-wrap text-sm text-ak-text-primary">{proposal.content}</pre>
               </li>
             ))}
