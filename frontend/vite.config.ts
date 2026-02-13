@@ -39,7 +39,7 @@ export default defineConfig({
         target: 'http://localhost:3000',
         changeOrigin: true,
       },
-      // Proxy only backend auth endpoints, avoid proxying UI routes like /auth/privacy-consent
+      // Proxy backend auth endpoints (avoid proxying UI routes like /auth/privacy-consent, /auth/welcome-beta)
       '/auth/oauth': {
         target: 'http://localhost:3000',
         changeOrigin: true,
@@ -49,6 +49,30 @@ export default defineConfig({
         changeOrigin: true,
       },
       '/auth/logout': {
+        target: 'http://localhost:3000',
+        changeOrigin: true,
+      },
+      '/auth/signup': {
+        target: 'http://localhost:3000',
+        changeOrigin: true,
+      },
+      '/auth/login': {
+        target: 'http://localhost:3000',
+        changeOrigin: true,
+      },
+      '/auth/verify-email': {
+        target: 'http://localhost:3000',
+        changeOrigin: true,
+      },
+      '/auth/resend-code': {
+        target: 'http://localhost:3000',
+        changeOrigin: true,
+      },
+      '/auth/update-preferences': {
+        target: 'http://localhost:3000',
+        changeOrigin: true,
+      },
+      '/auth/invite': {
         target: 'http://localhost:3000',
         changeOrigin: true,
       },
