@@ -25,6 +25,7 @@ Quick navigation to all project documentation.
 | Document | Purpose |
 |----------|---------|
 | [agents/scribe/](agents/scribe/) | Scribe agent documentation |
+| [../piri/README.md](../piri/README.md) | Piri RAG engine (v3 — Wikipedia+DDG, relevance filtering) |
 | [AI_RESPONSE_SCHEMA.md](AI_RESPONSE_SCHEMA.md) | AI response format specification |
 
 ## API & Backend

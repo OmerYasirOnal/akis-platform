@@ -348,6 +348,39 @@ curl -s -b cookies.txt http://localhost:3000/api/integrations/atlassian/status |
 
 ---
 
+## 🗺️ Piri RAG Engine (v3)
+
+Piri, AKIS devagents altında submodule olarak yer alır. Standalone FastAPI servisi olarak çalışır.
+
+### Ortam Değişkenleri (piri/.env)
+
+```bash
+# piri/.env (cp piri/.env.example piri/.env)
+OPENAI_API_KEY=sk-...   # Opsiyonel — GPT-4o-mini backend için
+# PIRI_MODEL_PATH=./model   # Fine-tuned model (opsiyonel)
+```
+
+### Hızlı Başlangıç
+
+```bash
+cd piri
+python -m venv venv && source venv/bin/activate
+pip install -r requirements.txt
+python ingest.py                    # İlk kez: knowledge base indeksle
+uvicorn main:app --host 0.0.0.0 --port 8000
+# UI: http://localhost:8000
+```
+
+### Temizlik (Cache)
+
+```bash
+./scripts/clean-env.sh   # __pycache__, .pytest_cache, .egg-info temizler
+```
+
+> 📖 **Detaylı Bilgi**: [piri/README.md](../piri/README.md)
+
+---
+
 ## 📊 Environment Variable Referansı
 
 ### Backend
