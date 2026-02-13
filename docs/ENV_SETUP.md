@@ -492,6 +492,18 @@ docker compose restart backend
 | `GITHUB_WEBHOOK_SECRET` | Webhook signature verification | — |
 | `ATLASSIAN_OAUTH_CALLBACK_URL` | Atlassian OAuth redirect URI | `http://localhost:3000/api/integrations/atlassian/oauth/callback` |
 
+### Piri RAG Engine (M2)
+
+| Değişken | Açıklama | Default |
+|----------|----------|---------|
+| `PIRI_BASE_URL` | Piri RAG servisi URL (Docker: `http://piri:8000`) | — |
+| `PIRI_OPENAI_API_KEY` | Piri için OpenAI key (`OPENAI_API_KEY`'e fallback yapar) | — |
+| `PIRI_OPENAI_MODEL` | OpenAI modeli | `gpt-4o-mini` |
+| `PIRI_RERANKING` | Cross-encoder reranking aktif mi | `true` |
+| `PIRI_EMBEDDING_MODEL` | Embedding modeli | `intfloat/multilingual-e5-small` |
+
+> Piri Docker Compose overlay ile eklenir: `docker compose -f docker-compose.yml -f docker-compose.piri.yml up -d`
+
 ### Frontend Staging/Production Note
 
 > **Kritik:** Staging ve production build'lerinde `VITE_BACKEND_URL` **set edilmemelidir**. Frontend, API base URL'ini `window.location.origin` üzerinden `getApiBaseUrl()` fonksiyonu ile çözer. Bu, `frontend/src/services/api/config.ts` dosyasında tanımlıdır.
