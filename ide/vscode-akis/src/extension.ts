@@ -6,6 +6,8 @@ import { AkisStatusBar } from './providers/AkisStatusBar.js';
 import { AkisTerminalProvider } from './providers/AkisTerminalProvider.js';
 import { AgentChatPanel } from './views/AgentChatPanel.js';
 import { JobDetailPanel } from './views/JobDetailPanel.js';
+import { IndexedFilesProvider } from './providers/IndexedFilesProvider.js';
+import { CodeSearchService } from './services/CodeSearchService.js';
 import { runAgent } from './commands/runAgent.js';
 import { indexWorkspace } from './commands/indexWorkspace.js';
 import { searchCode } from './commands/searchCode.js';
@@ -20,6 +22,7 @@ export function activate(context: vscode.ExtensionContext): void {
   // Core services
   const apiClient = new AkisApiClient();
   const fileIndexer = new FileIndexer();
+  const codeSearch = new CodeSearchService();
   const terminalProvider = new AkisTerminalProvider();
 
   // Sidebar tree providers
@@ -34,6 +37,13 @@ export function activate(context: vscode.ExtensionContext): void {
   vscode.window.createTreeView('akis-jobs', {
     treeDataProvider: jobTreeProvider,
     showCollapseAll: false,
+  });
+
+  // Indexed files tree
+  const indexedFilesProvider = new IndexedFilesProvider(fileIndexer);
+  vscode.window.createTreeView('akis-files', {
+    treeDataProvider: indexedFilesProvider,
+    showCollapseAll: true,
   });
 
   // Status bar
@@ -57,12 +67,13 @@ export function activate(context: vscode.ExtensionContext): void {
       runAgent(apiClient, context.extensionUri);
     }),
 
-    vscode.commands.registerCommand('akis.indexWorkspace', () => {
-      indexWorkspace(fileIndexer);
+    vscode.commands.registerCommand('akis.indexWorkspace', async () => {
+      await indexWorkspace(fileIndexer);
+      indexedFilesProvider.refresh();
     }),
 
     vscode.commands.registerCommand('akis.searchCode', () => {
-      searchCode(fileIndexer);
+      searchCode(fileIndexer, codeSearch);
     }),
 
     vscode.commands.registerCommand('akis.sendTerminalOutput', async () => {
@@ -80,6 +91,44 @@ export function activate(context: vscode.ExtensionContext): void {
 
     vscode.commands.registerCommand('akis.viewJobDetail', (jobId: string) => {
       JobDetailPanel.createOrShow(apiClient, jobId);
+    }),
+
+    vscode.commands.registerCommand('akis.refreshIndex', async () => {
+      await indexWorkspace(fileIndexer);
+      indexedFilesProvider.refresh();
+    }),
+
+    vscode.commands.registerCommand('akis.sendFileToAgent', async () => {
+      const editor = vscode.window.activeTextEditor;
+      if (!editor) {
+        vscode.window.showWarningMessage('AKIS: No active file');
+        return;
+      }
+
+      const doc = editor.document;
+      const selection = editor.selection;
+      const text = selection.isEmpty
+        ? doc.getText()
+        : doc.getText(selection);
+
+      const relPath = vscode.workspace.asRelativePath(doc.uri);
+
+      if (AgentChatPanel.currentPanel) {
+        AgentChatPanel.currentPanel.appendContext(relPath, text, selection.isEmpty ? undefined : {
+          startLine: selection.start.line + 1,
+          endLine: selection.end.line + 1,
+        });
+        vscode.window.showInformationMessage(`AKIS: Sent ${relPath} to agent chat`);
+      } else {
+        // Open chat with default agent and send context
+        const defaultAgent = vscode.workspace.getConfiguration('akis').get('defaultAgent', 'scribe');
+        AgentChatPanel.createOrShow(context.extensionUri, apiClient, defaultAgent);
+        // Delay slightly to let the webview initialize
+        setTimeout(() => {
+          AgentChatPanel.currentPanel?.appendContext(relPath, text);
+        }, 500);
+        vscode.window.showInformationMessage(`AKIS: Opened chat and sent ${relPath}`);
+      }
     }),
 
     vscode.commands.registerCommand('akis.configure', async () => {

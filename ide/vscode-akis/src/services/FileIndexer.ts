@@ -143,6 +143,10 @@ export class FileIndexer {
     });
   }
 
+  get entries(): readonly IndexEntry[] {
+    return this.index;
+  }
+
   get entryCount(): number {
     return this.index.length;
   }

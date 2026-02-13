@@ -377,6 +377,20 @@ export class AgentChatPanel {
 </html>`;
   }
 
+  appendContext(
+    filePath: string,
+    content: string,
+    lineRange?: { startLine: number; endLine: number },
+  ): void {
+    const rangeLabel = lineRange ? ` (L${lineRange.startLine}-${lineRange.endLine})` : '';
+    this.panel.webview.postMessage({
+      type: 'addMessage',
+      role: 'system',
+      content: `📎 Attached: ${filePath}${rangeLabel}\n\`\`\`\n${content.substring(0, 2000)}${content.length > 2000 ? '\n... (truncated)' : ''}\n\`\`\``,
+      phase: 'context',
+    });
+  }
+
   dispose(): void {
     AgentChatPanel.currentPanel = undefined;
     this.sseClient.stopAll();
