@@ -14,7 +14,6 @@ import {
   mockRunAgent,
   mockJobPolling,
   mockRunAgentError,
-  MOCK_JOB_ID,
 } from './helpers/mock-dashboard-apis';
 
 test.describe('Trace Console', () => {
@@ -62,8 +61,8 @@ test.describe('Trace Console', () => {
 
     await page.goto('/dashboard/trace');
 
-    await expect(page.getByRole('button', { name: /logs/i })).toBeVisible();
-    await expect(page.getByRole('button', { name: /results/i })).toBeVisible();
+    await expect(page.getByRole('button', { name: '📋 Logs' })).toBeVisible();
+    await expect(page.getByRole('button', { name: '📊 Results' })).toBeVisible();
   });
 
   /* ------------------------------------------------------------------ */
@@ -74,7 +73,8 @@ test.describe('Trace Console', () => {
 
     await page.goto('/dashboard/trace');
 
-    await expect(page.getByText(/trace agent activity will appear here/i)).toBeVisible();
+    await expect(page.getByTestId('phase-ready-banner')).toBeVisible();
+    await expect(page.getByText('Execution updates will appear here.')).toBeVisible();
   });
 
   /* ------------------------------------------------------------------ */
@@ -86,7 +86,7 @@ test.describe('Trace Console', () => {
     await page.goto('/dashboard/trace');
 
     // Switch to Results tab
-    await page.getByRole('button', { name: /results/i }).click();
+    await page.getByRole('button', { name: '📊 Results' }).click();
 
     await expect(page.getByText(/test plan results will appear here/i)).toBeVisible();
   });
@@ -122,17 +122,13 @@ test.describe('Trace Console', () => {
     await page.locator('textarea').fill('User login acceptance criteria');
     await page.getByRole('button', { name: /run trace/i }).click();
 
-    // Should show "Starting" log entry
-    await expect(page.getByText(/starting trace workflow/i)).toBeVisible();
-
-    // Should show job submitted log
-    await expect(page.getByText(new RegExp(`job submitted.*${MOCK_JOB_ID}`, 'i'))).toBeVisible({ timeout: 10_000 });
-
-    // Wait for completion log
-    await expect(page.getByText(/trace workflow completed successfully/i)).toBeVisible({ timeout: 15_000 });
+    // Run state should eventually complete on canvas.
+    await expect(page.getByTestId('phase-name')).toContainText('Completed successfully', { timeout: 15_000 });
+    await expect(page.getByTestId('quality-view')).toBeVisible({ timeout: 15_000 });
 
     // After completion polling stops → isIdle=true → "Run Trace" re-appears
     await expect(page.getByRole('button', { name: /run trace/i })).toBeVisible({ timeout: 5_000 });
+    await expect(page.getByRole('button', { name: /run trace/i })).toBeEnabled();
   });
 
   /* ------------------------------------------------------------------ */
@@ -145,11 +141,19 @@ test.describe('Trace Console', () => {
 
     await page.goto('/dashboard/trace');
 
-    await page.locator('textarea').fill('Some specification text');
-    await page.getByRole('button', { name: /run trace/i }).click();
+    const submitRequest = page.waitForRequest((req) =>
+      req.method() === 'POST' && req.url().includes('/api/agents/jobs')
+    );
 
-    // Should show error log entry
-    await expect(page.getByText(/failed to start trace/i)).toBeVisible({ timeout: 10_000 });
+    await page.locator('textarea').fill('Some specification text');
+    await Promise.all([
+      submitRequest,
+      page.getByRole('button', { name: /run trace/i }).click(),
+    ]);
+
+    // On submit failure, console stays idle and can be retried.
+    await expect(page.getByTestId('phase-ready-banner')).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole('button', { name: /run trace/i })).toBeEnabled();
   });
 
   /* ------------------------------------------------------------------ */
@@ -173,11 +177,12 @@ test.describe('Trace Console', () => {
     await page.locator('textarea').fill('Test specification for failure');
     await page.getByRole('button', { name: /run trace/i }).click();
 
-    // Wait for failure log
-    await expect(page.getByText(/trace workflow failed/i)).toBeVisible({ timeout: 15_000 });
+    // Wait for failure state on phase banner.
+    await expect(page.getByTestId('phase-name')).toContainText('Execution failed', { timeout: 15_000 });
 
     // After failure polling stops → "Run Trace" re-appears (user can retry)
     await expect(page.getByRole('button', { name: /run trace/i })).toBeVisible({ timeout: 5_000 });
+    await expect(page.getByRole('button', { name: /run trace/i })).toBeEnabled();
   });
 
   /* ------------------------------------------------------------------ */
@@ -198,8 +203,9 @@ test.describe('Trace Console', () => {
     await page.locator('textarea').fill('Quick spec for retry test');
     await page.getByRole('button', { name: /run trace/i }).click();
 
-    // Wait for completion log
-    await expect(page.getByText(/trace workflow completed/i)).toBeVisible({ timeout: 15_000 });
+    // Wait for completion state.
+    await expect(page.getByTestId('phase-name')).toContainText('Completed successfully', { timeout: 15_000 });
+    await expect(page.getByTestId('quality-view')).toBeVisible({ timeout: 15_000 });
 
     // "Run Trace" should be re-enabled (spec is still filled)
     const runButton = page.getByRole('button', { name: /run trace/i });
