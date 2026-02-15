@@ -6,7 +6,7 @@
 > **Araştırma Temeli:** `docs/planning/RESEARCH_DEEP_DIVE_AGENT_ARCHITECTURE.md`  
 > **Operasyonel Playbook:** [`docs/planning/AKIS_OPERATIONAL_PLAYBOOK.md`](planning/AKIS_OPERATIONAL_PLAYBOOK.md) (4 Pillar + Moonshot — teyit edilmiş hedef)  
 > **Uygulama Haritası:** [`docs/planning/PLAYBOOK_IMPLEMENTATION_MAP.md`](planning/PLAYBOOK_IMPLEMENTATION_MAP.md)  
-> **Son Güncelleme:** 2026-02-13 (playbook entegrasyonu + M2 görev planı + marketplace MVP)
+> **Son Güncelleme:** 2026-02-15 (main-only stabilization, console E2E drift fix, S0.5.3 merge hattı, staging deploy doğrulaması)
 
 ---
 
@@ -27,18 +27,19 @@ docs/NEXT.md                                             (bu dosya — anlık ey
 | Alan | Değer |
 |------|-------|
 | URL | https://staging.akisflow.com |
-| Deploy Edilen Commit | `43b86e7` (canlı `/version` doğrulandı, 2026-02-12 19:55 UTC) |
+| Deploy Edilen Commit | `e2b77ad` (canlı `/version` doğrulandı, 2026-02-15 11:17 UTC) |
 | S0.5 PR | [#265](https://github.com/OmerYasirOnal/akis-platform-devolopment/pull/265) — onboarding, feedback, context packs, QA docs, 750+ yeni test |
-| Smoke Testleri | 12/12 geçti (`staging_smoke.sh --commit 43b86e7`, 2026-02-12 19:55 UTC) |
+| Smoke Testleri | 13/13 geçti (`staging_smoke.sh --commit e2b77ad`, 2026-02-15 11:17 UTC) |
 | Test Sayısı | Backend: 842 + Frontend: 549 = **1,391 toplam** (Phase 1-8 test kampanyası + S0.5 sprint, 2026-02-11) |
 | Kod Düzeltmeleri | MCP `/ready` durumu, OAuth hoşgeldin e-postası, agents yönlendirme `/agents/*`, logo güncelleme, güvenlik temizliği, E2E test hizalama, Scribe AGT-8 derin analiz iyileştirmesi, GitHub-style light theme tokenları, jobs user isolation (veri sızıntı fix), expandable logs + smart auto-scroll + light theme kontrast düzeltmesi, agents ownership guard hardening (approve/reject/comments/revise/revisions/stream) + duplicate-job UX iyileştirmesi |
+| CI Durumu | GitHub-hosted Actions billing engeli devam ediyor; rerun denemelerinde joblar başlamadan `Billing & plans` anotasyonu ile fail (2026-02-15) |
 | Şifreleme | Staging'de yapılandırıldı (`/ready` → `encryption.configured: true`) |
 | E-posta | Resend.com aktif (`EMAIL_PROVIDER=resend`); `noreply@akisflow.com` domain verified, DKIM+SPF+DMARC geçerli (2026-02-12) |
 | Google OAuth | `/ready` → `oauth.google`, `oauth.github`, `oauth.callbackBase` gösteriyor — staging `.env` kimlik bilgilerini doğrulayın |
 | MCP Gateway | Always-on staging stack'te (profile kaldırıldı); CI pipeline (PR #266); `GITHUB_TOKEN` aktif, gateway reachable |
 | Agent Yönlendirme | Scribe/Trace/Proto → `/agents/*` taşındı; `/dashboard/scribe\|trace\|proto` yeni rotalara yönlendirme yapıyor |
 | Scribe AGT-8 | `b723c2d` ile merge + staging deploy tamamlandı (2026-02-12) |
-| Son Merge'ler | PR #307 (light theme), PR #305 (jobs user isolation), PR #303 (live agent canvas), PR #302 (scribe AGT-8) — tümü `main`'de |
+| Son Merge'ler | PR #330 (S0.5.3 agent ownership + duplicate-run recovery), PR #329 (console E2E drift stabilization), PR #307 (light theme), PR #305 (jobs user isolation) — tümü `main`'de |
 | Logo | Full wordmark korunuyor (`frontend/src/assets/branding/akis-official-logo@*`), compact/favikon için A-mark only ailesi güncellendi (`frontend/src/assets/branding/akis-a-mark.png`, `akis-mark@2x.png`, `akis-mark@3x.png`, `frontend/public/brand/favicon*`) |
 
 ---
