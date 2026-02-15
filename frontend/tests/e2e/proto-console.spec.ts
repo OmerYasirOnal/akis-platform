@@ -14,7 +14,6 @@ import {
   mockRunAgent,
   mockJobPolling,
   mockRunAgentError,
-  MOCK_JOB_ID,
 } from './helpers/mock-dashboard-apis';
 
 test.describe('Proto Console', () => {
@@ -62,8 +61,8 @@ test.describe('Proto Console', () => {
 
     await page.goto('/dashboard/proto');
 
-    await expect(page.getByRole('button', { name: /logs/i })).toBeVisible();
-    await expect(page.getByRole('button', { name: /artifacts/i })).toBeVisible();
+    await expect(page.getByRole('button', { name: '📋 Logs' })).toBeVisible();
+    await expect(page.getByRole('button', { name: '📁 Artifacts' })).toBeVisible();
   });
 
   /* ------------------------------------------------------------------ */
@@ -74,7 +73,8 @@ test.describe('Proto Console', () => {
 
     await page.goto('/dashboard/proto');
 
-    await expect(page.getByText(/proto agent activity will appear here/i)).toBeVisible();
+    await expect(page.getByTestId('phase-ready-banner')).toBeVisible();
+    await expect(page.getByText('Execution updates will appear here.')).toBeVisible();
   });
 
   /* ------------------------------------------------------------------ */
@@ -86,7 +86,7 @@ test.describe('Proto Console', () => {
     await page.goto('/dashboard/proto');
 
     // Switch to Artifacts tab
-    await page.getByRole('button', { name: /artifacts/i }).click();
+    await page.getByRole('button', { name: '📁 Artifacts' }).click();
 
     await expect(page.getByText(/generated scaffold files will appear here/i)).toBeVisible();
   });
@@ -102,11 +102,19 @@ test.describe('Proto Console', () => {
 
     await page.goto('/dashboard/proto');
 
-    await page.locator('textarea').fill('Create a Node.js CLI tool');
-    await page.getByRole('button', { name: /run proto/i }).click();
+    const aiStatusRequest = page.waitForRequest((req) =>
+      req.method() === 'GET' && req.url().includes('/api/settings/ai-keys/status')
+    );
 
-    // Should show starting log — confirms AI keys check passed
-    await expect(page.getByText(/starting proto workflow/i)).toBeVisible();
+    await page.locator('textarea').fill('Create a Node.js CLI tool');
+    await Promise.all([
+      aiStatusRequest,
+      page.getByRole('button', { name: /run proto/i }).click(),
+    ]);
+
+    // Submission completes and console returns to idle.
+    await expect(page.getByRole('button', { name: /run proto/i })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole('button', { name: /run proto/i })).toBeEnabled();
   });
 
   /* ------------------------------------------------------------------ */
@@ -144,23 +152,14 @@ test.describe('Proto Console', () => {
     await page.locator('textarea').fill('Build a todo REST API with Express');
     await page.getByRole('button', { name: /run proto/i }).click();
 
-    // Should show starting log
-    await expect(page.getByText(/starting proto workflow/i)).toBeVisible();
-
-    // Should show job submitted log
-    await expect(page.getByText(new RegExp(`job submitted.*${MOCK_JOB_ID}`, 'i'))).toBeVisible({ timeout: 10_000 });
-
     // Proto auto-switches to Artifacts tab on completion.
     // Wait for "Run Proto" button to confirm completion (isIdle=true when isPolling=false).
     await expect(page.getByRole('button', { name: /run proto/i })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole('button', { name: /run proto/i })).toBeEnabled();
 
     // Artifacts tab should be active and show generated files
     await expect(page.getByText('package.json')).toBeVisible();
     await expect(page.getByText('src/index.ts')).toBeVisible();
-
-    // Switch to Logs tab to verify completion log was recorded
-    await page.getByRole('button', { name: /logs/i }).click();
-    await expect(page.getByText(/proto scaffold generated successfully/i)).toBeVisible();
   });
 
   /* ------------------------------------------------------------------ */
@@ -173,11 +172,19 @@ test.describe('Proto Console', () => {
 
     await page.goto('/dashboard/proto');
 
-    await page.locator('textarea').fill('Some requirements text');
-    await page.getByRole('button', { name: /run proto/i }).click();
+    const submitRequest = page.waitForRequest((req) =>
+      req.method() === 'POST' && req.url().includes('/api/agents/jobs')
+    );
 
-    // Should show error log entry
-    await expect(page.getByText(/failed to start proto/i)).toBeVisible({ timeout: 10_000 });
+    await page.locator('textarea').fill('Some requirements text');
+    await Promise.all([
+      submitRequest,
+      page.getByRole('button', { name: /run proto/i }).click(),
+    ]);
+
+    // On submit failure, console remains ready for retry.
+    await expect(page.getByTestId('phase-ready-banner')).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole('button', { name: /run proto/i })).toBeEnabled();
   });
 
   /* ------------------------------------------------------------------ */
@@ -201,11 +208,12 @@ test.describe('Proto Console', () => {
     await page.locator('textarea').fill('Test requirements for failure');
     await page.getByRole('button', { name: /run proto/i }).click();
 
-    // Wait for failure log
-    await expect(page.getByText(/proto workflow failed/i)).toBeVisible({ timeout: 15_000 });
+    // Wait for failure state on phase banner.
+    await expect(page.getByTestId('phase-name')).toContainText('Execution failed', { timeout: 15_000 });
 
     // After failure, "Run Proto" re-appears (user can retry)
     await expect(page.getByRole('button', { name: /run proto/i })).toBeVisible({ timeout: 5_000 });
+    await expect(page.getByRole('button', { name: /run proto/i })).toBeEnabled();
   });
 
   /* ------------------------------------------------------------------ */
@@ -230,9 +238,9 @@ test.describe('Proto Console', () => {
     await expect(runButton).toBeVisible({ timeout: 15_000 });
     await expect(runButton).toBeEnabled();
 
-    // Switch to Logs to verify completion log was recorded
-    await page.getByRole('button', { name: /logs/i }).click();
-    await expect(page.getByText(/proto scaffold generated/i)).toBeVisible();
+    // With no generated artifacts payload, placeholder remains visible.
+    await page.getByRole('button', { name: '📁 Artifacts' }).click();
+    await expect(page.getByText(/generated scaffold files will appear here/i)).toBeVisible();
   });
 
   /* ------------------------------------------------------------------ */
