@@ -120,14 +120,9 @@ test.describe('Scribe Console — Golden Path', () => {
     const runButton = page.getByRole('button', { name: /Run Scribe/i });
     await runButton.click();
 
-    // Wait for completion log (polling replaces initial logs with trace events)
-    await expect(
-      page.getByText(/Scribe workflow completed successfully/i)
-    ).toBeVisible({ timeout: 15_000 });
-
-    // Trace events should be visible in logs
-    await expect(page.getByText('Cloning repository...')).toBeVisible();
-    await expect(page.getByText('Generating documentation...')).toBeVisible();
+    // Wait for completion state on canvas.
+    await expect(page.getByTestId('phase-name')).toContainText('Completed successfully', { timeout: 15_000 });
+    await expect(page.getByTestId('quality-view')).toBeVisible({ timeout: 15_000 });
 
     // After completion, "Run Scribe" button is re-enabled (isPolling=false → isIdle=true)
     // Note: RunBar lives in DashboardLayout only, not AgentsLayout
@@ -143,13 +138,19 @@ test.describe('Scribe Console — Golden Path', () => {
     // Mock submission failure
     await mockRunAgentError(page, 500, 'Internal server error');
 
-    // Click Run Scribe
-    await page.getByRole('button', { name: /Run Scribe/i }).click();
+    const submitRequest = page.waitForRequest((req) =>
+      req.method() === 'POST' && req.url().includes('/api/agents/jobs')
+    );
 
-    // HttpClient retries 5xx 3 times (1s+2s+4s=7s). Wait for error.
-    await expect(
-      page.getByText(/Failed to start Scribe/i)
-    ).toBeVisible({ timeout: 15_000 });
+    // Click Run Scribe
+    await Promise.all([
+      submitRequest,
+      page.getByRole('button', { name: /Run Scribe/i }).click(),
+    ]);
+
+    // Submission failed but console remains retryable.
+    await expect(page.getByTestId('phase-ready-banner')).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole('button', { name: /Run Scribe/i })).toBeEnabled();
   });
 
   test('SC6: job fails during execution → error state', async ({ page }) => {
@@ -169,24 +170,20 @@ test.describe('Scribe Console — Golden Path', () => {
 
     await page.getByRole('button', { name: /Run Scribe/i }).click();
 
-    // Wait for failure state
-    await expect(
-      page.getByText(/Scribe workflow failed/i)
-    ).toBeVisible({ timeout: 15_000 });
+    // Wait for failure state on phase banner.
+    await expect(page.getByTestId('phase-name')).toContainText('Execution failed', { timeout: 15_000 });
 
-    // Status should show "Failed"
-    await expect(page.getByText('Failed')).toBeVisible();
+    // Console returns to retryable idle.
+    await expect(page.getByRole('button', { name: /Run Scribe/i })).toBeEnabled();
   });
 
   test('SC7: doc pack selector changes output targets', async ({ page }) => {
     await gotoScribeConsole(page);
 
-    // Default pack is "Standard Docs" with ~16K token budget
+    // Auto mode is default and checklist stays hidden until a pack is selected.
     await expect(page.getByText('~16K')).toBeVisible();
-
-    // Default targets: README, ARCHITECTURE, API, DEVELOPMENT (use label locator to avoid select option conflict)
-    await expect(page.locator('label').filter({ hasText: 'README' })).toBeVisible();
-    await expect(page.locator('label').filter({ hasText: 'ARCHITECTURE' })).toBeVisible();
+    await expect(page.getByText(/automatically determine which documents to generate/i)).toBeVisible();
+    await expect(page.locator('label').filter({ hasText: 'README' })).toHaveCount(0);
 
     // Switch to "Deep Doc Pack"
     const packSelect = page.locator('select').first();
@@ -227,11 +224,9 @@ test.describe('Scribe Console — Golden Path', () => {
   test('SC9: logs tab shows idle state when no job running', async ({ page }) => {
     await gotoScribeConsole(page);
 
-    // Logs tab should show idle placeholder text
-    await expect(
-      page.getByText('Press "Run Scribe" to start documentation analysis')
-    ).toBeVisible();
-    await expect(page.getByText(/MCP-powered workflow/i)).toBeVisible();
+    // Logs tab should show idle LiveAgentCanvas state.
+    await expect(page.getByTestId('phase-ready-banner')).toBeVisible();
+    await expect(page.getByText('Execution updates will appear here.')).toBeVisible();
   });
 
   test('SC10: re-run clears state after completion', async ({ page }) => {
@@ -246,9 +241,8 @@ test.describe('Scribe Console — Golden Path', () => {
 
     // Run and wait for completion
     await page.getByRole('button', { name: /Run Scribe/i }).click();
-    await expect(
-      page.getByText(/Scribe workflow completed successfully/i)
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByTestId('phase-name')).toContainText('Completed successfully', { timeout: 15_000 });
+    await expect(page.getByTestId('quality-view')).toBeVisible({ timeout: 15_000 });
 
     // After completion, isPolling=false → isIdle=true → "Run Scribe" shows again
     const reRunBtn = page.getByRole('button', { name: /Run Scribe/i });
@@ -290,8 +284,8 @@ test.describe('Scribe Console — Golden Path', () => {
 
     await page.getByRole('button', { name: /Run Scribe/i }).click();
 
-    // Wait for submission to complete
-    await expect(page.getByText(/Job submitted/i)).toBeVisible({ timeout: 10_000 });
+    // Wait until pending state is reflected in run bar.
+    await expect(page.getByRole('button', { name: /running\.\.\./i })).toBeVisible({ timeout: 10_000 });
 
     // Verify payload structure
     expect(capturedBody).toBeTruthy();
@@ -302,9 +296,9 @@ test.describe('Scribe Console — Golden Path', () => {
     expect(payload.repo).toBe('demo-app');
     expect(payload.baseBranch).toBe('main');
     expect(payload.targetPath).toBe('docs/');
-    expect(payload.docPack).toBe('standard');
+    expect(payload.docPack).toBeUndefined();
     expect(payload.docDepth).toBe('standard');
     expect(payload.aiProvider).toBe('openai');
-    expect(Array.isArray(payload.outputTargets)).toBe(true);
+    expect(payload.outputTargets).toBeUndefined();
   });
 });
