@@ -109,6 +109,20 @@ function mapErrorToCode(error: unknown): { code: ErrorCode; message: string; det
     };
   }
 
+  if (error instanceof Error && error.message === 'UNAUTHORIZED') {
+    return {
+      code: 'UNAUTHORIZED',
+      message: 'Authentication required',
+    };
+  }
+
+  if (error instanceof Error && error.message === 'FORBIDDEN') {
+    return {
+      code: 'FORBIDDEN',
+      message: 'Forbidden',
+    };
+  }
+
   // Unknown error - sanitize message
   return {
     code: 'INTERNAL_ERROR',

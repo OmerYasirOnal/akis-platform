@@ -19,6 +19,14 @@ const streamQuerySchema = z.object({
     }),
 });
 
+function extractJobUserId(payload: unknown): string | null {
+  if (!payload || typeof payload !== 'object') return null;
+  const rawUserId = (payload as Record<string, unknown>).userId;
+  if (typeof rawUserId !== 'string') return null;
+  const normalizedUserId = rawUserId.trim();
+  return normalizedUserId.length > 0 ? normalizedUserId : null;
+}
+
 export async function jobEventsRoutes(fastify: FastifyInstance) {
   fastify.get(
     '/api/agents/jobs/:id/stream',
@@ -53,9 +61,8 @@ export async function jobEventsRoutes(fastify: FastifyInstance) {
         if (!job) {
           return reply.code(404).send({ error: { code: 'NOT_FOUND', message: 'Job not found' } });
         }
-        const jobPayload = job.payload as Record<string, unknown> | null;
-        const jobUserId = jobPayload?.userId as string | undefined;
-        if (jobUserId && jobUserId !== user.id) {
+        const jobUserId = extractJobUserId(job.payload);
+        if (jobUserId !== user.id) {
           return reply.code(404).send({ error: { code: 'NOT_FOUND', message: 'Job not found' } });
         }
 
