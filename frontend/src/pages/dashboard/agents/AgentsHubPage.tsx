@@ -15,6 +15,7 @@ import { githubDiscoveryApi, type GitHubRepo, type GitHubBranch } from '../../..
 import { smartAutomationsApi } from '../../../services/api/smart-automations';
 import { integrationsApi } from '../../../services/api/integrations';
 import { getMultiProviderStatus, type AIKeyProvider } from '../../../services/api/ai-keys';
+import type { ApiError } from '../../../services/api/HttpClient';
 import { toast } from '../../../components/ui/Toast';
 import { useI18n } from '../../../i18n/useI18n';
 import { cn } from '../../../utils/cn';
@@ -1228,8 +1229,33 @@ export default function AgentsHubPage() {
       };
       pollJob();
     } catch (error) {
+      const apiError = error as Partial<ApiError>;
+      const duplicateDetails = apiError.code === 'DUPLICATE_JOB'
+        ? (apiError.details as { existingJobId?: string } | undefined)
+        : undefined;
+      const existingJobId = duplicateDetails?.existingJobId;
       setIsRunning(false);
       const errMsg = error instanceof Error ? error.message : 'Failed to run agent';
+
+      if (apiError.code === 'DUPLICATE_JOB' && existingJobId) {
+        setJobError(null);
+        upsertSession(sessionId, (session) => ({
+          ...session,
+          jobId: existingJobId,
+          updatedAt: Date.now(),
+        }));
+        appendMessageToSession(sessionId, {
+          role: 'agent',
+          content: `${errMsg} (${existingJobId.substring(0, 8)})`,
+          phase: 'discovery',
+          jobId: existingJobId,
+        });
+        notifyUser(errMsg, 'info');
+        finalizeCandidateBuild(sessionId, true);
+        runNextQueuedItem(sessionId);
+        return;
+      }
+
       setJobError(errMsg);
       appendMessageToSession(sessionId, {
         role: 'agent',
