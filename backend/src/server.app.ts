@@ -38,8 +38,13 @@ import { initPiriRAGService } from './services/rag/PiriRAGService.js';
 import { AgentOrchestrator } from './core/orchestrator/AgentOrchestrator.js';
 import { createAIService } from './services/ai/AIService.js';
 import type { MCPTools } from './services/mcp/adapters/index.js';
+import { GitHubMCPService } from './services/mcp/adapters/GitHubMCPService.js';
 import { StaleJobWatchdog } from './core/watchdog/StaleJobWatchdog.js';
-import { startAutomationScheduler } from './services/smart-automations/index.js';
+import { startAutomationScheduler, stopAutomationScheduler } from './services/smart-automations/index.js';
+import {
+  FreshnessScheduler,
+  setFreshnessSchedulerInstance,
+} from './services/knowledge/FreshnessScheduler.js';
 import { formatErrorResponse, getStatusCodeForError, type ErrorCode } from './utils/errorHandler.js';
 import { ZodError } from 'zod';
 
@@ -113,6 +118,34 @@ export async function buildApp() {
 
   // Start smart automation scheduler (polls for due automations every 60s)
   startAutomationScheduler();
+
+  // Start knowledge freshness scheduler (M2-FP-1)
+  let freshnessScheduler: FreshnessScheduler | null = null;
+  if (env.FRESHNESS_SCHEDULER_ENABLED) {
+    const githubMcp =
+      env.GITHUB_MCP_BASE_URL && env.GITHUB_TOKEN
+        ? new GitHubMCPService({
+            baseUrl: env.GITHUB_MCP_BASE_URL,
+            token: env.GITHUB_TOKEN,
+            correlationId: 'freshness-scheduler',
+          })
+        : null;
+
+    freshnessScheduler = new FreshnessScheduler({
+      githubMcp,
+      intervalMs: env.FRESHNESS_SCHEDULER_INTERVAL_MINUTES * 60 * 1000,
+      freshnessThresholdDays: env.FRESHNESS_THRESHOLD_DAYS,
+      agingThresholdDays: env.FRESHNESS_AGING_THRESHOLD_DAYS,
+    });
+    setFreshnessSchedulerInstance(freshnessScheduler);
+    freshnessScheduler.start();
+    console.log(
+      `[buildApp] Freshness scheduler enabled (interval=${env.FRESHNESS_SCHEDULER_INTERVAL_MINUTES}m, threshold=${env.FRESHNESS_THRESHOLD_DAYS}d)`
+    );
+  } else {
+    setFreshnessSchedulerInstance(null);
+    console.log('[buildApp] Freshness scheduler disabled');
+  }
 
   // Phase 7.A: Enable structured logging with request-id
   const isTest = process.env.NODE_ENV === 'test';
@@ -289,6 +322,13 @@ export async function buildApp() {
       },
       requestId: request.id,
     });
+  });
+
+  app.addHook('onClose', async () => {
+    watchdog.stop();
+    stopAutomationScheduler();
+    freshnessScheduler?.stop();
+    setFreshnessSchedulerInstance(null);
   });
 
   return app;

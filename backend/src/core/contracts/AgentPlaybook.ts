@@ -12,6 +12,7 @@ export type PlaybookStep = {
 
 export class AgentPlaybook {
   private steps: PlaybookStep[] = [];
+  private readonly defaultRetryAttempts = 1;
   /**
    * Whether this agent requires planning phase before execution
    * Default: false
@@ -39,15 +40,20 @@ export class AgentPlaybook {
     const results: unknown[] = [];
 
     for (const step of this.steps) {
-      try {
-        const result = await step.action();
-        results.push(result);
-      } catch (error) {
-        if (step.retryable) {
-          // TODO(M2): Implement retry logic — tracked in docs/planning/M2_BACKLOG.md
-          throw error;
+      const maxRetries = step.retryable ? this.defaultRetryAttempts : 0;
+      let attempt = 0;
+
+      while (true) {
+        try {
+          const result = await step.action();
+          results.push(result);
+          break;
+        } catch (error) {
+          if (attempt >= maxRetries) {
+            throw error;
+          }
+          attempt += 1;
         }
-        throw error;
       }
     }
 
@@ -68,4 +74,3 @@ export class AgentPlaybook {
     this.steps = [];
   }
 }
-

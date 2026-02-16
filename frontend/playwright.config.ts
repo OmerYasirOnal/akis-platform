@@ -35,7 +35,7 @@ export default defineConfig({
     viewport: { width: 1280, height: 720 },
     actionTimeout: 15_000,
     navigationTimeout: 45_000,
-    trace: 'retain-on-failure',
+    trace: 'on-first-retry',
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
   },
@@ -46,4 +46,3 @@ export default defineConfig({
     },
   ],
 });
-

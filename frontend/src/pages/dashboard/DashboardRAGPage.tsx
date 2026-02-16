@@ -1,9 +1,20 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useI18n } from '../../i18n/useI18n';
-import { ragApi, type RAGQueryResponse, type RAGSearchResponse, type RAGWebSearchResponse, type RAGLearnResponse, type RAGStatus, type RAGStats } from '../../services/api/rag';
+import {
+  ragApi,
+  type RAGQueryResponse,
+  type RAGSearchResponse,
+  type RAGWebSearchResponse,
+  type RAGLearnResponse,
+  type RAGStatus,
+  type RAGStats,
+  type RAGHybridSearchResponse,
+  type RAGEvaluationResponse,
+  type KnowledgeDocumentItem,
+} from '../../services/api/rag';
 
-type RAGTab = 'ask' | 'search' | 'webSearch' | 'learn';
+type RAGTab = 'ask' | 'search' | 'hybrid' | 'evaluation' | 'webSearch' | 'learn' | 'documents';
 
 const SparkleIcon = () => (
   <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
@@ -17,6 +28,12 @@ const SearchIcon = () => (
   </svg>
 );
 
+const ShieldIcon = () => (
+  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m6 2.25c0 5.115-3.53 9.41-8.25 10.91a1.25 1.25 0 01-.75 0C7.28 21.41 3.75 17.115 3.75 12V6.75a.75.75 0 01.53-.72l7.5-2.25a.75.75 0 01.44 0l7.5 2.25a.75.75 0 01.53.72V12z" />
+  </svg>
+);
+
 const GlobeIcon = () => (
   <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
     <path strokeLinecap="round" strokeLinejoin="round" d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 017.843 4.582M12 3a8.997 8.997 0 00-7.843 4.582m15.686 0A11.953 11.953 0 0112 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0121 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0112 16.5c-3.162 0-6.133-.815-8.716-2.247m0 0A9.015 9.015 0 013 12c0-1.605.42-3.113 1.157-4.418" />
@@ -26,6 +43,12 @@ const GlobeIcon = () => (
 const BookIcon = () => (
   <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
     <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" />
+  </svg>
+);
+
+const ChartIcon = () => (
+  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M3 3v18h18M7 15l3-3 3 2 4-6" />
   </svg>
 );
 
@@ -212,6 +235,89 @@ function SearchTab() {
           <div className="rounded-xl border border-ak-border/50 bg-ak-surface/50 px-6 py-12 text-center">
             <SearchIcon />
             <p className="mt-2 text-sm text-ak-text-secondary">{t('rag.search.empty')}</p>
+          </div>
+        )
+      )}
+    </div>
+  );
+}
+
+function HybridSearchTab() {
+  const { t } = useI18n();
+  const [query, setQuery] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState<RAGHybridSearchResponse | null>(null);
+  const [error, setError] = useState('');
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!query.trim() || loading) return;
+
+    setLoading(true);
+    setError('');
+    setResult(null);
+
+    try {
+      const response = await ragApi.hybridSearch({ query, topK: 10, includeProposed: true });
+      setResult(response);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('rag.error.failed'));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <form onSubmit={handleSubmit} className="flex gap-3">
+        <input
+          type="text"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder={t('rag.hybrid.placeholder')}
+          className="flex-1 rounded-lg border border-ak-border bg-ak-bg px-4 py-2.5 text-sm text-ak-text-primary placeholder:text-ak-text-secondary/50 focus:border-ak-primary focus:outline-none focus:ring-1 focus:ring-ak-primary/30"
+        />
+        <button
+          type="submit"
+          disabled={loading || !query.trim()}
+          className="flex items-center gap-2 rounded-lg bg-ak-primary px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-ak-primary/90 disabled:opacity-50"
+        >
+          {loading ? <LoadingSpinner /> : <ShieldIcon />}
+          {t('rag.hybrid.button')}
+        </button>
+      </form>
+
+      {error && (
+        <div className="rounded-lg border border-red-500/20 bg-red-500/5 px-4 py-3 text-sm text-red-400">{error}</div>
+      )}
+
+      {result ? (
+        <div className="space-y-2">
+          {result.results.map((item) => (
+            <div key={item.chunkId} className="rounded-xl border border-ak-border bg-ak-surface p-4">
+              <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                <span className="text-xs font-medium text-ak-primary">{item.provenance.title}</span>
+                <div className="flex items-center gap-2">
+                  <span className="rounded-full bg-ak-primary/10 px-2 py-0.5 text-[10px] font-medium text-ak-primary">
+                    {(item.score * 100).toFixed(0)}%
+                  </span>
+                  <span className="rounded-full bg-ak-info/10 px-2 py-0.5 text-[10px] font-medium text-ak-info">
+                    {item.retrievalMethod ?? 'hybrid'}
+                  </span>
+                </div>
+              </div>
+              <p className="text-sm text-ak-text-primary line-clamp-4">{item.content}</p>
+            </div>
+          ))}
+          {result.results.length === 0 && (
+            <p className="py-8 text-center text-sm text-ak-text-secondary">{t('rag.hybrid.empty')}</p>
+          )}
+        </div>
+      ) : (
+        !loading && !error && (
+          <div className="rounded-xl border border-ak-border/50 bg-ak-surface/50 px-6 py-12 text-center">
+            <ShieldIcon />
+            <p className="mt-2 text-sm text-ak-text-secondary">{t('rag.hybrid.empty')}</p>
           </div>
         )
       )}
@@ -407,6 +513,370 @@ function LearnTab() {
   );
 }
 
+function EvaluationTab() {
+  const { t } = useI18n();
+  const [queriesText, setQueriesText] = useState('release notes freshness\ncontract enforcement\nhybrid retrieval ranking');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [result, setResult] = useState<RAGEvaluationResponse | null>(null);
+
+  const handleRun = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (loading) return;
+
+    const queries = queriesText
+      .split('\n')
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0);
+
+    if (queries.length === 0) {
+      setError(t('rag.evaluation.error.emptyQueries'));
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+
+    try {
+      const response = await ragApi.runEvaluation({
+        queries,
+        topK: 5,
+        maxTokens: 4000,
+        includeProposed: false,
+        keywordWeight: 0.55,
+        semanticWeight: 0.45,
+        minResultsThreshold: 1,
+      });
+      setResult(response);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('rag.error.failed'));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const metricCards = result
+    ? [
+        { key: 'relevance', value: result.metrics.relevance },
+        { key: 'coverage', value: result.metrics.coverage },
+        { key: 'freshness', value: result.metrics.freshness },
+        { key: 'provenance', value: result.metrics.provenance },
+        { key: 'stability', value: result.metrics.stability },
+      ]
+    : [];
+
+  return (
+    <div className="space-y-4">
+      <form onSubmit={handleRun} className="space-y-3 rounded-xl border border-ak-border bg-ak-surface p-4">
+        <div>
+          <label className="mb-2 block text-xs font-semibold uppercase tracking-wider text-ak-text-secondary">
+            {t('rag.evaluation.queriesLabel')}
+          </label>
+          <textarea
+            value={queriesText}
+            onChange={(e) => setQueriesText(e.target.value)}
+            rows={6}
+            placeholder={t('rag.evaluation.queriesPlaceholder')}
+            className="w-full rounded-lg border border-ak-border bg-ak-bg px-4 py-3 text-sm text-ak-text-primary placeholder:text-ak-text-secondary/50 focus:border-ak-primary focus:outline-none focus:ring-1 focus:ring-ak-primary/30 resize-none"
+          />
+        </div>
+        <button
+          type="submit"
+          disabled={loading}
+          className="flex items-center gap-2 rounded-lg bg-ak-primary px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-ak-primary/90 disabled:opacity-50"
+        >
+          {loading ? <LoadingSpinner /> : <ChartIcon />}
+          {t('rag.evaluation.run')}
+        </button>
+      </form>
+
+      {error && (
+        <div className="rounded-lg border border-red-500/20 bg-red-500/5 px-4 py-3 text-sm text-red-400">{error}</div>
+      )}
+
+      {result && (
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
+            {metricCards.map((card) => (
+              <div key={card.key} className="rounded-lg border border-ak-border bg-ak-surface p-3">
+                <p className="text-lg font-semibold text-ak-text-primary">{(card.value * 100).toFixed(0)}%</p>
+                <p className="text-[10px] uppercase tracking-wider text-ak-text-secondary">
+                  {t(`rag.evaluation.metrics.${card.key}`)}
+                </p>
+              </div>
+            ))}
+          </div>
+
+          <div className="rounded-xl border border-ak-border bg-ak-surface p-4">
+            <h4 className="mb-3 text-xs font-semibold uppercase tracking-wider text-ak-text-secondary">
+              {t('rag.evaluation.detailsTitle')}
+            </h4>
+            <div className="space-y-2">
+              {result.queries.map((item) => (
+                <div key={item.query} className="rounded-lg border border-ak-border/60 bg-ak-bg p-3">
+                  <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-sm font-medium text-ak-text-primary">{item.query}</p>
+                    <span className="text-xs text-ak-text-secondary">
+                      {t('rag.evaluation.resultsCount')}: {item.resultCount}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-[11px] text-ak-text-secondary md:grid-cols-4">
+                    <span>{t('rag.evaluation.topScore')}: {(item.topScore * 100).toFixed(0)}%</span>
+                    <span>{t('rag.evaluation.stability')}: {(item.stabilityOverlap * 100).toFixed(0)}%</span>
+                    <span>{t('rag.evaluation.threshold')}: {item.thresholdMet ? t('rag.evaluation.pass') : t('rag.evaluation.fail')}</span>
+                    <span>
+                      {t('rag.evaluation.mix')}: K{item.retrievalMix.keyword}/S{item.retrievalMix.semantic}/H{item.retrievalMix.hybrid}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function DocumentsGovernanceTab() {
+  const { t } = useI18n();
+  const [statusFilter, setStatusFilter] = useState<'proposed' | 'approved' | 'deprecated'>('proposed');
+  const [items, setItems] = useState<KnowledgeDocumentItem[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
+  const [owner, setOwner] = useState('');
+  const [repo, setRepo] = useState('');
+  const [uploadTitle, setUploadTitle] = useState('');
+  const [uploadSourcePath, setUploadSourcePath] = useState('');
+  const [uploadContent, setUploadContent] = useState('');
+
+  const fetchDocuments = useCallback(async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const response = await ragApi.listKnowledgeDocuments({ status: statusFilter, limit: 20 });
+      setItems(response.items);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('rag.error.failed'));
+    } finally {
+      setLoading(false);
+    }
+  }, [statusFilter, t]);
+
+  useEffect(() => {
+    void fetchDocuments();
+  }, [fetchDocuments]);
+
+  const handleApprove = async (documentId: string) => {
+    try {
+      await ragApi.approveKnowledgeDocument(documentId);
+      setNotice(t('rag.documents.notice.approved'));
+      await fetchDocuments();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('rag.error.failed'));
+    }
+  };
+
+  const handleDeprecate = async (documentId: string) => {
+    try {
+      await ragApi.deprecateKnowledgeDocument(documentId);
+      setNotice(t('rag.documents.notice.deprecated'));
+      await fetchDocuments();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('rag.error.failed'));
+    }
+  };
+
+  const handleReleaseSync = async () => {
+    if (!owner.trim() || !repo.trim()) return;
+    try {
+      await ragApi.syncReleaseSignal({ owner: owner.trim(), repo: repo.trim() });
+      setNotice(t('rag.documents.notice.releaseSynced'));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('rag.error.failed'));
+    }
+  };
+
+  const handleCveSync = async () => {
+    if (!owner.trim() || !repo.trim()) return;
+    try {
+      await ragApi.syncCveSignals({ owner: owner.trim(), repo: repo.trim() });
+      setNotice(t('rag.documents.notice.cveSynced'));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('rag.error.failed'));
+    }
+  };
+
+  const handleUpload = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!uploadTitle.trim() || !uploadContent.trim() || uploading) return;
+
+    setUploading(true);
+    setError('');
+    setNotice('');
+
+    try {
+      const response = await ragApi.uploadKnowledgeDocument({
+        title: uploadTitle.trim(),
+        content: uploadContent.trim(),
+        sourcePath: uploadSourcePath.trim() || undefined,
+        status: 'proposed',
+      });
+      setNotice(`${t('rag.documents.notice.uploaded')} (+${response.result.chunksCreated})`);
+      setUploadTitle('');
+      setUploadSourcePath('');
+      setUploadContent('');
+      await fetchDocuments();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('rag.error.failed'));
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <form onSubmit={handleUpload} className="rounded-xl border border-ak-border bg-ak-surface p-4">
+        <h3 className="mb-3 text-sm font-semibold text-ak-text-primary">{t('rag.documents.uploadTitle')}</h3>
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+          <input
+            value={uploadTitle}
+            onChange={(e) => setUploadTitle(e.target.value)}
+            placeholder={t('rag.documents.uploadDocTitle')}
+            className="rounded-lg border border-ak-border bg-ak-bg px-3 py-2 text-sm text-ak-text-primary placeholder:text-ak-text-secondary/50 focus:border-ak-primary focus:outline-none focus:ring-1 focus:ring-ak-primary/30"
+          />
+          <input
+            value={uploadSourcePath}
+            onChange={(e) => setUploadSourcePath(e.target.value)}
+            placeholder={t('rag.documents.uploadSourcePath')}
+            className="rounded-lg border border-ak-border bg-ak-bg px-3 py-2 text-sm text-ak-text-primary placeholder:text-ak-text-secondary/50 focus:border-ak-primary focus:outline-none focus:ring-1 focus:ring-ak-primary/30"
+          />
+        </div>
+        <textarea
+          value={uploadContent}
+          onChange={(e) => setUploadContent(e.target.value)}
+          placeholder={t('rag.documents.uploadContent')}
+          rows={5}
+          className="mt-3 w-full rounded-lg border border-ak-border bg-ak-bg px-3 py-2 text-sm text-ak-text-primary placeholder:text-ak-text-secondary/50 focus:border-ak-primary focus:outline-none focus:ring-1 focus:ring-ak-primary/30 resize-none"
+        />
+        <button
+          type="submit"
+          disabled={uploading || !uploadTitle.trim() || !uploadContent.trim()}
+          className="mt-3 flex items-center gap-2 rounded-lg bg-ak-primary px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-ak-primary/90 disabled:opacity-50"
+        >
+          {uploading ? <LoadingSpinner /> : <BookIcon />}
+          {t('rag.documents.uploadButton')}
+        </button>
+      </form>
+
+      <div className="rounded-xl border border-ak-border bg-ak-surface p-4">
+        <h3 className="mb-3 text-sm font-semibold text-ak-text-primary">{t('rag.documents.syncTitle')}</h3>
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-[1fr_1fr_auto_auto]">
+          <input
+            value={owner}
+            onChange={(e) => setOwner(e.target.value)}
+            placeholder={t('rag.documents.owner')}
+            className="rounded-lg border border-ak-border bg-ak-bg px-3 py-2 text-sm text-ak-text-primary placeholder:text-ak-text-secondary/50 focus:border-ak-primary focus:outline-none focus:ring-1 focus:ring-ak-primary/30"
+          />
+          <input
+            value={repo}
+            onChange={(e) => setRepo(e.target.value)}
+            placeholder={t('rag.documents.repo')}
+            className="rounded-lg border border-ak-border bg-ak-bg px-3 py-2 text-sm text-ak-text-primary placeholder:text-ak-text-secondary/50 focus:border-ak-primary focus:outline-none focus:ring-1 focus:ring-ak-primary/30"
+          />
+          <button
+            onClick={handleReleaseSync}
+            className="rounded-lg border border-ak-border bg-ak-bg px-3 py-2 text-xs font-medium text-ak-text-primary transition-colors hover:border-ak-primary/40"
+          >
+            {t('rag.documents.syncRelease')}
+          </button>
+          <button
+            onClick={handleCveSync}
+            className="rounded-lg border border-ak-border bg-ak-bg px-3 py-2 text-xs font-medium text-ak-text-primary transition-colors hover:border-ak-primary/40"
+          >
+            {t('rag.documents.syncCve')}
+          </button>
+        </div>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2">
+        {(['proposed', 'approved', 'deprecated'] as const).map((status) => (
+          <button
+            key={status}
+            onClick={() => setStatusFilter(status)}
+            className={`rounded-full px-3 py-1 text-xs font-medium ${
+              statusFilter === status
+                ? 'bg-ak-primary/10 text-ak-primary'
+                : 'bg-ak-surface text-ak-text-secondary'
+            }`}
+          >
+            {t(`rag.documents.status.${status}`)}
+          </button>
+        ))}
+      </div>
+
+      {notice && (
+        <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 px-4 py-3 text-xs text-emerald-400">
+          {notice}
+        </div>
+      )}
+      {error && (
+        <div className="rounded-lg border border-red-500/20 bg-red-500/5 px-4 py-3 text-xs text-red-400">
+          {error}
+        </div>
+      )}
+
+      {loading ? (
+        <div className="py-8 text-center text-sm text-ak-text-secondary">{t('rag.documents.loading')}</div>
+      ) : (
+        <div className="space-y-2">
+          {items.map((doc) => (
+            <div key={doc.id} className="rounded-xl border border-ak-border bg-ak-surface p-4">
+              <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <p className="text-sm font-medium text-ak-text-primary">{doc.title}</p>
+                  <p className="text-xs text-ak-text-secondary">
+                    {doc.docType} • {new Date(doc.updatedAt).toLocaleString()}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="rounded-full bg-ak-primary/10 px-2 py-0.5 text-[10px] font-medium text-ak-primary">
+                    {doc.status}
+                  </span>
+                  {doc.status !== 'approved' && (
+                    <button
+                      onClick={() => handleApprove(doc.id)}
+                      className="rounded-md border border-emerald-500/30 px-2 py-1 text-[11px] text-emerald-400"
+                    >
+                      {t('rag.documents.approve')}
+                    </button>
+                  )}
+                  {doc.status !== 'deprecated' && (
+                    <button
+                      onClick={() => handleDeprecate(doc.id)}
+                      className="rounded-md border border-amber-500/30 px-2 py-1 text-[11px] text-amber-400"
+                    >
+                      {t('rag.documents.deprecate')}
+                    </button>
+                  )}
+                </div>
+              </div>
+              {doc.sourcePath && (
+                <p className="text-xs text-ak-text-secondary break-all">{doc.sourcePath}</p>
+              )}
+            </div>
+          ))}
+          {items.length === 0 && (
+            <p className="py-8 text-center text-sm text-ak-text-secondary">{t('rag.documents.empty')}</p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function StatsPanel({ stats }: { stats: RAGStats | null }) {
   const { t } = useI18n();
   if (!stats) return null;
@@ -538,8 +1008,11 @@ function DashboardRAGPage() {
   const tabs: { id: RAGTab; label: string; icon: React.ReactNode }[] = [
     { id: 'ask', label: t('rag.tabs.ask'), icon: <SparkleIcon /> },
     { id: 'search', label: t('rag.tabs.search'), icon: <SearchIcon /> },
+    { id: 'hybrid', label: t('rag.tabs.hybrid'), icon: <ShieldIcon /> },
+    { id: 'evaluation', label: t('rag.tabs.evaluation'), icon: <ChartIcon /> },
     { id: 'webSearch', label: t('rag.tabs.webSearch'), icon: <GlobeIcon /> },
     { id: 'learn', label: t('rag.tabs.learn'), icon: <BookIcon /> },
+    { id: 'documents', label: t('rag.tabs.documents'), icon: <BookIcon /> },
   ];
 
   const fetchStatus = useCallback(async () => {
@@ -615,8 +1088,11 @@ function DashboardRAGPage() {
           <div>
             {activeTab === 'ask' && <AskTab />}
             {activeTab === 'search' && <SearchTab />}
+            {activeTab === 'hybrid' && <HybridSearchTab />}
+            {activeTab === 'evaluation' && <EvaluationTab />}
             {activeTab === 'webSearch' && <WebSearchTab />}
             {activeTab === 'learn' && <LearnTab />}
+            {activeTab === 'documents' && <DocumentsGovernanceTab />}
           </div>
         </>
       )}
