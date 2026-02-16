@@ -4,7 +4,17 @@ import { db } from '../../db/client.js';
 import { jobs, jobPlans, jobAudits, jobArtifacts, jobAiCalls, oauthAccounts, type NewJob, type NewJobPlan, type NewJobAudit } from '../../db/schema.js';
 import { eq, and, sql } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
-import { JobNotFoundError, InvalidStateTransitionError, DatabaseError, AIProviderError, MissingAIKeyError, SkillContractViolationError } from '../errors.js';
+import {
+  JobNotFoundError,
+  InvalidStateTransitionError,
+  DatabaseError,
+  AIProviderError,
+  MissingAIKeyError,
+  SkillContractViolationError,
+  AgentContractViolationError,
+  VerificationGateBlockedError,
+  TraceAutomationError,
+} from '../errors.js';
 import { createAIService, type AIService, type AIServiceObserver, type AIServiceRuntimeOptions } from '../../services/ai/AIService.js';
 import type { Plan, Critique } from '../../services/ai/AIService.js';
 import { AICallMetricsCollector } from '../../services/ai/ai-metrics.js';
@@ -20,13 +30,36 @@ import { jobEventBus } from '../events/JobEventBus.js';
 import { computeQualityScore, type QualityInput } from '../../services/quality/QualityScoring.js';
 import { getCrewRunManager } from '../../api/crew.js';
 import { GroundednessScorer } from '../../services/knowledge/verification/GroundednessScorer.js';
-import { VerificationGateEngine, type GateInput, type VerificationResult } from '../../services/knowledge/verification/VerificationGateEngine.js';
-import { createAgentVerificationEngine } from '../../config/agentRiskProfiles.js';
+import {
+  type GateInput,
+  type VerificationResult,
+  evaluateGateRollout,
+  type VerificationRolloutMode,
+} from '../../services/knowledge/verification/VerificationGateEngine.js';
+import {
+  evaluateAgentResult,
+  type AgentType as VerificationAgentType,
+} from '../../services/knowledge/verification/AgentVerificationService.js';
 import { contextAssemblyService } from '../../services/knowledge/ContextAssemblyService.js';
+import {
+  normalizeContractOutputForRetry,
+  validateRuntimeAgentInput,
+  validateRuntimeAgentOutput,
+} from '../contracts/AgentContract.js';
+import {
+  resolveReliabilityRollout,
+  type ContractEnforcementMode,
+} from './ReliabilityRollout.js';
+import { oauthTokenCrypto } from '../../services/auth/OAuthTokenCrypto.js';
 
 export const DEV_GITHUB_BOOTSTRAP_TOKEN_PLACEHOLDER = '__DEV_GITHUB_BOOTSTRAP__';
 
 type DocDepth = 'lite' | 'standard' | 'deep';
+type ContractRetryPolicy = 'abort' | 'retry_once';
+type StartJobOptions = {
+  resume?: boolean;
+  skipPlanning?: boolean;
+};
 
 function asStringArray(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
@@ -130,6 +163,74 @@ export class AgentOrchestrator {
     this.checkRunner = new StaticCheckRunner();
   }
 
+  private getContractRetryPolicy(): ContractRetryPolicy {
+    const env = getEnv();
+    return env.AGENT_CONTRACT_RETRY_POLICY;
+  }
+
+  private resolveReliabilityPolicy(payload: Record<string, unknown>) {
+    const env = getEnv();
+    const userId =
+      typeof payload.userId === 'string' && payload.userId.trim().length > 0
+        ? payload.userId.trim()
+        : null;
+    return resolveReliabilityRollout(
+      {
+        contractMode: env.AGENT_CONTRACT_ENFORCEMENT_MODE,
+        gateMode: env.VERIFICATION_GATE_ROLLOUT_MODE,
+        canaryEnabled: env.RELIABILITY_CANARY_ENABLED,
+        canarySalt: env.RELIABILITY_CANARY_SALT,
+        contractCanaryPercent: env.AGENT_CONTRACT_CANARY_PERCENT,
+        gateCanaryPercent: env.VERIFICATION_GATE_CANARY_PERCENT,
+      },
+      userId
+    );
+  }
+
+  private assertInputContract(
+    agentType: string,
+    payload: unknown,
+    traceRecorder: TraceRecorder,
+    mode: ContractEnforcementMode
+  ): void {
+    const validation = validateRuntimeAgentInput(agentType, payload);
+    if (validation.valid) {
+      traceRecorder.recordInfo('Agent input contract passed', { mode, agentType });
+      return;
+    }
+
+    traceRecorder.recordInfo('Agent input contract violation detected', {
+      mode,
+      agentType,
+      issues: validation.issues,
+    });
+    if (mode === 'enforce') {
+      throw new AgentContractViolationError(agentType, 'input', validation.issues, false);
+    }
+  }
+
+  private assertOutputContract(
+    agentType: string,
+    output: unknown,
+    traceRecorder: TraceRecorder,
+    mode: ContractEnforcementMode
+  ): void {
+    const validation = validateRuntimeAgentOutput(agentType, output);
+    if (validation.valid) {
+      traceRecorder.recordInfo('Agent output contract passed', { mode, agentType });
+      return;
+    }
+
+    traceRecorder.recordInfo('Agent output contract violation detected', {
+      mode,
+      agentType,
+      issues: validation.issues,
+    });
+    if (mode === 'enforce') {
+      throw new AgentContractViolationError(agentType, 'output', validation.issues, false);
+    }
+  }
+
   /**
    * Resolve GitHub OAuth token for a user
    * @param userId - User ID
@@ -143,7 +244,22 @@ export class AgentOrchestrator {
           eq(oauthAccounts.provider, 'github')
         ),
       });
-      return githubOAuth?.accessToken || null;
+      const rawToken = githubOAuth?.accessToken || null;
+
+      if (!rawToken) {
+        return null;
+      }
+
+      if (rawToken === DEV_GITHUB_BOOTSTRAP_TOKEN_PLACEHOLDER) {
+        return rawToken;
+      }
+
+      return oauthTokenCrypto.decryptForUse({
+        userId,
+        provider: 'github',
+        rawToken,
+        kind: 'access',
+      });
     } catch (error) {
       console.error('Failed to resolve GitHub token:', error);
       return null;
@@ -183,6 +299,7 @@ export class AgentOrchestrator {
     type: string; 
     payload?: unknown; 
     requiresStrictValidation?: boolean;
+    requiresApproval?: boolean;
     aiProvider?: string;
     aiModel?: string;
   }): Promise<string> {
@@ -205,6 +322,7 @@ export class AgentOrchestrator {
       aiProvider: input.aiProvider,
       aiModel: input.aiModel,
       requiresStrictValidation: input.requiresStrictValidation ?? false,
+      requiresApproval: input.requiresApproval ?? false,
     };
 
     // Write to database (wrap DB errors)
@@ -229,7 +347,9 @@ export class AgentOrchestrator {
    * @throws InvalidStateTransitionError if state transition is invalid
    * @throws DatabaseError if DB operations fail
    */
-  async startJob(jobId: string): Promise<void> {
+  async startJob(jobId: string, options: StartJobOptions = {}): Promise<void> {
+    const isResume = options.resume === true;
+    const skipPlanning = options.skipPlanning === true;
     // Load job from DB if not in memory
     let stateMachine = this.stateMachines.get(jobId);
     let job;
@@ -240,7 +360,9 @@ export class AgentOrchestrator {
           throw new JobNotFoundError(jobId);
         }
         job = result[0];
-        stateMachine = new AgentStateMachine(job.state as 'pending' | 'running' | 'completed' | 'failed');
+        stateMachine = new AgentStateMachine(
+          job.state as 'pending' | 'running' | 'completed' | 'failed' | 'awaiting_approval'
+        );
         this.stateMachines.set(jobId, stateMachine);
       } catch (error) {
         if (error instanceof JobNotFoundError) {
@@ -250,28 +372,52 @@ export class AgentOrchestrator {
       }
     }
 
-    // Assert current state is pending
     const currentState = stateMachine.getState();
-    if (currentState !== 'pending') {
-      throw new InvalidStateTransitionError(jobId, currentState, 'start');
-    }
+    if (!isResume) {
+      if (currentState !== 'pending') {
+        throw new InvalidStateTransitionError(jobId, currentState, 'start');
+      }
 
-    // Transition to running (FSM validates internally)
-    try {
-      stateMachine.start();
-    } catch (_error) {
-      throw new InvalidStateTransitionError(jobId, currentState, 'start');
-    }
+      try {
+        stateMachine.start();
+      } catch (_error) {
+        throw new InvalidStateTransitionError(jobId, currentState, 'start');
+      }
 
-    // Update database
-    try {
-      await db.update(jobs).set({ state: 'running', updatedAt: new Date() }).where(eq(jobs.id, jobId));
-    } catch (error) {
-      throw new DatabaseError(`Failed to update job state: ${error instanceof Error ? error.message : String(error)}`, error);
-    }
+      try {
+        await db.update(jobs).set({ state: 'running', updatedAt: new Date() }).where(eq(jobs.id, jobId));
+      } catch (error) {
+        throw new DatabaseError(`Failed to update job state: ${error instanceof Error ? error.message : String(error)}`, error);
+      }
 
-    // Emit SSE event: job started
-    jobEventBus.emitJobEvent(jobId, { phase: 'thinking', message: 'Job started, resolving dependencies...', ts: new Date().toISOString() });
+      jobEventBus.emitJobEvent(jobId, {
+        phase: 'thinking',
+        message: 'Job started, resolving dependencies...',
+        ts: new Date().toISOString(),
+      });
+    } else {
+      if (currentState === 'awaiting_approval') {
+        try {
+          stateMachine.resume();
+        } catch (_error) {
+          throw new InvalidStateTransitionError(jobId, currentState, 'resume');
+        }
+      } else if (currentState !== 'running') {
+        throw new InvalidStateTransitionError(jobId, currentState, 'resume');
+      }
+
+      try {
+        await db.update(jobs).set({ state: 'running', updatedAt: new Date() }).where(eq(jobs.id, jobId));
+      } catch (error) {
+        throw new DatabaseError(`Failed to update job state: ${error instanceof Error ? error.message : String(error)}`, error);
+      }
+
+      jobEventBus.emitJobEvent(jobId, {
+        phase: 'thinking',
+        message: 'Job resumed after approval, executing plan...',
+        ts: new Date().toISOString(),
+      });
+    }
 
     // S1.1: Create TraceRecorder for explainability (outside try so it's available in catch)
     // S2.0.3: Enable live streaming for real-time trace updates
@@ -295,6 +441,17 @@ export class AgentOrchestrator {
       // Prepare dependencies (DI)
       const env = getEnv();
       const payload = (job.payload || {}) as Record<string, unknown>;
+      const reliabilityPolicy = this.resolveReliabilityPolicy(payload);
+      traceRecorder.recordInfo('Reliability rollout resolved', {
+        contractMode: reliabilityPolicy.contract.effectiveMode,
+        configuredContractMode: reliabilityPolicy.contract.configuredMode,
+        contractCanary: reliabilityPolicy.contract.inCanary,
+        gateMode: reliabilityPolicy.gate.effectiveMode,
+        configuredGateMode: reliabilityPolicy.gate.configuredMode,
+        gateCanary: reliabilityPolicy.gate.inCanary,
+        canaryBucket: reliabilityPolicy.contract.bucket,
+      });
+      this.assertInputContract(job.type, payload, traceRecorder, reliabilityPolicy.contract.effectiveMode);
       const { aiService: jobAiService, metrics, resolution } = await this.resolveAiServiceForJob(
         job.type,
         payload,
@@ -408,7 +565,7 @@ export class AgentOrchestrator {
       let plan: Plan | undefined;
       activeAiService = jobAiService || this.aiService;
 
-      if (playbook.requiresPlanning && activeAiService) {
+      if (!skipPlanning && playbook.requiresPlanning && activeAiService) {
         // Call agent's plan method
         if (agent.plan) {
           jobEventBus.emitJobEvent(jobId, { phase: 'discovery', message: 'Planning phase started...', ts: new Date().toISOString() });
@@ -464,6 +621,22 @@ export class AgentOrchestrator {
           // S2.0.3: Planning stage completed
           traceRecorder.emitStage('planning', 'completed', 'Planning phase completed');
         }
+      }
+
+      if (!isResume && job.requiresApproval) {
+        await this.awaitApproval(jobId);
+        jobEventBus.emitJobEvent(jobId, {
+          phase: 'reviewing',
+          message: 'Plan hazır, insan onayı bekleniyor.',
+          ts: new Date().toISOString(),
+        });
+        traceRecorder.emitStage('planning', 'completed', 'Plan hazır, onay bekleniyor');
+        try {
+          await traceRecorder.flush();
+        } catch (flushError) {
+          console.warn(`[AgentOrchestrator] Failed to flush traces before approval wait for job ${jobId}:`, flushError);
+        }
+        return;
       }
 
       // Piri Context Assembly — inject RAG knowledge if contextQuery or additionalContext is present
@@ -654,6 +827,31 @@ export class AgentOrchestrator {
         }
       }
 
+      // Contract enforcement (output) happens before persisting completion.
+      // `retry_once` policy performs deterministic one-shot normalization.
+      try {
+        this.assertOutputContract(job.type, finalResult, traceRecorder, reliabilityPolicy.contract.effectiveMode);
+      } catch (error) {
+        const shouldRetry =
+          error instanceof AgentContractViolationError &&
+          error.phase === 'output' &&
+          reliabilityPolicy.contract.effectiveMode === 'enforce' &&
+          this.getContractRetryPolicy() === 'retry_once';
+
+        if (!shouldRetry) {
+          throw error;
+        }
+
+        traceRecorder.recordInfo('Applying output contract retry policy', {
+          agentType: job.type,
+          policy: 'retry_once',
+          issues: error.issues,
+        });
+
+        finalResult = normalizeContractOutputForRetry(finalResult);
+        this.assertOutputContract(job.type, finalResult, traceRecorder, reliabilityPolicy.contract.effectiveMode);
+      }
+
       // S1.1: Flush trace recorder before completing (best-effort - don't block completion)
       try {
         await traceRecorder.flush();
@@ -695,11 +893,15 @@ export class AgentOrchestrator {
                        error instanceof McpError ? error.code :
                        error instanceof GitHubNotConnectedError ? error.code :
                        error instanceof MissingDependencyError ? error.code :
+                       error instanceof TraceAutomationError ? error.code :
+                       error instanceof AgentContractViolationError ? error.code :
                        error instanceof SkillContractViolationError ? error.code :
+                       error instanceof VerificationGateBlockedError ? error.code :
                        error instanceof MissingAIKeyError ? error.code :
                        undefined;
       const errorScope = error instanceof McpConnectionError || error instanceof McpError ? 'mcp' :
                         error instanceof GitHubNotConnectedError ? 'github' :
+                        error instanceof TraceAutomationError ? 'unknown' :
                         error instanceof MissingAIKeyError ? 'ai' : 'unknown';
       
       // S2.0.3: Emit error and failed stage events
@@ -1030,7 +1232,9 @@ export class AgentOrchestrator {
         if (!job) {
           throw new JobNotFoundError(jobId);
         }
-        stateMachine = new AgentStateMachine(job.state as 'pending' | 'running' | 'completed' | 'failed');
+        stateMachine = new AgentStateMachine(
+          job.state as 'pending' | 'running' | 'completed' | 'failed' | 'awaiting_approval'
+        );
         this.stateMachines.set(jobId, stateMachine);
       } catch (error) {
         if (error instanceof JobNotFoundError) {
@@ -1177,19 +1381,15 @@ export class AgentOrchestrator {
       console.warn('[AgentOrchestrator] Quality score computation failed:', qualityError);
     }
 
-    // M2-KI-4: Run verification gates on agent output (non-blocking best-effort)
+    // M2-KI-4: Run verification gates with staged rollout policy.
     let verificationResult: VerificationResult | null = null;
     try {
       const [jobForVerification] = await db.select().from(jobs).where(eq(jobs.id, jobId)).limit(1);
       if (jobForVerification) {
         const agentType = jobForVerification.type;
-        const { riskProfile, overrides } = createAgentVerificationEngine(agentType);
-        const gateEngine = new VerificationGateEngine(riskProfile);
-
-        // Apply agent-specific gate overrides
-        for (const [gateName, gateOverride] of Object.entries(overrides)) {
-          gateEngine.overrideGate(gateName, gateOverride);
-        }
+        const payloadForVerification = asRecord(jobForVerification.payload) ?? {};
+        const reliabilityPolicy = this.resolveReliabilityPolicy(payloadForVerification);
+        const rolloutMode = reliabilityPolicy.gate.effectiveMode as VerificationRolloutMode;
 
         // Compute groundedness for text-based results
         const resultText = this.extractResultText(result);
@@ -1216,13 +1416,43 @@ export class AgentOrchestrator {
           groundednessInput.topicCoverage = qualityData.qualityScore / 100;
         }
 
-        verificationResult = gateEngine.evaluate(groundednessInput);
+        const normalizedResult: Record<string, unknown> =
+          typeof result === 'object' && result !== null
+            ? { ...(result as Record<string, unknown>) }
+            : { content: result };
+        const metadata = asRecord(normalizedResult.metadata) ?? {};
+        normalizedResult.metadata = {
+          ...metadata,
+          groundednessScore: groundednessInput.groundednessScore,
+          weightedGroundednessScore: groundednessInput.weightedGroundednessScore,
+          criticalUnsupported: groundednessInput.criticalUnsupported,
+          hallucinationRate:
+            groundednessInput.hallucinationRate ?? asNumber(metadata.hallucinationRate) ?? undefined,
+          topicCoverage:
+            groundednessInput.topicCoverage ?? asNumber(metadata.topicCoverage) ?? undefined,
+        };
+
+        const verificationAgentType: VerificationAgentType =
+          agentType === 'scribe' || agentType === 'trace' || agentType === 'proto'
+            ? agentType
+            : 'trace';
+
+        verificationResult = evaluateAgentResult(verificationAgentType, normalizedResult);
+        const rolloutDecision = evaluateGateRollout(rolloutMode, agentType, verificationResult);
 
         // Attach verification metadata to result
         if (verificationResult && typeof result === 'object' && result !== null) {
           (result as Record<string, unknown>).verificationGates = {
             status: verificationResult.overallStatus,
             blocked: verificationResult.blocked,
+            blockedByPolicy: rolloutDecision.blockedByPolicy,
+            rolloutMode,
+            configuredRolloutMode: reliabilityPolicy.gate.configuredMode,
+            rolloutCanary: {
+              inCanary: reliabilityPolicy.gate.inCanary,
+              bucket: reliabilityPolicy.gate.bucket,
+            },
+            rolloutReason: rolloutDecision.reason,
             summary: verificationResult.summary,
             gates: verificationResult.gates.map(g => ({
               name: g.name,
@@ -1230,12 +1460,20 @@ export class AgentOrchestrator {
               score: g.score,
               threshold: g.threshold,
             })),
-            riskProfile,
+            riskProfile: verificationResult.meta.riskProfile,
           };
+        }
+
+        if (rolloutDecision.shouldEnforce && verificationResult.blocked) {
+          const failedGates = verificationResult.failures.map((gate) => gate.name);
+          throw new VerificationGateBlockedError(agentType, rolloutMode, failedGates, false);
         }
       }
     } catch (verificationError) {
-      // Verification is best-effort; never block job completion
+      if (verificationError instanceof VerificationGateBlockedError) {
+        throw verificationError;
+      }
+      // Other verification failures remain best-effort.
       console.warn('[AgentOrchestrator] Verification gate check failed:', verificationError);
     }
 
@@ -1339,7 +1577,9 @@ export class AgentOrchestrator {
         if (!job) {
           throw new JobNotFoundError(jobId);
         }
-        stateMachine = new AgentStateMachine(job.state as 'pending' | 'running' | 'completed' | 'failed');
+        stateMachine = new AgentStateMachine(
+          job.state as 'pending' | 'running' | 'completed' | 'failed' | 'awaiting_approval'
+        );
         this.stateMachines.set(jobId, stateMachine);
       } catch (err) {
         if (err instanceof JobNotFoundError) {
@@ -1442,6 +1682,40 @@ export class AgentOrchestrator {
         issues: error.issues,
         retryable: error.retryable,
       });
+    } else if (error instanceof AgentContractViolationError) {
+      errorCode = error.code;
+      errorMsg = error.message;
+      rawError = `${error.message} [agent=${error.agentType} phase=${error.phase}]`;
+      rawErrorPayload = JSON.stringify({
+        type: error.name,
+        code: error.code,
+        agentType: error.agentType,
+        phase: error.phase,
+        issues: error.issues,
+        retryable: error.retryable,
+      });
+    } else if (error instanceof VerificationGateBlockedError) {
+      errorCode = error.code;
+      errorMsg = error.message;
+      rawError = `${error.message} [agent=${error.agentType} mode=${error.rolloutMode}]`;
+      rawErrorPayload = JSON.stringify({
+        type: error.name,
+        code: error.code,
+        agentType: error.agentType,
+        rolloutMode: error.rolloutMode,
+        failures: error.failures,
+        retryable: error.retryable,
+      });
+    } else if (error instanceof TraceAutomationError) {
+      errorCode = error.code;
+      errorMsg = error.message;
+      rawError = `${error.message} [traceAutomation code=${error.code}]`;
+      rawErrorPayload = JSON.stringify({
+        type: error.name,
+        code: error.code,
+        message: error.message,
+        retryable: error.retryable,
+      });
     } else {
       rawError = error instanceof Error ? error.message : String(error);
       // Generic error - capture basic structure
@@ -1539,22 +1813,12 @@ export class AgentOrchestrator {
       throw new InvalidStateTransitionError(jobId, job.state, 'resume (not approved)');
     }
 
-    // Transition to running
-    try {
-      await db.update(jobs).set({ 
-        state: 'running', 
-        updatedAt: new Date() 
-      }).where(eq(jobs.id, jobId));
-    } catch (error) {
-      throw new DatabaseError(`Failed to update job state: ${error instanceof Error ? error.message : String(error)}`, error);
-    }
-
-    // Re-create state machine for running state
-    const stateMachine = new AgentStateMachine('running');
+    // Re-create state machine for awaiting_approval so resume transition is explicit and deterministic
+    const stateMachine = new AgentStateMachine('awaiting_approval');
     this.stateMachines.set(jobId, stateMachine);
 
     // Continue execution in background (non-blocking)
-    this.continueJobExecution(jobId, job).catch(error => {
+    this.continueJobExecution(jobId).catch(error => {
       console.error(`Failed to continue job ${jobId} after approval:`, error);
     });
   }
@@ -1563,38 +1827,8 @@ export class AgentOrchestrator {
    * PR-1: Continue job execution after approval
    * Internal method that executes the approved plan
    */
-  private async continueJobExecution(jobId: string, job: typeof jobs.$inferSelect): Promise<void> {
-    const traceRecorder = createTraceRecorder(jobId);
-
-    try {
-      // Record approval and resume in trace
-      traceRecorder.recordInfo(`Job resumed after approval by ${job.approvedBy}`);
-
-      // TODO(M2): PR-1 Phase 2 - Implement full execution continuation — tracked in docs/planning/M2_BACKLOG.md
-      // For now, we mark as completed with a note that execution was approved
-      const result = {
-        approved: true,
-        approvedBy: job.approvedBy,
-        approvedAt: job.approvedAt,
-        message: 'Job approved and execution resumed. Full execution continuation pending PR-1 Phase 2 implementation.',
-      };
-
-      await traceRecorder.flush();
-      await this.completeJob(jobId, result);
-    } catch (error) {
-      try {
-        traceRecorder.recordError(
-          error instanceof Error ? error.message : String(error),
-          'EXECUTION_FAILED'
-        );
-        await traceRecorder.flush();
-      } catch (traceError) {
-        console.error(`Failed to flush traces for job ${jobId}:`, traceError);
-      }
-
-      await this.failJob(jobId, error);
-      throw error;
-    }
+  private async continueJobExecution(jobId: string): Promise<void> {
+    await this.startJob(jobId, { resume: true, skipPlanning: true });
   }
 
   /**
@@ -1613,13 +1847,21 @@ export class AgentOrchestrator {
       if (!job) {
         throw new JobNotFoundError(jobId);
       }
-      stateMachine = new AgentStateMachine(job.state as 'pending' | 'running' | 'completed' | 'failed');
+      stateMachine = new AgentStateMachine(
+        job.state as 'pending' | 'running' | 'completed' | 'failed' | 'awaiting_approval'
+      );
       this.stateMachines.set(jobId, stateMachine);
     }
 
     // Validate state is running
     const currentState = stateMachine.getState();
     if (currentState !== 'running') {
+      throw new InvalidStateTransitionError(jobId, currentState, 'await_approval');
+    }
+
+    try {
+      stateMachine.awaitApproval();
+    } catch (_error) {
       throw new InvalidStateTransitionError(jobId, currentState, 'await_approval');
     }
 

@@ -122,35 +122,35 @@
 | Görev | Açıklama | Durum |
 |-------|----------|-------|
 | M2-RAG-1 | Python RAG microservice (FastAPI + FAISS + sentence-transformers) | Başlanmadı |
-| M2-RAG-2 | Hybrid semantic + keyword search (`KnowledgeRetrievalService` genişletme) | Başlanmadı |
-| M2-RAG-3 | RAG Evaluation UI (5 boyutlu kalite + halüsinasyon tespiti) | Başlanmadı |
-| M2-RAG-4 | Knowledge Base yönetim UI (upload, indeks, semantic search test) | Başlanmadı |
+| M2-RAG-2 | Hybrid semantic + keyword search (`KnowledgeRetrievalService` genişletme) | Tamamlandı (2026-02-16) |
+| M2-RAG-3 | RAG Evaluation UI (5 boyutlu kalite + halüsinasyon tespiti) | Tamamlandı (2026-02-16) |
+| M2-RAG-4 | Knowledge Base yönetim UI (upload, indeks, semantic search test) | Tamamlandı (2026-02-16) |
 
 ### M2 — 4 Pillar Görevleri
 
 | Görev ID | Pillar | Görev | Durum |
 |----------|--------|-------|-------|
-| M2-KI-1 | P1 | GroundednessScorer service (claim extraction + evidence matching + 0-1 score) | Başlanmadı |
-| M2-KI-2 | P1 | ClaimDecomposer utility (AI-powered atomic claim extraction) | Başlanmadı |
-| M2-KI-3 | P1 | ConflictDetector service (kaynak çakışma tespiti) | Başlanmadı |
-| M2-KI-4 | P1 | Cite-or-block gate (AgentOrchestrator enforcement) | Başlanmadı |
-| M2-KI-5 | P1 | RAG microservice entegrasyonu | Başlanmadı |
-| M2-VF-1 | P2 | VerificationGateEngine service (configurable thresholds) | Başlanmadı |
-| M2-VF-2 | P2 | Scribe verification gates (4 metrik + eşik) | Başlanmadı |
-| M2-VF-3 | P2 | Trace verification gates (3 metrik + eşik) | Başlanmadı |
-| M2-VF-4 | P2 | Proto verification gates (3 metrik + eşik) | Başlanmadı |
-| M2-VF-5 | P2 | Orchestrator gate integration (completeJob check) | Başlanmadı |
-| M2-VF-6 | P2 | Agent risk profile config (P0/P1/P2 → gate strictness) | Başlanmadı |
-| M2-FP-1 | P3 | FreshnessScheduler (stale knowledge detection) | Başlanmadı |
-| M2-FP-2 | P3 | GitHub Releases sinyal (MCP adapter genişletme) | Başlanmadı |
-| M2-FP-3 | P3 | CVE/Security Advisory sinyal entegrasyonu | Başlanmadı |
-| M2-FP-5 | P3 | Knowledge approval workflow (API + UI) | Başlanmadı |
-| M2-UI-1 | P4 | CitationBadge component (4 state) | Başlanmadı |
-| M2-UI-2 | P4 | ConfidenceIndicator component (0-100 + renk) | Başlanmadı |
-| M2-UI-3 | P4 | FreshnessLabel component (tarih + stale/fresh) | Başlanmadı |
-| M2-UI-4 | P4 | ConflictWarning component (turuncu uyarı) | Başlanmadı |
+| M2-KI-1 | P1 | GroundednessScorer service (claim extraction + evidence matching + 0-1 score) | Tamamlandı (2026-02-15) |
+| M2-KI-2 | P1 | ClaimDecomposer utility (AI-powered atomic claim extraction) | Tamamlandı (2026-02-15) |
+| M2-KI-3 | P1 | ConflictDetector service (kaynak çakışma tespiti) | Tamamlandı (2026-02-15) |
+| M2-KI-4 | P1 | Cite-or-block gate (AgentOrchestrator enforcement) | Tamamlandı (2026-02-15) |
+| M2-KI-5 | P1 | RAG microservice entegrasyonu | Tamamlandı (2026-02-16) |
+| M2-VF-1 | P2 | VerificationGateEngine service (configurable thresholds) | Tamamlandı (2026-02-15) |
+| M2-VF-2 | P2 | Scribe verification gates (4 metrik + eşik) | Tamamlandı (2026-02-15) |
+| M2-VF-3 | P2 | Trace verification gates (3 metrik + eşik) | Tamamlandı (2026-02-15) |
+| M2-VF-4 | P2 | Proto verification gates (3 metrik + eşik) | Tamamlandı (2026-02-15) |
+| M2-VF-5 | P2 | Orchestrator gate integration (completeJob check) | Tamamlandı (2026-02-15) |
+| M2-VF-6 | P2 | Agent risk profile config (P0/P1/P2 → gate strictness) | Tamamlandı (2026-02-15) |
+| M2-FP-1 | P3 | FreshnessScheduler (stale knowledge detection) | Tamamlandı (2026-02-15) |
+| M2-FP-2 | P3 | GitHub Releases sinyal (MCP adapter genişletme) | Tamamlandı (2026-02-16) |
+| M2-FP-3 | P3 | CVE/Security Advisory sinyal entegrasyonu | Tamamlandı (2026-02-16) |
+| M2-FP-5 | P3 | Knowledge approval workflow (API + UI) | Tamamlandı (2026-02-16) |
+| M2-UI-1 | P4 | CitationBadge component (4 state) | Tamamlandı (2026-02-15) |
+| M2-UI-2 | P4 | ConfidenceIndicator component (0-100 + renk) | Tamamlandı (2026-02-15) |
+| M2-UI-3 | P4 | FreshnessLabel component (tarih + stale/fresh) | Tamamlandı (2026-02-15) |
+| M2-UI-4 | P4 | ConflictWarning component (turuncu uyarı) | Tamamlandı (2026-02-15) |
 | M2-UI-5 | P4 | ArtifactPreview inline citation + provenance | Başlanmadı |
-| M2-UI-6 | P4 | i18n: citation/confidence/freshness key'leri | Başlanmadı |
+| M2-UI-6 | P4 | i18n: citation/confidence/freshness key'leri | Tamamlandı (2026-02-15) |
 
 ### M2+ Spike: Career Assistant (Freelance Automation)
 

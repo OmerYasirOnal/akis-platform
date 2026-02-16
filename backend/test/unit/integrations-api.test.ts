@@ -47,6 +47,22 @@ interface DevEnv {
   GITHUB_TOKEN?: string;
 }
 
+function simulateDecryptOAuthToken(rawToken: string): string | null {
+  if (!rawToken.startsWith('{') || !rawToken.endsWith('}')) {
+    return rawToken;
+  }
+
+  try {
+    const parsed = JSON.parse(rawToken) as { cipherText?: string };
+    if (typeof parsed.cipherText === 'string') {
+      return parsed.cipherText.replace(/^enc:/, '');
+    }
+    return rawToken;
+  } catch {
+    return rawToken;
+  }
+}
+
 function simulateGetGitHubToken(
   oauthRecord: OAuthRecord | null,
   devEnv: DevEnv
@@ -54,7 +70,7 @@ function simulateGetGitHubToken(
   const rawToken = oauthRecord?.accessToken || null;
 
   if (rawToken && rawToken !== DEV_GITHUB_BOOTSTRAP_TOKEN_PLACEHOLDER) {
-    return rawToken;
+    return simulateDecryptOAuthToken(rawToken);
   }
 
   if (
@@ -243,6 +259,21 @@ describe('getGitHubToken — Token Resolution', () => {
   test('returns real token when present', () => {
     const token = simulateGetGitHubToken({ accessToken: 'gho_abc123' }, defaultDevEnv);
     assert.equal(token, 'gho_abc123');
+  });
+
+  test('decrypts encrypted JSON token payload', () => {
+    const token = simulateGetGitHubToken(
+      {
+        accessToken: JSON.stringify({
+          cipherText: 'enc:gho_encrypted_123',
+          iv: 'iv',
+          authTag: 'tag',
+          keyVersion: 'v1',
+        }),
+      },
+      defaultDevEnv
+    );
+    assert.equal(token, 'gho_encrypted_123');
   });
 
   test('returns placeholder token when dev bootstrap is disabled', () => {

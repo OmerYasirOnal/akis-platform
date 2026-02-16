@@ -113,6 +113,10 @@ const envSchema = z
     AI_KEY_ENCRYPTION_KEY: z.string().optional(),
     AI_KEY_ENCRYPTION_KEY_VERSION: z.string().default('v1'),
     AI_DETERMINISTIC_MODE: z.enum(['true', 'false']).default('true'),
+    AI_FORCE_DETERMINISTIC_PLAN: z
+      .enum(['true', 'false'])
+      .default('true')
+      .transform((value) => value === 'true'),
     AI_SCRIBE_MODEL_ALLOWLIST: z.string().optional(),
     
     // API Keys - supports both new names and legacy OPENROUTER_*/OPENAI_* names
@@ -168,6 +172,31 @@ const envSchema = z
       .enum(['true', 'false'])
       .default('false')
       .transform((value) => value === 'true'),
+    AGENT_CONTRACT_ENFORCEMENT_MODE: z
+      .enum(['observe', 'enforce'])
+      .default('observe'),
+    AGENT_CONTRACT_RETRY_POLICY: z
+      .enum(['abort', 'retry_once'])
+      .default('abort'),
+    RELIABILITY_CANARY_ENABLED: z
+      .enum(['true', 'false'])
+      .default('false')
+      .transform((value) => value === 'true'),
+    RELIABILITY_CANARY_SALT: z.string().default('akis-reliability-v1'),
+    AGENT_CONTRACT_CANARY_PERCENT: z.coerce.number().int().min(0).max(100).default(100),
+    VERIFICATION_GATE_ROLLOUT_MODE: z
+      .enum(['observe', 'warn', 'enforce_scribe', 'enforce_all'])
+      .default('observe'),
+    VERIFICATION_GATE_CANARY_PERCENT: z.coerce.number().int().min(0).max(100).default(100),
+    FRESHNESS_SCHEDULER_ENABLED: z
+      .enum(['true', 'false'])
+      .default('false')
+      .transform((value) => value === 'true'),
+    FRESHNESS_SCHEDULER_INTERVAL_MINUTES: z.coerce.number().int().min(5).max(1440).default(360),
+    FRESHNESS_THRESHOLD_DAYS: z.coerce.number().int().min(1).max(3650).default(90),
+    FRESHNESS_AGING_THRESHOLD_DAYS: z.coerce.number().int().min(1).max(3650).default(45),
+    MCP_GATEWAY_TIMEOUT_MS: z.coerce.number().int().min(1000).max(60000).default(8000),
+    MCP_GATEWAY_RETRY_COUNT: z.coerce.number().int().min(0).max(5).default(2),
   })
   .superRefine((data, ctx) => {
     const isProduction = data.NODE_ENV === 'production';
@@ -191,6 +220,14 @@ const envSchema = z
         code: z.ZodIssueCode.custom,
         message: 'AUTH_COOKIE_MAXAGE must be greater than 0 seconds',
         path: ['AUTH_COOKIE_MAXAGE'],
+      });
+    }
+
+    if (data.FRESHNESS_AGING_THRESHOLD_DAYS > data.FRESHNESS_THRESHOLD_DAYS) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'FRESHNESS_AGING_THRESHOLD_DAYS cannot be greater than FRESHNESS_THRESHOLD_DAYS',
+        path: ['FRESHNESS_AGING_THRESHOLD_DAYS'],
       });
     }
 

@@ -1,7 +1,7 @@
 # AKIS Staging Release Checklist
 
-**Version**: 1.2.0  
-**Last Updated**: 2026-02-07
+**Version**: 1.3.0  
+**Last Updated**: 2026-02-16
 
 This checklist ensures repeatable, reliable staging deployments.
 
@@ -16,12 +16,37 @@ This checklist ensures repeatable, reliable staging deployments.
 
 - [ ] All CI checks pass on `main` branch
 - [ ] No blocking issues in recent commits
+- [ ] `AI_KEY_ENCRYPTION_KEY` staging env'de set (OAuth token encrypted write strict-block policy için zorunlu)
+- [ ] Active docs reference check: `node scripts/check_docs_references.mjs`
 - [ ] Ground truth verified:
   ```bash
   git fetch origin && git rev-parse --short origin/main
   gh run list --workflow=oci-staging-deploy.yml -L 1
   curl -sf https://staging.akisflow.com/version | jq -r '.commit'
   ```
+
+---
+
+## M2 Canary Progression (Observe -> Enforce)
+
+Reliability rollout için zorunlu canary adımları:
+
+1. `%10 cohort`: `RELIABILITY_CANARY_ENABLED=true`, `AGENT_CONTRACT_CANARY_PERCENT=10`, `VERIFICATION_GATE_CANARY_PERCENT=10`, `VERIFICATION_GATE_ROLLOUT_MODE=warn`, `AGENT_CONTRACT_ENFORCEMENT_MODE=observe`
+2. `%50 cohort`: `AGENT_CONTRACT_CANARY_PERCENT=50`, `VERIFICATION_GATE_CANARY_PERCENT=50`, `VERIFICATION_GATE_ROLLOUT_MODE=enforce_scribe`, `AGENT_CONTRACT_ENFORCEMENT_MODE=enforce`
+3. `%100 cohort`: `AGENT_CONTRACT_CANARY_PERCENT=100`, `VERIFICATION_GATE_CANARY_PERCENT=100`, `VERIFICATION_GATE_ROLLOUT_MODE=enforce_all`
+
+Her adımda quality gate kontrolü:
+- `false_block_rate < 1%`
+- `contract_violation_count` trendi stabil
+- P0 kullanıcı akışları (Auth + Scribe + Jobs) PASS
+- Trace reliability metrikleri:
+  - `trace_reproducibility_rate >= 98%`
+  - `critical_flow_coverage >= 95%`
+  - `edge_case_category_coverage >= 90%`
+  - `flake_rate <= 2%`
+  - `mcp_call_success_rate >= 99%`
+
+Threshold ihlalinde: [`../deploy/STAGING_ROLLBACK_RUNBOOK.md`](../deploy/STAGING_ROLLBACK_RUNBOOK.md) içindeki feature-flag rollback uygulanır.
 
 ---
 

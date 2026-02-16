@@ -12,6 +12,14 @@ import { ArtifactPreview, PRMetadataCard, RunSummaryPanel, IssueReportModal } fr
 import { PlanView } from '../components/jobs/PlanView';
 import { FeedbackTab } from '../components/jobs/FeedbackTab';
 import { useJobStream, type TraceStreamEvent, type ArtifactStreamEvent } from '../hooks/useJobStream';
+import { useI18n } from '../i18n/useI18n';
+import {
+  CitationBadge,
+  ConfidenceIndicator,
+  ConflictWarning,
+  FreshnessLabel,
+  VerificationSummary,
+} from '../components/agents/verification';
 
 // ============================================================================
 // Types
@@ -133,6 +141,49 @@ function formatDuration(startStr: string, endStr?: string): string {
   const m = Math.floor(s / 60);
   const r = s % 60;
   return `${m}m ${r.toFixed(0)}s`;
+}
+
+type VerificationGate = NonNullable<Job['verificationGates']>['gates'][number];
+
+function getVerificationGate(
+  verificationGates: Job['verificationGates'] | undefined | null,
+  gateName: string
+): VerificationGate | null {
+  if (!verificationGates || !Array.isArray(verificationGates.gates)) return null;
+  return verificationGates.gates.find((gate) => gate.name === gateName) ?? null;
+}
+
+function mapCitationStatus(verificationGates: Job['verificationGates'] | undefined | null) {
+  const citationGate = getVerificationGate(verificationGates, 'citation');
+  if (verificationGates?.blockedByPolicy) return 'blocked' as const;
+  if (!citationGate) return 'unverified' as const;
+  if (citationGate.status === 'pass') return 'verified' as const;
+  return 'unverified' as const;
+}
+
+function mapFreshnessStatus(verificationGates: Job['verificationGates'] | undefined | null) {
+  const freshnessGate = getVerificationGate(verificationGates, 'freshness');
+  if (!freshnessGate) return 'unknown' as const;
+  if (freshnessGate.score >= 0.7) return 'fresh' as const;
+  if (freshnessGate.score >= 0.4) return 'stale-ish' as const;
+  return 'stale' as const;
+}
+
+function resolveConfidence(verificationGates: Job['verificationGates'] | undefined | null): number {
+  const groundednessGate = getVerificationGate(verificationGates, 'groundedness');
+  if (!groundednessGate) return 0;
+  return Math.max(0, Math.min(100, Math.round(groundednessGate.score * 100)));
+}
+
+function buildConflictItems(verificationGates: Job['verificationGates'] | undefined | null) {
+  if (!verificationGates || verificationGates.status === 'pass') return [];
+  return verificationGates.gates
+    .filter((gate) => gate.status !== 'pass')
+    .map((gate) => ({
+      topic: gate.name,
+      severity: gate.status === 'fail' ? 'major' as const : 'minor' as const,
+      sources: [`score=${Math.round(gate.score * 100)} threshold=${Math.round(gate.threshold * 100)}`],
+    }));
 }
 
 // ============================================================================
@@ -409,6 +460,7 @@ function QualitySection({ quality, suggestions }: { quality: QualityBreakdown; s
 // ============================================================================
 
 export default function JobDetailPage() {
+  const { t } = useI18n();
   const { id } = useParams<{ id: string }>();
   const [job, setJob] = useState<Job | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -628,6 +680,11 @@ export default function JobDetailPage() {
   const qualityScore = typeof job.qualityScore === 'number'
     ? job.qualityScore
     : (isScribe && scribeQuality ? scribeQuality.score : null);
+  const verificationGates = job.verificationGates;
+  const verificationConflicts = buildConflictItems(verificationGates);
+  const confidenceScore = resolveConfidence(verificationGates);
+  const freshnessStatus = mapFreshnessStatus(verificationGates);
+  const citationStatus = mapCitationStatus(verificationGates);
 
   return (
     <div className={containerClass}>
@@ -700,6 +757,26 @@ export default function JobDetailPage() {
                   {qualityScore >= 60 ? 'PASS' : 'FAIL'}
                 </span>
               </p>
+            </div>
+          )}
+          {verificationGates && (
+            <div>
+              <label className="text-xs font-medium text-ak-text-secondary uppercase tracking-wider">
+                {t('verification.summary.title')}
+              </label>
+              <p className="mt-1 text-sm font-semibold text-ak-text-primary">
+                {verificationGates.status.toUpperCase()}
+                {verificationGates.blockedByPolicy && (
+                  <span className="ml-2 rounded bg-red-500/20 px-1.5 py-0.5 text-[10px] text-red-300">
+                    {t('verification.summary.blocked')}
+                  </span>
+                )}
+              </p>
+              {verificationGates.rolloutMode && (
+                <p className="mt-1 text-[11px] text-ak-text-secondary">
+                  {t('verification.summary.rollout')}: {verificationGates.rolloutMode}
+                </p>
+              )}
             </div>
           )}
           {typeof payload.owner === 'string' && typeof payload.repo === 'string' && (
@@ -796,6 +873,34 @@ export default function JobDetailPage() {
         {/* Overview */}
         {activeSection === 'overview' && (
           <div className="space-y-6">
+            {verificationGates && (
+              <div className="space-y-3 rounded-lg border border-ak-border bg-ak-surface-2 p-4">
+                <h4 className="text-xs font-medium uppercase tracking-wider text-ak-text-secondary">
+                  {t('verification.summary.title')}
+                </h4>
+                <VerificationSummary
+                  gates={verificationGates.gates}
+                  overallStatus={verificationGates.status}
+                  riskProfile={verificationGates.riskProfile}
+                />
+                <p className="text-xs text-ak-text-secondary">{verificationGates.summary}</p>
+                <div className="grid gap-3 md:grid-cols-3">
+                  <div className="rounded-md border border-ak-border bg-ak-surface p-3">
+                    <p className="mb-2 text-[11px] text-ak-text-secondary">{t('verification.metrics.citation')}</p>
+                    <CitationBadge status={citationStatus} />
+                  </div>
+                  <div className="rounded-md border border-ak-border bg-ak-surface p-3">
+                    <p className="mb-2 text-[11px] text-ak-text-secondary">{t('verification.metrics.confidence')}</p>
+                    <ConfidenceIndicator score={confidenceScore} />
+                  </div>
+                  <div className="rounded-md border border-ak-border bg-ak-surface p-3">
+                    <p className="mb-2 text-[11px] text-ak-text-secondary">{t('verification.metrics.freshness')}</p>
+                    <FreshnessLabel status={freshnessStatus} />
+                  </div>
+                </div>
+                <ConflictWarning conflicts={verificationConflicts} />
+              </div>
+            )}
             {traceAutomationSummary && (
               <div className="bg-ak-surface-2 rounded-lg p-4 border border-ak-border">
                 <h4 className="text-xs font-medium text-ak-text-secondary uppercase tracking-wider mb-3">Automation Coverage</h4>

@@ -13,6 +13,10 @@ import { cookieOpts, env } from '../lib/env.js';
 import { getEnv } from '../config/env.js';
 import { HttpClient } from '../services/http/HttpClient.js';
 import type { EmailService } from '../services/email/EmailService.js';
+import {
+  oauthTokenCrypto,
+  OAuthTokenCryptoError,
+} from '../services/auth/OAuthTokenCrypto.js';
 
 // PostgreSQL error codes for constraint violations
 const PG_UNIQUE_VIOLATION = '23505';
@@ -558,6 +562,21 @@ export async function registerOAuthRoutes(fastify: FastifyInstance, emailService
           eq(oauthAccounts.provider, provider as 'github' | 'google')
         ),
       });
+
+      const encryptedAccessToken = oauthTokenCrypto.encryptForStorage({
+        userId: user.id,
+        provider,
+        token: tokens.accessToken,
+        kind: 'access',
+      });
+      const encryptedRefreshToken = tokens.refreshToken
+        ? oauthTokenCrypto.encryptForStorage({
+            userId: user.id,
+            provider,
+            token: tokens.refreshToken,
+            kind: 'refresh',
+          })
+        : null;
       
       if (!existingOAuthAccount) {
         // Create new OAuth account link
@@ -565,8 +584,8 @@ export async function registerOAuthRoutes(fastify: FastifyInstance, emailService
           userId: user.id,
           provider: provider as 'github' | 'google',
           providerAccountId: profile.id,
-          accessToken: tokens.accessToken,
-          refreshToken: tokens.refreshToken,
+          accessToken: encryptedAccessToken,
+          refreshToken: encryptedRefreshToken,
           tokenExpiresAt: tokens.expiresIn 
             ? new Date(Date.now() + tokens.expiresIn * 1000)
             : undefined,
@@ -578,8 +597,8 @@ export async function registerOAuthRoutes(fastify: FastifyInstance, emailService
         await db
           .update(oauthAccounts)
           .set({
-            accessToken: tokens.accessToken,
-            refreshToken: tokens.refreshToken ?? existingOAuthAccount.refreshToken,
+            accessToken: encryptedAccessToken,
+            refreshToken: encryptedRefreshToken ?? existingOAuthAccount.refreshToken,
             tokenExpiresAt: tokens.expiresIn 
               ? new Date(Date.now() + tokens.expiresIn * 1000)
               : existingOAuthAccount.tokenExpiresAt,
@@ -631,6 +650,12 @@ export async function registerOAuthRoutes(fastify: FastifyInstance, emailService
         console.error(`  - Set a public email in their ${provider} profile`);
         console.error(`  - Grant email permission (user:email scope for GitHub)`);
         console.error(`  - Revoke and re-authorize the OAuth app`);
+      } else if (
+        err instanceof OAuthTokenCryptoError &&
+        err.code === 'OAUTH_TOKEN_ENCRYPTION_KEY_MISSING'
+      ) {
+        errorCode = 'oauth_encryption_required';
+        console.error('[OAuth] Encryption key missing for OAuth token write');
       } else if (errorMessage.includes('relation') && errorMessage.includes('does not exist')) {
         // PostgreSQL error when oauth_accounts table is missing
         errorCode = 'oauth_db_not_migrated';

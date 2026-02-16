@@ -8,6 +8,24 @@
 
 ---
 
+## 0. M2+ Primary Validation Addendum (2026-02-16)
+
+Bu doküman M2+ reliability kapanışında `primary-first` karar modeliyle güncellendi.
+Karar-kod-metrik zinciri için kanonik kayıt:
+
+- `docs/research/TRACE_AGENT_EVIDENCE_MATRIX.md`
+- `docs/qa/TRACE_EVAL_PROTOCOL.md`
+
+Bu addendum ile Trace tarafındaki şu kararlar kilitlendi:
+
+1. Determinism doğrulaması exact-equality değil drift-threshold bazlı.
+2. Edge-case coverage eksenlerinde ASVS `V2/V3/V4` zorunlu.
+3. CI Playwright başlangıç profile: `workers=1`, `trace='on-first-retry'`.
+4. Flaky yönetimi binary değil, `PFS-lite + selective quarantine`.
+5. Rollout politikası observe -> warn -> enforce ve tek env-toggle rollback.
+
+---
+
 ## Table of Contents
 
 1. [LLM-Based Test Generation (Trace Agent)](#1-llm-based-test-generation-trace-agent)

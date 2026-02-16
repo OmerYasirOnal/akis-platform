@@ -1,7 +1,7 @@
 # Staging Rollback Runbook
 
-**Version**: 1.0.0
-**Last Updated**: 2026-02-07
+**Version**: 1.1.0
+**Last Updated**: 2026-02-16
 **Scope**: Staging Environment (`staging.akisflow.com`)
 
 > Extracted from [OCI_STAGING_RUNBOOK.md](OCI_STAGING_RUNBOOK.md) Section 10, with additional detail.
@@ -16,7 +16,45 @@
 | Health endpoint 503 after deploy | HIGH | Rollback within 5 minutes |
 | Frontend blank page | HIGH | Check Caddy first, then rollback |
 | Auth flow broken post-deploy | MEDIUM | Investigate, rollback if not fixable in 15 min |
+| Trace reproducibility <98% | HIGH | Feature-flag rollback + investigate drift |
+| Trace flake rate >2% (15m window) | HIGH | Feature-flag rollback + quarantine review |
+| Trace edge-case coverage <90% | HIGH | Stop enforce rollout, revert to observe |
 | Non-critical UI bug | LOW | Fix forward, no rollback needed |
+
+---
+
+## M2 Reliability Emergency Rollback
+
+M2 güvenilirlik dalgası için en hızlı rollback yolu deploy rollback değil, feature-flag rollback'tir.
+
+| Domain | Env Flag | Safe Rollback Value |
+|--------|----------|---------------------|
+| Contract enforcement | `AGENT_CONTRACT_ENFORCEMENT_MODE` | `observe` |
+| Verification gates rollout | `VERIFICATION_GATE_ROLLOUT_MODE` | `observe` |
+| Canary gating | `RELIABILITY_CANARY_ENABLED` | `false` |
+| Contract canary ratio | `AGENT_CONTRACT_CANARY_PERCENT` | `0` |
+| Gate canary ratio | `VERIFICATION_GATE_CANARY_PERCENT` | `0` |
+| Deterministic planning force | `AI_FORCE_DETERMINISTIC_PLAN` | `false` (opsiyonel, sadece ihtiyaç halinde) |
+| Freshness scheduler | `FRESHNESS_SCHEDULER_ENABLED` | `false` |
+
+**Procedure (no code rollback):**
+1. Update staging `.env` flags above.
+2. Restart backend container.
+3. Run `GET /health`, `GET /ready`, `GET /api/knowledge/freshness/status`.
+4. Re-run smoke + regression subset.
+
+> Not: OAuth token encryption write policy (`AI_KEY_ENCRYPTION_KEY`) feature-flag ile kapatılamaz.
+> Key eksikse callback write akışları block olur; rollback yerine key provisioning fix uygulanmalıdır.
+
+## Trace Rollout Audit Fields (Zorunlu)
+
+Rollback veya enforce-mode değişikliği yapıldığında aşağıdaki alanlar incident notuna yazılır:
+
+1. `who` (değişikliği yapan kişi)
+2. `when` (UTC timestamp)
+3. `metric` (ihlali tetikleyen metrik ve değer)
+4. `rollback_toggle` (değiştirilen env flag listesi)
+5. `cohort` (`10`, `50`, `100`)
 
 ---
 

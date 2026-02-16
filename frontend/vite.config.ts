@@ -72,7 +72,8 @@ export default defineConfig({
         target: 'http://localhost:3000',
         changeOrigin: true,
       },
-      '/auth/invite': {
+      // Proxy only invite API endpoints, not SPA deep-link routes (/auth/invite/:token).
+      '^/auth/invite(?:$|/(?:validate|accept)$)': {
         target: 'http://localhost:3000',
         changeOrigin: true,
       },

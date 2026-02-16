@@ -30,7 +30,7 @@ const tracePayloadSchema = z.object({
   baseBranch: z.string().optional(),
   branchStrategy: z.enum(['auto', 'manual']).optional(),
   dryRun: z.boolean().optional(),
-  automationMode: z.literal('generate_and_run').optional(),
+  automationMode: z.enum(['plan_only', 'generate_and_run']).optional(),
   targetBaseUrl: z.string().url().optional(),
   featureLimit: z.number().int().min(1).max(100).optional(),
   tracePreferences: z.object({
@@ -39,7 +39,15 @@ const tracePayloadSchema = z.object({
     browserTarget: z.enum(['chromium', 'cross_browser', 'mobile']),
     strictness: z.enum(['fast', 'balanced', 'strict']),
   }).optional(),
-}).passthrough();
+}).passthrough().superRefine((data, ctx) => {
+  if (data.automationMode === 'generate_and_run' && !data.targetBaseUrl) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'targetBaseUrl is required when automationMode is generate_and_run',
+      path: ['targetBaseUrl'],
+    });
+  }
+});
 
 const protoPayloadSchema = z.object({
   requirements: z.string().min(1, 'requirements field is required').optional(),
@@ -66,7 +74,7 @@ const jobIdParamsSchema = z.object({
 
 const jobsListQuerySchema = z.object({
   type: z.enum(['scribe', 'trace', 'proto']).optional(),
-  state: z.enum(['pending', 'running', 'completed', 'failed']).optional(),
+  state: z.enum(['pending', 'running', 'awaiting_approval', 'completed', 'failed']).optional(),
   limit: z.coerce.number().int().min(1).max(100).default(20),
   cursor: z.string().optional(),
 });
@@ -269,6 +277,24 @@ describe('tracePayloadSchema', () => {
     assert.strictEqual(r.featureLimit, 25);
   });
 
+  test('accepts explicit plan_only mode without targetBaseUrl', () => {
+    const r = tracePayloadSchema.parse({
+      spec: 's',
+      automationMode: 'plan_only',
+    });
+    assert.strictEqual(r.automationMode, 'plan_only');
+    assert.strictEqual(r.targetBaseUrl, undefined);
+  });
+
+  test('rejects generate_and_run when targetBaseUrl is missing', () => {
+    assert.throws(() =>
+      tracePayloadSchema.parse({
+        spec: 's',
+        automationMode: 'generate_and_run',
+      })
+    );
+  });
+
   test('rejects invalid tracePreferences enum values', () => {
     assert.throws(() => tracePayloadSchema.parse({
       spec: 's',
@@ -356,7 +382,7 @@ describe('jobsListQuerySchema', () => {
   });
 
   test('accepts all valid state values', () => {
-    for (const state of ['pending', 'running', 'completed', 'failed'] as const) {
+    for (const state of ['pending', 'running', 'awaiting_approval', 'completed', 'failed'] as const) {
       const r = jobsListQuerySchema.parse({ state });
       assert.strictEqual(r.state, state);
     }

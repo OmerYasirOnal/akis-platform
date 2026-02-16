@@ -77,13 +77,26 @@ function extractTraceMetrics(result: unknown): GateInput {
   const meta = getMetadata(result);
   if (!meta) return {};
 
+  const flowCoverage = (meta.flowCoverage as Record<string, unknown> | undefined) ?? undefined;
+  const edgeCaseCoverage = (meta.edgeCaseCoverage as Record<string, unknown> | undefined) ?? undefined;
+  const riskWeightedCoverage =
+    (meta.riskWeightedCoverage as Record<string, unknown> | undefined) ?? undefined;
+  const flaky = (meta.flaky as Record<string, unknown> | undefined) ?? undefined;
+
+  const flowCoverageRate = asNumber(flowCoverage?.coverageRate);
+  const riskWeightedRate = asNumber(riskWeightedCoverage?.weightedCoverage);
+
   const scenarioCount = asNumber(meta.scenarioCount) ?? 0;
   const expectedScenarios = asNumber(meta.expectedScenarios) ?? 10;
-  const topicCoverage =
+  const fallbackCoverage =
     expectedScenarios > 0 ? Math.min(scenarioCount / expectedScenarios, 1) : asNumber(meta.topicCoverage);
+  const topicCoverage = riskWeightedRate ?? flowCoverageRate ?? fallbackCoverage;
 
   const edgeCaseCount = asNumber(meta.edgeCaseCount) ?? 0;
+  const edgeCaseCoverageRate = asNumber(edgeCaseCoverage?.coverageRate);
   const testValidity = asNumber(meta.testValidity);
+  const pfsLite = asNumber(flaky?.pfsLite);
+  const flakyStability = pfsLite != null ? Math.max(0, Math.min(1, 1 - pfsLite)) : undefined;
   const groundednessScore = asNumber(meta.groundednessScore);
   const hallucinationRate = asNumber(meta.hallucinationRate);
 
@@ -93,7 +106,10 @@ function extractTraceMetrics(result: unknown): GateInput {
   if (hallucinationRate != null) input.hallucinationRate = hallucinationRate;
 
   const custom: Record<string, number> = {};
-  if (edgeCaseCount > 0) custom.edgeCaseCount = Math.min(edgeCaseCount / 10, 1);
+  if (edgeCaseCoverageRate != null) custom.edgeCaseCoverage = edgeCaseCoverageRate;
+  else if (edgeCaseCount > 0) custom.edgeCaseCoverage = Math.min(edgeCaseCount / 10, 1);
+  if (riskWeightedRate != null) custom.riskWeightedCoverage = riskWeightedRate;
+  if (flakyStability != null) custom.flakyStability = flakyStability;
   if (testValidity != null) custom.testValidity = testValidity;
   if (Object.keys(custom).length > 0) input.custom = custom;
 

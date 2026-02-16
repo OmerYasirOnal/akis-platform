@@ -69,6 +69,26 @@ export interface JobDetail {
   qualityScore?: number | null;
   qualityBreakdown?: unknown;
   qualitySuggestions?: string[];
+  verificationGates?: {
+    status: 'pass' | 'warn' | 'fail';
+    blocked: boolean;
+    blockedByPolicy?: boolean;
+    rolloutMode?: 'observe' | 'warn' | 'enforce_scribe' | 'enforce_all' | string;
+    configuredRolloutMode?: 'observe' | 'warn' | 'enforce_scribe' | 'enforce_all' | string;
+    rolloutCanary?: {
+      inCanary: boolean;
+      bucket: number | null;
+    };
+    rolloutReason?: string;
+    summary: string;
+    gates: Array<{
+      name: string;
+      status: 'pass' | 'warn' | 'fail';
+      score: number;
+      threshold: number;
+    }>;
+    riskProfile?: string;
+  } | null;
   effectiveRuntime?: EffectiveRuntime;
 }
 

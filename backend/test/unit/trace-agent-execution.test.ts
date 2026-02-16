@@ -326,6 +326,70 @@ describe('TraceAgent automation evaluation', () => {
     assert.ok(result.testPlan.includes('## Automation Execution Summary'));
     assert.ok(result.testPlan.includes('Generated:'));
   });
+
+  test('generate_and_run uses real runner and emits reliability metadata', async () => {
+    let runCount = 0;
+    const runner = async () => {
+      runCount += 1;
+      return {
+        runner: 'playwright' as const,
+        mode: 'real' as const,
+        totalFeatures: 1,
+        passedFeatures: runCount === 1 ? 0 : 1,
+        failedFeatures: runCount === 1 ? 1 : 0,
+        totalScenarios: 1,
+        passedScenarios: runCount === 1 ? 0 : 1,
+        failedScenarios: runCount === 1 ? 1 : 0,
+        passRate: runCount === 1 ? 0 : 100,
+        durationMs: 15,
+        failures: runCount === 1
+          ? [{ feature: 'login', scenario: 'User logs in', reason: 'timeout' }]
+          : [],
+        generatedTestPath: '/tmp/trace.spec.ts',
+        reportPath: '/tmp/results.json',
+        traceArtifactPath: '/tmp/trace.zip',
+      };
+    };
+
+    const agent = new TraceAgent({
+      tools: {
+        traceAutomationRunner: runner,
+      } as unknown as { aiService?: unknown },
+    });
+
+    const result = await agent.execute({
+      spec: [
+        'Scenario: User logs in',
+        'Given user has valid credentials',
+        'When user submits login form',
+        'Then dashboard is shown',
+      ].join('\n'),
+      automationMode: 'generate_and_run',
+      targetBaseUrl: 'https://staging.akisflow.com',
+    }) as {
+      metadata: {
+        automationExecution: {
+          mode: string;
+          targetBaseUrl: string;
+          artifactPaths?: { traceArtifactPath?: string };
+        };
+        flaky: { retryCount: number; pfsLite: number };
+        flowCoverage: { coverageRate: number };
+        edgeCaseCoverage: { coverageRate: number };
+        riskWeightedCoverage: { weightedCoverage: number };
+      };
+    };
+
+    assert.strictEqual(runCount, 2, 'flaky manager should perform one retry after first failure');
+    assert.strictEqual(result.metadata.automationExecution.mode, 'real');
+    assert.strictEqual(result.metadata.automationExecution.targetBaseUrl, 'https://staging.akisflow.com');
+    assert.strictEqual(result.metadata.automationExecution.artifactPaths?.traceArtifactPath, '/tmp/trace.zip');
+    assert.strictEqual(result.metadata.flaky.retryCount, 1);
+    assert.ok(result.metadata.flaky.pfsLite >= 0);
+    assert.ok(result.metadata.flowCoverage.coverageRate >= 0);
+    assert.ok(result.metadata.edgeCaseCoverage.coverageRate >= 0);
+    assert.ok(result.metadata.riskWeightedCoverage.weightedCoverage >= 0);
+  });
 });
 
 // ─── Priority classification ────────────────────────────────────────

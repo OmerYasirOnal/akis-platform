@@ -20,6 +20,7 @@
 // =============================================================================
 
 export type GateStatus = 'pass' | 'warn' | 'fail';
+export type VerificationRolloutMode = 'observe' | 'warn' | 'enforce_scribe' | 'enforce_all';
 
 export interface GateResult {
   name: string;
@@ -50,6 +51,13 @@ export interface VerificationResult {
     durationMs: number;
     gatesEvaluated: number;
   };
+}
+
+export interface GateRolloutDecision {
+  rolloutMode: VerificationRolloutMode;
+  shouldEnforce: boolean;
+  blockedByPolicy: boolean;
+  reason: string;
 }
 
 export type RiskProfile = 'strict' | 'standard' | 'relaxed';
@@ -290,7 +298,16 @@ export class VerificationGateEngine {
     const gate = this.profile.gates.find(g => g.name === gateName);
     if (gate) {
       Object.assign(gate, overrides);
+      return;
     }
+
+    this.profile.gates.push({
+      name: gateName,
+      passThreshold: overrides.passThreshold ?? 0.7,
+      warnThreshold: overrides.warnThreshold,
+      blocking: overrides.blocking ?? false,
+      enabled: overrides.enabled ?? true,
+    });
   }
 
   /**
@@ -399,4 +416,56 @@ export class VerificationGateEngine {
 
     return `Verification failed: ${failedNames}. ${passed}/${total} gates passed.`;
   }
+}
+
+export function evaluateGateRollout(
+  rolloutMode: VerificationRolloutMode,
+  agentType: string,
+  verification: VerificationResult
+): GateRolloutDecision {
+  if (!verification.blocked) {
+    return {
+      rolloutMode,
+      shouldEnforce: false,
+      blockedByPolicy: false,
+      reason: 'No blocking gate failure detected.',
+    };
+  }
+
+  if (rolloutMode === 'observe') {
+    return {
+      rolloutMode,
+      shouldEnforce: false,
+      blockedByPolicy: false,
+      reason: 'Observe mode keeps verification non-blocking.',
+    };
+  }
+
+  if (rolloutMode === 'warn') {
+    return {
+      rolloutMode,
+      shouldEnforce: false,
+      blockedByPolicy: false,
+      reason: 'Warn mode records failures without blocking completion.',
+    };
+  }
+
+  if (rolloutMode === 'enforce_scribe') {
+    const enforce = agentType === 'scribe';
+    return {
+      rolloutMode,
+      shouldEnforce: enforce,
+      blockedByPolicy: enforce,
+      reason: enforce
+        ? 'Scribe gate enforcement is active.'
+        : `Agent "${agentType}" is out of scope for enforce_scribe mode.`,
+    };
+  }
+
+  return {
+    rolloutMode,
+    shouldEnforce: true,
+    blockedByPolicy: true,
+    reason: 'Global gate enforcement is active.',
+  };
 }

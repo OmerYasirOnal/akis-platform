@@ -3,6 +3,7 @@ import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import JobDetailPage from '../JobDetailPage';
 import { api } from '../../services/api';
+import { I18nProvider } from '../../i18n/I18nProvider';
 
 vi.mock('../../services/api', () => ({
   api: {
@@ -24,11 +25,13 @@ vi.mock('../../hooks/useJobStream', () => ({
 
 function renderJobDetail(jobId = 'test-job-1') {
   return render(
-    <MemoryRouter initialEntries={[`/dashboard/jobs/${jobId}`]}>
-      <Routes>
-        <Route path="/dashboard/jobs/:id" element={<JobDetailPage />} />
-      </Routes>
-    </MemoryRouter>
+    <I18nProvider>
+      <MemoryRouter initialEntries={[`/dashboard/jobs/${jobId}`]}>
+        <Routes>
+          <Route path="/dashboard/jobs/:id" element={<JobDetailPage />} />
+        </Routes>
+      </MemoryRouter>
+    </I18nProvider>
   );
 }
 
@@ -194,5 +197,35 @@ describe('JobDetailPage', () => {
     expect(screen.getByText('No')).toBeInTheDocument();
     // Files analyzed values present (may match multiple)
     expect(screen.getAllByText(/1 files/).length).toBeGreaterThan(0);
+  });
+
+  it('renders verification trust signals when verification gates are present', async () => {
+    (api.getJob as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ...baseJob,
+      verificationGates: {
+        status: 'warn',
+        blocked: true,
+        blockedByPolicy: true,
+        rolloutMode: 'enforce_scribe',
+        summary: 'Verification warnings detected',
+        gates: [
+          { name: 'citation', status: 'warn', score: 0.6, threshold: 0.8 },
+          { name: 'groundedness', status: 'pass', score: 0.9, threshold: 0.8 },
+          { name: 'freshness', status: 'warn', score: 0.5, threshold: 0.7 },
+        ],
+        riskProfile: 'strict',
+      },
+    });
+
+    renderJobDetail();
+
+    await waitFor(() => {
+      expect(screen.getAllByText('Verification Gates').length).toBeGreaterThan(0);
+    });
+
+    expect(screen.getByText('Blocked by policy')).toBeInTheDocument();
+    expect(screen.getAllByText('Citation').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Confidence').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Freshness').length).toBeGreaterThan(0);
   });
 });

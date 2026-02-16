@@ -41,6 +41,47 @@ export class SkillContractViolationError extends Error {
   }
 }
 
+export class AgentContractViolationError extends Error {
+  readonly code = 'CONTRACT_VIOLATION' as const;
+  readonly agentType: string;
+  readonly phase: 'input' | 'output';
+  readonly issues: string[];
+  readonly retryable: boolean;
+
+  constructor(
+    agentType: string,
+    phase: 'input' | 'output',
+    issues: string[],
+    retryable = false
+  ) {
+    super(`Agent ${agentType} ${phase} contract violation: ${issues.join('; ')}`);
+    this.name = 'AgentContractViolationError';
+    this.agentType = agentType;
+    this.phase = phase;
+    this.issues = issues;
+    this.retryable = retryable;
+  }
+}
+
+export class VerificationGateBlockedError extends Error {
+  readonly code = 'VERIFICATION_BLOCKED' as const;
+  readonly agentType: string;
+  readonly rolloutMode: string;
+  readonly failures: string[];
+  readonly retryable: boolean;
+
+  constructor(agentType: string, rolloutMode: string, failures: string[], retryable = false) {
+    super(
+      `Verification blocked for ${agentType} in mode ${rolloutMode}: ${failures.join(', ')}`
+    );
+    this.name = 'VerificationGateBlockedError';
+    this.agentType = agentType;
+    this.rolloutMode = rolloutMode;
+    this.failures = failures;
+    this.retryable = retryable;
+  }
+}
+
 /**
  * AI-related error codes for job error classification
  */
