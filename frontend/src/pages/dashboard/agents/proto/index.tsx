@@ -51,6 +51,15 @@ interface Artifact {
   content?: string;
 }
 
+const toProtoExecutionStatus = (
+  status: unknown
+): ProtoExecutionEvent['status'] => {
+  if (status === 'running' || status === 'completed' || status === 'failed') {
+    return status;
+  }
+  return undefined;
+};
+
 const DashboardAgentProtoPage = () => {
   const { t } = useI18n();
   const { status: agentStatus } = useAgentStatus('proto');
@@ -290,10 +299,7 @@ const DashboardAgentProtoPage = () => {
         stepId: typeof event.stepId === 'string' ? event.stepId : undefined,
         title: typeof event.title === 'string' ? event.title : undefined,
         timestamp: typeof event.timestamp === 'string' ? event.timestamp : new Date().toISOString(),
-        status:
-          event.status === 'running' || event.status === 'completed' || event.status === 'failed'
-            ? event.status
-            : undefined,
+        status: toProtoExecutionStatus(event.status),
       }))
       .slice(0, 50);
   })();
