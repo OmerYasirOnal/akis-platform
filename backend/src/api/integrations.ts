@@ -37,25 +37,21 @@ import { eq, and } from 'drizzle-orm';
 import { DEV_GITHUB_BOOTSTRAP_TOKEN_PLACEHOLDER } from '../core/orchestrator/AgentOrchestrator.js';
 import { encryptSecret, decryptSecret } from '../utils/crypto.js';
 import { atlassianOAuthService } from '../services/atlassian/index.js';
+import { McpGateway } from '../services/mcp/McpGateway.js';
+import {
+  oauthTokenCrypto,
+  OAuthTokenCryptoError,
+} from '../services/auth/OAuthTokenCrypto.js';
 
 // GitHub API helper
-async function fetchFromGitHub<T>(endpoint: string, accessToken: string): Promise<T> {
-  const response = await fetch(`https://api.github.com${endpoint}`, {
-    headers: {
-      Accept: 'application/vnd.github.v3+json',
-      Authorization: `Bearer ${accessToken}`,
-      'User-Agent': 'AKIS-Platform',
-    },
-  });
+const mcpGateway = new McpGateway();
 
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({}));
-    throw new Error(
-      error.message || `GitHub API error: ${response.status} ${response.statusText}`
-    );
-  }
-
-  return response.json() as Promise<T>;
+async function fetchFromGitHub<T>(
+  endpoint: string,
+  accessToken: string,
+  correlationId?: string
+): Promise<T> {
+  return mcpGateway.fetchGitHubJson<T>(endpoint, accessToken, correlationId);
 }
 
 // Helper to get user's GitHub OAuth token
@@ -69,7 +65,17 @@ async function getGitHubToken(userId: string): Promise<string | null> {
 
   const rawToken = githubOAuth?.accessToken || null;
   if (rawToken && rawToken !== DEV_GITHUB_BOOTSTRAP_TOKEN_PLACEHOLDER) {
-    return rawToken;
+    try {
+      return oauthTokenCrypto.decryptForUse({
+        userId,
+        provider: 'github',
+        rawToken,
+        kind: 'access',
+      });
+    } catch (error) {
+      console.warn('[integrations] Failed to decrypt stored GitHub OAuth token:', error);
+      return null;
+    }
   }
 
   if (rawToken === DEV_GITHUB_BOOTSTRAP_TOKEN_PLACEHOLDER && process.env.SCRIBE_DEV_GITHUB_BOOTSTRAP === 'true') {
@@ -169,27 +175,21 @@ export async function integrationsRoutes(fastify: FastifyInstance) {
         // Clear state cookie
         reply.clearCookie('github_oauth_state', { path: '/' });
 
-        // Exchange code for access token
-        const tokenResponse = await fetch('https://github.com/login/oauth/access_token', {
-          method: 'POST',
-          headers: {
-            'Accept': 'application/json',
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            client_id: config.GITHUB_OAUTH_CLIENT_ID,
-            client_secret: config.GITHUB_OAUTH_CLIENT_SECRET,
+        // Exchange code for access token (via gateway boundary)
+        const tokenData = await mcpGateway.exchangeGitHubOAuthCode(
+          {
             code,
-            redirect_uri: config.GITHUB_OAUTH_CALLBACK_URL,
-          }),
-        });
+            clientId: config.GITHUB_OAUTH_CLIENT_ID!,
+            clientSecret: config.GITHUB_OAUTH_CLIENT_SECRET!,
+            redirectUri: config.GITHUB_OAUTH_CALLBACK_URL!,
+          },
+          request.id
+        ).catch(() => null);
 
-        if (!tokenResponse.ok) {
+        if (!tokenData) {
           const errorUrl = `${config.APP_PUBLIC_URL}/dashboard/integrations?github=error&reason=token_exchange_failed`;
           return reply.code(302).header('Location', errorUrl).send();
         }
-
-        const tokenData = await tokenResponse.json() as { access_token?: string; error?: string };
         
         if (tokenData.error || !tokenData.access_token) {
           const errorUrl = `${config.APP_PUBLIC_URL}/dashboard/integrations?github=error&reason=token_missing`;
@@ -197,22 +197,35 @@ export async function integrationsRoutes(fastify: FastifyInstance) {
         }
 
         const accessToken = tokenData.access_token;
+        let encryptedAccessToken: string;
 
-        // Fetch GitHub user info
-        const userResponse = await fetch('https://api.github.com/user', {
-          headers: {
-            'Accept': 'application/vnd.github.v3+json',
-            'Authorization': `Bearer ${accessToken}`,
-            'User-Agent': 'AKIS-Platform',
-          },
-        });
+        try {
+          encryptedAccessToken = oauthTokenCrypto.encryptForStorage({
+            userId: user.id,
+            provider: 'github',
+            token: accessToken,
+            kind: 'access',
+          });
+        } catch (error) {
+          if (
+            error instanceof OAuthTokenCryptoError &&
+            error.code === 'OAUTH_TOKEN_ENCRYPTION_KEY_MISSING'
+          ) {
+            const errorUrl = `${config.APP_PUBLIC_URL}/dashboard/integrations?github=error&reason=encryption_key_missing`;
+            return reply.code(302).header('Location', errorUrl).send();
+          }
 
-        if (!userResponse.ok) {
-          const errorUrl = `${config.APP_PUBLIC_URL}/dashboard/integrations?github=error&reason=user_fetch_failed`;
+          console.error('[integrations] Failed to encrypt GitHub OAuth token:', error);
+          const errorUrl = `${config.APP_PUBLIC_URL}/dashboard/integrations?github=error&reason=token_storage_failed`;
           return reply.code(302).header('Location', errorUrl).send();
         }
 
-        const githubUser = await userResponse.json() as { id: number; login: string };
+        // Fetch GitHub user info (via gateway boundary)
+        const githubUser = await mcpGateway.fetchGitHubUser(accessToken, request.id).catch(() => null);
+        if (!githubUser) {
+          const errorUrl = `${config.APP_PUBLIC_URL}/dashboard/integrations?github=error&reason=user_fetch_failed`;
+          return reply.code(302).header('Location', errorUrl).send();
+        }
 
         // Store/update in database
         const existingOAuth = await db.query.oauthAccounts.findFirst({
@@ -228,7 +241,7 @@ export async function integrationsRoutes(fastify: FastifyInstance) {
           await db
             .update(oauthAccounts)
             .set({
-              accessToken: accessToken,
+              accessToken: encryptedAccessToken,
               providerAccountId: githubUser.id.toString(),
               updatedAt: new Date(),
             })
@@ -238,7 +251,7 @@ export async function integrationsRoutes(fastify: FastifyInstance) {
             userId: user.id,
             provider: 'github',
             providerAccountId: githubUser.id.toString(),
-            accessToken: accessToken,
+            accessToken: encryptedAccessToken,
           });
         }
 
@@ -277,7 +290,8 @@ export async function integrationsRoutes(fastify: FastifyInstance) {
           // Verify token works by fetching user info
           const githubUser = await fetchFromGitHub<{ login: string; avatar_url: string; created_at: string }>(
             '/user',
-            token
+            token,
+            request.id
           );
 
           return reply.code(200).send({
@@ -356,13 +370,15 @@ export async function integrationsRoutes(fastify: FastifyInstance) {
         // Get authenticated user
         const githubUser = await fetchFromGitHub<{ login: string; avatar_url: string }>(
           '/user',
-          token
+          token,
+          request.id
         );
 
         // Get user's organizations
         const orgs = await fetchFromGitHub<Array<{ login: string; avatar_url: string }>>(
           '/user/orgs',
-          token
+          token,
+          request.id
         );
 
         const owners = [
@@ -413,7 +429,7 @@ export async function integrationsRoutes(fastify: FastifyInstance) {
 
         // Fetch repos for the owner
         // First check if owner is the authenticated user or an org
-        const githubUser = await fetchFromGitHub<{ login: string }>('/user', token);
+        const githubUser = await fetchFromGitHub<{ login: string }>('/user', token, request.id);
 
         let rawRepos: Array<{
           name: string;
@@ -425,10 +441,14 @@ export async function integrationsRoutes(fastify: FastifyInstance) {
 
         if (owner === githubUser.login) {
           // User's own repos
-          rawRepos = await fetchFromGitHub('/user/repos?per_page=100&sort=updated', token);
+          rawRepos = await fetchFromGitHub('/user/repos?per_page=100&sort=updated', token, request.id);
         } else {
           // Organization repos
-          rawRepos = await fetchFromGitHub(`/orgs/${encodeURIComponent(owner)}/repos?per_page=100&sort=updated`, token);
+          rawRepos = await fetchFromGitHub(
+            `/orgs/${encodeURIComponent(owner)}/repos?per_page=100&sort=updated`,
+            token,
+            request.id
+          );
         }
 
         const repos = rawRepos.map((repo) => ({
@@ -482,13 +502,15 @@ export async function integrationsRoutes(fastify: FastifyInstance) {
         // Get repo info for default branch
         const repoInfo = await fetchFromGitHub<{ default_branch: string }>(
           `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}`,
-          token
+          token,
+          request.id
         );
 
         // Get branches
         const rawBranches = await fetchFromGitHub<Array<{ name: string }>>(
           `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/branches?per_page=100`,
-          token
+          token,
+          request.id
         );
 
         const branches = rawBranches.map((branch) => ({
@@ -721,7 +743,7 @@ export async function integrationsRoutes(fastify: FastifyInstance) {
           const token = await getGitHubToken(user.id);
           if (token) {
             try {
-              const githubUser = await fetchFromGitHub<{ login: string }>('/user', token);
+              const githubUser = await fetchFromGitHub<{ login: string }>('/user', token, request.id);
               githubStatus = { connected: true, login: githubUser.login };
             } catch {
               githubStatus = { connected: false };
@@ -861,40 +883,10 @@ export async function integrationsRoutes(fastify: FastifyInstance) {
     siteUrl: string,
     email: string,
     apiToken: string,
-    provider: 'jira' | 'confluence'
+    provider: 'jira' | 'confluence',
+    correlationId?: string
   ): Promise<{ success: boolean; error?: string; displayName?: string }> {
-    try {
-      const auth = Buffer.from(`${email}:${apiToken}`).toString('base64');
-      const endpoint = provider === 'jira' 
-        ? `${siteUrl}/rest/api/3/myself`
-        : `${siteUrl}/wiki/rest/api/user/current`;
-
-      const response = await fetch(endpoint, {
-        headers: {
-          'Authorization': `Basic ${auth}`,
-          'Accept': 'application/json',
-        },
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text().catch(() => '');
-        if (response.status === 401) {
-          return { success: false, error: 'Invalid credentials. Check your email and API token.' };
-        }
-        if (response.status === 403) {
-          return { success: false, error: 'Access forbidden. Your API token may lack required permissions.' };
-        }
-        return { success: false, error: `API error (${response.status}): ${errorText.substring(0, 200)}` };
-      }
-
-      const data = await response.json() as { displayName?: string };
-      return { success: true, displayName: data.displayName };
-    } catch (error) {
-      return { 
-        success: false, 
-        error: error instanceof Error ? error.message : 'Connection failed' 
-      };
-    }
+    return mcpGateway.testAtlassianConnection(siteUrl, email, apiToken, provider, correlationId);
   }
 
   // POST /api/integrations/jira - Connect Jira
@@ -916,7 +908,13 @@ export async function integrationsRoutes(fastify: FastifyInstance) {
         const siteUrl = body.siteUrl.replace(/\/+$/, '');
 
         // Test connection first
-        const testResult = await testAtlassianConnection(siteUrl, body.email, body.apiToken, 'jira');
+        const testResult = await testAtlassianConnection(
+          siteUrl,
+          body.email,
+          body.apiToken,
+          'jira',
+          request.id
+        );
         if (!testResult.success) {
           return reply.code(400).send({
             error: { code: 'CONNECTION_FAILED', message: testResult.error || 'Failed to connect to Jira' },
@@ -1071,7 +1069,13 @@ export async function integrationsRoutes(fastify: FastifyInstance) {
         }, `jira:${user.id}`);
 
         // Test connection
-        const testResult = await testAtlassianConnection(cred.siteUrl, cred.userEmail, apiToken, 'jira');
+        const testResult = await testAtlassianConnection(
+          cred.siteUrl,
+          cred.userEmail,
+          apiToken,
+          'jira',
+          request.id
+        );
 
         // Update validation status
         await db
@@ -1152,7 +1156,13 @@ export async function integrationsRoutes(fastify: FastifyInstance) {
         const siteUrl = body.siteUrl.replace(/\/+$/, '');
 
         // Test connection first
-        const testResult = await testAtlassianConnection(siteUrl, body.email, body.apiToken, 'confluence');
+        const testResult = await testAtlassianConnection(
+          siteUrl,
+          body.email,
+          body.apiToken,
+          'confluence',
+          request.id
+        );
         if (!testResult.success) {
           return reply.code(400).send({
             error: { code: 'CONNECTION_FAILED', message: testResult.error || 'Failed to connect to Confluence' },
@@ -1307,7 +1317,13 @@ export async function integrationsRoutes(fastify: FastifyInstance) {
         }, `confluence:${user.id}`);
 
         // Test connection
-        const testResult = await testAtlassianConnection(cred.siteUrl, cred.userEmail, apiToken, 'confluence');
+        const testResult = await testAtlassianConnection(
+          cred.siteUrl,
+          cred.userEmail,
+          apiToken,
+          'confluence',
+          request.id
+        );
 
         // Update validation status
         await db
@@ -1369,4 +1385,3 @@ export async function integrationsRoutes(fastify: FastifyInstance) {
     }
   );
 }
-

@@ -934,7 +934,9 @@ export const MESSAGE_KEYS = [
   'tech.closing.cta',
 ] as const;
 
-export type MessageKey = (typeof MESSAGE_KEYS)[number];
+// Keep strong autocomplete for known keys while allowing incremental key rollout.
+// Runtime still guards missing translations via I18nProvider fallback/warnings.
+export type MessageKey = (typeof MESSAGE_KEYS)[number] | (string & {});
 
 export type Messages = Record<MessageKey, string>;
 

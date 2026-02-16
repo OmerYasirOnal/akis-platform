@@ -56,6 +56,29 @@ export interface JobAiInfo {
   calls: JobAiCall[];
 }
 
+export interface VerificationGateItem {
+  name: string;
+  status: 'pass' | 'warn' | 'fail';
+  score: number;
+  threshold: number;
+}
+
+export interface JobVerificationGates {
+  status: 'pass' | 'warn' | 'fail';
+  blocked: boolean;
+  blockedByPolicy?: boolean;
+  rolloutMode?: 'observe' | 'warn' | 'enforce_scribe' | 'enforce_all' | string;
+  configuredRolloutMode?: 'observe' | 'warn' | 'enforce_scribe' | 'enforce_all' | string;
+  rolloutCanary?: {
+    inCanary: boolean;
+    bucket: number | null;
+  };
+  rolloutReason?: string;
+  summary: string;
+  gates: VerificationGateItem[];
+  riskProfile?: string;
+}
+
 export interface Job {
   id: string;
   type: JobType;
@@ -128,6 +151,8 @@ export interface Job {
   qualityComputedAt?: string | null;
   /** Quality improvement suggestions */
   qualitySuggestions?: string[] | null;
+  /** Verification gate verdict and gate-level scores */
+  verificationGates?: JobVerificationGates | null;
 }
 
 export interface TraceAutomationFailure {
@@ -149,7 +174,7 @@ export interface TraceAutomationSummary {
   durationMs: number;
   failures: TraceAutomationFailure[];
   generatedTestPath: string;
-  mode: 'syntactic';
+  mode: 'syntactic' | 'ai-enhanced' | 'real';
   totalScenarios: number;
   executedScenarios: number;
   passedScenarios: number;
@@ -157,6 +182,48 @@ export interface TraceAutomationSummary {
   passRate: number;
   featuresCovered: number;
   featureCoverageRate: number;
+  artifactPaths?: {
+    reportPath?: string;
+    traceArtifactPath?: string;
+  };
+}
+
+export interface FlowCoverageSummary {
+  totalFlows: number;
+  coveredFlows: number;
+  coverageRate: number;
+  criticalFlows: number;
+  criticalCoveredFlows: number;
+  criticalCoverageRate: number;
+  missingFlows: string[];
+  coveredFlowNames: string[];
+}
+
+export interface EdgeCaseCoverageSummary {
+  coveredCategories: number;
+  totalCategories: number;
+  coverageRate: number;
+  missingCategories: string[];
+  asvsCoverage: {
+    v2Auth: boolean;
+    v3Session: boolean;
+    v4AccessControl: boolean;
+  };
+}
+
+export interface RiskWeightedCoverageSummary {
+  rawCoverage: number;
+  weightedCoverage: number;
+  coveredRiskPoints: number;
+  maxRiskPoints: number;
+}
+
+export interface TraceFlakySummary {
+  pfsLite: number;
+  retryCount: number;
+  quarantinedScenarios: string[];
+  flakyPassedScenarios: string[];
+  scenarioScores: Record<string, number>;
 }
 
 export interface JobTraceEvent {

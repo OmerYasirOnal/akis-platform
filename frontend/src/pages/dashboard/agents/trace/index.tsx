@@ -61,13 +61,48 @@ interface AutomationExecutionSummary {
   testCasesFailed?: number;
   durationMs?: number;
   generatedTestPath?: string;
+  artifactPaths?: {
+    reportPath?: string;
+    traceArtifactPath?: string;
+  };
   failures?: Array<{ feature: string; test: string; reason: string }>;
   featuresCovered: number;
   featuresTotal: number;
   featureCoverageRate: number;
-  mode: 'syntactic' | 'ai-enhanced';
+  mode: 'syntactic' | 'ai-enhanced' | 'real';
   priorityBreakdown?: Record<string, number>;
   layerBreakdown?: Record<string, number>;
+}
+
+interface FlowCoverageSummary {
+  totalFlows: number;
+  coveredFlows: number;
+  coverageRate: number;
+  criticalCoverageRate: number;
+}
+
+interface EdgeCaseCoverageSummary {
+  coveredCategories: number;
+  totalCategories: number;
+  coverageRate: number;
+  missingCategories: string[];
+  asvsCoverage?: {
+    v2Auth: boolean;
+    v3Session: boolean;
+    v4AccessControl: boolean;
+  };
+}
+
+interface RiskWeightedCoverageSummary {
+  weightedCoverage: number;
+  rawCoverage: number;
+}
+
+interface TraceFlakySummary {
+  pfsLite: number;
+  retryCount: number;
+  quarantinedScenarios: string[];
+  flakyPassedScenarios: string[];
 }
 
 interface JobMetadata {
@@ -78,6 +113,10 @@ interface JobMetadata {
   repoContext?: { fileCount: number; routes: number; models: number } | null;
   automationSummary?: AutomationExecutionSummary;
   automationExecution?: AutomationExecutionSummary;
+  flowCoverage?: FlowCoverageSummary;
+  edgeCaseCoverage?: EdgeCaseCoverageSummary;
+  riskWeightedCoverage?: RiskWeightedCoverageSummary;
+  flaky?: TraceFlakySummary;
 }
 
 const DashboardAgentTracePage = () => {
@@ -97,6 +136,8 @@ const DashboardAgentTracePage = () => {
     browserTarget: 'chromium',
     strictness: 'balanced',
   });
+  const [automationMode, setAutomationMode] = useState<'plan_only' | 'generate_and_run'>('plan_only');
+  const [targetBaseUrl, setTargetBaseUrl] = useState('https://staging.akisflow.com');
 
   // Job execution state
   const [currentJob, setCurrentJob] = useState<JobDetail | null>(null);
@@ -169,7 +210,17 @@ const DashboardAgentTracePage = () => {
     }
   }, [currentJob, isPolling, pollJobStatus]);
 
-  const canRun = spec.trim().length > 0 && !isPolling;
+  const hasValidTargetUrl = (() => {
+    if (automationMode !== 'generate_and_run') return true;
+    try {
+      const url = new URL(targetBaseUrl.trim());
+      return url.protocol === 'http:' || url.protocol === 'https:';
+    } catch {
+      return false;
+    }
+  })();
+
+  const canRun = spec.trim().length > 0 && !isPolling && hasValidTargetUrl;
 
   const updatePreference = (key: TraceQuestionKey, value: string) => {
     setTracePreferences((prev) => ({ ...prev, [key]: value } as TracePreferences));
@@ -239,7 +290,7 @@ const DashboardAgentTracePage = () => {
       id: `profile-${Date.now()}`,
       timestamp: new Date(),
       level: 'info',
-      message: `${t('traceConsole.logs.profilePrefix')}: depth=${tracePreferences.testDepth}, auth=${tracePreferences.authScope}, browser=${tracePreferences.browserTarget}, strictness=${tracePreferences.strictness}`,
+      message: `${t('traceConsole.logs.profilePrefix')}: depth=${tracePreferences.testDepth}, auth=${tracePreferences.authScope}, browser=${tracePreferences.browserTarget}, strictness=${tracePreferences.strictness}, mode=${automationMode}${automationMode === 'generate_and_run' ? `, target=${targetBaseUrl.trim()}` : ''}`,
     };
     setLogs([initialLog, preferenceLog]);
     setActiveTab('logs');
@@ -275,6 +326,10 @@ const DashboardAgentTracePage = () => {
         type: 'trace',
         payload: {
           spec: spec.trim(),
+          automationMode,
+          ...(automationMode === 'generate_and_run' && {
+            targetBaseUrl: targetBaseUrl.trim(),
+          }),
           tracePreferences,
           ...(aiProvider && { aiProvider }),
           ...(piriContext && { additionalContext: piriContext }),
@@ -369,12 +424,16 @@ const DashboardAgentTracePage = () => {
       typeof value.featuresCovered !== 'number' ||
       typeof value.featuresTotal !== 'number' ||
       typeof value.featureCoverageRate !== 'number' ||
-      (value.mode !== 'syntactic' && value.mode !== 'ai-enhanced')
+      (value.mode !== 'syntactic' && value.mode !== 'ai-enhanced' && value.mode !== 'real')
     ) {
       return null;
     }
     return value as AutomationExecutionSummary;
   })();
+  const flowCoverage = jobMetadata?.flowCoverage ?? null;
+  const edgeCaseCoverage = jobMetadata?.edgeCaseCoverage ?? null;
+  const riskWeightedCoverage = jobMetadata?.riskWeightedCoverage ?? null;
+  const flakySummary = jobMetadata?.flaky ?? null;
   const generatedTestSnippet = (() => {
     if (!currentJob?.result || typeof currentJob.result !== 'object') return null;
     const artifacts = (currentJob.result as { artifacts?: unknown }).artifacts;
@@ -489,6 +548,45 @@ const DashboardAgentTracePage = () => {
             </div>
           </div>
 
+          <div className="grid gap-3 rounded-lg border border-ak-border bg-ak-surface-2 p-3 md:grid-cols-2">
+            <label className="block space-y-1">
+              <span className="text-xs font-medium text-ak-text-primary">
+                {t('traceConsole.automation.modeLabel')}
+              </span>
+              <select
+                value={automationMode}
+                onChange={(event) => setAutomationMode(event.target.value as 'plan_only' | 'generate_and_run')}
+                disabled={!!isRunning}
+                className="w-full rounded-lg border border-ak-border bg-ak-surface px-3 py-2 text-sm text-ak-text-primary focus:border-ak-primary focus:outline-none focus:ring-1 focus:ring-ak-primary disabled:opacity-50"
+              >
+                <option value="plan_only">{t('traceConsole.automation.modePlanOnly')}</option>
+                <option value="generate_and_run">{t('traceConsole.automation.modeGenerateAndRun')}</option>
+              </select>
+              <span className="text-[11px] text-ak-text-secondary">
+                {t('traceConsole.automation.modeHelp')}
+              </span>
+            </label>
+
+            <label className="block space-y-1">
+              <span className="text-xs font-medium text-ak-text-primary">
+                {t('traceConsole.automation.targetBaseUrlLabel')}
+              </span>
+              <input
+                type="url"
+                value={targetBaseUrl}
+                onChange={(event) => setTargetBaseUrl(event.target.value)}
+                disabled={!!isRunning || automationMode !== 'generate_and_run'}
+                placeholder="https://staging.akisflow.com"
+                className="w-full rounded-lg border border-ak-border bg-ak-surface px-3 py-2 text-sm text-ak-text-primary placeholder-ak-text-secondary/50 focus:border-ak-primary focus:outline-none focus:ring-1 focus:ring-ak-primary disabled:opacity-50"
+              />
+              <span className="text-[11px] text-ak-text-secondary">
+                {automationMode === 'generate_and_run'
+                  ? t('traceConsole.automation.targetBaseUrlHelp')
+                  : t('traceConsole.automation.targetBaseUrlDisabledHelp')}
+              </span>
+            </label>
+          </div>
+
           {/* Run Button Row */}
           <div className="flex flex-wrap items-center gap-3 border-t border-ak-border pt-4">
             {isIdle ? (
@@ -519,7 +617,9 @@ const DashboardAgentTracePage = () => {
 
             {!canRun && isIdle && (
               <p className="text-xs text-ak-text-secondary">
-                Provide a specification to begin analysis
+                {hasValidTargetUrl
+                  ? 'Provide a specification to begin analysis'
+                  : t('traceConsole.automation.targetUrlRequired')}
               </p>
             )}
           </div>
@@ -588,11 +688,17 @@ const DashboardAgentTracePage = () => {
                 <div className="flex items-center gap-2">
                   <p className="font-semibold text-ak-text-primary">{t('traceConsole.summary.title')}</p>
                   <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
-                    automationExecution.mode === 'ai-enhanced'
-                      ? 'bg-purple-500/10 text-purple-400 border border-purple-500/20'
-                      : 'bg-ak-surface-2 text-ak-text-secondary border border-ak-border'
+                    automationExecution.mode === 'real'
+                      ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                      : automationExecution.mode === 'ai-enhanced'
+                        ? 'bg-purple-500/10 text-purple-400 border border-purple-500/20'
+                        : 'bg-ak-surface-2 text-ak-text-secondary border border-ak-border'
                   }`}>
-                    {automationExecution.mode === 'ai-enhanced' ? 'AI-Enhanced' : 'Syntactic'}
+                    {automationExecution.mode === 'real'
+                      ? t('traceConsole.summary.modeReal')
+                      : automationExecution.mode === 'ai-enhanced'
+                        ? t('traceConsole.summary.modeAiEnhanced')
+                        : t('traceConsole.summary.modeSyntactic')}
                   </span>
                 </div>
                 {automationExecution.targetBaseUrl && (
@@ -638,6 +744,68 @@ const DashboardAgentTracePage = () => {
                       </div>
                     ))}
                   </div>
+                </div>
+              )}
+              {automationExecution.artifactPaths?.traceArtifactPath && (
+                <p className="text-[11px] text-ak-text-secondary">
+                  {t('traceConsole.summary.traceArtifact')}: {automationExecution.artifactPaths.traceArtifactPath}
+                </p>
+              )}
+            </div>
+          )}
+
+          {(flowCoverage || edgeCaseCoverage || riskWeightedCoverage || flakySummary) && (
+            <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+              {flowCoverage && (
+                <div className="rounded border border-ak-border bg-ak-surface px-3 py-2 text-xs">
+                  <p className="text-[10px] uppercase tracking-wide text-ak-text-secondary/70">
+                    {t('traceConsole.reliability.flowCoverage')}
+                  </p>
+                  <p className="text-sm font-semibold text-ak-text-primary">
+                    %{Math.round(flowCoverage.coverageRate * 100)}
+                  </p>
+                  <p className="text-[11px] text-ak-text-secondary">
+                    {flowCoverage.coveredFlows}/{flowCoverage.totalFlows}
+                  </p>
+                </div>
+              )}
+              {edgeCaseCoverage && (
+                <div className="rounded border border-ak-border bg-ak-surface px-3 py-2 text-xs">
+                  <p className="text-[10px] uppercase tracking-wide text-ak-text-secondary/70">
+                    {t('traceConsole.reliability.edgeCoverage')}
+                  </p>
+                  <p className="text-sm font-semibold text-ak-text-primary">
+                    %{Math.round(edgeCaseCoverage.coverageRate * 100)}
+                  </p>
+                  <p className="text-[11px] text-ak-text-secondary">
+                    {edgeCaseCoverage.coveredCategories}/{edgeCaseCoverage.totalCategories}
+                  </p>
+                </div>
+              )}
+              {riskWeightedCoverage && (
+                <div className="rounded border border-ak-border bg-ak-surface px-3 py-2 text-xs">
+                  <p className="text-[10px] uppercase tracking-wide text-ak-text-secondary/70">
+                    {t('traceConsole.reliability.riskWeightedCoverage')}
+                  </p>
+                  <p className="text-sm font-semibold text-ak-text-primary">
+                    %{Math.round(riskWeightedCoverage.weightedCoverage * 100)}
+                  </p>
+                  <p className="text-[11px] text-ak-text-secondary">
+                    {t('traceConsole.reliability.rawCoverage')}: %{Math.round(riskWeightedCoverage.rawCoverage * 100)}
+                  </p>
+                </div>
+              )}
+              {flakySummary && (
+                <div className="rounded border border-ak-border bg-ak-surface px-3 py-2 text-xs">
+                  <p className="text-[10px] uppercase tracking-wide text-ak-text-secondary/70">
+                    {t('traceConsole.reliability.pfsLite')}
+                  </p>
+                  <p className="text-sm font-semibold text-ak-text-primary">
+                    {flakySummary.pfsLite.toFixed(2)}
+                  </p>
+                  <p className="text-[11px] text-ak-text-secondary">
+                    {t('traceConsole.reliability.retryCount')}: {flakySummary.retryCount}
+                  </p>
                 </div>
               )}
             </div>
@@ -733,9 +901,11 @@ const DashboardAgentTracePage = () => {
                       <div className="flex items-center gap-2 mb-2">
                         <p className="text-sm font-semibold text-ak-text-primary">{t('traceConsole.summary.automationCoverage')}</p>
                         <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
-                          automationExecution.mode === 'ai-enhanced'
-                            ? 'bg-purple-500/10 text-purple-400'
-                            : 'bg-ak-surface text-ak-text-secondary'
+                          automationExecution.mode === 'real'
+                            ? 'bg-emerald-500/10 text-emerald-400'
+                            : automationExecution.mode === 'ai-enhanced'
+                              ? 'bg-purple-500/10 text-purple-400'
+                              : 'bg-ak-surface text-ak-text-secondary'
                         }`}>
                           {automationExecution.mode}
                         </span>

@@ -1,0 +1,21 @@
+{
+  "id": "trace-eval-basic-login",
+  "name": "Basic Login Reliability",
+  "payload": {
+    "spec": "Scenario: User login\nGiven user has a valid account\nWhen user submits email and password\nThen dashboard should load\n\nScenario: Unauthorized admin access\nGiven user does not have admin role\nWhen user opens admin page\nThen access is denied",
+    "automationMode": "plan_only",
+    "tracePreferences": {
+      "testDepth": "standard",
+      "authScope": "mixed",
+      "browserTarget": "chromium",
+      "strictness": "balanced"
+    }
+  },
+  "thresholds": {
+    "relevance": 0.7,
+    "coverage": 0.7,
+    "freshness": 0.5,
+    "provenance": 0.9,
+    "stability": 0.95
+  }
+}

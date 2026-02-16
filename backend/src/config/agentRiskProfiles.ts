@@ -61,6 +61,9 @@ const TRACE_RISK: AgentRiskConfig = {
     coverage: { passThreshold: 0.9, warnThreshold: 0.7, blocking: false },
     hallucination: { passThreshold: 0.1, blocking: true },
     citation: { passThreshold: 0.5, blocking: false }, // test plans are more exploratory
+    edgeCaseCoverage: { passThreshold: 0.9, warnThreshold: 0.7, blocking: false, enabled: true },
+    riskWeightedCoverage: { passThreshold: 0.95, warnThreshold: 0.8, blocking: false, enabled: true },
+    flakyStability: { passThreshold: 0.85, warnThreshold: 0.7, blocking: false, enabled: true },
   },
   rationale: 'Test plans should cover all scenarios but can be somewhat exploratory. Coverage is key.',
 };

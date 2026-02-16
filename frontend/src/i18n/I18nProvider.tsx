@@ -108,7 +108,10 @@ export function I18nProvider({ children }: PropsWithChildren) {
   );
 
   const loadAndApply = useCallback(
-    async (nextLocale: Locale, { persist = true }: { persist?: boolean } = {}) => {
+    async (
+      nextLocale: Locale,
+      { persist = true, showLoader = false }: { persist?: boolean; showLoader?: boolean } = {}
+    ) => {
       if (localeRef.current === nextLocale && messagesRef.current) {
         if (persist) {
           persistLocale(nextLocale);
@@ -116,7 +119,9 @@ export function I18nProvider({ children }: PropsWithChildren) {
         return;
       }
 
-      setStatus('loading');
+      if (showLoader) {
+        setStatus('loading');
+      }
 
       try {
         const catalog = await loadCatalog(nextLocale);
@@ -125,7 +130,7 @@ export function I18nProvider({ children }: PropsWithChildren) {
         if (isDev) {
           console.warn(`[i18n] Failed to load locale "${nextLocale}".`, error);
         }
-        if (mountedRef.current) {
+        if (showLoader && mountedRef.current) {
           setStatus('error');
         }
       }
@@ -199,7 +204,7 @@ export function I18nProvider({ children }: PropsWithChildren) {
 
   const handleSetLocale = useCallback(
     async (next: Locale) => {
-      await loadAndApply(next);
+      await loadAndApply(next, { showLoader: false });
     },
     [loadAndApply]
   );

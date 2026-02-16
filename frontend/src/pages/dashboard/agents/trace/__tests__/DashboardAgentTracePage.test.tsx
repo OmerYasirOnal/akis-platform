@@ -86,6 +86,7 @@ describe('DashboardAgentTracePage', () => {
       payload: {
         spec: 'Given user logs in Then dashboard loads',
         aiProvider: 'openai',
+        automationMode: 'plan_only',
         tracePreferences: {
           testDepth: 'deep',
           authScope: 'authenticated',
@@ -130,5 +131,32 @@ describe('DashboardAgentTracePage', () => {
     expect(screen.getByText('traceConsole.summary.featurePassRateLabel')).toBeInTheDocument();
     expect(screen.getByText('%75')).toBeInTheDocument();
     expect(screen.getByText('6/8')).toBeInTheDocument();
+  });
+
+  it('sends targetBaseUrl when automation mode is generate_and_run', async () => {
+    renderPage();
+
+    fireEvent.change(screen.getByPlaceholderText(/Paste your test specification/i), {
+      target: { value: 'Scenario: checkout flow' },
+    });
+    const selects = screen.getAllByRole('combobox');
+    const automationModeSelect = selects[4];
+    fireEvent.change(automationModeSelect, {
+      target: { value: 'generate_and_run' },
+    });
+    fireEvent.change(screen.getByPlaceholderText('https://staging.akisflow.com'), {
+      target: { value: 'https://staging.akisflow.com' },
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /Run Trace/i }));
+
+    await waitFor(() => expect(runAgentMock).toHaveBeenCalledTimes(1));
+    expect(runAgentMock).toHaveBeenCalledWith({
+      type: 'trace',
+      payload: expect.objectContaining({
+        automationMode: 'generate_and_run',
+        targetBaseUrl: 'https://staging.akisflow.com',
+      }),
+    });
   });
 });

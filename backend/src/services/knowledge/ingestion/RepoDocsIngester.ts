@@ -21,6 +21,17 @@ export interface IngestionResult {
   isNew: boolean;
 }
 
+export interface ManualDocumentInput {
+  title: string;
+  content: string;
+  sourcePath?: string;
+  workspaceId?: string;
+  agentType?: string;
+  commitSha?: string;
+  status?: 'proposed' | 'approved' | 'deprecated';
+  metadata?: Record<string, unknown>;
+}
+
 export class RepoDocsIngester {
   private estimateTokens(text: string): number {
     return Math.ceil(text.length / 4);
@@ -45,8 +56,12 @@ export class RepoDocsIngester {
       }
 
       chunks.push(content.slice(start, chunkEnd).trim());
-      start = chunkEnd - CHUNK_OVERLAP;
-      if (start < 0) start = 0;
+      if (chunkEnd >= content.length) {
+        break;
+      }
+
+      const nextStart = Math.max(chunkEnd - CHUNK_OVERLAP, 0);
+      start = nextStart > start ? nextStart : chunkEnd;
     }
 
     return chunks.filter(c => c.length > 0);
@@ -188,6 +203,85 @@ export class RepoDocsIngester {
       .returning();
 
     return result.length > 0;
+  }
+
+  async ingestManualDocument(input: ManualDocumentInput): Promise<IngestionResult | null> {
+    const title = input.title.trim();
+    const content = input.content.trim();
+    if (!title || !content) {
+      return null;
+    }
+
+    const contentHash = this.getContentHash(content);
+    const docSourcePath = input.sourcePath?.trim() || null;
+
+    const existingWhere = docSourcePath
+      ? and(
+          eq(knowledgeDocuments.docType, 'manual'),
+          eq(knowledgeDocuments.title, title),
+          eq(knowledgeDocuments.sourcePath, docSourcePath),
+          eq(knowledgeDocuments.status, input.status ?? 'proposed')
+        )
+      : and(
+          eq(knowledgeDocuments.docType, 'manual'),
+          eq(knowledgeDocuments.title, title),
+          eq(knowledgeDocuments.status, input.status ?? 'proposed')
+        );
+
+    const existing = await db
+      .select()
+      .from(knowledgeDocuments)
+      .where(existingWhere)
+      .limit(1);
+
+    if (existing.length > 0) {
+      const existingMeta = existing[0].metadata as Record<string, unknown> | null;
+      if (existingMeta?.contentHash === contentHash) {
+        return {
+          documentId: existing[0].id,
+          title: existing[0].title,
+          chunksCreated: 0,
+          isNew: false,
+        };
+      }
+    }
+
+    const [newDoc] = await db
+      .insert(knowledgeDocuments)
+      .values({
+        title,
+        content,
+        docType: 'manual',
+        sourcePath: docSourcePath,
+        commitSha: input.commitSha ?? null,
+        agentType: input.agentType ?? null,
+        workspaceId: input.workspaceId ?? null,
+        status: input.status ?? 'proposed',
+        metadata: {
+          contentHash,
+          ...(input.metadata ?? {}),
+        },
+      })
+      .returning();
+
+    const chunks = this.chunkContent(content);
+    if (chunks.length > 0) {
+      await db.insert(knowledgeChunks).values(
+        chunks.map((chunkContent, index) => ({
+          documentId: newDoc.id,
+          chunkIndex: index,
+          content: chunkContent,
+          tokenCount: this.estimateTokens(chunkContent),
+        }))
+      );
+    }
+
+    return {
+      documentId: newDoc.id,
+      title: newDoc.title,
+      chunksCreated: chunks.length,
+      isNew: true,
+    };
   }
 }
 

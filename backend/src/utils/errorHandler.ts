@@ -1,6 +1,15 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { ZodError } from 'zod';
-import { JobNotFoundError, InvalidStateTransitionError, DatabaseError, AIProviderError, ModelNotAllowedError, type AIErrorCode } from '../core/errors.js';
+import {
+  JobNotFoundError,
+  InvalidStateTransitionError,
+  DatabaseError,
+  AIProviderError,
+  ModelNotAllowedError,
+  TraceAutomationError,
+  type AIErrorCode,
+  type TraceAutomationErrorCode,
+} from '../core/errors.js';
 
 /**
  * Phase 7.E: Unified error model — AGT-6 standardization
@@ -19,7 +28,8 @@ export type CoreErrorCode =
   | 'INVALID_STATE'
   | 'DATABASE_ERROR'
   | 'INTERNAL_ERROR'
-  | AIErrorCode;
+  | AIErrorCode
+  | TraceAutomationErrorCode;
 
 // ── Auth error codes ──
 export type AuthErrorCode =
@@ -109,6 +119,13 @@ function mapErrorToCode(error: unknown): { code: ErrorCode; message: string; det
     };
   }
 
+  if (error instanceof TraceAutomationError) {
+    return {
+      code: error.code,
+      message: error.message,
+    };
+  }
+
   if (error instanceof Error && error.message === 'UNAUTHORIZED') {
     return {
       code: 'UNAUTHORIZED',
@@ -184,6 +201,11 @@ export function getStatusCodeForError(code: ErrorCode): number {
       return 500;
     case 'AI_AUTH_ERROR':
       return 502; // Bad gateway - upstream auth failed
+    case 'TRACE_AUTOMATION_LAUNCH_FAILED':
+    case 'TRACE_AUTOMATION_RUN_FAILED':
+      return 502;
+    case 'TRACE_AUTOMATION_TIMEOUT':
+      return 504;
     case 'AI_PROVIDER_ERROR':
     case 'AI_NETWORK_ERROR':
     case 'AI_INVALID_RESPONSE':

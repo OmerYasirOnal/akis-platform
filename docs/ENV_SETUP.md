@@ -211,6 +211,14 @@ OPENROUTER_APP_NAME=Your App Name
 3. OPENAI_API_KEY              ← OpenAI provider için
 ```
 
+### OAuth Token Encryption (GitHub/Google/Integrations)
+
+OAuth callback akışlarında access/refresh token değerleri encrypted JSON formatta saklanır.
+
+- Kullanılan anahtar: `AI_KEY_ENCRYPTION_KEY`
+- Politika: key yoksa yeni OAuth token write işlemi strict-block edilir.
+- Geriye uyumluluk: mevcut legacy plaintext kayıtlar read path'te fallback ile okunmaya devam eder.
+
 ### Yaygın Hatalar
 
 | Hata | Neden | Çözüm |
@@ -491,6 +499,34 @@ docker compose restart backend
 | `AI_RETRY_BASE_DELAY_MS` | Base delay between retries (ms) | `1000` |
 | `GITHUB_WEBHOOK_SECRET` | Webhook signature verification | — |
 | `ATLASSIAN_OAUTH_CALLBACK_URL` | Atlassian OAuth redirect URI | `http://localhost:3000/api/integrations/atlassian/oauth/callback` |
+
+### M2 Reliability Flags (Observe -> Enforce)
+
+| Değişken | Açıklama | Default |
+|----------|----------|---------|
+| `AI_FORCE_DETERMINISTIC_PLAN` | Planlama çağrılarında deterministic profile zorunlu kılar | `true` |
+| `AGENT_CONTRACT_ENFORCEMENT_MODE` | Runtime contract enforcement modu (`observe` \| `enforce`) | `observe` |
+| `AGENT_CONTRACT_RETRY_POLICY` | Contract ihlalinde fallback davranışı (`abort` \| `retry_once`) | `abort` |
+| `RELIABILITY_CANARY_ENABLED` | Canary cohort gating aç/kapat | `false` |
+| `RELIABILITY_CANARY_SALT` | Deterministic cohort hash salt | `akis-reliability-v1` |
+| `AGENT_CONTRACT_CANARY_PERCENT` | Contract enforcement canary oranı (`0-100`) | `100` |
+| `VERIFICATION_GATE_ROLLOUT_MODE` | Gate rollout modu (`observe` \| `warn` \| `enforce_scribe` \| `enforce_all`) | `observe` |
+| `VERIFICATION_GATE_CANARY_PERCENT` | Verification gate canary oranı (`0-100`) | `100` |
+| `FRESHNESS_SCHEDULER_ENABLED` | Freshness scheduler aç/kapat | `false` |
+| `FRESHNESS_SCHEDULER_INTERVAL_MINUTES` | Scheduler polling aralığı (dakika) | `360` |
+| `FRESHNESS_THRESHOLD_DAYS` | `stale` sınıflandırma eşiği (gün) | `90` |
+| `FRESHNESS_AGING_THRESHOLD_DAYS` | `aging` sınıflandırma eşiği (gün) | `45` |
+| `MCP_GATEWAY_TIMEOUT_MS` | MCP boundary timeout | `8000` |
+| `MCP_GATEWAY_RETRY_COUNT` | MCP boundary retry sayısı | `2` |
+
+Rollback için önerilen değerler:
+- `AGENT_CONTRACT_ENFORCEMENT_MODE=observe`
+- `VERIFICATION_GATE_ROLLOUT_MODE=observe`
+- `RELIABILITY_CANARY_ENABLED=false`
+- `FRESHNESS_SCHEDULER_ENABLED=false`
+
+Not:
+- `AGENT_CONTRACT_RETRY_POLICY=retry_once` yalnızca output contract ihlalinde deterministic tek seferlik normalize-retry uygular; ikinci ihlalde job `CONTRACT_VIOLATION` ile fail olur.
 
 ### Piri RAG Engine (M2)
 

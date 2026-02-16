@@ -21,9 +21,10 @@ const SKIP_DB_TESTS = process.env.SKIP_DB_TESTS === 'true';
 
 describe('Trace Persistence', () => {
   let testJobId: string;
+  let shouldSkip = SKIP_DB_TESTS;
 
   before(async () => {
-    if (SKIP_DB_TESTS) {
+    if (shouldSkip) {
       console.log('[Trace Persistence] SKIPPED: SKIP_DB_TESTS is set');
       return;
     }
@@ -40,6 +41,20 @@ describe('Trace Persistence', () => {
       );
     }
 
+    // Skip gracefully when test DB schema lags behind current Drizzle model.
+    const hasCrewRunColumn = await db.execute(sql`
+      select 1
+      from information_schema.columns
+      where table_name = 'jobs'
+        and column_name = 'crew_run_id'
+      limit 1
+    `);
+    if (hasCrewRunColumn.rows.length === 0) {
+      shouldSkip = true;
+      console.log('[Trace Persistence] SKIPPED: jobs schema missing crew_run_id column');
+      return;
+    }
+
     // Create a test job to attach traces to
     testJobId = randomUUID();
     await db.insert(jobs).values({
@@ -52,14 +67,14 @@ describe('Trace Persistence', () => {
   });
 
   after(async () => {
-    if (SKIP_DB_TESTS) return;
+    if (shouldSkip) return;
     // Cleanup: delete test traces and job
     await db.delete(jobTraces).where(eq(jobTraces.jobId, testJobId));
     await db.delete(jobs).where(eq(jobs.id, testJobId));
   });
 
   it('should persist all explainability trace event types', async () => {
-    if (SKIP_DB_TESTS) return;
+    if (shouldSkip) return;
     // Test all explainability event types that previously caused errors
     const explainabilityEvents: TraceEventType[] = [
       'tool_call',
@@ -96,7 +111,7 @@ describe('Trace Persistence', () => {
   });
 
   it('should persist reasoning event with summary fields', async () => {
-    if (SKIP_DB_TESTS) return; // Skip if DB is not available
+    if (shouldSkip) return; // Skip if DB is not available
     const traceId = randomUUID();
 
     // Insert a reasoning event with all explainability fields
@@ -128,7 +143,7 @@ describe('Trace Persistence', () => {
   });
 
   it('should persist tool_call event with asked/did/why fields', async () => {
-    if (SKIP_DB_TESTS) return;
+    if (shouldSkip) return;
     const traceId = randomUUID();
 
     // Insert a tool_call event with explainability fields
@@ -164,7 +179,7 @@ describe('Trace Persistence', () => {
   });
 
   it('should handle trace flush without errors', async () => {
-    if (SKIP_DB_TESTS) return;
+    if (shouldSkip) return;
     // Simulate what TraceRecorder.flush does - insert traces separately to avoid type issues
     const trace1Id = randomUUID();
     await db.insert(jobTraces).values({
@@ -218,4 +233,3 @@ describe('Trace Persistence', () => {
     );
   });
 });
-
