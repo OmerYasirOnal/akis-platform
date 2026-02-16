@@ -15,6 +15,7 @@ This checklist ensures repeatable, reliable staging deployments.
 ## Pre-Deployment Checks
 
 - [ ] All CI checks pass on `main` branch
+- [ ] If GitHub Actions billing is blocked, run equivalent manual CI gates locally (backend `typecheck/lint/test:unit`, frontend `typecheck/lint/test/build`, backend `test:integration`, frontend Playwright E2E `--workers=1`) and attach evidence to release notes / issue tracker
 - [ ] No blocking issues in recent commits
 - [ ] `AI_KEY_ENCRYPTION_KEY` staging env'de set (OAuth token encrypted write strict-block policy için zorunlu)
 - [ ] Active docs reference check: `node scripts/check_docs_references.mjs`
@@ -95,6 +96,9 @@ gh workflow run oci-staging-deploy.yml --field confirm_deploy=deploy
 **Notes**:
 - Without `--confirm`: dry-run (preview commands)
 - Without `--ghcr-*`: slower but works (server-side build)
+- Apple Silicon (`arm64`) local build ile `amd64` staging sunucusuna deploy ediliyorsa image'i `linux/amd64` olarak üretin:
+  - `docker buildx build --platform linux/amd64 -t ghcr.io/omeryasironal/akis-platform-devolopment/akis-backend:$(git rev-parse --short HEAD) --load backend`
+  - Ardından `docker save | ssh ... 'docker load'` ile sunucuya taşıyın
 - Use `--skip-tests` for emergency deploys
 - Use `--skip-backup` to skip pre-deploy database backup
 

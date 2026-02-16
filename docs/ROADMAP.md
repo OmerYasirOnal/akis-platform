@@ -24,7 +24,7 @@
 
 | Kilometre Taşı | Hedef Tarih | Odak | Durum |
 |-----------------|-------------|------|-------|
-| **M1: Pilot Demo** | 28 Şubat 2026 | Staging düzeltme + Scribe/Trace/Proto golden path + pilot katılım | **Devam Ediyor** (66/66 görev tamamlandı, 1,695 test; final staging deploy doğrulandı: `e2b77ad`, kalan: demo provası; dış bağımlılık: GitHub Actions billing) |
+| **M1: Pilot Demo** | 28 Şubat 2026 | Staging düzeltme + Scribe/Trace/Proto golden path + pilot katılım | **Devam Ediyor** (66/66 görev tamamlandı, 1,695 test; final staging deploy doğrulandı: `ee5041f`, kalan: demo provası; dış bağımlılık: GitHub Actions billing, manuel fallback kanıtı: Issue #333) |
 | **M2: Stabilizasyon** | 31 Mart 2026 | Hata düzeltme, pilot geri bildirim, pg_trgm prototip, tez taslağı | Başlanmadı |
 | **M3: Mezuniyet** | Mayıs 2026 | Final rapor, sunum, demo video, teslim paketi | Başlanmadı |
 
