@@ -16,6 +16,7 @@ export interface VerificationSummaryProps {
   gates: GateItem[];
   overallStatus: 'pass' | 'warn' | 'fail';
   riskProfile?: string;
+  disclaimer?: string;
   className?: string;
 }
 
@@ -38,6 +39,7 @@ export function VerificationSummary({
   gates,
   overallStatus,
   riskProfile,
+  disclaimer,
   className,
 }: VerificationSummaryProps) {
   const overallCfg = STATUS_CONFIG[overallStatus];
@@ -113,6 +115,11 @@ export function VerificationSummary({
           );
         })}
       </ul>
+      {disclaimer && (
+        <p className="mt-3 rounded-md border border-ak-border bg-ak-surface px-2.5 py-2 text-xs text-ak-text-secondary">
+          {disclaimer}
+        </p>
+      )}
     </div>
   );
 }

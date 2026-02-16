@@ -88,7 +88,7 @@ test.describe('Trace Console', () => {
     // Switch to Results tab
     await page.getByRole('button', { name: '📊 Results' }).click();
 
-    await expect(page.getByText(/test plan results will appear here/i)).toBeVisible();
+    await expect(page.getByText(/run trace once to see generated plans/i)).toBeVisible();
   });
 
   /* ------------------------------------------------------------------ */

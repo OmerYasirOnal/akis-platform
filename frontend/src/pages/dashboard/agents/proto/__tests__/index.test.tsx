@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeAll, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { I18nContext } from '../../../../../i18n/i18n.context';
 import DashboardAgentProtoPage from '../index';
@@ -103,6 +103,24 @@ describe('DashboardAgentProtoPage', () => {
     renderPage();
     const button = screen.getByRole('button', { name: /Run Proto/i });
     expect(button).toBeDisabled();
+  });
+
+  it('enables Run Proto only after guided brief is completed', () => {
+    renderPage();
+    const button = screen.getByRole('button', { name: /Run Proto/i });
+    fireEvent.change(
+      screen.getByPlaceholderText(/Describe your project requirements/i),
+      { target: { value: 'Build a production-ready API with auth and tests' } },
+    );
+    expect(button).toBeDisabled();
+
+    const selects = screen.getAllByRole('combobox');
+    fireEvent.change(selects[0], { target: { value: 'web-app' } });
+    fireEvent.change(selects[1], { target: { value: 'jwt' } });
+    fireEvent.change(selects[2], { target: { value: 'postgres' } });
+    fireEvent.change(selects[3], { target: { value: 'cloud-container' } });
+
+    expect(button).toBeEnabled();
   });
 
   it('shows Logs and Artifacts tab buttons', () => {

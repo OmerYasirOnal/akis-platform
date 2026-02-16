@@ -15,6 +15,7 @@ import Button from '../../../components/common/Button';
 import AgentRuntimeSettingsDrawer from '../../../components/agents/AgentRuntimeSettingsDrawer';
 import PiriContextSidebar from '../../../components/agents/PiriContextSidebar';
 import LiveAgentCanvas from '../../../components/agents/LiveAgentCanvas';
+import { SectionCard, StatusStrip, EmptyPanel } from '../../../components/agents/hub';
 import { useI18n } from '../../../i18n/useI18n';
 import { usePiriContext } from '../../../hooks/usePiriContext';
 import SearchableSelect, { type SelectOption } from '../../../components/common/SearchableSelect';
@@ -459,17 +460,6 @@ const DashboardAgentScribePage = () => {
     }
   };
 
-  const getStatusColor = () => {
-    if (!currentJob) return 'text-ak-text-secondary';
-    switch (currentJob.state) {
-      case 'completed': return 'text-green-400';
-      case 'failed': return 'text-red-400';
-      case 'pending': return 'text-yellow-400';
-      case 'running': return 'text-ak-primary';
-      default: return 'text-ak-text-secondary';
-    }
-  };
-
   const getStatusText = () => {
     if (!currentJob) return 'Ready';
     switch (currentJob.state) {
@@ -478,6 +468,21 @@ const DashboardAgentScribePage = () => {
       case 'completed': return 'Complete';
       case 'failed': return 'Failed';
       default: return 'Unknown';
+    }
+  };
+
+  const getStatusTone = (): 'idle' | 'running' | 'success' | 'error' => {
+    if (!currentJob) return 'idle';
+    switch (currentJob.state) {
+      case 'pending':
+      case 'running':
+        return 'running';
+      case 'completed':
+        return 'success';
+      case 'failed':
+        return 'error';
+      default:
+        return 'idle';
     }
   };
 
@@ -513,14 +518,16 @@ const DashboardAgentScribePage = () => {
       </header>
 
       {/* Horizontal Configuration Bar */}
-      <Card className="bg-ak-surface p-6">
+      <SectionCard
+        title="Configuration"
+        subtitle="Select repository context first, then tune doc scope and optional advanced settings."
+        actions={(
+          <Link to="/dashboard/integrations" className="text-xs font-medium text-ak-primary hover:underline">
+            Integrations →
+          </Link>
+        )}
+      >
         <div className="space-y-5">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-ak-text-primary">Configuration</h2>
-            <Link to="/dashboard/integrations" className="text-xs font-medium text-ak-primary hover:underline">
-              Integrations →
-            </Link>
-          </div>
 
           {githubError && (
             <div className="rounded-xl border border-red-500/50 bg-red-500/10 px-3 py-2 text-xs text-red-400">
@@ -778,29 +785,18 @@ const DashboardAgentScribePage = () => {
             )}
           </div>
         </div>
-      </Card>
+      </SectionCard>
 
       {/* Status Summary (if job running/complete) */}
       {!isIdle && currentJob && (
         <Card className="bg-ak-surface-2 p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs font-medium uppercase tracking-wider text-ak-text-secondary">
-                Status
-              </p>
-              <p className={`text-lg font-semibold ${getStatusColor()}`}>
-                {getStatusText()}
-              </p>
-            </div>
-            <div className="text-right">
-              <p className="text-xs font-medium uppercase tracking-wider text-ak-text-secondary">
-                Job ID
-              </p>
-              <p className="text-xs font-mono text-ak-text-primary">
-                {currentJob.id.substring(0, 8)}...
-              </p>
-            </div>
-          </div>
+          <StatusStrip
+            label="Status"
+            value={getStatusText()}
+            secondaryLabel="Job ID"
+            secondaryValue={`${currentJob.id.substring(0, 8)}...`}
+            tone={getStatusTone()}
+          />
         </Card>
       )}
 
@@ -879,10 +875,11 @@ const DashboardAgentScribePage = () => {
                   </pre>
                 </div>
               ) : (
-                <div className="flex h-full flex-col items-center justify-center text-ak-text-secondary/50">
-                  <span className="text-4xl">📄</span>
-                  <p className="mt-2">Documentation preview will appear here</p>
-                </div>
+                <EmptyPanel
+                  icon={<span>📄</span>}
+                  title="No preview yet"
+                  description="Run Scribe to inspect generated documentation output in this panel."
+                />
               )}
             </div>
           )}
@@ -909,10 +906,11 @@ const DashboardAgentScribePage = () => {
                   ))}
                 </pre>
               ) : (
-                <div className="flex h-full flex-col items-center justify-center text-ak-text-secondary/50">
-                  <span className="text-4xl">📝</span>
-                  <p className="mt-2">Diff preview will appear after analysis</p>
-                </div>
+                <EmptyPanel
+                  icon={<span>📝</span>}
+                  title="No diff yet"
+                  description="Diff details will appear after Scribe completes repository analysis."
+                />
               )}
             </div>
           )}

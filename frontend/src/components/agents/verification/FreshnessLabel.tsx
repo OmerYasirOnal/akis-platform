@@ -62,8 +62,9 @@ export function FreshnessLabel({ date, status: propStatus, className }: Freshnes
   const isValidDate = parsedDate && !Number.isNaN(parsedDate.getTime());
   const status: FreshnessStatus =
     propStatus ?? (isValidDate ? computeStatus(parsedDate) : 'unknown');
-  const relative = isValidDate ? formatRelative(parsedDate) : '—';
+  const relative = isValidDate ? formatRelative(parsedDate) : null;
   const { dot, label } = STATUS_CONFIG[status];
+  const displayValue = relative ?? label;
 
   return (
     <span
@@ -71,13 +72,13 @@ export function FreshnessLabel({ date, status: propStatus, className }: Freshnes
         'inline-flex items-center gap-1.5 text-xs text-ak-text-secondary',
         className
       )}
-      aria-label={`Source freshness: ${label}, ${relative}`}
+      aria-label={`Source freshness: ${label}${relative ? `, ${relative}` : ''}`}
     >
       <span
         className={cn('h-1.5 w-1.5 shrink-0 rounded-full', dot)}
         aria-hidden
       />
-      <span>{relative}</span>
+      <span>{displayValue}</span>
     </span>
   );
 }

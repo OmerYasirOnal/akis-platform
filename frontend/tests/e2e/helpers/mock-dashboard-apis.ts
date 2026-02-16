@@ -29,13 +29,18 @@ export const MOCK_JOB_ID = 'e2e-job-00000001';
  * - GET /api/usage/** → zero usage
  */
 export async function mockDashboardApis(page: Page) {
-  await page.route('**/auth/me', async (route: Route) => {
+  const fulfillAuthMe = async (route: Route) => {
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
       body: JSON.stringify(MOCK_USER),
     });
-  });
+  };
+
+  // Some environments resolve auth origin via VITE_BACKEND_URL and may hit
+  // either /auth/me or /api/auth/me, with optional query params.
+  await page.route('**/auth/me*', fulfillAuthMe);
+  await page.route('**/api/auth/me*', fulfillAuthMe);
 
   await page.route('**/api/agents/jobs/running', async (route: Route) => {
     await route.fulfill({
@@ -58,9 +63,11 @@ export async function mockDashboardApis(page: Page) {
  * Mock the unauthenticated state so route guards redirect to /login.
  */
 export async function mockUnauthenticated(page: Page) {
-  await page.route('**/auth/me', async (route: Route) => {
+  const fulfillUnauthorized = async (route: Route) => {
     await route.fulfill({ status: 401, contentType: 'application/json', body: '{"error":"Unauthorized"}' });
-  });
+  };
+  await page.route('**/auth/me*', fulfillUnauthorized);
+  await page.route('**/api/auth/me*', fulfillUnauthorized);
 }
 
 /**

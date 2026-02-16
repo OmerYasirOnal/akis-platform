@@ -4,7 +4,7 @@
 > **Operasyonel Playbook:** [`docs/planning/AKIS_OPERATIONAL_PLAYBOOK.md`](planning/AKIS_OPERATIONAL_PLAYBOOK.md) (4 Pillar + Moonshot — teyit edilmiş hedef)  
 > **Uygulama Haritası:** [`docs/planning/PLAYBOOK_IMPLEMENTATION_MAP.md`](planning/PLAYBOOK_IMPLEMENTATION_MAP.md)  
 > **Anlık Eylemler:** [`docs/NEXT.md`](NEXT.md)  
-> **Son Güncelleme:** 2026-02-15
+> **Son Güncelleme:** 2026-02-16
 
 ---
 
@@ -24,8 +24,8 @@
 
 | Kilometre Taşı | Hedef Tarih | Odak | Durum |
 |-----------------|-------------|------|-------|
-| **M1: Pilot Demo** | 28 Şubat 2026 | Staging düzeltme + Scribe/Trace/Proto golden path + pilot katılım | **Devam Ediyor** (66/66 görev tamamlandı, 1,695 test; final staging deploy doğrulandı: `ee5041f`, kalan: demo provası; dış bağımlılık: GitHub Actions billing, manuel fallback kanıtı: Issue #333) |
-| **M2: Stabilizasyon** | 31 Mart 2026 | Hata düzeltme, pilot geri bildirim, pg_trgm prototip, tez taslağı | Başlanmadı |
+| **M1: Pilot Demo** | 28 Şubat 2026 | Staging düzeltme + Scribe/Trace/Proto golden path + pilot katılım | **Devam Ediyor** (66/66 görev tamamlandı; closure validation: backend unit 1302/1302 + frontend unit 602/602 + staging E2E 61/61 + local UI E2E pack 50/50 + manual UI smoke 13/13; deploy commit: `ee5041f`; kalan: demo provası; dış bağımlılık: GitHub Actions billing, manuel fallback kanıtı: Issue #333 ve `docs/qa/QA_EVIDENCE_STAGING_SMOKE_PACK.md`) |
+| **M2: Stabilizasyon** | 31 Mart 2026 | Hata düzeltme, pilot geri bildirim, pg_trgm prototip, tez taslağı | Devam Ediyor (M2 reliability/core closure kalemlerinin büyük bölümü tamamlandı; `docs/planning/M2_BACKLOG.md` ile senkron) |
 | **M3: Mezuniyet** | Mayıs 2026 | Final rapor, sunum, demo video, teslim paketi | Başlanmadı |
 
 ---
@@ -63,7 +63,7 @@
 
 | Faz | İsim | Tarih Aralığı | Durum |
 |-----|------|---------------|-------|
-| M2 | Stabilizasyon + Akademik Hazırlık | 1-31 Mart 2026 | Başlanmadı |
+| M2 | Stabilizasyon + Akademik Hazırlık | 1-31 Mart 2026 | Devam Ediyor |
 | M3 | Mezuniyet Teslimi | Nisan-Mayıs 2026 | Başlanmadı |
 
 ---

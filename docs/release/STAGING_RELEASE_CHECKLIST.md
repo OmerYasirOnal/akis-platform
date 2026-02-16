@@ -1,6 +1,6 @@
 # AKIS Staging Release Checklist
 
-**Version**: 1.3.0  
+**Version**: 1.4.0
 **Last Updated**: 2026-02-16
 
 This checklist ensures repeatable, reliable staging deployments.
@@ -9,6 +9,8 @@ This checklist ensures repeatable, reliable staging deployments.
 > - [Smoke Test Checklist](../deploy/STAGING_SMOKE_TEST_CHECKLIST.md) — Detailed pass/fail criteria
 > - [Rollback Runbook](../deploy/STAGING_ROLLBACK_RUNBOOK.md) — When and how to rollback
 > - [OCI Staging Runbook](../deploy/OCI_STAGING_RUNBOOK.md) — Full operations guide
+> - [UI Manual Smoke Checklist](../qa/UI_MANUAL_SMOKE_CHECKLIST.md) — UI route/interaction coverage
+> - [UI Manual Smoke Evidence (2026-02-16)](../qa/UI_MANUAL_SMOKE_EVIDENCE_2026-02-16.md) — Closure test outputs
 
 ---
 
@@ -19,6 +21,9 @@ This checklist ensures repeatable, reliable staging deployments.
 - [ ] No blocking issues in recent commits
 - [ ] `AI_KEY_ENCRYPTION_KEY` staging env'de set (OAuth token encrypted write strict-block policy için zorunlu)
 - [ ] Active docs reference check: `node scripts/check_docs_references.mjs`
+- [ ] QA kanıt paketi güncel: [`../qa/QA_EVIDENCE_STAGING_SMOKE_PACK.md`](../qa/QA_EVIDENCE_STAGING_SMOKE_PACK.md)
+- [ ] UI smoke evidence güncel: [`../qa/UI_MANUAL_SMOKE_EVIDENCE_2026-02-16.md`](../qa/UI_MANUAL_SMOKE_EVIDENCE_2026-02-16.md)
+- [ ] Manual UI route smoke artifact seti mevcut (`output/manual-ui-*/report.json`)
 - [ ] Ground truth verified:
   ```bash
   git fetch origin && git rev-parse --short origin/main
@@ -107,6 +112,14 @@ gh workflow run oci-staging-deploy.yml --field confirm_deploy=deploy
 Run smoke tests manually:
 ```bash
 ./scripts/staging_smoke.sh --commit $(git rev-parse --short HEAD)
+```
+
+Run targeted staging UI suite (manual CI fallback):
+```bash
+PLAYWRIGHT_BASE_URL=https://staging.akisflow.com pnpm -C frontend exec playwright test \
+  landing-sanity.spec.ts ui-smoke.spec.ts navigation-guards.spec.ts \
+  auth-deep-links.spec.ts getting-started.spec.ts trace-console.spec.ts \
+  proto-console.spec.ts scribe-console.spec.ts agents-hub-ui.spec.ts --workers=1
 ```
 
 Expected output:

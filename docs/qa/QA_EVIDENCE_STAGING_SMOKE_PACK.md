@@ -1,263 +1,148 @@
 # AKIS Platform - QA Evidence Staging Smoke Pack
 
-**Version**: 1.0.0  
-**Date**: 2026-01-13  
-**Scope**: Staging environment smoke tests and evidence collection  
-**Last Run**: _Not yet executed_
+**Version**: 2.0.0
+**Date**: 2026-02-16
+**Scope**: Staging smoke + manual UI + fallback quality gates
+**Last Verified Run**: 2026-02-16 (`ee5041f`)
 
 ---
 
-## Overview
+## 1. Evidence Snapshot
 
-This document defines the staging smoke test checklist and evidence collection requirements for validating AKIS Platform deployments. Completing this pack is a prerequisite for promoting staging to production.
-
-### Test Categories
-
-| Category | Tests | Duration |
-|----------|-------|----------|
-| Health Endpoints | 3 | 2 min |
-| Authentication Flow | 4 | 10 min |
-| Agent Job Execution | 3 | 15 min |
-| MCP Integration | 2 | 5 min |
-| **Total** | **12** | **~32 min** |
+| Area | Result | Notes |
+|------|--------|-------|
+| Deploy commit check | PASS | `/version.commit = ee5041f` |
+| Health/Readiness | PASS | `/health`, `/ready`, `/version` HTTP 200 |
+| Security headers | PASS | `strict-transport-security`, `x-content-type-options`, `x-frame-options` |
+| OAuth start redirect | PASS | `/auth/oauth/github` HTTP 302 → `github.com/login/oauth/authorize` |
+| Auth guard (unauth) | PASS | `/auth/me` ve `/api/agents/jobs` HTTP 401 |
+| Manual route smoke | PASS | 13/13 route check, redirect semantiği doğrulandı |
+| Playwright E2E (staging target) | PASS | 61/61 test geçti |
+| Frontend unit tests | PASS | 602/602 (Vitest) |
+| Frontend UI target E2E pack (local) | PASS | 50/50 (auth-login + navigation-guards + scribe/trace/proto/agents-hub) |
+| Backend unit tests | PASS | 1302/1302 (Node test runner) |
+| Frontend typecheck | PASS | `tsc --noEmit` |
+| Backend typecheck | PASS | `tsc --noEmit` |
 
 ---
 
-## 1. Health and Readiness Tests
+## 2. Endpoint & API Smoke (Executed)
 
-### 1.1 Liveness Check (`/health`)
+### Executed Commands
 
-**Endpoint**: `GET https://staging.akisflow.com/health`
-
-**Expected Response**:
-```json
-{
-  "status": "ok",
-  "timestamp": "2026-01-13T12:00:00.000Z"
-}
-```
-
-**Acceptance Criteria**:
-- [ ] HTTP 200 response
-- [ ] `status` field equals `"ok"`
-- [ ] Response time < 500ms
-
-**Evidence to Capture**:
-- Screenshot of curl command with response
-- Response time measurement
-
-**Test Command**:
 ```bash
-time curl -s https://staging.akisflow.com/health | jq .
+curl -i https://staging.akisflow.com/health
+curl -i https://staging.akisflow.com/ready
+curl -i https://staging.akisflow.com/version
+curl -i https://staging.akisflow.com/auth/oauth/github
+curl -i https://staging.akisflow.com/auth/me
+curl -i 'https://staging.akisflow.com/api/agents/jobs?limit=1'
+curl -i https://staging.akisflow.com/metrics
 ```
+
+### Key Results
+
+- `/health` → `200`, `{"status":"ok"}`
+- `/ready` → `200`, `ready=true`, `database=connected`, `mcp.gatewayReachable=true`, `encryption.configured=true`
+- `/version` → `200`, `commit=ee5041f`
+- `/auth/oauth/github` → `302` redirect
+- `/auth/me` (no session) → `401` + `{"user":null}`
+- `/api/agents/jobs` (no session) → `401` standard error envelope
 
 ---
 
-### 1.2 Readiness Check (`/ready`)
+## 3. Manual UI Smoke (Browser)
 
-**Endpoint**: `GET https://staging.akisflow.com/ready`
+### Route Matrix (13/13 PASS)
 
-**Expected Response**:
-```json
-{
-  "ready": true,
-  "database": "connected",
-  "timestamp": "2026-01-13T12:00:00.000Z"
-}
-```
+- `/`
+- `/login`
+- `/signup`
+- `/docs`
+- `/pricing`
+- `/contact`
+- `/about`
+- `/legal/privacy`
+- `/legal/terms`
+- `/agents` (redirect expected)
+- `/agents/trace` (redirect expected)
+- `/agents/proto` (redirect expected)
+- `/dashboard` (redirect expected)
 
-**Acceptance Criteria**:
-- [ ] HTTP 200 response
-- [ ] `ready` field equals `true`
-- [ ] `database` field equals `"connected"`
+### Verified UI Interactions
 
-**Evidence to Capture**:
-- Screenshot of curl command with response
-- Database connectivity confirmation
+- TR/EN locale toggle: PASS
+- Theme toggle (dark/light): PASS
+- GitHub OAuth button from login page: PASS (GitHub sign-in page reached)
 
-**Test Command**:
+### Artifact Pack
+
+- Local artifact folder:
+  - `output/manual-ui-2026-02-16T09-25-23-636Z`
+- Report file:
+  - `output/manual-ui-2026-02-16T09-25-23-636Z/report.json`
+- Representative screenshots:
+  - `18-login-manual-dark.png`
+  - `19-login-theme-light.png`
+  - `20-github-oauth-page.png`
+
+> Not: Bu görseller deploy delili olarak local doğrulama çıktısıdır; git deposuna eklenmemiştir.
+
+---
+
+## 4. Automated Browser Evidence (Staging Target)
+
+### Executed Commands
+
 ```bash
-curl -s https://staging.akisflow.com/ready | jq .
+pnpm -C frontend exec playwright test landing-sanity.spec.ts ui-smoke.spec.ts --config=.tmp/playwright.staging.config.ts
+pnpm -C frontend exec playwright test navigation-guards.spec.ts auth-deep-links.spec.ts getting-started.spec.ts --config=.tmp/playwright.staging.config.ts
+pnpm -C frontend exec playwright test trace-console.spec.ts proto-console.spec.ts scribe-console.spec.ts --config=.tmp/playwright.staging.config.ts
 ```
+
+### Result
+
+- Total: `61 passed`
+- Failed: `0`
+- Worker mode: `1` (deterministic CI-friendly profile)
 
 ---
 
-### 1.3 Version Check (`/version`)
+## 5. Quality Gates (Local Fallback)
 
-**Endpoint**: `GET https://staging.akisflow.com/version`
+### Executed Commands
 
-**Expected Response**:
-```json
-{
-  "version": "0.x.x",
-  "name": "akis-backend",
-  "commit": "abc1234",
-  "buildTime": "2026-01-13T12:00:00.000Z",
-  "environment": "production",
-  "startTime": "2026-01-13T12:00:00.000Z"
-}
-```
-
-**Acceptance Criteria**:
-- [ ] HTTP 200 response
-- [ ] `commit` matches deployed commit SHA
-- [ ] `environment` equals `"production"`
-
-**Evidence to Capture**:
-- Screenshot showing version matches GitHub Actions deploy run
-- Comparison with expected commit SHA
-
-**Test Command**:
 ```bash
-curl -s https://staging.akisflow.com/version | jq .
+pnpm -C frontend run typecheck
+pnpm -C backend run typecheck
+pnpm -C frontend run test
+pnpm -C backend run test
 ```
+
+### Result
+
+- Backend typecheck: PASS
+- Frontend typecheck: PASS
+- Backend unit: `1302/1302 PASS`
+- Frontend unit: `602/602 PASS`
 
 ---
 
-## 2. Authentication Flow Tests
+## 6. Risks / Remaining Gaps
 
-### 2.1 Signup Flow Start
-
-**Endpoint**: `POST https://staging.akisflow.com/auth/signup/start`
-
-**Test Request**:
-```json
-{
-  "firstName": "Smoke",
-  "lastName": "Test",
-  "email": "smoketest-TIMESTAMP@test.akisflow.com"
-}
-```
-
-**Acceptance Criteria**:
-- [ ] HTTP 200 response (or 409 if email exists)
-- [ ] Returns `userId` in response
-- [ ] Verification code logged to backend console (mock email)
-
-**Evidence to Capture**:
-- Screenshot of API response
-- Backend log showing verification code (if accessible)
-
-**Test Command**:
-```bash
-curl -X POST https://staging.akisflow.com/auth/signup/start \
-  -H "Content-Type: application/json" \
-  -d '{"firstName":"Smoke","lastName":"Test","email":"smoketest-'$(date +%s)'@test.akisflow.com"}'
-```
+1. GitHub-hosted Actions billing blokajı nedeniyle cloud CI run logları bu turda üretilemedi.
+2. Tam authenticated user journey (real account ile callback sonrası dashboard içi mutation akışları) bu kanıt paketinde kapsam dışı bırakıldı.
 
 ---
 
-### 2.2 Login Flow (Existing User)
+## 7. Sign-off
 
-**Prerequisite**: Test user exists (e.g., `t@t.com`)
-
-**Step 1 - Login Start**:
-```bash
-curl -X POST https://staging.akisflow.com/auth/login/start \
-  -H "Content-Type: application/json" \
-  -d '{"email":"t@t.com"}'
-```
-
-**Expected Response**:
-```json
-{
-  "userId": "...",
-  "email": "t@t.com",
-  "requiresPassword": true
-}
-```
-
-**Step 2 - Login Complete**:
-```bash
-curl -X POST https://staging.akisflow.com/auth/login/complete \
-  -H "Content-Type: application/json" \
-  -d '{"userId":"<userId_from_step1>","password":"12345678"}' \
-  -c cookies.txt
-```
-
-**Acceptance Criteria**:
-- [ ] HTTP 200 response
-- [ ] Session cookie set (`akis_session`)
-- [ ] User object returned
-
-**Evidence to Capture**:
-- Screenshot of successful login response
-- Cookie file showing `akis_session` cookie set
-
----
-
-### 2.3 Session Validation (`/auth/me`)
-
-**Prerequisite**: Authenticated session (cookie from login)
-
-**Endpoint**: `GET https://staging.akisflow.com/auth/me`
-
-**Test Command**:
-```bash
-curl -s https://staging.akisflow.com/auth/me -b cookies.txt | jq .
-```
-
-**Acceptance Criteria**:
-- [ ] HTTP 200 response
-- [ ] Returns current user object
-- [ ] User ID matches login user
-
-**Evidence to Capture**:
-- Screenshot showing user info returned
-
----
-
-### 2.4 Email Verification (Staging)
-
-**Note**: Staging uses `EMAIL_PROVIDER=mock` by default
-
-**Verification**:
-- [ ] Check backend logs for verification code output
-- [ ] OR configure Resend and verify email delivery
-
-**Evidence to Capture**:
-- Backend logs showing `[MockEmailService] Code: XXXXXX`
-- OR Email screenshot (if Resend configured)
-
-**Test Command** (check backend logs):
-```bash
-ssh -i ~/.ssh/akis-oci opc@<VM_IP> "docker compose logs backend --tail=50 | grep -i verification"
-```
-
----
-
-## 3. Agent Job Execution Tests (Scribe)
-
-### 3.1 View Available Agents
-
-**Endpoint**: `GET https://staging.akisflow.com/api/agents`
-
-**Acceptance Criteria**:
-- [ ] HTTP 200 response
-- [ ] At least `scribe` agent listed
-- [ ] Agent has valid configuration schema
-
-**Evidence to Capture**:
-- Screenshot of agents list response
-
----
-
-### 3.2 Create Scribe Dry-Run Job
-
-**Prerequisite**: Authenticated session with GitHub OAuth connected
-
-**Via Dashboard**:
-1. Navigate to `https://staging.akisflow.com/dashboard/agents`
-2. Select Scribe agent
-3. Select organization and repository
-4. Select base branch
-5. Choose "Auto-create" branch strategy
-6. Toggle "Dry Run" ON
-7. Click "Run Agent"
-
-**Acceptance Criteria**:
-- [ ] Job created successfully (returns job ID)
-- [ ] Job status transitions: `pending` → `running` → `completed`
+- Smoke baseline: PASS
+- UI baseline: PASS
+- Type/test baseline: PASS
+- Deploy commit consistency: PASS (`ee5041f`)
+- Release decision: **Staging dokümantasyon kapanışı için uygun**
+- UI closure evidence: `docs/qa/UI_M2_BASELINE_EVIDENCE_2026-02-16.md` ve `docs/qa/UI_MANUAL_SMOKE_EVIDENCE_2026-02-16.md`
 - [ ] Live progress events visible in UI
 - [ ] No duplicate job error (if job already running for same repo)
 

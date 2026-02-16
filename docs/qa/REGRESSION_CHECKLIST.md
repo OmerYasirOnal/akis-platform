@@ -18,6 +18,23 @@
 
 ---
 
+## UI M2+ Closure Validation (2026-02-16)
+
+| Check | Result | Evidence |
+|---|---|---|
+| Frontend typecheck | PASS | `npm -C frontend run typecheck` |
+| Frontend unit/integration | PASS (602/602) | `npm -C frontend run test` |
+| UI target E2E pack | PASS (50/50) | auth-login + navigation-guards + scribe/trace/proto/agents-hub suites |
+| Backend typecheck | PASS | `npm -C backend run typecheck` |
+| Backend unit | PASS (1302/1302) | `npm -C backend run test` |
+| Docs reference integrity | PASS | `node scripts/check_docs_references.mjs` |
+
+Detay kanıt:
+- `docs/qa/UI_M2_BASELINE_EVIDENCE_2026-02-16.md`
+- `docs/qa/UI_MANUAL_SMOKE_EVIDENCE_2026-02-16.md`
+
+---
+
 ## 1. Infrastructure & Health
 
 | # | Check | Expected | Pass |

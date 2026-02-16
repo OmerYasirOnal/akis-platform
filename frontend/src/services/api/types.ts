@@ -530,3 +530,69 @@ export interface QualityBreakdownItem {
   value: string;
   points: number;
 }
+
+export interface NormalizedVerificationSignals {
+  citationStatus: 'verified' | 'unverified' | 'blocked' | 'conflict';
+  freshnessStatus: 'fresh' | 'stale-ish' | 'stale' | 'unknown';
+  confidenceScore: number;
+}
+
+function findVerificationGate(
+  verificationGates: JobVerificationGates | null | undefined,
+  gateName: string
+): VerificationGateItem | null {
+  if (!verificationGates || !Array.isArray(verificationGates.gates)) return null;
+  return verificationGates.gates.find((gate) => gate.name === gateName) ?? null;
+}
+
+export function normalizeVerificationSignals(
+  verificationGates: JobVerificationGates | null | undefined
+): NormalizedVerificationSignals {
+  const citationGate = findVerificationGate(verificationGates, 'citation');
+  const groundednessGate = findVerificationGate(verificationGates, 'groundedness');
+  const freshnessGate = findVerificationGate(verificationGates, 'freshness');
+
+  const citationStatus: NormalizedVerificationSignals['citationStatus'] = verificationGates?.blockedByPolicy
+    ? 'blocked'
+    : citationGate?.status === 'pass'
+      ? 'verified'
+      : citationGate?.status === 'fail'
+        ? 'conflict'
+        : 'unverified';
+
+  const freshnessStatus: NormalizedVerificationSignals['freshnessStatus'] = !freshnessGate
+    ? 'unknown'
+    : freshnessGate.score >= 0.7
+      ? 'fresh'
+      : freshnessGate.score >= 0.4
+        ? 'stale-ish'
+        : 'stale';
+
+  const confidenceScore = groundednessGate
+    ? Math.max(0, Math.min(100, Math.round(groundednessGate.score * 100)))
+    : 0;
+
+  return { citationStatus, freshnessStatus, confidenceScore };
+}
+
+type TraceJobResult = {
+  metadata?: {
+    automationSummary?: TraceAutomationSummary;
+    automationExecution?: TraceAutomationSummary;
+  };
+};
+
+export function normalizeTraceAutomationSummary(job: Pick<Job, 'result'>): TraceAutomationSummary | null {
+  if (!job.result || typeof job.result !== 'object') return null;
+  const result = job.result as TraceJobResult;
+  const candidate = result.metadata?.automationExecution ?? result.metadata?.automationSummary;
+  if (!candidate || typeof candidate !== 'object') return null;
+  if (
+    typeof candidate.executedScenarios !== 'number' ||
+    typeof candidate.passedScenarios !== 'number' ||
+    typeof candidate.failedScenarios !== 'number'
+  ) {
+    return null;
+  }
+  return candidate;
+}

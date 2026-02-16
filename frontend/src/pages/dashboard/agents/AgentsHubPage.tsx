@@ -24,6 +24,10 @@ import {
   ConfidenceIndicator,
   FreshnessLabel,
 } from '../../../components/agents/verification';
+import AgentSelectorPanel from './hub/AgentSelectorPanel';
+import SessionRail from './hub/SessionRail';
+import PlanCandidatesPanel from './hub/PlanCandidatesPanel';
+import ConversationPane from './hub/ConversationPane';
 
 interface AgentDefinition {
   id: AgentType | 'smart-automations';
@@ -371,7 +375,7 @@ export default function AgentsHubPage() {
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [animatedSessionId, setAnimatedSessionId] = useState<string | null>(null);
   const [userInput, setUserInput] = useState('');
-  const [showConfig, setShowConfig] = useState(true);
+  const [showConfig, setShowConfig] = useState(false);
   const [showSteerMenu, setShowSteerMenu] = useState(false);
   const [steerQueueBySession, setSteerQueueBySession] = useState<Record<string, SteerQueueItem[]>>({});
   const [planCandidatesBySession, setPlanCandidatesBySession] = useState<Record<string, PlanCandidate[]>>({});
@@ -1541,60 +1545,39 @@ export default function AgentsHubPage() {
     };
   }, [currentJob]);
 
+  const sessionRailItems = useMemo(
+    () =>
+      chatSessions.map((session) => ({
+        id: session.id,
+        title: session.title,
+        typeLabel: session.typeLabel,
+        kind: session.kind,
+        lastMessagePreview: session.lastMessagePreview || 'No messages yet',
+        hasError: session.messages.some((message) => message.isError),
+      })),
+    [chatSessions]
+  );
+
   return (
     <div className="flex h-full">
       {/* Left Panel - Agent List */}
       <div className="w-56 flex-shrink-0 flex flex-col border-r border-ak-border bg-ak-surface">
-        <div className="p-3">
-          <input
-            type="text"
-            placeholder="Search agents..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full rounded-lg bg-ak-bg py-2 pl-3 pr-3 text-sm text-ak-text-primary placeholder:text-ak-text-secondary/40 focus:outline-none focus:ring-1 focus:ring-ak-primary/40 border border-ak-border"
-          />
-        </div>
-
         <div className="flex-1 overflow-y-auto px-2 pb-2">
-          <p className="mb-1.5 px-2 pt-1 text-[10px] font-semibold uppercase tracking-[0.15em] text-ak-text-secondary/50">
-            Agents
-          </p>
-          <div className="space-y-0.5">
-            {filteredAgents.map((agent) => {
-              const color = getAgentColor(agent.id);
-              return (
-                <button
-                  key={agent.id}
-                  onClick={() => {
-                    setSelectedAgent(agent);
-                    const latestForAgent = chatSessions.find((session) => session.agentId === agent.id);
-                    setActiveSessionId(latestForAgent?.id ?? null);
-                  }}
-                  className={cn(
-                    'flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left transition-all duration-150',
-                    selectedAgent?.id === agent.id
-                      ? 'bg-ak-surface-2 text-ak-text-primary'
-                      : 'text-ak-text-secondary hover:bg-ak-surface-2/50 hover:text-ak-text-primary'
-                  )}
-                >
-                  <div className={cn(
-                    'flex h-8 w-8 items-center justify-center rounded-lg transition-colors',
-                    selectedAgent?.id === agent.id
-                      ? `${color.bg} ${color.text}`
-                      : 'bg-ak-bg text-ak-text-secondary'
-                  )}>
-                    {agent.icon}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <span className="font-medium text-[13px]">{agent.name}</span>
-                    <p className="truncate text-[11px] text-ak-text-secondary/70 leading-tight">
-                      {agent.description}
-                    </p>
-                  </div>
-                </button>
-              );
-            })}
-          </div>
+          <AgentSelectorPanel
+            agents={filteredAgents}
+            searchQuery={searchQuery}
+            searchPlaceholder={tx('agentsHub.searchPlaceholder')}
+            selectedAgentId={selectedAgent.id}
+            getAgentColor={getAgentColor}
+            onSearchChange={setSearchQuery}
+            onSelect={(agentId) => {
+              const nextAgent = builtInAgents.find((agent) => agent.id === agentId);
+              if (!nextAgent) return;
+              setSelectedAgent(nextAgent);
+              const latestForAgent = chatSessions.find((session) => session.agentId === nextAgent.id);
+              setActiveSessionId(latestForAgent?.id ?? null);
+            }}
+          />
 
           {userConfigs.length > 0 && (
             <div className="mt-3">
@@ -1623,71 +1606,18 @@ export default function AgentsHubPage() {
             </div>
           )}
 
-          <div className="mt-3">
-            <div className="mb-1.5 flex items-center justify-between px-2">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-ak-text-secondary/50">
-                {tx('agentsHub.conversations')}
-              </p>
-              <button
-                onClick={() => {
-                  createSession(selectedAgent, userInput);
-                }}
-                className="rounded-md px-1.5 py-0.5 text-[10px] font-medium text-ak-text-secondary hover:bg-ak-surface-2 hover:text-ak-text-primary"
-              >
-                {tx('agentsHub.newConversation')}
-              </button>
-            </div>
-            {chatSessions.length === 0 ? (
-              <p className="px-2 text-[11px] text-ak-text-secondary/60">{tx('agentsHub.noConversations')}</p>
-            ) : (
-              <div className="space-y-0.5">
-                {chatSessions.map((session) => {
-                  const linkedAgent = builtInAgents.find((agent) => agent.id === session.agentId) ?? selectedAgent;
-                  const isActive = session.id === activeSessionId;
-                  return (
-                    <button
-                      key={session.id}
-                      onClick={() => setActiveSessionId(session.id)}
-                      className={cn(
-                        'flex w-full items-start gap-2 rounded-lg px-2 py-1.5 text-left transition-all',
-                        isActive
-                          ? 'bg-ak-surface-2 text-ak-text-primary'
-                          : 'text-ak-text-secondary hover:bg-ak-surface-2/50 hover:text-ak-text-primary',
-                        animatedSessionId === session.id && 'ring-1 ring-ak-primary/40 animate-pulse'
-                      )}
-                    >
-                      <div className={cn('mt-0.5 flex h-7 w-7 items-center justify-center rounded-lg', getAgentColor(linkedAgent.id).bg, getAgentColor(linkedAgent.id).text)}>
-                        {getSessionIcon(session.kind)}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-1.5">
-                          <span className="rounded bg-ak-surface px-1 py-0.5 text-[9px] font-semibold tracking-wide text-ak-text-secondary border border-ak-border">
-                            {session.typeLabel}
-                          </span>
-                          {session.messages.some((m) => m.isError) && (
-                            <span className="rounded bg-red-500/10 px-1 py-0.5 text-[9px] font-semibold text-red-400 border border-red-500/20">
-                              !
-                            </span>
-                          )}
-                        </div>
-                        <p className="mt-1 truncate text-[12px] font-medium">
-                          {session.title}
-                        </p>
-                        <p className={cn(
-                          'truncate text-[10px]',
-                          session.lastMessagePreview?.startsWith('Error:') || session.lastMessagePreview?.startsWith('Failed:')
-                            ? 'text-red-400/70'
-                            : 'text-ak-text-secondary/60'
-                        )}>
-                          {session.lastMessagePreview || 'No messages yet'}
-                        </p>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-          </div>
+          <SessionRail
+            title={tx('agentsHub.conversations')}
+            newLabel={tx('agentsHub.newConversation')}
+            emptyLabel={tx('agentsHub.noConversations')}
+            sessions={sessionRailItems}
+            activeSessionId={activeSessionId}
+            animatedSessionId={animatedSessionId}
+            getColor={(kind) => getAgentColor(kind === 'automation' ? 'smart-automations' : kind)}
+            getIcon={(kind) => getSessionIcon(kind as SessionKind)}
+            onCreate={() => createSession(selectedAgent, userInput)}
+            onSelect={(sessionId) => setActiveSessionId(sessionId)}
+          />
         </div>
 
       </div>
@@ -1812,7 +1742,7 @@ export default function AgentsHubPage() {
         </div>
 
         {/* Chat Area */}
-        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3">
+        <ConversationPane>
           {/* Config Panel (collapsible) */}
           {showConfig && (
             <div className="rounded-xl border border-ak-border bg-ak-surface p-4 mb-4">
@@ -1913,59 +1843,18 @@ export default function AgentsHubPage() {
           )}
 
           {activePlanCandidates.length > 0 && (
-            <div className="rounded-xl border border-ak-border bg-ak-surface p-3 space-y-2 mb-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-semibold text-ak-text-primary">{tx('agentsHub.planSection.title')}</p>
-                  <p className="text-[11px] text-ak-text-secondary">{tx('agentsHub.planSection.subtitle')}</p>
-                </div>
-                {unbuiltCandidates.length === 1 ? (
-                  <Button
-                    size="sm"
-                    disabled={isRunning}
-                    onClick={() => buildFromCandidateIds([unbuiltCandidates[0].id])}
-                  >
-                    {tx('agentsHub.planSection.build')}
-                  </Button>
-                ) : (
-                  <Button
-                    size="sm"
-                    disabled={selectedUnbuiltCandidates.length === 0}
-                    onClick={handleBuildSelected}
-                  >
-                    {tx('agentsHub.planSection.buildSelected')}
-                  </Button>
-                )}
-              </div>
-              <div className="space-y-2">
-                {activePlanCandidates.map((candidate) => (
-                  <div
-                    key={candidate.id}
-                    className={cn(
-                      'rounded-lg border px-3 py-2 flex items-center gap-3',
-                      candidate.status === 'failed'
-                        ? 'border-red-500/30 bg-red-500/[0.06]'
-                        : candidate.status === 'built'
-                          ? 'border-emerald-500/30 bg-emerald-500/[0.06]'
-                          : 'border-ak-border bg-ak-bg'
-                    )}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={candidate.selected}
-                      disabled={candidate.status !== 'unbuilt'}
-                      onChange={() => toggleCandidateSelection(candidate.id)}
-                      className="h-4 w-4 rounded border-ak-border bg-ak-bg text-ak-primary"
-                    />
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium text-ak-text-primary truncate">{candidate.title}</p>
-                      <p className="text-[11px] text-ak-text-secondary truncate">{candidate.summary}</p>
-                    </div>
-                    <span className="text-[10px] uppercase tracking-wide text-ak-text-secondary/70">{candidate.status}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
+            <PlanCandidatesPanel
+              title={tx('agentsHub.planSection.title')}
+              subtitle={tx('agentsHub.planSection.subtitle')}
+              buildLabel={tx('agentsHub.planSection.build')}
+              buildSelectedLabel={tx('agentsHub.planSection.buildSelected')}
+              isRunning={isRunning}
+              candidates={activePlanCandidates}
+              selectedUnbuiltCandidateIds={selectedUnbuiltCandidates.map((candidate) => candidate.id)}
+              onToggleSelection={toggleCandidateSelection}
+              onBuildSelected={handleBuildSelected}
+              onBuildSingle={(candidateId) => buildFromCandidateIds([candidateId])}
+            />
           )}
 
           {activeQueue.length > 0 && activeSessionId && (
@@ -2131,7 +2020,7 @@ export default function AgentsHubPage() {
           )}
 
           <div ref={chatEndRef} />
-        </div>
+        </ConversationPane>
 
         {/* Input Area */}
         <div ref={inputAreaRef} className="border-t border-ak-border bg-ak-bg p-3 relative">

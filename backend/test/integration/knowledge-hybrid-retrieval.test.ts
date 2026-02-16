@@ -141,8 +141,14 @@ test('Knowledge hybrid retrieval route', { skip: !hasDatabase }, async (t) => {
       assert.equal(Array.isArray(firstBody.results), true);
       assert.ok(firstBody.results.length >= 1);
 
-      const firstIds = firstBody.results.map((result: { chunkId: string }) => result.chunkId);
-      const secondIds = secondBody.results.map((result: { chunkId: string }) => result.chunkId);
+      const createdDocIdSet = new Set(insertedDocs.map((doc) => doc.id));
+      const firstIds = firstBody.results
+        .filter((result: { documentId: string }) => createdDocIdSet.has(result.documentId))
+        .map((result: { chunkId: string }) => result.chunkId);
+      const secondIds = secondBody.results
+        .filter((result: { documentId: string }) => createdDocIdSet.has(result.documentId))
+        .map((result: { chunkId: string }) => result.chunkId);
+      assert.ok(firstIds.length >= 1);
       assert.deepEqual(firstIds, secondIds);
     });
   } finally {

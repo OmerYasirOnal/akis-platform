@@ -16,6 +16,14 @@ import {
   mockRunAgentError,
 } from './helpers/mock-dashboard-apis';
 
+async function completeGuidedBrief(page: import('@playwright/test').Page) {
+  const selects = page.locator('select');
+  await selects.nth(0).selectOption('web-app');
+  await selects.nth(1).selectOption('jwt');
+  await selects.nth(2).selectOption('postgres');
+  await selects.nth(3).selectOption('cloud-container');
+}
+
 test.describe('Proto Console', () => {
   /* ------------------------------------------------------------------ */
   /* P1 — Route load: page renders heading and core elements             */
@@ -41,7 +49,7 @@ test.describe('Proto Console', () => {
   /* ------------------------------------------------------------------ */
   /* P2 — Run button enables when requirements are provided              */
   /* ------------------------------------------------------------------ */
-  test('P2: Run button enables when requirements are provided', async ({ page }) => {
+  test('P2: Run button enables after requirements + guided brief are provided', async ({ page }) => {
     await mockDashboardApis(page);
 
     await page.goto('/dashboard/proto');
@@ -50,6 +58,8 @@ test.describe('Proto Console', () => {
     await textarea.fill('Build a REST API for a todo list app');
 
     const runButton = page.getByRole('button', { name: /run proto/i });
+    await expect(runButton).toBeDisabled();
+    await completeGuidedBrief(page);
     await expect(runButton).toBeEnabled();
   });
 
@@ -88,7 +98,7 @@ test.describe('Proto Console', () => {
     // Switch to Artifacts tab
     await page.getByRole('button', { name: '📁 Artifacts' }).click();
 
-    await expect(page.getByText(/generated scaffold files will appear here/i)).toBeVisible();
+    await expect(page.getByText(/generated scaffold files will appear/i)).toBeVisible();
   });
 
   /* ------------------------------------------------------------------ */
@@ -106,7 +116,8 @@ test.describe('Proto Console', () => {
       req.method() === 'GET' && req.url().includes('/api/settings/ai-keys/status')
     );
 
-    await page.locator('textarea').fill('Create a Node.js CLI tool');
+    await page.locator('textarea').fill('Create a Node.js CLI tool with command parsing and config management');
+    await completeGuidedBrief(page);
     await Promise.all([
       aiStatusRequest,
       page.getByRole('button', { name: /run proto/i }).click(),
@@ -149,7 +160,8 @@ test.describe('Proto Console', () => {
 
     await page.goto('/dashboard/proto');
 
-    await page.locator('textarea').fill('Build a todo REST API with Express');
+    await page.locator('textarea').fill('Build a todo REST API with Express, Postgres, and RBAC support');
+    await completeGuidedBrief(page);
     await page.getByRole('button', { name: /run proto/i }).click();
 
     // Proto auto-switches to Artifacts tab on completion.
@@ -176,7 +188,8 @@ test.describe('Proto Console', () => {
       req.method() === 'POST' && req.url().includes('/api/agents/jobs')
     );
 
-    await page.locator('textarea').fill('Some requirements text');
+    await page.locator('textarea').fill('Some requirements text for guided Proto flow and scaffold generation');
+    await completeGuidedBrief(page);
     await Promise.all([
       submitRequest,
       page.getByRole('button', { name: /run proto/i }).click(),
@@ -205,7 +218,8 @@ test.describe('Proto Console', () => {
 
     await page.goto('/dashboard/proto');
 
-    await page.locator('textarea').fill('Test requirements for failure');
+    await page.locator('textarea').fill('Test requirements for failure handling in Proto execution path');
+    await completeGuidedBrief(page);
     await page.getByRole('button', { name: /run proto/i }).click();
 
     // Wait for failure state on phase banner.
@@ -230,7 +244,8 @@ test.describe('Proto Console', () => {
 
     await page.goto('/dashboard/proto');
 
-    await page.locator('textarea').fill('Quick requirements for retry test');
+    await page.locator('textarea').fill('Quick requirements for retry test with valid guided brief fields');
+    await completeGuidedBrief(page);
     await page.getByRole('button', { name: /run proto/i }).click();
 
     // Proto auto-switches to Artifacts on completion. Wait for "Run Proto" to confirm idle.
@@ -240,7 +255,7 @@ test.describe('Proto Console', () => {
 
     // With no generated artifacts payload, placeholder remains visible.
     await page.getByRole('button', { name: '📁 Artifacts' }).click();
-    await expect(page.getByText(/generated scaffold files will appear here/i)).toBeVisible();
+    await expect(page.getByText(/generated scaffold files will appear/i)).toBeVisible();
   });
 
   /* ------------------------------------------------------------------ */

@@ -6,7 +6,7 @@
 > **Araştırma Temeli:** `docs/planning/RESEARCH_DEEP_DIVE_AGENT_ARCHITECTURE.md`  
 > **Operasyonel Playbook:** [`docs/planning/AKIS_OPERATIONAL_PLAYBOOK.md`](planning/AKIS_OPERATIONAL_PLAYBOOK.md) (4 Pillar + Moonshot — teyit edilmiş hedef)  
 > **Uygulama Haritası:** [`docs/planning/PLAYBOOK_IMPLEMENTATION_MAP.md`](planning/PLAYBOOK_IMPLEMENTATION_MAP.md)  
-> **Son Güncelleme:** 2026-02-16 (manual CI fallback + Trace/PR gates local run + staging deploy `ee5041f` doğrulaması)
+> **Son Güncelleme:** 2026-02-16 (manual CI fallback + staging deploy `ee5041f` + manual UI smoke 13/13 + staging E2E 61/61 + UI M2 closure local gates: FE unit 602/602, FE E2E pack 50/50, BE unit 1302/1302)
 
 ---
 
@@ -31,8 +31,10 @@ docs/NEXT.md                                             (bu dosya — anlık ey
 | S0.5 PR | [#265](https://github.com/OmerYasirOnal/akis-platform-devolopment/pull/265) — onboarding, feedback, context packs, QA docs, 750+ yeni test |
 | Smoke Testleri | 13/13 geçti (`staging_smoke.sh --commit ee5041f`, 2026-02-16) |
 | Test Sayısı | Backend: 842 + Frontend: 549 = **1,391 toplam** (Phase 1-8 test kampanyası + S0.5 sprint, 2026-02-11) |
+| Closure Validation Run | Backend unit 1302/1302 + Frontend unit 602/602 + Staging E2E 61/61 + Local UI E2E pack 50/50 + typecheck 2/2 PASS (2026-02-16) |
+| Manual UI Smoke | Route matrix 13/13 PASS + TR/EN toggle + theme toggle + GitHub OAuth redirect PASS (`output/manual-ui-2026-02-16T09-25-23-636Z`) |
 | Kod Düzeltmeleri | MCP `/ready` durumu, OAuth hoşgeldin e-postası, agents yönlendirme `/agents/*`, logo güncelleme, güvenlik temizliği, E2E test hizalama, Scribe AGT-8 derin analiz iyileştirmesi, GitHub-style light theme tokenları, jobs user isolation (veri sızıntı fix), expandable logs + smart auto-scroll + light theme kontrast düzeltmesi, agents ownership guard hardening (approve/reject/comments/revise/revisions/stream) + duplicate-job UX iyileştirmesi |
-| CI Durumu | GitHub-hosted Actions billing engeli devam ediyor; joblar başlamadan `Billing & plans` anotasyonu ile fail. Geçici olarak manuel CI fallback uygulandı (backend/frontend gates + integration + Playwright + staging smoke), takip: Issue #333 (2026-02-16) |
+| CI Durumu | GitHub-hosted Actions billing engeli devam ediyor; joblar başlamadan `Billing & plans` anotasyonu ile fail. Geçici olarak manuel CI fallback uygulandı (backend/frontend gates + integration + Playwright + staging smoke + manual UI), takip: Issue #333 (2026-02-16), kanıt: `docs/qa/QA_EVIDENCE_STAGING_SMOKE_PACK.md` |
 | Şifreleme | Staging'de yapılandırıldı (`/ready` → `encryption.configured: true`) |
 | E-posta | Resend.com aktif (`EMAIL_PROVIDER=resend`); `noreply@akisflow.com` domain verified, DKIM+SPF+DMARC geçerli (2026-02-12) |
 | Google OAuth | `/ready` → `oauth.google`, `oauth.github`, `oauth.callbackBase` gösteriyor — staging `.env` kimlik bilgilerini doğrulayın |

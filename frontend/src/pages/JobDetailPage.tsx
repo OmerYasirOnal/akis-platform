@@ -882,6 +882,7 @@ export default function JobDetailPage() {
                   gates={verificationGates.gates}
                   overallStatus={verificationGates.status}
                   riskProfile={verificationGates.riskProfile}
+                  disclaimer={t('verification.summary.disclaimer' as never)}
                 />
                 <p className="text-xs text-ak-text-secondary">{verificationGates.summary}</p>
                 <div className="grid gap-3 md:grid-cols-3">

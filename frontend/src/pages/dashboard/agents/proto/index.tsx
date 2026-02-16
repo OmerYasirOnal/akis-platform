@@ -14,10 +14,20 @@ import Button from '../../../../components/common/Button';
 import AgentRuntimeSettingsDrawer from '../../../../components/agents/AgentRuntimeSettingsDrawer';
 import PiriContextSidebar from '../../../../components/agents/PiriContextSidebar';
 import LiveAgentCanvas from '../../../../components/agents/LiveAgentCanvas';
+import { SectionCard, StatusStrip, EmptyPanel } from '../../../../components/agents/hub';
 import { useAgentStatus } from '../../../../hooks/useAgentStatus';
 import { usePiriContext } from '../../../../hooks/usePiriContext';
+import { useI18n } from '../../../../i18n/useI18n';
 import { agentsApi, type JobDetail, type RuntimeOverride } from '../../../../services/api/agents';
 import { getMultiProviderStatus, type AIKeyProvider } from '../../../../services/api/ai-keys';
+import {
+  ProtoQuestionFlow,
+} from './components/ProtoQuestionFlow';
+import {
+  isProtoGuidedFlowComplete,
+  type ProtoGuidedAnswers,
+} from './components/protoGuidedFlow';
+import ProtoExecutionGraph, { type ProtoExecutionEvent } from './components/ProtoExecutionGraph';
 
 type ActiveTab = 'logs' | 'artifacts';
 
@@ -42,6 +52,7 @@ interface Artifact {
 }
 
 const DashboardAgentProtoPage = () => {
+  const { t } = useI18n();
   const { status: agentStatus } = useAgentStatus('proto');
 
   // Piri Context
@@ -52,6 +63,12 @@ const DashboardAgentProtoPage = () => {
   // Form state
   const [requirements, setRequirements] = useState('');
   const [stack, setStack] = useState('');
+  const [guidedAnswers, setGuidedAnswers] = useState<ProtoGuidedAnswers>({
+    productType: '',
+    authModel: '',
+    dataLayer: '',
+    deploymentTarget: '',
+  });
 
   // Job execution state
   const [currentJob, setCurrentJob] = useState<JobDetail | null>(null);
@@ -128,7 +145,9 @@ const DashboardAgentProtoPage = () => {
     }
   }, [currentJob, isPolling, pollJobStatus]);
 
-  const canRun = requirements.trim().length > 0 && !isPolling;
+  const hasValidRequirements = requirements.trim().length >= 20;
+  const guidedFlowReady = isProtoGuidedFlowComplete(guidedAnswers);
+  const canRun = hasValidRequirements && guidedFlowReady && !isPolling;
 
   const handleRunProto = async () => {
     if (!canRun) return;
@@ -175,6 +194,7 @@ const DashboardAgentProtoPage = () => {
       const payload: Record<string, unknown> = {
         requirements: requirements.trim(),
         ...(stack.trim() && { stack: stack.trim() }),
+        protoGuidedBrief: guidedAnswers,
         ...(aiProvider && { aiProvider }),
         ...(piriContext && { additionalContext: piriContext }),
       };
@@ -222,17 +242,6 @@ const DashboardAgentProtoPage = () => {
     }
   };
 
-  const getStatusColor = () => {
-    if (!currentJob) return 'text-ak-text-secondary';
-    switch (currentJob.state) {
-      case 'completed': return 'text-green-400';
-      case 'failed': return 'text-red-400';
-      case 'pending': return 'text-yellow-400';
-      case 'running': return 'text-purple-400';
-      default: return 'text-ak-text-secondary';
-    }
-  };
-
   const getStatusText = () => {
     if (!currentJob) return 'Ready';
     switch (currentJob.state) {
@@ -241,6 +250,21 @@ const DashboardAgentProtoPage = () => {
       case 'completed': return 'Complete';
       case 'failed': return 'Failed';
       default: return 'Unknown';
+    }
+  };
+
+  const getStatusTone = (): 'idle' | 'running' | 'success' | 'error' => {
+    if (!currentJob) return 'idle';
+    switch (currentJob.state) {
+      case 'pending':
+      case 'running':
+        return 'running';
+      case 'completed':
+        return 'success';
+      case 'failed':
+        return 'error';
+      default:
+        return 'idle';
     }
   };
 
@@ -256,6 +280,22 @@ const DashboardAgentProtoPage = () => {
       return result.artifacts as Artifact[];
     }
     return [];
+  })();
+
+  const executionEvents: ProtoExecutionEvent[] = (() => {
+    if (!Array.isArray(currentJob?.trace)) return [];
+    return (currentJob.trace as Array<Record<string, unknown>>)
+      .map((event, index) => ({
+        id: typeof event.id === 'string' ? event.id : `trace-${index}`,
+        stepId: typeof event.stepId === 'string' ? event.stepId : undefined,
+        title: typeof event.title === 'string' ? event.title : undefined,
+        timestamp: typeof event.timestamp === 'string' ? event.timestamp : new Date().toISOString(),
+        status:
+          event.status === 'running' || event.status === 'completed' || event.status === 'failed'
+            ? event.status
+            : undefined,
+      }))
+      .slice(0, 50);
   })();
 
   return (
@@ -298,14 +338,16 @@ const DashboardAgentProtoPage = () => {
       </header>
 
       {/* Configuration Bar */}
-      <Card className="bg-ak-surface p-6">
+      <SectionCard
+        title="Requirements"
+        subtitle="Describe scope, answer quick architecture questions, then run Proto."
+        actions={(
+          <Link to="/docs/agents/proto" className="text-xs font-medium text-ak-primary hover:underline">
+            Docs
+          </Link>
+        )}
+      >
         <div className="space-y-5">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-ak-text-primary">Requirements</h2>
-            <Link to="/docs/agents/proto" className="text-xs font-medium text-ak-primary hover:underline">
-              Docs
-            </Link>
-          </div>
 
           {/* Requirements Textarea */}
           <div className="space-y-2">
@@ -340,6 +382,12 @@ const DashboardAgentProtoPage = () => {
             />
           </div>
 
+          <ProtoQuestionFlow
+            value={guidedAnswers}
+            disabled={Boolean(isRunning)}
+            onChange={setGuidedAnswers}
+          />
+
           {/* Run Button Row */}
           <div className="flex flex-wrap items-center gap-3 border-t border-ak-border pt-4">
             {isIdle ? (
@@ -370,34 +418,25 @@ const DashboardAgentProtoPage = () => {
 
             {!canRun && isIdle && (
               <p className="text-xs text-ak-text-secondary">
-                Describe your project to begin scaffolding
+                {!hasValidRequirements
+                  ? t('protoConsole.guided.requirementsHint' as never)
+                  : t('protoConsole.guided.completeHint' as never)}
               </p>
             )}
           </div>
         </div>
-      </Card>
+      </SectionCard>
 
       {/* Status Summary */}
       {!isIdle && currentJob && (
         <Card className="bg-ak-surface-2 p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs font-medium uppercase tracking-wider text-ak-text-secondary">
-                Status
-              </p>
-              <p className={`text-lg font-semibold ${getStatusColor()}`}>
-                {getStatusText()}
-              </p>
-            </div>
-            <div className="text-right">
-              <p className="text-xs font-medium uppercase tracking-wider text-ak-text-secondary">
-                Job ID
-              </p>
-              <p className="text-xs font-mono text-ak-text-primary">
-                {currentJob.id.substring(0, 8)}...
-              </p>
-            </div>
-          </div>
+          <StatusStrip
+            label="Status"
+            value={getStatusText()}
+            secondaryLabel="Job ID"
+            secondaryValue={`${currentJob.id.substring(0, 8)}...`}
+            tone={getStatusTone()}
+          />
         </Card>
       )}
 
@@ -451,6 +490,9 @@ const DashboardAgentProtoPage = () => {
 
           {activeTab === 'artifacts' && (
             <div className="h-full overflow-y-auto bg-ak-bg p-4">
+              <div className="mb-3">
+                <ProtoExecutionGraph events={executionEvents} isRunning={Boolean(isRunning)} />
+              </div>
               {artifacts.length > 0 ? (
                 <div className="space-y-3">
                   {artifacts.map((artifact, idx) => (
@@ -477,10 +519,11 @@ const DashboardAgentProtoPage = () => {
                   ))}
                 </div>
               ) : (
-                <div className="flex h-full flex-col items-center justify-center text-ak-text-secondary/50">
-                  <span className="text-4xl">📁</span>
-                  <p className="mt-2">Generated scaffold files will appear here</p>
-                </div>
+                <EmptyPanel
+                  icon={<span>📁</span>}
+                  title="No artifacts yet"
+                  description="Generated scaffold files will appear after Proto completes execution."
+                />
               )}
             </div>
           )}

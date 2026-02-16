@@ -1,7 +1,7 @@
 # Staging Smoke Test Checklist
 
-**Version**: 2.0.0
-**Last Updated**: 2026-02-09
+**Version**: 2.1.0
+**Last Updated**: 2026-02-16
 **Automation**: `scripts/staging_smoke.sh`
 
 > This checklist mirrors the automated smoke script. Use it for manual verification or when the script is not available.
@@ -13,6 +13,19 @@
 - Target: `https://staging.akisflow.com`
 - Expected commit SHA (from `git rev-parse --short HEAD` or CI output)
 - curl + jq installed
+
+---
+
+## Latest Verified Baseline (2026-02-16)
+
+| Item | Value |
+|------|-------|
+| Deployed Commit | `ee5041f` |
+| Scripted smoke | 13/13 PASS |
+| Manual route smoke | 13/13 PASS |
+| Browser E2E (staging) | 61/61 PASS |
+| Browser E2E (local UI M2 pack) | 50/50 PASS |
+| QA evidence pack | [`../qa/QA_EVIDENCE_STAGING_SMOKE_PACK.md`](../qa/QA_EVIDENCE_STAGING_SMOKE_PACK.md) |
 
 ---
 
@@ -53,6 +66,7 @@
 | 19 | LiveAgentCanvas (S0.5.3-UX-15) | Navigate to `/agents/scribe`, run job, switch to Logs tab | PhaseProgressBanner, InnerMonologue, PhaseActivityCards render in real-time |
 | 20 | Agent console routes | Navigate to `/agents/scribe`, `/agents/trace`, `/agents/proto` | Each renders dedicated console with LiveAgentCanvas |
 | 21 | Jobs user isolation (S0.5.3-AUTH-3) | With User A session, `GET /api/agents/jobs`; then try User A's job ID with User B's session | User B gets 404, no cross-user data leak |
+| 22 | Manual UI artifact pack | Check `output/manual-ui-*/report.json` and screenshots | Route matrix ve interaction kanıtı mevcut |
 
 ---
 
@@ -99,6 +113,7 @@ The automated script:
 | Version mismatch | **Rollback** — see [STAGING_ROLLBACK_RUNBOOK.md](STAGING_ROLLBACK_RUNBOOK.md) |
 | Health fail | Check `docker compose logs backend --tail=100` |
 | Frontend fail | Check Caddy logs and `/srv/frontend/` contents |
+| Evidence missing | Update [`../qa/QA_EVIDENCE_STAGING_SMOKE_PACK.md`](../qa/QA_EVIDENCE_STAGING_SMOKE_PACK.md) before release sign-off |
 
 ---
 
