@@ -29,6 +29,8 @@ export interface TraceRunResult {
   durationMs: number;
   failures: { feature: string; scenario: string; reason: string }[];
   generatedTestPath: string;
+  reportPath?: string;
+  traceArtifactPath?: string;
 }
 
 const DEFAULT_TIMEOUT_MS = 120_000;
@@ -155,8 +157,11 @@ export async function runTraceAutomation(opts: RunOptions): Promise<TraceRunResu
   const workDir = join(tmpdir(), `akis-trace-${randomUUID()}`);
   const testFile = join(workDir, 'trace.spec.ts');
   const reportFile = join(workDir, 'results.json');
+  const outputDir = join(workDir, 'playwright-output');
+  const traceArtifactPath = join(outputDir, 'trace.zip');
 
   await mkdir(workDir, { recursive: true });
+  await mkdir(outputDir, { recursive: true });
   await writeFile(testFile, buildTestFileContent(specs, baseUrl, browser), 'utf-8');
 
   const start = Date.now();
@@ -165,7 +170,17 @@ export async function runTraceAutomation(opts: RunOptions): Promise<TraceRunResu
     const exitCode = await new Promise<number>((resolve, reject) => {
       const proc = spawn(
         'npx',
-        ['playwright', 'test', testFile, '--reporter=json', '--output', reportFile],
+        [
+          'playwright',
+          'test',
+          testFile,
+          '--reporter=json',
+          '--workers=1',
+          '--trace',
+          'on-first-retry',
+          '--output',
+          outputDir,
+        ],
         { cwd: workDir, shell: false, timeout: timeoutMs, env: { ...process.env, PLAYWRIGHT_JSON_OUTPUT_NAME: reportFile } }
       );
 
@@ -194,14 +209,24 @@ export async function runTraceAutomation(opts: RunOptions): Promise<TraceRunResu
           ...buildFallbackResult(specs, `Playwright exited with code ${exitCode}`),
           durationMs: Date.now() - start,
           generatedTestPath: testFile,
+          reportPath: reportFile,
         };
       }
     }
 
     const parsed = parseJsonReport(reportJson, specs);
-    return { ...parsed, durationMs: Date.now() - start, generatedTestPath: testFile };
+    return {
+      ...parsed,
+      durationMs: Date.now() - start,
+      generatedTestPath: testFile,
+      reportPath: reportFile,
+      traceArtifactPath,
+    };
   } finally {
-    // Cleanup temp dir (best-effort)
-    rm(workDir, { recursive: true, force: true }).catch(() => {});
+    // Cleanup is optional to keep generated artifacts accessible after run.
+    // Caller can remove temp workspaces via host-level cleanup jobs.
+    if (process.env.AKIS_TRACE_KEEP_ARTIFACTS !== 'true') {
+      rm(workDir, { recursive: true, force: true }).catch(() => {});
+    }
   }
 }

@@ -42,3 +42,8 @@
 
 - Prefer security-first fixes for cross-user data isolation issues in staging before UX polishing.
   Example: When jobs visibility leaks are reported, prioritize strict ownership guards across all related endpoints and only then improve duplicate-run UX.
+
+## 2026-02-15
+
+- Prefer end-to-end execution of approved master plans without mid-way pauses.
+  Example: For reliability workstreams, implement all scoped items sequentially and only stop after validation/tests are complete.

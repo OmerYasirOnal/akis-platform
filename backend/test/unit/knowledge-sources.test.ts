@@ -220,3 +220,88 @@ describe('Knowledge Sources — License Allowlist', () => {
     });
   }
 });
+
+describe('Knowledge Signals & Hybrid Retrieval Schemas', () => {
+  const releaseSyncSchema = z.object({
+    owner: z.string().min(1).optional(),
+    repo: z.string().min(1).optional(),
+    sourceId: z.string().uuid().optional(),
+  }).refine((input) => Boolean(input.sourceId) || Boolean(input.owner && input.repo), {
+    message: 'sourceId or owner+repo is required',
+  });
+
+  const manualAdvisorySchema = z.object({
+    cveId: z.string().regex(/^CVE-\d{4}-\d{4,}$/i),
+    ghsaId: z.string().optional(),
+    summary: z.string().min(1).max(5000),
+    severity: z.enum(['critical', 'high', 'medium', 'low', 'unknown']).default('unknown'),
+    affectedPackage: z.string().optional(),
+    sourceUrl: z.string().url(),
+    publishedAt: z.string().datetime().optional(),
+    updatedAt: z.string().datetime().optional(),
+  });
+
+  const cveSyncSchema = z.object({
+    owner: z.string().min(1).optional(),
+    repo: z.string().min(1).optional(),
+    advisories: z.array(manualAdvisorySchema).optional(),
+  }).refine((input) => Boolean(input.advisories?.length) || Boolean(input.owner && input.repo), {
+    message: 'advisories or owner+repo is required',
+  });
+
+  const hybridSearchSchema = z.object({
+    query: z.string().min(1),
+    topK: z.coerce.number().int().min(1).max(50).default(10),
+    maxTokens: z.coerce.number().int().min(500).max(8000).default(4000),
+    includeProposed: z.boolean().default(false),
+    keywordWeight: z.coerce.number().min(0).max(1).default(0.55),
+    semanticWeight: z.coerce.number().min(0).max(1).default(0.45),
+  });
+
+  it('release sync accepts sourceId without owner/repo', () => {
+    const result = releaseSyncSchema.safeParse({ sourceId: 'f14dcf22-5722-421f-a560-f65f577276d0' });
+    assert.ok(result.success);
+  });
+
+  it('release sync rejects payload without sourceId or owner/repo', () => {
+    const result = releaseSyncSchema.safeParse({});
+    assert.ok(!result.success);
+  });
+
+  it('cve sync accepts manual advisory list', () => {
+    const result = cveSyncSchema.safeParse({
+      advisories: [
+        {
+          cveId: 'CVE-2026-12345',
+          summary: 'Critical issue in parser',
+          severity: 'critical',
+          sourceUrl: 'https://github.com/advisories/GHSA-xxxx-xxxx-xxxx',
+        },
+      ],
+    });
+    assert.ok(result.success);
+  });
+
+  it('cve sync rejects malformed CVE identifiers', () => {
+    const result = cveSyncSchema.safeParse({
+      advisories: [
+        {
+          cveId: 'NOT-A-CVE',
+          summary: 'Invalid CVE',
+          sourceUrl: 'https://example.com/advisory',
+        },
+      ],
+    });
+    assert.ok(!result.success);
+  });
+
+  it('hybrid search applies deterministic defaults', () => {
+    const result = hybridSearchSchema.safeParse({ query: 'build pipeline' });
+    assert.ok(result.success);
+    assert.equal(result.data?.topK, 10);
+    assert.equal(result.data?.maxTokens, 4000);
+    assert.equal(result.data?.includeProposed, false);
+    assert.equal(result.data?.keywordWeight, 0.55);
+    assert.equal(result.data?.semanticWeight, 0.45);
+  });
+});

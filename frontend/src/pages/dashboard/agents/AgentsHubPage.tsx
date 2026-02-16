@@ -19,6 +19,11 @@ import type { ApiError } from '../../../services/api/HttpClient';
 import { toast } from '../../../components/ui/Toast';
 import { useI18n } from '../../../i18n/useI18n';
 import { cn } from '../../../utils/cn';
+import {
+  CitationBadge,
+  ConfidenceIndicator,
+  FreshnessLabel,
+} from '../../../components/agents/verification';
 
 interface AgentDefinition {
   id: AgentType | 'smart-automations';
@@ -1462,6 +1467,10 @@ export default function AgentsHubPage() {
     const traceEvents = Array.isArray(currentJob?.trace)
       ? (currentJob?.trace as Array<{ eventType?: string; status?: string }>)
       : [];
+    const verificationGates = currentJob?.verificationGates;
+    const groundednessGate = verificationGates?.gates?.find((gate) => gate.name === 'groundedness');
+    const hallucinationGate = verificationGates?.gates?.find((gate) => gate.name === 'hallucination');
+    const citationGate = verificationGates?.gates?.find((gate) => gate.name === 'citation');
     const totalEvents = traceEvents.length || 1;
     const errorEvents = traceEvents.filter((event) => {
       const type = event.eventType || '';
@@ -1476,10 +1485,20 @@ export default function AgentsHubPage() {
     const toolFailures = toolCalls.filter((event) => event.status === 'failed').length;
     const qualityScore = typeof currentJob?.qualityScore === 'number' ? currentJob.qualityScore : null;
 
-    const reliability = Math.max(0, Math.min(100, Math.round(100 - (errorEvents / totalEvents) * 100)));
-    const hallucinationRisk = Math.max(0, Math.min(100, Math.round(10 + (aiParseErrors / totalEvents) * 90)));
+    const reliability = groundednessGate
+      ? Math.max(0, Math.min(100, Math.round(groundednessGate.score * 100)))
+      : Math.max(0, Math.min(100, Math.round(100 - (errorEvents / totalEvents) * 100)));
+    const hallucinationRisk = hallucinationGate
+      ? Math.max(0, Math.min(100, Math.round(hallucinationGate.score * 100)))
+      : Math.max(0, Math.min(100, Math.round(10 + (aiParseErrors / totalEvents) * 90)));
     const taskSuccess = qualityScore !== null
       ? Math.max(0, Math.min(100, Math.round(qualityScore)))
+      : citationGate?.status === 'pass'
+        ? 85
+        : citationGate?.status === 'warn'
+          ? 60
+          : citationGate?.status === 'fail'
+            ? 35
       : currentJob?.state === 'completed'
         ? 80
         : currentJob?.state === 'failed'
@@ -1496,6 +1515,31 @@ export default function AgentsHubPage() {
       { key: 'toolHealth', label: tx('agentsHub.metrics.toolHealth'), value: toolHealth },
     ];
   }, [currentJob, tx]);
+  const verificationSignals = useMemo(() => {
+    const verification = currentJob?.verificationGates;
+    if (!verification) return null;
+    const citationGate = verification.gates.find((gate) => gate.name === 'citation');
+    const groundednessGate = verification.gates.find((gate) => gate.name === 'groundedness');
+    const freshnessGate = verification.gates.find((gate) => gate.name === 'freshness');
+    const citationStatus = verification.blockedByPolicy
+      ? 'blocked'
+      : citationGate?.status === 'pass'
+        ? 'verified'
+        : 'unverified';
+    const confidence = groundednessGate ? Math.round(groundednessGate.score * 100) : 0;
+    const freshnessStatus = freshnessGate
+      ? freshnessGate.score >= 0.7
+        ? 'fresh'
+        : freshnessGate.score >= 0.4
+          ? 'stale-ish'
+          : 'stale'
+      : 'unknown';
+    return {
+      citationStatus: citationStatus as 'verified' | 'unverified' | 'blocked' | 'conflict',
+      confidence,
+      freshnessStatus: freshnessStatus as 'fresh' | 'stale-ish' | 'stale' | 'unknown',
+    };
+  }, [currentJob]);
 
   return (
     <div className="flex h-full">
@@ -1693,6 +1737,19 @@ export default function AgentsHubPage() {
                   );
                 })}
               </div>
+              {verificationSignals && (
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <CitationBadge status={verificationSignals.citationStatus} />
+                  <FreshnessLabel status={verificationSignals.freshnessStatus} />
+                  <div className="min-w-[132px]">
+                    <ConfidenceIndicator
+                      score={verificationSignals.confidence}
+                      size="sm"
+                      label={tx('verification.metrics.confidence')}
+                    />
+                  </div>
+                </div>
+              )}
             </div>
           </div>
           <div className="flex items-center gap-2">

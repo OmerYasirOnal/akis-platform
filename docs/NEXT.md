@@ -169,6 +169,17 @@ docs/NEXT.md                                             (bu dosya — anlık ey
 | Error Codes | Same as Scribe (`MISSING_DEPENDENCY`, `GITHUB_NOT_CONNECTED`, `AI_KEY_MISSING`) |
 | Dependencies | GitHub MCP adapter, AI provider, GitHub OAuth connection |
 
+#### Trace M2+ Reliability Closure (2026-02-16)
+
+- `automationMode=plan_only|generate_and_run` + `targetBaseUrl` guard tamamlandı.
+- Flow/edge/risk coverage metadata (`flowCoverage`, `edgeCaseCoverage`, `riskWeightedCoverage`) eklendi.
+- Flaky yönetimi (`retry_once`, `pfsLite`, selective quarantine) eklendi.
+- Real Playwright execution bridge aktif (`TraceAutomationRunner`, artifact refs).
+- CI trace workflow ve eval protocol aktif:
+  - `.github/workflows/trace-agent.yml`
+  - `docs/qa/TRACE_EVAL_PROTOCOL.md`
+  - `docs/research/TRACE_AGENT_EVIDENCE_MATRIX.md`
+
 ### Proto Agent
 
 **Purpose:** Rapid prototyping assistant — converts ideas/specs into working code scaffolds.
@@ -244,41 +255,41 @@ docs/NEXT.md                                             (bu dosya — anlık ey
 
 | # | Görev | Pillar | Kapsam | Durum |
 |---|-------|--------|--------|-------|
-| M2-KI-1 | GroundednessScorer | P1 | Claim extraction + evidence matching + 0-1 score | Tamamlandı (2026-02-13) |
-| M2-KI-2 | ClaimDecomposer | P1 | AI-powered atomic claim extraction | Tamamlandı (2026-02-13) |
-| M2-VF-1 | VerificationGateEngine | P2 | Configurable thresholds + pass/fail/warn | Tamamlandı (2026-02-13) |
-| M2-VF-2 | Scribe Verification Gates | P2 | Citation ≥80%, Hallucination ≤5%, Freshness ≤6mo, Conflict=0 | Tamamlandı (2026-02-13) |
-| M2-VF-6 | Agent Risk Profiles | P2 | P0/P1/P2 → gate strictness config | Tamamlandı (2026-02-13) |
+| M2-KI-1 | GroundednessScorer | P1 | Claim extraction + evidence matching + 0-1 score | Tamamlandı (2026-02-15) |
+| M2-KI-2 | ClaimDecomposer | P1 | AI-powered atomic claim extraction | Tamamlandı (2026-02-15) |
+| M2-VF-1 | VerificationGateEngine | P2 | Configurable thresholds + pass/fail/warn | Tamamlandı (2026-02-15) |
+| M2-VF-2 | Scribe Verification Gates | P2 | Citation ≥80%, Hallucination ≤5%, Freshness ≤6mo, Conflict=0 | Tamamlandı (2026-02-15) |
+| M2-VF-6 | Agent Risk Profiles | P2 | P0/P1/P2 → gate strictness config | Tamamlandı (2026-02-15) |
 
 #### M2 Sprint 2 (10-21 Mart) — Full Pipeline + UI
 
 | # | Görev | Pillar | Kapsam | Durum |
 |---|-------|--------|--------|-------|
-| M2-KI-3 | ConflictDetector | P1 | Kaynak çakışma tespiti | Tamamlandı (2026-02-13) |
-| M2-KI-4 | Cite-or-Block Gate | P1 | AgentOrchestrator enforcement | Tamamlandı (2026-02-13) |
-| M2-VF-3 | Trace Verification Gates | P2 | Coverage ≥90%, Edge Cases ≥5/mod, Validity ≥95% | Tamamlandı (2026-02-13) |
-| M2-VF-4 | Proto Verification Gates | P2 | Build 100%, Security 0 kritik, Convention ≥90% | Tamamlandı (2026-02-13) |
-| M2-FP-1 | FreshnessScheduler | P3 | Cron → stale knowledge detection | Tamamlandı (2026-02-13) |
-| M2-FP-2 | GitHub Releases Sinyal | P3 | MCP adapter genişletme | Başlanmadı |
-| M2-UI-1 | CitationBadge | P4 | verified/unverified/blocked/conflict states | Tamamlandı (2026-02-13) |
-| M2-UI-2 | ConfidenceIndicator | P4 | 0-100 + renk kodlaması | Tamamlandı (2026-02-13) |
-| M2-UI-3 | FreshnessLabel | P4 | Tarih + stale/fresh/unknown | Tamamlandı (2026-02-13) |
-| M2-UI-4 | ConflictWarning | P4 | Turuncu uyarı + kaynak listesi | Tamamlandı (2026-02-13) |
-| M2-UI-6 | i18n Integrity Keys | P4 | TR/EN citation/confidence/freshness | Başlanmadı |
+| M2-KI-3 | ConflictDetector | P1 | Kaynak çakışma tespiti | Tamamlandı (2026-02-15) |
+| M2-KI-4 | Cite-or-Block Gate | P1 | AgentOrchestrator enforcement | Tamamlandı (2026-02-15) |
+| M2-VF-3 | Trace Verification Gates | P2 | Coverage ≥90%, Edge Cases ≥5/mod, Validity ≥95% | Tamamlandı (2026-02-15) |
+| M2-VF-4 | Proto Verification Gates | P2 | Build 100%, Security 0 kritik, Convention ≥90% | Tamamlandı (2026-02-15) |
+| M2-FP-1 | FreshnessScheduler | P3 | Cron → stale knowledge detection | Tamamlandı (2026-02-15) |
+| M2-FP-2 | GitHub Releases Sinyal | P3 | MCP adapter genişletme | Tamamlandı (2026-02-16) |
+| M2-UI-1 | CitationBadge | P4 | verified/unverified/blocked/conflict states | Tamamlandı (2026-02-15) |
+| M2-UI-2 | ConfidenceIndicator | P4 | 0-100 + renk kodlaması | Tamamlandı (2026-02-15) |
+| M2-UI-3 | FreshnessLabel | P4 | Tarih + stale/fresh/unknown | Tamamlandı (2026-02-15) |
+| M2-UI-4 | ConflictWarning | P4 | Turuncu uyarı + kaynak listesi | Tamamlandı (2026-02-15) |
+| M2-UI-6 | i18n Integrity Keys | P4 | TR/EN citation/confidence/freshness | Tamamlandı (2026-02-15) |
 
 #### M2 Sprint 3 (17-31 Mart) — Entegrasyon + RAG
 
 | # | Görev | Pillar | Kapsam | Durum |
 |---|-------|--------|--------|-------|
-| M2-KI-5 | RAG Integration | P1 | Python microservice bağlantısı | Başlanmadı |
-| M2-VF-5 | Orchestrator Gate | P2 | completeJob'da gate check | Tamamlandı (2026-02-13, M2-KI-4 ile birlikte) |
-| M2-FP-3 | CVE/Security Advisory | P3 | NVD + GitHub Security Advisories | Başlanmadı |
-| M2-FP-5 | Knowledge Approval Workflow | P3 | API + UI approval flow | Başlanmadı |
-| M2-UI-5 | Inline Provenance | P4 | ArtifactPreview citation + kaynak + VerificationSummary | Tamamlandı (2026-02-13) |
+| M2-KI-5 | RAG Integration | P1 | Python microservice bağlantısı + hybrid fallback + status endpoint | Tamamlandı (2026-02-16) |
+| M2-VF-5 | Orchestrator Gate | P2 | completeJob'da gate check | Tamamlandı (2026-02-15, M2-KI-4 ile birlikte) |
+| M2-FP-3 | CVE/Security Advisory | P3 | NVD + GitHub Security Advisories | Tamamlandı (2026-02-16) |
+| M2-FP-5 | Knowledge Approval Workflow | P3 | API + UI approval flow | Tamamlandı (2026-02-16) |
+| M2-UI-5 | Inline Provenance | P4 | ArtifactPreview citation + kaynak + VerificationSummary | Tamamlandı (2026-02-15) |
 | M2-RAG-1 | Python RAG Microservice | — | Piri v3 submodule + Dockerfile + compose overlay + /health (2026-02-13) | Tamamlandı |
-| M2-RAG-2 | Hybrid Search | — | Keyword + vector birleştirme | Başlanmadı |
-| M2-RAG-3 | RAG Evaluation UI | — | 5 metrik dashboard + halüsinasyon tespiti | Başlanmadı |
-| M2-RAG-4 | Knowledge Base Yönetim UI | — | Doküman upload, indeks, semantic search | Başlanmadı |
+| M2-RAG-2 | Hybrid Search | — | Keyword + vector birleştirme | Tamamlandı (2026-02-16) |
+| M2-RAG-3 | RAG Evaluation UI | — | 5 metrik dashboard + halüsinasyon tespiti | Tamamlandı (2026-02-16) |
+| M2-RAG-4 | Knowledge Base Yönetim UI | — | Doküman upload, indeks, semantic search | Tamamlandı (2026-02-16) |
 | M2-CREW-1 | Generic Crew System | — | Agent Teams: coordinator + parallel workers + shared task list + inter-agent messaging | Tamamlandı (PR #319, 2026-02-13) |
 | M2-CREW-2 | Crew Frontend UI | — | CrewRunPage, WorkerCard, CrewChat, CrewTaskBoard | Tamamlandı (PR #319, 2026-02-13) |
 

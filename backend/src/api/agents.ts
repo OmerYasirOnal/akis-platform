@@ -56,7 +56,7 @@ const tracePayloadSchema = z.object({
   baseBranch: z.string().optional(),
   branchStrategy: z.enum(['auto', 'manual']).optional(),
   dryRun: z.boolean().optional(),
-  automationMode: z.literal('generate_and_run').optional(),
+  automationMode: z.enum(['plan_only', 'generate_and_run']).optional(),
   targetBaseUrl: z.string().url().optional(),
   featureLimit: z.number().int().min(1).max(100).optional(),
   tracePreferences: z.object({
@@ -68,7 +68,15 @@ const tracePayloadSchema = z.object({
   // Piri context fields
   contextQuery: z.string().max(2000).optional(),
   additionalContext: z.string().max(10000).optional(),
-}).passthrough();
+}).passthrough().superRefine((data, ctx) => {
+  if (data.automationMode === 'generate_and_run' && !data.targetBaseUrl) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'targetBaseUrl is required when automationMode is generate_and_run',
+      path: ['targetBaseUrl'],
+    });
+  }
+});
 
 const protoPayloadSchema = z.object({
   requirements: z.string().min(1, 'requirements field is required').optional(),
@@ -187,6 +195,8 @@ const submitJobSchema = z.object({
   runtimeOverride: runtimeOverrideSchema.optional(),
   /** If true, the job will use a stronger model for final validation */
   requiresStrictValidation: z.boolean().optional().default(false),
+  /** If true, execution pauses after planning until explicit approval */
+  requiresApproval: z.boolean().optional().default(false),
 }).superRefine((data, ctx) => {
   // S0.4.6: Skip validation if config-aware payload (validation happens in route handler after config load)
   if (data.payload && typeof data.payload === 'object') {
@@ -292,6 +302,14 @@ function extractCorrelationIdFromText(value: unknown): string | null {
   return match?.[1] || null;
 }
 
+function extractVerificationGates(value: unknown): Record<string, unknown> | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const result = value as Record<string, unknown>;
+  const gates = result.verificationGates;
+  if (!gates || typeof gates !== 'object' || Array.isArray(gates)) return null;
+  return gates as Record<string, unknown>;
+}
+
 async function resolveEffectiveRuntimeControl(
   userId: string | undefined,
   agentType: 'scribe' | 'trace' | 'proto',
@@ -354,6 +372,7 @@ export async function agentsRoutes(fastify: FastifyInstance) {
               },
             },
             requiresStrictValidation: { type: 'boolean', default: false },
+            requiresApproval: { type: 'boolean', default: false },
           },
         },
         response: {
@@ -361,7 +380,7 @@ export async function agentsRoutes(fastify: FastifyInstance) {
             type: 'object',
             properties: {
               jobId: { type: 'string', format: 'uuid' },
-              state: { type: 'string', enum: ['pending', 'running', 'completed', 'failed'] },
+              state: { type: 'string', enum: ['pending', 'running', 'awaiting_approval', 'completed', 'failed'] },
             },
           },
         },
@@ -768,6 +787,7 @@ export async function agentsRoutes(fastify: FastifyInstance) {
           type: body.type,
           payload: enrichedPayload,
           requiresStrictValidation: body.requiresStrictValidation,
+          requiresApproval: body.requiresApproval,
           aiModel,
           aiProvider,
         });
@@ -1024,6 +1044,7 @@ export async function agentsRoutes(fastify: FastifyInstance) {
         // Return job data with optional plan/audit/trace/artifacts
         const correlationId =
           extractCorrelationIdFromText(job.errorMessage) || extractCorrelationIdFromText(job.error);
+        const verificationGates = extractVerificationGates(job.result);
         const payloadAsRecord =
           job.payload && typeof job.payload === 'object'
             ? (job.payload as Record<string, unknown>)
@@ -1086,6 +1107,7 @@ export async function agentsRoutes(fastify: FastifyInstance) {
           qualityBreakdown: job.qualityBreakdown,
           qualityVersion: job.qualityVersion,
           qualityComputedAt: job.qualityComputedAt,
+          verificationGates,
           // Quality suggestions (computed on-the-fly if quality exists)
           qualitySuggestions: job.qualityBreakdown && job.qualityScore !== null
             ? generateQualitySuggestions(
@@ -1141,12 +1163,12 @@ export async function agentsRoutes(fastify: FastifyInstance) {
 
   // Phase 7.D: GET /api/agents/jobs - List jobs with filtering and pagination
   // Cursor encoding: base64(createdAt|id) for deterministic pagination
-  const jobsListQuerySchema = z.object({
-    type: z.enum(['scribe', 'trace', 'proto']).optional(),
-    state: z.enum(['pending', 'running', 'completed', 'failed']).optional(),
-    limit: z.coerce.number().int().min(1).max(100).default(20),
-    cursor: z.string().optional(), // base64 encoded cursor
-  });
+const jobsListQuerySchema = z.object({
+  type: z.enum(['scribe', 'trace', 'proto']).optional(),
+  state: z.enum(['pending', 'running', 'awaiting_approval', 'completed', 'failed']).optional(),
+  limit: z.coerce.number().int().min(1).max(100).default(20),
+  cursor: z.string().optional(), // base64 encoded cursor
+});
 
   fastify.get(
     '/api/agents/jobs',
@@ -1158,7 +1180,7 @@ export async function agentsRoutes(fastify: FastifyInstance) {
           type: 'object',
           properties: {
             type: { type: 'string', enum: ['scribe', 'trace', 'proto'] },
-            state: { type: 'string', enum: ['pending', 'running', 'completed', 'failed'] },
+            state: { type: 'string', enum: ['pending', 'running', 'awaiting_approval', 'completed', 'failed'] },
             limit: { type: 'number', minimum: 1, maximum: 100, default: 20 },
             cursor: { type: 'string', description: 'Base64-encoded cursor for pagination (format: base64(createdAt|id))' },
           },
@@ -1283,7 +1305,7 @@ export async function agentsRoutes(fastify: FastifyInstance) {
                   properties: {
                     id: { type: 'string', format: 'uuid' },
                     type: { type: 'string', enum: ['scribe', 'trace', 'proto'] },
-                    state: { type: 'string', enum: ['pending', 'running'] },
+                    state: { type: 'string', enum: ['pending', 'running', 'awaiting_approval'] },
                     payload: { type: 'object' },
                     createdAt: { type: 'string', format: 'date-time' },
                     updatedAt: { type: 'string', format: 'date-time' },
@@ -1323,7 +1345,7 @@ export async function agentsRoutes(fastify: FastifyInstance) {
           .from(jobs)
           .where(
             and(
-              inArray(jobs.state, ['pending', 'running']),
+              inArray(jobs.state, ['pending', 'running', 'awaiting_approval']),
               // Filter by userId in payload JSON
               sql`(${jobs.payload}->>'userId')::text = ${user.id}`
             )

@@ -15,6 +15,17 @@ const SKIP_DB_TESTS = process.env.SKIP_DB_TESTS === 'true';
 const hasDatabase = !!process.env.DATABASE_URL;
 const SHOULD_SKIP = SKIP_DB_TESTS || !hasDatabase;
 
+async function hasColumn(tableName: string, columnName: string): Promise<boolean> {
+  const result = await db.execute(sql`
+    select 1
+    from information_schema.columns
+    where table_name = ${tableName}
+      and column_name = ${columnName}
+    limit 1
+  `);
+  return result.rows.length > 0;
+}
+
 test('Scribe config-aware job creation', { skip: SHOULD_SKIP }, async (t) => {
   if (SHOULD_SKIP) {
     const reason = SKIP_DB_TESTS ? 'SKIP_DB_TESTS is set' : 'DATABASE_URL not set';
@@ -32,6 +43,17 @@ test('Scribe config-aware job creation', { skip: SHOULD_SKIP }, async (t) => {
       `Check if Docker/Postgres is running or set SKIP_DB_TESTS=true. ` +
       `Error: ${errorMessage}`
     );
+  }
+
+  let schemaReady = true;
+  try {
+    schemaReady = await hasColumn('agent_configs', 'runtime_profile');
+  } catch {
+    schemaReady = false;
+  }
+  if (!schemaReady) {
+    t.skip('Scribe config integration skipped because agent_configs schema is behind current Drizzle model');
+    return;
   }
 
   const app = await buildApp();
@@ -208,4 +230,3 @@ test('Scribe config-aware job creation', { skip: SHOULD_SKIP }, async (t) => {
   await cleanup();
   await app.close();
 });
-

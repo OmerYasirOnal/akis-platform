@@ -4,6 +4,15 @@ import type { Plan, AIService } from '../../services/ai/AIService.js';
 import type { MCPTools } from '../../services/mcp/adapters/index.js';
 import type { TraceRecorder } from '../../core/tracing/TraceRecorder.js';
 import { TRACE_GENERATE_SYSTEM_PROMPT } from '../../services/ai/prompt-constants.js';
+import {
+  runTraceAutomation,
+  type TraceRunResult,
+  type TraceTestSpec,
+} from '../../services/trace/TraceAutomationRunner.js';
+import { FlakyTestManager, type FlakySummary } from '../../services/trace/FlakyTestManager.js';
+import { computeFlowCoverage, type FlowCoverageSummary } from './FlowCoverage.js';
+import { analyzeEdgeCaseCoverage, type EdgeCaseCoverageSummary } from './EdgeCaseCatalog.js';
+import { computeRiskWeightedCoverage, type RiskWeightedCoverageSummary } from './RiskModel.js';
 
 // ---------------------------------------------------------------------------
 // Configuration
@@ -63,7 +72,7 @@ interface TracePayload {
   baseBranch?: string;
   branchStrategy?: 'auto' | 'manual';
   dryRun?: boolean;
-  automationMode?: 'generate_and_run';
+  automationMode?: 'plan_only' | 'generate_and_run';
   targetBaseUrl?: string;
   featureLimit?: number;
   maxTokens?: number;
@@ -102,7 +111,7 @@ interface TraceAutomationSummary {
   durationMs: number;
   failures: Array<{ feature: string; test: string; reason: string }>;
   generatedTestPath: string;
-  mode: 'syntactic' | 'ai-enhanced';
+  mode: 'syntactic' | 'ai-enhanced' | 'real';
   totalScenarios: number;
   executedScenarios: number;
   passedScenarios: number;
@@ -112,6 +121,24 @@ interface TraceAutomationSummary {
   featureCoverageRate: number;
   priorityBreakdown?: Record<TestPriority, number>;
   layerBreakdown?: Record<string, number>;
+  artifactPaths?: {
+    reportPath?: string;
+    traceArtifactPath?: string;
+  };
+}
+
+interface TraceCoverageSnapshot {
+  flowCoverage: FlowCoverageSummary;
+  edgeCaseCoverage: EdgeCaseCoverageSummary;
+  riskWeightedCoverage: RiskWeightedCoverageSummary;
+}
+
+type TraceFlakySnapshot = FlakySummary;
+
+interface TraceExecutionInsights {
+  automationExecution: TraceAutomationSummary;
+  coverage: TraceCoverageSnapshot;
+  flaky: TraceFlakySnapshot;
 }
 
 // ---------------------------------------------------------------------------
@@ -122,6 +149,13 @@ export class TraceAgent extends BaseAgent {
   readonly type = 'trace';
   private aiService?: AIService;
   private traceRecorder?: TraceRecorder;
+  private readonly traceAutomationRunner: (opts: {
+    specs: TraceTestSpec[];
+    baseUrl: string;
+    browserTarget?: string;
+    timeoutMs?: number;
+  }) => Promise<TraceRunResult>;
+  private readonly flakyManager = new FlakyTestManager();
 
   constructor(deps?: AgentDependencies) {
     super();
@@ -131,6 +165,16 @@ export class TraceAgent extends BaseAgent {
     if (deps?.traceRecorder) {
       this.traceRecorder = deps.traceRecorder;
     }
+    const toolset = deps?.tools as Record<string, unknown> | undefined;
+    this.traceAutomationRunner =
+      (toolset?.traceAutomationRunner as
+        | ((opts: {
+            specs: TraceTestSpec[];
+            baseUrl: string;
+            browserTarget?: string;
+            timeoutMs?: number;
+          }) => Promise<TraceRunResult>)
+        | undefined) ?? runTraceAutomation;
     this.playbook.requiresPlanning = true;
     this.playbook.requiresReflection = false;
   }
@@ -177,10 +221,20 @@ export class TraceAgent extends BaseAgent {
     const prioritized = this.classifyScenarios(scenarios);
     const files = this.generateTestFiles(scenarios);
     const coverageMatrix = this.generateCoverageMatrix(scenarios);
-    const automationExecution = this.evaluateAutomationExecution(
-      scenarios, coverageMatrix, files, payload.targetBaseUrl, startedAt, prioritized,
+    const executionInsights = await this.evaluateAutomationExecution(
+      scenarios,
+      coverageMatrix,
+      files,
+      payload,
+      startedAt,
+      prioritized
     );
-    const testPlanMd = this.renderTestPlanMarkdown(scenarios, coverageMatrix, automationExecution, prioritized);
+    const testPlanMd = this.renderTestPlanMarkdown(
+      scenarios,
+      coverageMatrix,
+      executionInsights.automationExecution,
+      prioritized
+    );
 
     return {
       ok: true, agent: 'trace', files, testPlan: testPlanMd, coverageMatrix,
@@ -190,8 +244,12 @@ export class TraceAgent extends BaseAgent {
         specLength: spec.length,
         priorityBreakdown: this.getPriorityBreakdown(prioritized),
         layerBreakdown: this.getLayerBreakdown(prioritized),
-        automationSummary: automationExecution,
-        automationExecution,
+        flowCoverage: executionInsights.coverage.flowCoverage,
+        edgeCaseCoverage: executionInsights.coverage.edgeCaseCoverage,
+        riskWeightedCoverage: executionInsights.coverage.riskWeightedCoverage,
+        flaky: executionInsights.flaky,
+        automationSummary: executionInsights.automationExecution,
+        automationExecution: executionInsights.automationExecution,
       },
     };
   }
@@ -445,9 +503,15 @@ export class TraceAgent extends BaseAgent {
       name: f.cases[0]?.name ?? f.path,
       steps: f.cases[0]?.steps ?? [],
     }));
-    const automationExecution = this.evaluateAutomationExecution(
-      derivedScenarios, coverageMatrix, files, payload.targetBaseUrl, startedAt, prioritized,
+    const executionInsights = await this.evaluateAutomationExecution(
+      derivedScenarios,
+      coverageMatrix,
+      files,
+      payload,
+      startedAt,
+      prioritized
     );
+    const automationExecution = executionInsights.automationExecution;
     if (!testPlanMd.includes('## Automation Execution Summary')) {
       testPlanMd = `${testPlanMd.trimEnd()}\n\n${this.renderAutomationExecutionMarkdown(automationExecution)}`;
     }
@@ -537,6 +601,10 @@ export class TraceAgent extends BaseAgent {
             priorityBreakdown: this.getPriorityBreakdown(prioritized),
             layerBreakdown: this.getLayerBreakdown(prioritized),
             repoContext: repoContext ? { fileCount: repoContext.fileCount, routes: repoContext.routes.length, models: repoContext.models.length } : null,
+            flowCoverage: executionInsights.coverage.flowCoverage,
+            edgeCaseCoverage: executionInsights.coverage.edgeCaseCoverage,
+            riskWeightedCoverage: executionInsights.coverage.riskWeightedCoverage,
+            flaky: executionInsights.flaky,
             automationSummary: automationExecution,
             automationExecution,
           },
@@ -556,6 +624,10 @@ export class TraceAgent extends BaseAgent {
             priorityBreakdown: this.getPriorityBreakdown(prioritized),
             layerBreakdown: this.getLayerBreakdown(prioritized),
             githubError: githubError instanceof Error ? githubError.message : String(githubError),
+            flowCoverage: executionInsights.coverage.flowCoverage,
+            edgeCaseCoverage: executionInsights.coverage.edgeCaseCoverage,
+            riskWeightedCoverage: executionInsights.coverage.riskWeightedCoverage,
+            flaky: executionInsights.flaky,
             automationSummary: automationExecution, automationExecution,
           },
         };
@@ -573,6 +645,10 @@ export class TraceAgent extends BaseAgent {
         layerBreakdown: this.getLayerBreakdown(prioritized),
         repoContext: repoContext ? { fileCount: repoContext.fileCount, routes: repoContext.routes.length, models: repoContext.models.length } : null,
         tracePreferences: payload.tracePreferences ?? null,
+        flowCoverage: executionInsights.coverage.flowCoverage,
+        edgeCaseCoverage: executionInsights.coverage.edgeCaseCoverage,
+        riskWeightedCoverage: executionInsights.coverage.riskWeightedCoverage,
+        flaky: executionInsights.flaky,
         automationSummary: automationExecution, automationExecution,
       },
     };
@@ -919,7 +995,7 @@ export class TraceAgent extends BaseAgent {
   }
 
   private renderAutomationExecutionMarkdown(automationExecution: TraceAutomationSummary): string {
-    return [
+    const lines = [
       '## Automation Execution Summary',
       '',
       `- Runner: ${automationExecution.runner}`,
@@ -934,7 +1010,16 @@ export class TraceAgent extends BaseAgent {
       `- Execution duration: ${automationExecution.durationMs}ms`,
       `- Generated test path: ${automationExecution.generatedTestPath}`,
       `- Feature coverage: ${automationExecution.featuresCovered}/${automationExecution.featuresTotal} (${automationExecution.featureCoverageRate}%)`,
-    ].join('\n');
+    ];
+
+    if (automationExecution.artifactPaths?.reportPath) {
+      lines.push(`- JSON report: ${automationExecution.artifactPaths.reportPath}`);
+    }
+    if (automationExecution.artifactPaths?.traceArtifactPath) {
+      lines.push(`- Trace artifact: ${automationExecution.artifactPaths.traceArtifactPath}`);
+    }
+
+    return lines.join('\n');
   }
 
   // ── Scenario classification ──────────────────────────────────────────────
@@ -1190,13 +1275,76 @@ export class TraceAgent extends BaseAgent {
 
   // ── Automation evaluation ────────────────────────────────────────────────
 
-  private evaluateAutomationExecution(
+  private buildCoverageSnapshot(
+    scenarios: Array<{ name: string; steps: string[] }>,
+    prioritized: PrioritizedScenario[]
+  ): TraceCoverageSnapshot {
+    return {
+      flowCoverage: computeFlowCoverage(scenarios),
+      edgeCaseCoverage: analyzeEdgeCaseCoverage(scenarios),
+      riskWeightedCoverage: computeRiskWeightedCoverage(
+        prioritized.map((scenario) => ({
+          name: scenario.name,
+          priority: scenario.priority,
+          steps: scenario.steps,
+        }))
+      ),
+    };
+  }
+
+  private resolveAutomationMode(payload: TracePayload): 'plan_only' | 'generate_and_run' {
+    return payload.automationMode ?? 'plan_only';
+  }
+
+  private resolveTargetBaseUrl(payload: TracePayload): string {
+    return payload.targetBaseUrl?.trim() || 'https://staging.akisflow.com';
+  }
+
+  private resolveRunnerBrowserTarget(payload: TracePayload): 'chromium' | 'firefox' | 'webkit' {
+    const browserTarget = payload.tracePreferences?.browserTarget;
+    if (browserTarget === 'cross_browser') return 'chromium';
+    if (browserTarget === 'mobile') return 'chromium';
+    return 'chromium';
+  }
+
+  private buildTraceSpecs(scenarios: PrioritizedScenario[]): TraceTestSpec[] {
+    return scenarios.map((scenario) => ({
+      featureName: scenario.name,
+      scenarios: [{ name: scenario.name, steps: scenario.steps }],
+    }));
+  }
+
+  private estimatePlanFlakiness(prioritized: PrioritizedScenario[]): TraceFlakySnapshot {
+    const riskBase: Record<PrioritizedScenario['flakinessRisk'], number> = {
+      low: 0.15,
+      medium: 0.45,
+      high: 0.75,
+    };
+    const scenarioScores: Record<string, number> = {};
+    for (const scenario of prioritized) {
+      scenarioScores[scenario.name] = riskBase[scenario.flakinessRisk];
+    }
+
+    const total = Math.max(prioritized.length, 1);
+    const pfsLite =
+      Object.values(scenarioScores).reduce((sum, value) => sum + value, 0) / total;
+
+    return {
+      pfsLite: Number(pfsLite.toFixed(4)),
+      retryCount: 0,
+      quarantinedScenarios: [],
+      flakyPassedScenarios: [],
+      scenarioScores,
+    };
+  }
+
+  private evaluatePlanOnlyAutomationExecution(
     scenarios: Array<{ name: string; steps: string[] }>,
     coverageMatrix: Record<string, string[]>,
     files: Array<{ path: string; cases: Array<{ name: string; steps: string[] }> }>,
-    targetBaseUrl = 'https://staging.akisflow.com',
+    targetBaseUrl: string,
     startedAt = Date.now(),
-    prioritized?: PrioritizedScenario[],
+    prioritized: PrioritizedScenario[],
   ): TraceAutomationSummary {
     const totalScenarios = scenarios.length;
     const passedScenarios = scenarios.filter(
@@ -1233,8 +1381,122 @@ export class TraceAgent extends BaseAgent {
       totalScenarios, executedScenarios, passedScenarios, failedScenarios, passRate,
       featuresCovered, featureCoverageRate,
       mode: this.aiService ? 'ai-enhanced' : 'syntactic',
-      priorityBreakdown: prioritized ? this.getPriorityBreakdown(prioritized) : undefined,
-      layerBreakdown: prioritized ? this.getLayerBreakdown(prioritized) : undefined,
+      priorityBreakdown: this.getPriorityBreakdown(prioritized),
+      layerBreakdown: this.getLayerBreakdown(prioritized),
+    };
+  }
+
+  private mapScenarioToFeature(
+    scenarioName: string,
+    coverageMatrix: Record<string, string[]>
+  ): string {
+    for (const [feature, tests] of Object.entries(coverageMatrix)) {
+      if (tests.includes(scenarioName)) return feature;
+    }
+    return scenarioName;
+  }
+
+  private async evaluateAutomationExecution(
+    scenarios: Array<{ name: string; steps: string[] }>,
+    coverageMatrix: Record<string, string[]>,
+    files: Array<{ path: string; cases: Array<{ name: string; steps: string[] }> }>,
+    payload: TracePayload,
+    startedAt = Date.now(),
+    prioritized?: PrioritizedScenario[],
+  ): Promise<TraceExecutionInsights> {
+    const prioritizedScenarios = prioritized ?? this.classifyScenarios(scenarios);
+    const coverage = this.buildCoverageSnapshot(scenarios, prioritizedScenarios);
+    const targetBaseUrl = this.resolveTargetBaseUrl(payload);
+    const automationMode = this.resolveAutomationMode(payload);
+
+    if (automationMode !== 'generate_and_run') {
+      const automationExecution = this.evaluatePlanOnlyAutomationExecution(
+        scenarios,
+        coverageMatrix,
+        files,
+        targetBaseUrl,
+        startedAt,
+        prioritizedScenarios
+      );
+      return {
+        automationExecution,
+        coverage,
+        flaky: this.estimatePlanFlakiness(prioritizedScenarios),
+      };
+    }
+
+    if (!payload.targetBaseUrl) {
+      throw new Error('targetBaseUrl is required when automationMode=generate_and_run');
+    }
+
+    const specs = this.buildTraceSpecs(prioritizedScenarios);
+    const flakyEvaluation = await this.flakyManager.evaluate(
+      () =>
+        this.traceAutomationRunner({
+          specs,
+          baseUrl: targetBaseUrl,
+          browserTarget: this.resolveRunnerBrowserTarget(payload),
+        }),
+      prioritizedScenarios.map((scenario) => ({
+        name: scenario.name,
+        priority: scenario.priority,
+        flakinessRisk: scenario.flakinessRisk,
+      })),
+      { strictness: payload.tracePreferences?.strictness }
+    );
+
+    const run = flakyEvaluation.finalRun;
+    const failedScenarioSet = new Set(run.failures.map((failure) => failure.scenario));
+    const featureEntries = Object.entries(coverageMatrix);
+    const featuresTotal = featureEntries.length;
+    const featuresPassed = featureEntries.filter(([, tests]) =>
+      tests.every((scenarioName) => !failedScenarioSet.has(scenarioName))
+    ).length;
+    const featuresFailed = Math.max(0, featuresTotal - featuresPassed);
+    const featuresCovered = featuresPassed;
+    const featureCoverageRate = featuresTotal > 0 ? Math.round((featuresCovered / featuresTotal) * 100) : 0;
+    const featurePassRate = featuresTotal > 0 ? Math.round((featuresPassed / featuresTotal) * 100) : 0;
+    const testCasesTotal = files.reduce((sum, file) => sum + file.cases.length, 0);
+    const testCasesPassed = Math.min(testCasesTotal, run.passedScenarios);
+    const testCasesFailed = Math.max(0, testCasesTotal - testCasesPassed);
+
+    const automationExecution: TraceAutomationSummary = {
+      runner: 'playwright',
+      targetBaseUrl,
+      featuresTotal,
+      featuresPassed,
+      featuresFailed,
+      featurePassRate,
+      testCasesTotal,
+      testCasesPassed,
+      testCasesFailed,
+      durationMs: Math.max(run.durationMs, Date.now() - startedAt),
+      failures: run.failures.map((failure) => ({
+        feature: failure.feature || this.mapScenarioToFeature(failure.scenario, coverageMatrix),
+        test: failure.scenario,
+        reason: failure.reason,
+      })),
+      generatedTestPath: run.generatedTestPath,
+      totalScenarios: run.totalScenarios,
+      executedScenarios: run.totalScenarios,
+      passedScenarios: run.passedScenarios,
+      failedScenarios: run.failedScenarios,
+      passRate: run.passRate,
+      featuresCovered,
+      featureCoverageRate,
+      mode: 'real',
+      priorityBreakdown: this.getPriorityBreakdown(prioritizedScenarios),
+      layerBreakdown: this.getLayerBreakdown(prioritizedScenarios),
+      artifactPaths: {
+        reportPath: run.reportPath,
+        traceArtifactPath: run.traceArtifactPath,
+      },
+    };
+
+    return {
+      automationExecution,
+      coverage,
+      flaky: flakyEvaluation.flaky,
     };
   }
 }

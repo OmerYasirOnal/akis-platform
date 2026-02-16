@@ -186,6 +186,23 @@
 
 ---
 
+## 11. M2 Reliability Regression Pack
+
+| # | Check | Expected | Pass |
+|---|-------|----------|------|
+| 11.1 | Contract violation synthetic payload | `CONTRACT_VIOLATION` error envelope, job `failed` | [ ] |
+| 11.2 | Rollout observe mode | Gate failures loglanır ama job bloklanmaz | [ ] |
+| 11.3 | Rollout enforce_scribe mode | Sadece `scribe` blocking gate fail durumunda bloklanır | [ ] |
+| 11.4 | Rollout enforce_all mode | Tüm agent tiplerinde blocking gate fail bloklanır | [ ] |
+| 11.5 | Freshness status endpoint | `/api/knowledge/freshness/status` son run özetini döner | [ ] |
+| 11.6 | MCP boundary failure | Integration route hata dönerken correlation-id trace edilebilir | [ ] |
+| 11.7 | UI trust panel parity | Job detail citation/confidence/freshness backend gate ile uyumlu | [ ] |
+| 11.8 | Feature-flag rollback | `observe` rollback sonrası eski non-blocking davranış geri gelir | [ ] |
+| 11.9 | Approval continuation | `requiresApproval=true` path `pending -> running -> awaiting_approval -> running -> completed` | [ ] |
+| 11.10 | OAuth token encryption | Key yokken OAuth callback write strict-block, legacy plaintext read fallback | [ ] |
+
+---
+
 ## Latest Test Run — 2026-02-12
 
 **Tester:** Codex (automated + browser verification)

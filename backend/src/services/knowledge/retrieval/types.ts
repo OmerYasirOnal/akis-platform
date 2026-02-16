@@ -10,6 +10,9 @@ export interface RetrievalResult {
   chunkId: string;
   content: string;
   score: number;
+  keywordScore?: number;
+  semanticScore?: number;
+  retrievalMethod?: 'keyword' | 'semantic' | 'hybrid';
   provenance: {
     title: string;
     sourcePath?: string;
@@ -23,6 +26,8 @@ export interface RetrievalOptions {
   maxTokens?: number;
   filters?: RetrievalFilter;
   includeProposed?: boolean;
+  semanticWeight?: number;
+  keywordWeight?: number;
 }
 
 export interface ContextBudget {

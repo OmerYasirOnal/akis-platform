@@ -53,6 +53,14 @@ interface McpToolCallResult {
   isError?: boolean;
 }
 
+export interface GitHubLatestRelease {
+  id: string | null;
+  tagName: string | null;
+  name: string | null;
+  url: string | null;
+  publishedAt: Date | null;
+}
+
 /**
  * Stable error codes for MCP-related failures.
  * These are used in job error payloads for consistent error handling.
@@ -511,6 +519,41 @@ export class GitHubMCPService {
   }
 
   /**
+   * Resolve latest repository release across MCP tool-name variations.
+   * Returns null when no release exists or the gateway does not expose release tools.
+   */
+  async getLatestRelease(owner: string, repo: string): Promise<GitHubLatestRelease | null> {
+    const attempts: Array<{ tool: string; args: Record<string, unknown> }> = [
+      { tool: 'get_latest_release', args: { owner, repo } },
+      { tool: 'get_release_latest', args: { owner, repo } },
+      { tool: 'list_releases', args: { owner, repo, per_page: 10, page: 1 } },
+    ];
+
+    let lastError: unknown = null;
+
+    for (const attempt of attempts) {
+      try {
+        const raw = await this.callToolRaw<unknown>(attempt.tool, attempt.args);
+        const parsed = this.parseLatestRelease(raw);
+        if (parsed) {
+          return parsed;
+        }
+      } catch (error) {
+        if (error instanceof McpError && error.mcpCode === -32601) {
+          continue;
+        }
+        lastError = error;
+      }
+    }
+
+    if (lastError) {
+      throw lastError;
+    }
+
+    return null;
+  }
+
+  /**
    * Create a branch in GitHub repository
    */
   async createBranch(
@@ -669,5 +712,95 @@ export class GitHubMCPService {
       draft: true,
     });
     return { prNumber: pr.number, url: pr.html_url };
+  }
+
+  private parseLatestRelease(raw: unknown): GitHubLatestRelease | null {
+    const normalizeArray = (items: unknown[]): GitHubLatestRelease | null => {
+      const visible = items.find((item) => this.isVisibleRelease(item));
+      if (visible) {
+        return this.normalizeRelease(visible);
+      }
+      return items.length > 0 ? this.normalizeRelease(items[0]) : null;
+    };
+
+    if (Array.isArray(raw)) {
+      return normalizeArray(raw);
+    }
+
+    if (!raw || typeof raw !== 'object') {
+      return null;
+    }
+
+    const record = raw as Record<string, unknown>;
+    if (Array.isArray(record.releases)) {
+      return normalizeArray(record.releases);
+    }
+    if (record.release && typeof record.release === 'object') {
+      return this.normalizeRelease(record.release);
+    }
+
+    return this.normalizeRelease(record);
+  }
+
+  private isVisibleRelease(input: unknown): boolean {
+    if (!input || typeof input !== 'object') {
+      return false;
+    }
+
+    const record = input as Record<string, unknown>;
+    if (typeof record.draft === 'boolean' && record.draft) {
+      return false;
+    }
+    return true;
+  }
+
+  private normalizeRelease(input: unknown): GitHubLatestRelease | null {
+    if (!input || typeof input !== 'object') {
+      return null;
+    }
+
+    const record = input as Record<string, unknown>;
+
+    const publishedAtValue =
+      record.published_at ??
+      record.publishedAt ??
+      record.created_at ??
+      record.createdAt ??
+      null;
+
+    const publishedAt =
+      typeof publishedAtValue === 'string'
+        ? this.parseDate(publishedAtValue)
+        : null;
+
+    return {
+      id: this.readString(record.id) ?? this.readString(record.node_id) ?? null,
+      tagName: this.readString(record.tag_name) ?? this.readString(record.tagName) ?? null,
+      name: this.readString(record.name) ?? null,
+      url:
+        this.readString(record.html_url) ??
+        this.readString(record.url) ??
+        this.readString(record.web_url) ??
+        null,
+      publishedAt,
+    };
+  }
+
+  private parseDate(value: string): Date | null {
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) {
+      return null;
+    }
+    return parsed;
+  }
+
+  private readString(value: unknown): string | null {
+    if (typeof value === 'string') {
+      return value;
+    }
+    if (typeof value === 'number') {
+      return String(value);
+    }
+    return null;
   }
 }

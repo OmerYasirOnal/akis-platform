@@ -269,6 +269,14 @@ class RealAIService implements AIService {
     return process.env.AI_DETERMINISTIC_MODE !== 'false';
   }
 
+  /**
+   * Force deterministic planning regardless of runtime profile.
+   * Enabled by default for reproducible plan generation.
+   */
+  private shouldForceDeterministicPlan(): boolean {
+    return process.env.AI_FORCE_DETERMINISTIC_PLAN !== 'false';
+  }
+
   constructor(config: AIConfig, observer?: AIServiceObserver, runtimeOptions: AIServiceRuntimeOptions = {}) {
     this.config = config;
     this.observer = observer;
@@ -712,6 +720,7 @@ class RealAIService implements AIService {
    */
   async planTask(input: PlanInput): Promise<Plan> {
     const temps = this.getTemperatures();
+    const forceDeterministicPlan = this.shouldForceDeterministicPlan();
     const userPrompt = buildPlanUserPrompt(input.agent, input.goal, input.context);
 
     const response = await this.chatCompletion(
@@ -720,7 +729,10 @@ class RealAIService implements AIService {
         { role: 'user', content: userPrompt },
       ],
       this.config.modelPlanner,
-      { temperature: temps.plan },
+      {
+        temperature: forceDeterministicPlan ? DETERMINISTIC_TEMPERATURES.plan : temps.plan,
+        seed: forceDeterministicPlan ? DETERMINISTIC_SEED : null,
+      },
       'plan'
     );
 

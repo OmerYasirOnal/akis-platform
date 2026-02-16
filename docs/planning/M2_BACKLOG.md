@@ -1,19 +1,19 @@
 # M2 Backlog — Stabilization & Academic Preparation
 
 > **Milestone:** M2 (1-31 March 2026)
-> **Status:** Not Started
+> **Status:** In Progress
 > **Parent:** [DELIVERY_PLAN_S0.5_FEB_TO_GRADUATION.md](DELIVERY_PLAN_S0.5_FEB_TO_GRADUATION.md)
 
 ---
 
 ## Carried Forward from S0.5 (TODO(M2) Items)
 
-| ID | Area | Description | Source File | Priority |
-|----|------|-------------|-------------|----------|
-| M2-SEC-1 | Security | Encrypt integration tokens at rest (similar to AI key AES-256-GCM) | `backend/src/api/integrations.ts:225` | High |
-| M2-ORCH-1 | Orchestrator | Implement full execution continuation after approval (PR-1 Phase 2) | `backend/src/core/orchestrator/AgentOrchestrator.ts:1378` | Medium |
-| M2-PLAY-1 | Agent Playbook | Implement retry logic for retryable playbook steps | `backend/src/core/contracts/AgentPlaybook.ts:47` | Medium |
-| M2-UI-1 | Frontend | Plan upgrades and managed key allocation for AI providers page | `frontend/src/pages/dashboard/settings/DashboardSettingsAiProvidersPage.tsx:57` | Low |
+| ID | Area | Description | Source File | Priority | Status |
+|----|------|-------------|-------------|----------|--------|
+| M2-SEC-1 | Security | Encrypt integration tokens at rest (strict-block write when encryption key is missing, legacy plaintext read fallback) | `backend/src/api/integrations.ts` | High | Tamamlandı (2026-02-16) |
+| M2-ORCH-1 | Orchestrator | Implement full execution continuation after approval (`requiresApproval` opt-in, placeholder result kaldırıldı) | `backend/src/core/orchestrator/AgentOrchestrator.ts` | Medium | Tamamlandı (2026-02-16) |
+| M2-PLAY-1 | Agent Playbook | Implement deterministic retry logic for retryable playbook steps (default retry=1) | `backend/src/core/contracts/AgentPlaybook.ts` | Medium | Tamamlandı (2026-02-16) |
+| M2-UI-1 | Frontend | Plan upgrades and managed key allocation for AI providers page | `frontend/src/pages/dashboard/settings/DashboardSettingsAiProvidersPage.tsx` | Low | Başlanmadı |
 
 ---
 

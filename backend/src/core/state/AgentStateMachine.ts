@@ -31,7 +31,7 @@ export class AgentStateMachine {
 
   /**
    * Transition to running state
-   * Only valid from pending or awaiting_approval
+   * Only valid from pending
    */
   start(): void {
     if (this.state !== 'pending') {
@@ -98,4 +98,3 @@ export class AgentStateMachine {
     return this.state === 'awaiting_approval';
   }
 }
-
