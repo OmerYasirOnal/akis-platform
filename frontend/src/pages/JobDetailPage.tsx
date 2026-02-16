@@ -69,6 +69,7 @@ interface TraceAutomationSummary {
 }
 
 type SectionId = 'overview' | 'activity' | 'outputs' | 'quality';
+const JOB_DETAIL_PRIVACY_MODE_STORAGE_KEY = 'akis:job-detail:privacy-mode:v1';
 
 // ============================================================================
 // Helper Functions
@@ -131,6 +132,27 @@ function redactSecrets(text: string): string {
     .replace(/"authorization":\s*"[^"]+"/gi, '"authorization": "[REDACTED]"');
 }
 
+function maskHandle(value: string): string {
+  const trimmed = value.trim();
+  if (!trimmed) return '';
+  if (trimmed.length <= 2) return `${trimmed[0] ?? '*'}*`;
+  return `${trimmed.slice(0, 2)}***`;
+}
+
+function sanitizeForDisplay(value: unknown): unknown {
+  if (typeof value === 'string') {
+    return redactSecrets(value);
+  }
+  if (Array.isArray(value)) {
+    return value.map((item) => sanitizeForDisplay(item));
+  }
+  if (value && typeof value === 'object') {
+    const entries = Object.entries(value as Record<string, unknown>).map(([key, item]) => [key, sanitizeForDisplay(item)]);
+    return Object.fromEntries(entries);
+  }
+  return value;
+}
+
 function formatDuration(startStr: string, endStr?: string): string {
   const start = new Date(startStr).getTime();
   const end = endStr ? new Date(endStr).getTime() : Date.now();
@@ -141,6 +163,26 @@ function formatDuration(startStr: string, endStr?: string): string {
   const m = Math.floor(s / 60);
   const r = s % 60;
   return `${m}m ${r.toFixed(0)}s`;
+}
+
+function safeLoadJobDetailPrivacyMode(): boolean {
+  if (typeof window === 'undefined') return true;
+  try {
+    const raw = window.localStorage.getItem(JOB_DETAIL_PRIVACY_MODE_STORAGE_KEY);
+    if (raw === null) return true;
+    return raw === '1';
+  } catch {
+    return true;
+  }
+}
+
+function safeSaveJobDetailPrivacyMode(value: boolean) {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.setItem(JOB_DETAIL_PRIVACY_MODE_STORAGE_KEY, value ? '1' : '0');
+  } catch {
+    // ignore quota/storage errors
+  }
 }
 
 type VerificationGate = NonNullable<Job['verificationGates']>['gates'][number];
@@ -477,6 +519,7 @@ export default function JobDetailPage() {
   const [includeArtifacts] = useState(true);
 
   const [showIssueModal, setShowIssueModal] = useState(false);
+  const [privacyModeEnabled, setPrivacyModeEnabled] = useState<boolean>(() => safeLoadJobDetailPrivacyMode());
 
   // SSE streaming for running jobs
   const isRunning = job?.state === 'running' || job?.state === 'pending';
@@ -554,6 +597,10 @@ export default function JobDetailPage() {
       return () => clearTimeout(timeout);
     }
   }, [streamEnded, loadJob]);
+
+  useEffect(() => {
+    safeSaveJobDetailPrivacyMode(privacyModeEnabled);
+  }, [privacyModeEnabled]);
 
   // Merge DB + stream data
   const traces = useMemo(() => {
@@ -677,6 +724,8 @@ export default function JobDetailPage() {
   }
 
   const payload = (job.payload || {}) as Record<string, unknown>;
+  const sanitizedPayload = sanitizeForDisplay(job.payload) as Record<string, unknown> | null;
+  const sanitizedResult = sanitizeForDisplay(job.result) as Record<string, unknown> | null;
   const qualityScore = typeof job.qualityScore === 'number'
     ? job.qualityScore
     : (isScribe && scribeQuality ? scribeQuality.score : null);
@@ -685,6 +734,8 @@ export default function JobDetailPage() {
   const confidenceScore = resolveConfidence(verificationGates);
   const freshnessStatus = mapFreshnessStatus(verificationGates);
   const citationStatus = mapCitationStatus(verificationGates);
+  const repositoryOwner = typeof payload.owner === 'string' ? maskHandle(payload.owner) : null;
+  const repositoryName = typeof payload.repo === 'string' ? payload.repo : null;
 
   return (
     <div className={containerClass}>
@@ -709,11 +760,26 @@ export default function JobDetailPage() {
             {requestId && (
               <div className="flex items-center gap-2 text-sm text-ak-text-secondary mt-1">
                 <span>Request ID:</span>
-                <code className="text-xs bg-ak-surface-3 px-1.5 py-0.5 rounded">{requestId}</code>
+                <code className="text-xs bg-ak-surface-3 px-1.5 py-0.5 rounded">
+                  {privacyModeEnabled ? t('jobDetail.privacy.hiddenValue' as never) : requestId}
+                </code>
               </div>
             )}
           </div>
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => setPrivacyModeEnabled((prev) => !prev)}
+              className={`px-3 py-1.5 text-sm rounded-lg border transition-colors ${
+                privacyModeEnabled
+                  ? 'border-ak-primary/40 bg-ak-primary/10 text-ak-primary'
+                  : 'border-ak-border bg-ak-surface-2 text-ak-text-secondary hover:text-ak-text-primary'
+              }`}
+              aria-pressed={privacyModeEnabled}
+            >
+              {privacyModeEnabled
+                ? t('jobDetail.privacy.disable' as never)
+                : t('jobDetail.privacy.enable' as never)}
+            </button>
             {job.state === 'failed' && (
               <button onClick={() => setShowIssueModal(true)} className="px-3 py-1.5 text-sm bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 rounded-lg text-red-400 transition-colors flex items-center gap-1.5">
                 Report Issue
@@ -779,10 +845,14 @@ export default function JobDetailPage() {
               )}
             </div>
           )}
-          {typeof payload.owner === 'string' && typeof payload.repo === 'string' && (
+          {repositoryOwner && repositoryName && (
             <div>
               <label className="text-xs font-medium text-ak-text-secondary uppercase tracking-wider">Repository</label>
-              <p className="mt-1 text-sm text-ak-text-primary truncate">{payload.owner}/{payload.repo}</p>
+              <p className="mt-1 text-sm text-ak-text-primary truncate">
+                {privacyModeEnabled
+                  ? t('jobDetail.privacy.repositoryHidden' as never)
+                  : `${repositoryOwner}/${repositoryName}`}
+              </p>
             </div>
           )}
         </div>
@@ -792,8 +862,12 @@ export default function JobDetailPage() {
           {job.correlationId && (
             <div className="flex items-center gap-2">
               <span className="text-xs font-medium text-ak-text-secondary">Correlation ID:</span>
-              <code className="text-xs bg-ak-surface-3 px-2 py-1 rounded text-ak-text-primary">{job.correlationId}</code>
-              <CopyButton text={job.correlationId} />
+              <code className="text-xs bg-ak-surface-3 px-2 py-1 rounded text-ak-text-primary">
+                {privacyModeEnabled
+                  ? t('jobDetail.privacy.hiddenValue' as never)
+                  : job.correlationId}
+              </code>
+              {!privacyModeEnabled && <CopyButton text={job.correlationId} />}
             </div>
           )}
           {mcpStatus && (
@@ -819,7 +893,13 @@ export default function JobDetailPage() {
                 <span className="px-2 py-1 rounded bg-ak-danger/20 text-sm font-medium text-ak-danger">{job.errorCode}</span>
               )}
             </div>
-            {job.errorMessage && <p className="text-ak-danger">{job.errorMessage}</p>}
+            {job.errorMessage && (
+              privacyModeEnabled ? (
+                <p className="text-ak-danger/90">{t('jobDetail.privacy.errorHidden' as never)}</p>
+              ) : (
+                <p className="text-ak-danger">{redactSecrets(job.errorMessage)}</p>
+              )
+            )}
             {(() => {
               const errorHint = getErrorHint(job.errorCode);
               if (!errorHint) return null;
@@ -925,7 +1005,7 @@ export default function JobDetailPage() {
                     </p>
                   </div>
                 </div>
-                {traceAutomationSummary.targetBaseUrl && (
+                {traceAutomationSummary.targetBaseUrl && !privacyModeEnabled && (
                   <p className="mt-2 text-xs text-ak-text-secondary">{traceAutomationSummary.targetBaseUrl}</p>
                 )}
               </div>
@@ -967,7 +1047,11 @@ export default function JobDetailPage() {
                   Payload
                 </summary>
                 <div className="p-4 bg-ak-surface">
-                  <CodeBlock data={job.payload as Record<string, unknown>} />
+                  {privacyModeEnabled ? (
+                    <p className="text-sm text-ak-text-secondary">{t('jobDetail.privacy.payloadHidden' as never)}</p>
+                  ) : (
+                    <CodeBlock data={(sanitizedPayload ?? {}) as Record<string, unknown>} />
+                  )}
                 </div>
               </details>
             )}
@@ -978,7 +1062,11 @@ export default function JobDetailPage() {
                   Result
                 </summary>
                 <div className="p-4 bg-ak-surface">
-                  <CodeBlock data={job.result as Record<string, unknown>} />
+                  {privacyModeEnabled ? (
+                    <p className="text-sm text-ak-text-secondary">{t('jobDetail.privacy.resultHidden' as never)}</p>
+                  ) : (
+                    <CodeBlock data={(sanitizedResult ?? {}) as Record<string, unknown>} />
+                  )}
                 </div>
               </details>
             )}
@@ -1033,7 +1121,7 @@ export default function JobDetailPage() {
               ) : (
                 <div className="space-y-3">
                   {filesProduced.map(file => (
-                    <ArtifactPreview key={file.id} artifact={file as ArtifactType} showFullPath />
+                    <ArtifactPreview key={file.id} artifact={file as ArtifactType} showFullPath={!privacyModeEnabled} />
                   ))}
                 </div>
               )}
@@ -1050,7 +1138,7 @@ export default function JobDetailPage() {
                 </div>
                 <div className="space-y-3">
                   {previewFiles.map(file => (
-                    <ArtifactPreview key={file.id} artifact={file as ArtifactType} showFullPath />
+                    <ArtifactPreview key={file.id} artifact={file as ArtifactType} showFullPath={!privacyModeEnabled} />
                   ))}
                 </div>
               </div>
@@ -1064,7 +1152,7 @@ export default function JobDetailPage() {
               ) : (
                 <div className="space-y-3">
                   {documentsRead.map(doc => (
-                    <ArtifactPreview key={doc.id} artifact={doc as ArtifactType} showFullPath />
+                    <ArtifactPreview key={doc.id} artifact={doc as ArtifactType} showFullPath={!privacyModeEnabled} />
                   ))}
                 </div>
               )}
@@ -1142,14 +1230,20 @@ export default function JobDetailPage() {
 
             {advancedTab === 'raw' && (
               <div className="space-y-4">
-                <div className="flex items-center gap-2 mb-4">
-                  <CopyButton text={redactSecrets(JSON.stringify(job, null, 2))} label="Copy raw payload (redacted)" />
-                </div>
-                <div className="bg-ak-surface-3 rounded-lg p-4 overflow-x-auto">
-                  <pre className="text-xs font-mono text-ak-text-primary whitespace-pre-wrap">
-                    {redactSecrets(JSON.stringify(job, null, 2))}
-                  </pre>
-                </div>
+                {privacyModeEnabled ? (
+                  <p className="text-sm text-ak-text-secondary">{t('jobDetail.privacy.rawHidden' as never)}</p>
+                ) : (
+                  <>
+                    <div className="flex items-center gap-2 mb-4">
+                      <CopyButton text={redactSecrets(JSON.stringify(job, null, 2))} label="Copy raw payload (redacted)" />
+                    </div>
+                    <div className="bg-ak-surface-3 rounded-lg p-4 overflow-x-auto">
+                      <pre className="text-xs font-mono text-ak-text-primary whitespace-pre-wrap">
+                        {redactSecrets(JSON.stringify(job, null, 2))}
+                      </pre>
+                    </div>
+                  </>
+                )}
               </div>
             )}
           </div>

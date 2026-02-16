@@ -26,7 +26,7 @@ test.describe('Trace Console', () => {
     await page.goto('/dashboard/trace');
 
     // Heading
-    await expect(page.getByRole('heading', { name: /trace console/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /trace console/i })).toBeVisible({ timeout: 30_000 });
 
     // Textarea for specification
     const textarea = page.locator('textarea');

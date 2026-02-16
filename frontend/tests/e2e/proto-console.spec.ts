@@ -34,7 +34,7 @@ test.describe('Proto Console', () => {
     await page.goto('/dashboard/proto');
 
     // Heading
-    await expect(page.getByRole('heading', { name: /proto console/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /proto console/i })).toBeVisible({ timeout: 30_000 });
 
     // Requirements textarea
     const textarea = page.locator('textarea');

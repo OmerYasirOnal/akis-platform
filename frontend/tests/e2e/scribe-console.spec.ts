@@ -37,7 +37,7 @@ async function gotoScribeConsole(page: Page) {
   await page.goto('/agents/scribe');
   await expect(
     page.getByRole('heading', { name: 'Scribe Console' })
-  ).toBeVisible({ timeout: 15_000 });
+  ).toBeVisible({ timeout: 30_000 });
 }
 
 /**

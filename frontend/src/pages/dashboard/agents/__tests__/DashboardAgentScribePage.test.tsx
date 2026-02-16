@@ -30,6 +30,8 @@ const renderWithRouter = (ui: React.ReactElement) => {
 
 describe('DashboardAgentScribePage', () => {
   beforeEach(() => {
+    // Guard against timer leaks from other suites when running the full test pack.
+    vi.useRealTimers();
     vi.clearAllMocks();
 
     // Mock GitHub connected with login field (new API response)

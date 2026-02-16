@@ -61,6 +61,7 @@ const baseJob = {
 describe('JobDetailPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    window.localStorage.clear();
     (api.getJob as ReturnType<typeof vi.fn>).mockResolvedValue(baseJob);
   });
 
@@ -138,7 +139,10 @@ describe('JobDetailPage', () => {
     const labels = screen.getAllByText('Repository');
     expect(labels.length).toBeGreaterThan(0);
     const container = labels[0].closest('div');
-    expect(container?.textContent).toContain('test-user');
+    expect(container?.textContent).toContain('Hidden for privacy');
+
+    fireEvent.click(screen.getByRole('button', { name: /disable privacy mode/i }));
+    expect(container?.textContent).toContain('te***');
     expect(container?.textContent).toContain('test-repo');
   });
 
@@ -227,5 +231,26 @@ describe('JobDetailPage', () => {
     expect(screen.getAllByText('Citation').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Confidence').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Freshness').length).toBeGreaterThan(0);
+  });
+
+  it('keeps raw payload hidden until privacy mode is disabled', async () => {
+    renderJobDetail();
+
+    await waitFor(() => {
+      expect(screen.getByText(/Advanced/)).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText(/Advanced/));
+    fireEvent.click(screen.getByRole('button', { name: 'Raw' }));
+
+    await waitFor(() => {
+      expect(screen.getByText('Raw payload hidden in privacy mode.')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /disable privacy mode/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/Copy raw payload \(redacted\)/i)).toBeInTheDocument();
+    });
   });
 });

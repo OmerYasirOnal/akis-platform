@@ -8,6 +8,7 @@ export interface SessionRailItem {
   kind: string;
   lastMessagePreview: string;
   hasError: boolean;
+  messageCount?: number;
 }
 
 export interface SessionRailProps {
@@ -17,6 +18,8 @@ export interface SessionRailProps {
   sessions: SessionRailItem[];
   activeSessionId: string | null;
   animatedSessionId: string | null;
+  hidePreviews?: boolean;
+  hiddenPreviewLabel?: string;
   getColor: (kind: string) => { bg: string; text: string };
   getIcon: (kind: string) => ReactNode;
   onCreate: () => void;
@@ -30,6 +33,8 @@ export function SessionRail({
   sessions,
   activeSessionId,
   animatedSessionId,
+  hidePreviews = false,
+  hiddenPreviewLabel = 'Preview hidden',
   getColor,
   getIcon,
   onCreate,
@@ -73,6 +78,11 @@ export function SessionRail({
                     <span className="rounded bg-ak-surface px-1 py-0.5 text-[9px] font-semibold tracking-wide text-ak-text-secondary border border-ak-border">
                       {session.typeLabel}
                     </span>
+                    {typeof session.messageCount === 'number' && session.messageCount > 0 && (
+                      <span className="rounded border border-ak-border bg-ak-bg px-1 py-0.5 text-[9px] font-semibold text-ak-text-secondary/80">
+                        {session.messageCount}
+                      </span>
+                    )}
                     {session.hasError && (
                       <span className="rounded bg-red-500/10 px-1 py-0.5 text-[9px] font-semibold text-red-400 border border-red-500/20">
                         !
@@ -83,12 +93,12 @@ export function SessionRail({
                   <p
                     className={cn(
                       'truncate text-[10px]',
-                      session.lastMessagePreview.startsWith('Error:') || session.lastMessagePreview.startsWith('Failed:')
+                      !hidePreviews && (session.lastMessagePreview.startsWith('Error:') || session.lastMessagePreview.startsWith('Failed:'))
                         ? 'text-red-400/70'
                         : 'text-ak-text-secondary/60'
                     )}
                   >
-                    {session.lastMessagePreview || 'No messages yet'}
+                    {hidePreviews ? hiddenPreviewLabel : (session.lastMessagePreview || 'No messages yet')}
                   </p>
                 </div>
               </button>

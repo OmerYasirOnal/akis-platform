@@ -116,8 +116,14 @@ interface SteerQuestion {
 }
 
 const SESSION_STORAGE_KEY = 'akis:agents-hub:chat-sessions:v1';
+const SESSION_DETAIL_VISIBILITY_STORAGE_KEY = 'akis:agents-hub:show-technical-details:v1';
+const SESSION_PREVIEW_VISIBILITY_STORAGE_KEY = 'akis:agents-hub:show-session-previews:v1';
+const SESSION_AUTOFOLLOW_STORAGE_KEY = 'akis:agents-hub:auto-follow:v1';
+const SESSION_CHAT_CONTENT_VISIBILITY_STORAGE_KEY = 'akis:agents-hub:show-chat-content:v1';
 const MAX_CHAT_SESSIONS = 40;
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const FALLBACK_PREVIEW_TEXT = 'No messages yet';
+const SESSION_PREVIEW_MAX_LENGTH = 96;
 
 // Provider-specific fallback models
 const FALLBACK_MODELS = {
@@ -283,11 +289,127 @@ function safeSaveSessions(sessions: ChatSession[]) {
   }
 }
 
+function safeLoadTechnicalDetailsVisibility(): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
+    const raw = window.localStorage.getItem(SESSION_DETAIL_VISIBILITY_STORAGE_KEY);
+    return raw === '1';
+  } catch {
+    return false;
+  }
+}
+
+function safeSaveTechnicalDetailsVisibility(value: boolean) {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.setItem(SESSION_DETAIL_VISIBILITY_STORAGE_KEY, value ? '1' : '0');
+  } catch {
+    // ignore quota/storage errors
+  }
+}
+
+function safeLoadSessionPreviewVisibility(): boolean {
+  if (typeof window === 'undefined') return true;
+  try {
+    const raw = window.localStorage.getItem(SESSION_PREVIEW_VISIBILITY_STORAGE_KEY);
+    if (raw === null) return true;
+    return raw === '1';
+  } catch {
+    return true;
+  }
+}
+
+function safeSaveSessionPreviewVisibility(value: boolean) {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.setItem(SESSION_PREVIEW_VISIBILITY_STORAGE_KEY, value ? '1' : '0');
+  } catch {
+    // ignore quota/storage errors
+  }
+}
+
+function safeLoadAutoFollowPreference(): boolean {
+  if (typeof window === 'undefined') return true;
+  try {
+    const raw = window.localStorage.getItem(SESSION_AUTOFOLLOW_STORAGE_KEY);
+    if (raw === null) return true;
+    return raw === '1';
+  } catch {
+    return true;
+  }
+}
+
+function safeSaveAutoFollowPreference(value: boolean) {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.setItem(SESSION_AUTOFOLLOW_STORAGE_KEY, value ? '1' : '0');
+  } catch {
+    // ignore quota/storage errors
+  }
+}
+
+function safeLoadChatContentVisibility(): boolean {
+  if (typeof window === 'undefined') return true;
+  try {
+    const raw = window.localStorage.getItem(SESSION_CHAT_CONTENT_VISIBILITY_STORAGE_KEY);
+    if (raw === null) return true;
+    return raw === '1';
+  } catch {
+    return true;
+  }
+}
+
+function safeSaveChatContentVisibility(value: boolean) {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.setItem(SESSION_CHAT_CONTENT_VISIBILITY_STORAGE_KEY, value ? '1' : '0');
+  } catch {
+    // ignore quota/storage errors
+  }
+}
+
+function redactUiSecrets(value: string): string {
+  return value
+    .replace(/gh[pousr]_[A-Za-z0-9_]{8,}/g, '[REDACTED_TOKEN]')
+    .replace(/sk-[A-Za-z0-9_-]{8,}/g, 'sk-[REDACTED]')
+    .replace(/Bearer\s+[A-Za-z0-9._-]{8,}/gi, 'Bearer [REDACTED]')
+    .replace(/([A-Za-z0-9._%+-]{2})[A-Za-z0-9._%+-]*(@[A-Za-z0-9.-]+\.[A-Za-z]{2,})/g, '$1***$2')
+    .replace(/(token|secret|password|api[_-]?key)\s*[:=]\s*(['"]?)[^\s'",]+(\2)/gi, '$1=[REDACTED]');
+}
+
+function toSafePreview(value?: string | null): string {
+  const normalized = redactUiSecrets((value ?? '').replace(/\s+/g, ' ').trim());
+  if (!normalized) return FALLBACK_PREVIEW_TEXT;
+
+  const lower = normalized.toLowerCase();
+  const codeLike =
+    normalized.includes('```') ||
+    /(^|\s)(const|let|var|function|class|import|export|SELECT|INSERT|UPDATE|DELETE)\b/.test(normalized);
+
+  if (codeLike || lower.startsWith('file:') || lower.startsWith('read:') || lower.startsWith('reasoning:')) {
+    return 'Agent progress update';
+  }
+
+  if (normalized.length <= SESSION_PREVIEW_MAX_LENGTH) return normalized;
+  return `${normalized.slice(0, SESSION_PREVIEW_MAX_LENGTH).trimEnd()}…`;
+}
+
+function maskHandle(handle: string): string {
+  const trimmed = handle.trim();
+  if (!trimmed) return '';
+  if (trimmed.length <= 2) return `${trimmed[0] ?? '*'}*`;
+  return `${trimmed.slice(0, 2)}***`;
+}
+
 function getSessionIcon(kind: SessionKind) {
   if (kind === 'automation') return <AutomationIcon />;
   if (kind === 'trace') return <TraceIcon />;
   if (kind === 'proto') return <ProtoIcon />;
   return <ScribeIcon />;
+}
+
+function hasTechnicalDetails(message: ChatMessage): boolean {
+  return Boolean(message.reasoningSummary || message.toolCall || message.decision);
 }
 
 function isUuid(value: string): boolean {
@@ -304,7 +426,7 @@ function toSessionFromThread(thread: ConversationThread): ChatSession {
     title: thread.title,
     createdAt: new Date(thread.createdAt).getTime(),
     updatedAt: new Date(thread.updatedAt).getTime(),
-    lastMessagePreview: thread.lastMessagePreview ?? '',
+    lastMessagePreview: toSafePreview(thread.lastMessagePreview),
     messages: [],
   };
 }
@@ -384,6 +506,10 @@ export default function AgentsHubPage() {
   const [questionStep, setQuestionStep] = useState(0);
   const [questionAnswers, setQuestionAnswers] = useState<Record<string, string>>({});
   const [showSettingsDrawer, setShowSettingsDrawer] = useState(false);
+  const [showTechnicalDetails, setShowTechnicalDetails] = useState<boolean>(() => safeLoadTechnicalDetailsVisibility());
+  const [showSessionPreviews, setShowSessionPreviews] = useState<boolean>(() => safeLoadSessionPreviewVisibility());
+  const [autoFollowMessages, setAutoFollowMessages] = useState<boolean>(() => safeLoadAutoFollowPreference());
+  const [showChatContent, setShowChatContent] = useState<boolean>(() => safeLoadChatContentVisibility());
   const [runtimeOverride, setRuntimeOverride] = useState<RuntimeOverride | undefined>(undefined);
   const inputAreaRef = useRef<HTMLDivElement>(null);
   const handleRunAgentRef = useRef<(extraInput?: string) => Promise<void>>(async () => {});
@@ -407,7 +533,7 @@ export default function AgentsHubPage() {
     upsertSession(sessionId, (session) => ({
       ...session,
       updatedAt: now,
-      lastMessagePreview: entry.content.slice(0, 120),
+      lastMessagePreview: toSafePreview(entry.content),
       messages: [...session.messages, entry],
     }));
 
@@ -503,6 +629,9 @@ export default function AgentsHubPage() {
     () => (activeSessionId ? steerQueueBySession[activeSessionId] ?? [] : []),
     [activeSessionId, steerQueueBySession]
   );
+  const activeQueueCount = activeQueue.length;
+  const privacyPresetEnabled = !showChatContent && !showSessionPreviews && !showTechnicalDetails;
+  const maskedGithubUser = useMemo(() => maskHandle(githubUser), [githubUser]);
 
   const activePlanCandidates = useMemo(
     () => (activeSessionId ? planCandidatesBySession[activeSessionId] ?? [] : []),
@@ -558,6 +687,20 @@ export default function AgentsHubPage() {
       void Notification.requestPermission();
     }
   }, []);
+
+  const handlePrivacyPresetToggle = useCallback(() => {
+    if (privacyPresetEnabled) {
+      setShowTechnicalDetails(false);
+      setShowSessionPreviews(true);
+      setShowChatContent(true);
+      notifyUser(tx('agentsHub.notification.privacyOff'), 'info');
+      return;
+    }
+    setShowTechnicalDetails(false);
+    setShowSessionPreviews(false);
+    setShowChatContent(false);
+    notifyUser(tx('agentsHub.notification.privacyOn'), 'info');
+  }, [notifyUser, privacyPresetEnabled, tx]);
 
   const updateQueue = useCallback((sessionId: string, updater: (prev: SteerQueueItem[]) => SteerQueueItem[]) => {
     setSteerQueueBySession((prev) => ({
@@ -684,12 +827,29 @@ export default function AgentsHubPage() {
   }, []);
 
   useEffect(() => {
+    if (!autoFollowMessages) return;
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [chatMessages]);
+  }, [chatMessages, autoFollowMessages]);
 
   useEffect(() => {
     safeSaveSessions(chatSessions);
   }, [chatSessions]);
+
+  useEffect(() => {
+    safeSaveTechnicalDetailsVisibility(showTechnicalDetails);
+  }, [showTechnicalDetails]);
+
+  useEffect(() => {
+    safeSaveSessionPreviewVisibility(showSessionPreviews);
+  }, [showSessionPreviews]);
+
+  useEffect(() => {
+    safeSaveAutoFollowPreference(autoFollowMessages);
+  }, [autoFollowMessages]);
+
+  useEffect(() => {
+    safeSaveChatContentVisibility(showChatContent);
+  }, [showChatContent]);
 
   useEffect(() => {
     let cancelled = false;
@@ -733,7 +893,7 @@ export default function AgentsHubPage() {
         upsertSession(activeSessionId, (prev) => ({
           ...prev,
           messages: mapped,
-          lastMessagePreview: mapped[mapped.length - 1]?.content.slice(0, 120) ?? prev.lastMessagePreview,
+          lastMessagePreview: toSafePreview(mapped[mapped.length - 1]?.content ?? prev.lastMessagePreview),
           updatedAt: mapped[mapped.length - 1]?.timestamp ?? prev.updatedAt,
         }));
       } catch {
@@ -1552,8 +1712,9 @@ export default function AgentsHubPage() {
         title: session.title,
         typeLabel: session.typeLabel,
         kind: session.kind,
-        lastMessagePreview: session.lastMessagePreview || 'No messages yet',
+        lastMessagePreview: toSafePreview(session.lastMessagePreview),
         hasError: session.messages.some((message) => message.isError),
+        messageCount: session.messages.length,
       })),
     [chatSessions]
   );
@@ -1597,7 +1758,7 @@ export default function AgentsHubPage() {
                     <div className="flex-1 min-w-0">
                       <span className="font-medium text-[13px]">Scribe Config</span>
                       <p className="truncate text-[11px] text-ak-text-secondary/70">
-                        {config.repositoryOwner}/{config.repositoryName}
+                        {maskHandle(config.repositoryOwner)}/{config.repositoryName}
                       </p>
                     </div>
                   </Link>
@@ -1613,6 +1774,8 @@ export default function AgentsHubPage() {
             sessions={sessionRailItems}
             activeSessionId={activeSessionId}
             animatedSessionId={animatedSessionId}
+            hidePreviews={!showSessionPreviews}
+            hiddenPreviewLabel={tx('agentsHub.preview.hidden')}
             getColor={(kind) => getAgentColor(kind === 'automation' ? 'smart-automations' : kind)}
             getIcon={(kind) => getSessionIcon(kind as SessionKind)}
             onCreate={() => createSession(selectedAgent, userInput)}
@@ -1718,6 +1881,66 @@ export default function AgentsHubPage() {
                 Advanced Console
               </Link>
             )}
+            <button
+              onClick={() => setShowTechnicalDetails((prev) => !prev)}
+              className={cn(
+                'rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors',
+                showTechnicalDetails
+                  ? 'border-ak-primary/40 bg-ak-primary/10 text-ak-primary'
+                  : 'border-ak-border bg-ak-surface text-ak-text-secondary hover:bg-ak-surface-2 hover:text-ak-text-primary'
+              )}
+              aria-pressed={showTechnicalDetails}
+            >
+              {showTechnicalDetails ? tx('agentsHub.details.hide') : tx('agentsHub.details.show')}
+            </button>
+            <button
+              onClick={() => setShowSessionPreviews((prev) => !prev)}
+              className={cn(
+                'rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors',
+                showSessionPreviews
+                  ? 'border-ak-border bg-ak-surface text-ak-text-secondary hover:bg-ak-surface-2 hover:text-ak-text-primary'
+                  : 'border-ak-primary/40 bg-ak-primary/10 text-ak-primary'
+              )}
+              aria-pressed={showSessionPreviews}
+            >
+              {showSessionPreviews ? tx('agentsHub.preview.hide') : tx('agentsHub.preview.show')}
+            </button>
+            <button
+              onClick={() => setAutoFollowMessages((prev) => !prev)}
+              className={cn(
+                'rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors',
+                autoFollowMessages
+                  ? 'border-ak-primary/40 bg-ak-primary/10 text-ak-primary'
+                  : 'border-ak-border bg-ak-surface text-ak-text-secondary hover:bg-ak-surface-2 hover:text-ak-text-primary'
+              )}
+              aria-pressed={autoFollowMessages}
+            >
+              {autoFollowMessages ? tx('agentsHub.follow.pause') : tx('agentsHub.follow.resume')}
+            </button>
+            <button
+              onClick={() => setShowChatContent((prev) => !prev)}
+              className={cn(
+                'rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors',
+                showChatContent
+                  ? 'border-ak-border bg-ak-surface text-ak-text-secondary hover:bg-ak-surface-2 hover:text-ak-text-primary'
+                  : 'border-ak-primary/40 bg-ak-primary/10 text-ak-primary'
+              )}
+              aria-pressed={showChatContent}
+            >
+              {showChatContent ? tx('agentsHub.chat.hide') : tx('agentsHub.chat.show')}
+            </button>
+            <button
+              onClick={handlePrivacyPresetToggle}
+              className={cn(
+                'rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors',
+                privacyPresetEnabled
+                  ? 'border-ak-primary/40 bg-ak-primary/10 text-ak-primary'
+                  : 'border-ak-border bg-ak-surface text-ak-text-secondary hover:bg-ak-surface-2 hover:text-ak-text-primary'
+              )}
+              aria-pressed={privacyPresetEnabled}
+            >
+              {privacyPresetEnabled ? tx('agentsHub.privacyPreset.disable') : tx('agentsHub.privacyPreset.enable')}
+            </button>
             {selectedAgent.id !== 'smart-automations' && (
               <Button
                 variant="secondary"
@@ -1820,7 +2043,7 @@ export default function AgentsHubPage() {
                     </div>
                     {selectedRepo && selectedBranch && (
                       <span className="text-[11px] text-ak-text-secondary/60">
-                        {githubUser}/{selectedRepo} · {selectedBranch}
+                        {maskedGithubUser || githubUser}/{selectedRepo} · {selectedBranch}
                       </span>
                     )}
                   </div>
@@ -1868,7 +2091,9 @@ export default function AgentsHubPage() {
                   <div key={item.id} className="rounded-lg border border-ak-border bg-ak-bg px-2.5 py-2 flex items-start gap-2">
                     <div className="text-xs text-ak-text-secondary/60 mt-0.5">{idx + 1}.</div>
                     <div className="min-w-0 flex-1">
-                      <p className="text-xs text-ak-text-primary truncate">{item.content}</p>
+                      <p className="text-xs text-ak-text-primary truncate">
+                        {showSessionPreviews && showChatContent ? toSafePreview(item.content) : tx('agentsHub.preview.hidden')}
+                      </p>
                       <p className="text-[10px] text-ak-text-secondary/60">{item.reason === 'build_selected' ? tx('agentsHub.steer.reasonBuild') : tx('agentsHub.steer.reasonMessage')}</p>
                     </div>
                     <div className="flex items-center gap-1">
@@ -1922,39 +2147,51 @@ export default function AgentsHubPage() {
                     {PHASE_LABELS[msg.phase].label}
                   </span>
                 )}
-                {/* Reasoning summary - agent thinking display */}
-                {msg.reasoningSummary && (
-                  <div className="mb-1.5 rounded-md bg-ak-bg/50 border border-indigo-500/10 px-2.5 py-1.5 text-xs text-ak-text-secondary/80 italic leading-relaxed">
-                    {msg.reasoningSummary}
-                  </div>
-                )}
-                {/* Tool call explainability - Asked/Did/Why */}
-                {msg.toolCall && (
-                  <div className="mb-1.5 space-y-0.5 text-xs">
-                    <div className="flex gap-1.5">
-                      <span className="text-ak-text-secondary/50 font-medium shrink-0 w-10">Asked</span>
-                      <span className="text-ak-text-secondary/80">{msg.toolCall.asked}</span>
-                    </div>
-                    <div className="flex gap-1.5">
-                      <span className="text-emerald-400/50 font-medium shrink-0 w-10">Did</span>
-                      <span className="text-ak-text-secondary/80">{msg.toolCall.did}</span>
-                    </div>
-                    {msg.toolCall.why && (
-                      <div className="flex gap-1.5">
-                        <span className="text-indigo-400/50 font-medium shrink-0 w-10">Why</span>
-                        <span className="text-ak-text-secondary/80">{msg.toolCall.why}</span>
+                {showTechnicalDetails && showChatContent ? (
+                  <>
+                    {/* Reasoning summary - agent thinking display */}
+                    {msg.reasoningSummary && (
+                      <div className="mb-1.5 rounded-md bg-ak-bg/50 border border-indigo-500/10 px-2.5 py-1.5 text-xs text-ak-text-secondary/80 italic leading-relaxed">
+                        {redactUiSecrets(msg.reasoningSummary)}
                       </div>
                     )}
-                  </div>
+                    {/* Tool call explainability - Asked/Did/Why */}
+                    {msg.toolCall && (
+                      <div className="mb-1.5 space-y-0.5 text-xs">
+                        <div className="flex gap-1.5">
+                          <span className="text-ak-text-secondary/50 font-medium shrink-0 w-10">Asked</span>
+                          <span className="text-ak-text-secondary/80">{redactUiSecrets(msg.toolCall.asked)}</span>
+                        </div>
+                        <div className="flex gap-1.5">
+                          <span className="text-emerald-400/50 font-medium shrink-0 w-10">Did</span>
+                          <span className="text-ak-text-secondary/80">{redactUiSecrets(msg.toolCall.did)}</span>
+                        </div>
+                        {msg.toolCall.why && (
+                          <div className="flex gap-1.5">
+                            <span className="text-indigo-400/50 font-medium shrink-0 w-10">Why</span>
+                            <span className="text-ak-text-secondary/80">{redactUiSecrets(msg.toolCall.why)}</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    {/* Decision display */}
+                    {msg.decision && (
+                      <div className="mb-1.5 rounded-md bg-amber-500/[0.05] border border-amber-500/10 px-2.5 py-1.5 text-xs leading-relaxed">
+                        <span className="font-medium text-amber-400/70">{msg.decision.title}</span>
+                        <p className="mt-0.5 text-ak-text-secondary/70">{redactUiSecrets(msg.decision.reasoning)}</p>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  hasTechnicalDetails(msg) && (
+                    <p className="mb-1.5 inline-flex rounded-md border border-ak-border bg-ak-bg px-2 py-0.5 text-[10px] text-ak-text-secondary/70">
+                      {tx('agentsHub.details.hidden')}
+                    </p>
+                  )
                 )}
-                {/* Decision display */}
-                {msg.decision && (
-                  <div className="mb-1.5 rounded-md bg-amber-500/[0.05] border border-amber-500/10 px-2.5 py-1.5 text-xs leading-relaxed">
-                    <span className="font-medium text-amber-400/70">{msg.decision.title}</span>
-                    <p className="mt-0.5 text-ak-text-secondary/70">{msg.decision.reasoning}</p>
-                  </div>
-                )}
-                <p className="whitespace-pre-wrap leading-relaxed">{msg.content}</p>
+                <p className="whitespace-pre-wrap leading-relaxed">
+                  {showChatContent ? redactUiSecrets(msg.content) : tx('agentsHub.chat.hidden')}
+                </p>
                 {msg.jobId && msg.isSuccess && (
                   <Link
                     to={`/dashboard/jobs/${msg.jobId}`}
@@ -2026,7 +2263,7 @@ export default function AgentsHubPage() {
         <div ref={inputAreaRef} className="border-t border-ak-border bg-ak-bg p-3 relative">
           {jobError && (
             <div className="mb-2 flex items-center justify-between px-3 py-2 rounded-lg bg-red-500/[0.08] border border-red-500/20 text-xs text-red-300">
-              <span>{jobError}</span>
+              <span>{redactUiSecrets(jobError)}</span>
               <button
                 onClick={() => setJobError(null)}
                 className="ml-2 shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium text-red-300 hover:bg-red-500/20 hover:text-red-200 transition-colors"
@@ -2067,6 +2304,14 @@ export default function AgentsHubPage() {
                 <SendIcon />
               </button>
             </div>
+            {userInput.trim().length > 0 && (
+              <button
+                onClick={() => setUserInput('')}
+                className="inline-flex items-center rounded-xl border border-ak-border bg-ak-surface px-2.5 py-2 text-xs text-ak-text-secondary hover:bg-ak-surface-2 hover:text-ak-text-primary"
+              >
+                {tx('agents.form.reset')}
+              </button>
+            )}
             <div className="relative">
               <button
                 onClick={() => setShowSteerMenu((prev) => !prev)}
@@ -2075,6 +2320,11 @@ export default function AgentsHubPage() {
               >
                 <SteerIcon />
                 {tx('agentsHub.steer.button')}
+                {activeQueueCount > 0 && (
+                  <span className="inline-flex h-4 min-w-[16px] items-center justify-center rounded-full bg-ak-primary/20 px-1 text-[10px] font-semibold text-ak-primary">
+                    {activeQueueCount}
+                  </span>
+                )}
               </button>
               {showSteerMenu && (
                 <div className="absolute bottom-12 right-0 z-30 w-72 rounded-xl border border-ak-border bg-ak-surface shadow-xl">
@@ -2127,7 +2377,7 @@ export default function AgentsHubPage() {
               {showConfig ? 'Hide' : 'Show'} configuration
             </button>
             <div className="flex items-center gap-3 text-[11px] text-ak-text-secondary/40">
-              {!isAutomationSelected && selectedRepo && <span>{githubUser}/{selectedRepo}</span>}
+              {!isAutomationSelected && selectedRepo && <span>{maskedGithubUser || githubUser}/{selectedRepo}</span>}
               {isRunning && (
                 <span className="rounded bg-ak-surface px-2 py-0.5 text-[10px] text-ak-text-secondary">
                   {tx('agentsHub.steer.runningHint')}

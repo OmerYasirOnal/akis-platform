@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../services/api';
 import type { Job } from '../services/api';
@@ -15,6 +15,7 @@ import { Badge } from '../components/ui/Badge';
 import { Pill } from '../components/ui/Pill';
 import { Pagination } from '../components/ui/Pagination';
 import { ErrorToast } from '../components/ui/ErrorToast';
+import { useI18n } from '../i18n/useI18n';
 
 // Icons
 const SearchIcon = () => (
@@ -35,7 +36,116 @@ const EmptyIcon = () => (
   </svg>
 );
 
+const JOBS_ERROR_DETAIL_VISIBILITY_STORAGE_KEY = 'akis:jobs-list:show-error-details:v1';
+const JOBS_SCOPE_VISIBILITY_STORAGE_KEY = 'akis:jobs-list:show-scope-details:v1';
+
+function redactJobText(value?: string | null): string {
+  if (!value) return '';
+  return value
+    .replace(/gh[pousr]_[A-Za-z0-9_]{8,}/g, '[REDACTED_TOKEN]')
+    .replace(/sk-[A-Za-z0-9_-]{8,}/g, 'sk-[REDACTED]')
+    .replace(/Bearer\s+[A-Za-z0-9._-]{8,}/gi, 'Bearer [REDACTED]')
+    .replace(/([A-Za-z0-9._%+-]{2})[A-Za-z0-9._%+-]*(@[A-Za-z0-9.-]+\.[A-Za-z]{2,})/g, '$1***$2')
+    .replace(/(token|secret|password|api[_-]?key)\s*[:=]\s*(['"]?)[^\s'",]+(\2)/gi, '$1=[REDACTED]');
+}
+
+function maskHandle(value?: string | null): string {
+  if (!value) return '';
+  const trimmed = value.trim();
+  if (!trimmed) return '';
+  if (trimmed.length <= 2) return `${trimmed[0] ?? '*'}*`;
+  return `${trimmed.slice(0, 2)}***`;
+}
+
+function getPayloadField(payload: unknown, keys: string[]): string | undefined {
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return undefined;
+  const record = payload as Record<string, unknown>;
+  for (const key of keys) {
+    const value = record[key];
+    if (typeof value === 'string' && value.trim()) return value.trim();
+  }
+  return undefined;
+}
+
+function resolveScopeLabel(job: Job, showScopeDetails: boolean, hiddenLabel: string): string {
+  const owner = getPayloadField(job.payload, ['owner', 'repositoryOwner', 'repoOwner', 'organization']);
+  const repo = getPayloadField(job.payload, ['repo', 'repositoryName', 'repository']);
+  const targetBaseUrl = getPayloadField(job.payload, ['targetBaseUrl', 'baseUrl', 'url']);
+  let host: string | null = null;
+  if (targetBaseUrl) {
+    try {
+      host = new URL(targetBaseUrl).host || null;
+    } catch {
+      host = null;
+    }
+  }
+
+  if (!showScopeDetails && (owner || repo || host)) return hiddenLabel;
+  if (owner && repo) return `${maskHandle(owner)}/${repo}`;
+  if (repo) return repo;
+  if (host) return host;
+  return '—';
+}
+
+function formatDurationCompact(createdAt: string, updatedAt: string): string {
+  const start = new Date(createdAt).getTime();
+  const end = new Date(updatedAt).getTime();
+  if (Number.isNaN(start) || Number.isNaN(end) || end < start) return '—';
+  const diffMs = end - start;
+  if (diffMs < 1_000) return `${diffMs}ms`;
+  const totalSec = Math.round(diffMs / 1_000);
+  if (totalSec < 60) return `${totalSec}s`;
+  const min = Math.floor(totalSec / 60);
+  const sec = totalSec % 60;
+  if (min < 60) return `${min}m ${sec}s`;
+  const hrs = Math.floor(min / 60);
+  const remMin = min % 60;
+  return `${hrs}h ${remMin}m`;
+}
+
+function safeLoadErrorDetailVisibility(): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
+    const raw = window.localStorage.getItem(JOBS_ERROR_DETAIL_VISIBILITY_STORAGE_KEY);
+    if (raw === null) return false;
+    return raw === '1';
+  } catch {
+    return false;
+  }
+}
+
+function safeSaveErrorDetailVisibility(value: boolean) {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.setItem(JOBS_ERROR_DETAIL_VISIBILITY_STORAGE_KEY, value ? '1' : '0');
+  } catch {
+    // ignore quota/storage errors
+  }
+}
+
+function safeLoadScopeVisibility(): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
+    const raw = window.localStorage.getItem(JOBS_SCOPE_VISIBILITY_STORAGE_KEY);
+    if (raw === null) return false;
+    return raw === '1';
+  } catch {
+    return false;
+  }
+}
+
+function safeSaveScopeVisibility(value: boolean) {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.setItem(JOBS_SCOPE_VISIBILITY_STORAGE_KEY, value ? '1' : '0');
+  } catch {
+    // ignore quota/storage errors
+  }
+}
+
 export default function JobsListPage() {
+  const { t } = useI18n();
+  const tx = useCallback((key: string) => t(key as never), [t]);
   const [jobs, setJobs] = useState<Job[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -43,6 +153,8 @@ export default function JobsListPage() {
   const [filterType, setFilterType] = useState<'scribe' | 'trace' | 'proto' | ''>('');
   const [filterState, setFilterState] = useState<'pending' | 'running' | 'completed' | 'failed' | ''>('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [showErrorDetails, setShowErrorDetails] = useState<boolean>(() => safeLoadErrorDetailVisibility());
+  const [showScopeDetails, setShowScopeDetails] = useState<boolean>(() => safeLoadScopeVisibility());
 
   // Use refs for filters to avoid closure issues
   const filterTypeRef = useRef(filterType);
@@ -82,6 +194,14 @@ export default function JobsListPage() {
     loadJobs();
   }, [loadJobs, filterType, filterState]);
 
+  useEffect(() => {
+    safeSaveErrorDetailVisibility(showErrorDetails);
+  }, [showErrorDetails]);
+
+  useEffect(() => {
+    safeSaveScopeVisibility(showScopeDetails);
+  }, [showScopeDetails]);
+
   const handleLoadMore = useCallback(() => {
     if (nextCursor) {
       loadJobs(nextCursor);
@@ -91,6 +211,10 @@ export default function JobsListPage() {
   const handleRefresh = () => {
     loadJobs();
   };
+
+  const toggleStateFilter = useCallback((state: typeof filterState) => {
+    setFilterState((prev) => (prev === state ? '' : state));
+  }, []);
 
   // Filter jobs by search query (client-side)
   const filteredJobs = jobs.filter((job) => {
@@ -104,6 +228,16 @@ export default function JobsListPage() {
       job.errorCode?.toLowerCase().includes(query)
     );
   });
+
+  const stateSummary = useMemo(() => {
+    const summary = { total: filteredJobs.length, pending: 0, running: 0, completed: 0, failed: 0 };
+    for (const job of filteredJobs) {
+      if (job.state in summary) {
+        summary[job.state as 'pending' | 'running' | 'completed' | 'failed'] += 1;
+      }
+    }
+    return summary;
+  }, [filteredJobs]);
 
   return (
     <div className="space-y-6">
@@ -124,52 +258,160 @@ export default function JobsListPage() {
           Refresh
         </button>
       </div>
+      <div className="flex flex-wrap justify-end gap-2">
+        <button
+          onClick={() => setShowScopeDetails((prev) => !prev)}
+          className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
+            showScopeDetails
+              ? 'border-ak-primary/40 bg-ak-primary/10 text-ak-primary'
+              : 'border-ak-border bg-ak-surface text-ak-text-secondary hover:bg-ak-surface-2 hover:text-ak-text-primary'
+          }`}
+          aria-pressed={showScopeDetails}
+        >
+          {showScopeDetails ? tx('jobs.scope.hide') : tx('jobs.scope.show')}
+        </button>
+        <button
+          onClick={() => setShowErrorDetails((prev) => !prev)}
+          className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
+            showErrorDetails
+              ? 'border-ak-primary/40 bg-ak-primary/10 text-ak-primary'
+              : 'border-ak-border bg-ak-surface text-ak-text-secondary hover:bg-ak-surface-2 hover:text-ak-text-primary'
+          }`}
+          aria-pressed={showErrorDetails}
+        >
+          {showErrorDetails ? 'Hide error details' : 'Show error details'}
+        </button>
+      </div>
 
       {/* Filters Card */}
       <Card className="bg-ak-surface p-4">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
           {/* Search */}
-          <div className="relative flex-1">
-            <input
-              type="text"
-              placeholder="Search jobs..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full rounded-lg border border-ak-border bg-ak-bg py-2 pl-10 pr-4 text-sm text-ak-text-primary placeholder:text-ak-text-secondary/50 focus:border-ak-primary focus:outline-none focus:ring-1 focus:ring-ak-primary"
-            />
-            <div className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ak-text-secondary">
-              <SearchIcon />
+            <div className="relative flex-1">
+              <input
+                type="text"
+                placeholder="Search jobs..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full rounded-lg border border-ak-border bg-ak-bg py-2 pl-10 pr-4 text-sm text-ak-text-primary placeholder:text-ak-text-secondary/50 focus:border-ak-primary focus:outline-none focus:ring-1 focus:ring-ak-primary"
+              />
+              <div className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ak-text-secondary">
+                <SearchIcon />
+              </div>
             </div>
+
+            {/* Type Filter */}
+            <select
+              value={filterType}
+              onChange={(e) => setFilterType(e.target.value as typeof filterType)}
+              className="rounded-lg border border-ak-border bg-ak-bg px-4 py-2 text-sm text-ak-text-primary focus:border-ak-primary focus:outline-none focus:ring-1 focus:ring-ak-primary"
+            >
+              <option value="">All Types</option>
+              <option value="scribe">Scribe</option>
+              <option value="trace">Trace</option>
+              <option value="proto">Proto</option>
+            </select>
+
+            {/* State Filter */}
+            <select
+              value={filterState}
+              onChange={(e) => setFilterState(e.target.value as typeof filterState)}
+              className="rounded-lg border border-ak-border bg-ak-bg px-4 py-2 text-sm text-ak-text-primary focus:border-ak-primary focus:outline-none focus:ring-1 focus:ring-ak-primary"
+            >
+              <option value="">All States</option>
+              <option value="pending">Pending</option>
+              <option value="running">Running</option>
+              <option value="completed">Completed</option>
+              <option value="failed">Failed</option>
+            </select>
           </div>
-
-          {/* Type Filter */}
-          <select
-            value={filterType}
-            onChange={(e) => setFilterType(e.target.value as typeof filterType)}
-            className="rounded-lg border border-ak-border bg-ak-bg px-4 py-2 text-sm text-ak-text-primary focus:border-ak-primary focus:outline-none focus:ring-1 focus:ring-ak-primary"
-          >
-            <option value="">All Types</option>
-            <option value="scribe">Scribe</option>
-            <option value="trace">Trace</option>
-            <option value="proto">Proto</option>
-          </select>
-
-          {/* State Filter */}
-          <select
-            value={filterState}
-            onChange={(e) => setFilterState(e.target.value as typeof filterState)}
-            className="rounded-lg border border-ak-border bg-ak-bg px-4 py-2 text-sm text-ak-text-primary focus:border-ak-primary focus:outline-none focus:ring-1 focus:ring-ak-primary"
-          >
-            <option value="">All States</option>
-            <option value="pending">Pending</option>
-            <option value="running">Running</option>
-            <option value="completed">Completed</option>
-            <option value="failed">Failed</option>
-          </select>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={() => setFilterState('')}
+              className={`rounded-full border px-3 py-1 text-xs transition-colors ${
+                filterState === ''
+                  ? 'border-ak-primary/40 bg-ak-primary/10 text-ak-primary'
+                  : 'border-ak-border bg-ak-bg text-ak-text-secondary hover:bg-ak-surface-2'
+              }`}
+              aria-pressed={filterState === ''}
+            >
+              All ({stateSummary.total})
+            </button>
+            <button
+              onClick={() => toggleStateFilter('running')}
+              className={`rounded-full border px-3 py-1 text-xs transition-colors ${
+                filterState === 'running'
+                  ? 'border-blue-400/40 bg-blue-500/10 text-blue-300'
+                  : 'border-ak-border bg-ak-bg text-ak-text-secondary hover:bg-ak-surface-2'
+              }`}
+              aria-pressed={filterState === 'running'}
+            >
+              Running ({stateSummary.running})
+            </button>
+            <button
+              onClick={() => toggleStateFilter('pending')}
+              className={`rounded-full border px-3 py-1 text-xs transition-colors ${
+                filterState === 'pending'
+                  ? 'border-amber-400/40 bg-amber-500/10 text-amber-300'
+                  : 'border-ak-border bg-ak-bg text-ak-text-secondary hover:bg-ak-surface-2'
+              }`}
+              aria-pressed={filterState === 'pending'}
+            >
+              Pending ({stateSummary.pending})
+            </button>
+            <button
+              onClick={() => toggleStateFilter('completed')}
+              className={`rounded-full border px-3 py-1 text-xs transition-colors ${
+                filterState === 'completed'
+                  ? 'border-emerald-400/40 bg-emerald-500/10 text-emerald-300'
+                  : 'border-ak-border bg-ak-bg text-ak-text-secondary hover:bg-ak-surface-2'
+              }`}
+              aria-pressed={filterState === 'completed'}
+            >
+              Completed ({stateSummary.completed})
+            </button>
+            <button
+              onClick={() => toggleStateFilter('failed')}
+              className={`rounded-full border px-3 py-1 text-xs transition-colors ${
+                filterState === 'failed'
+                  ? 'border-red-400/40 bg-red-500/10 text-red-300'
+                  : 'border-ak-border bg-ak-bg text-ak-text-secondary hover:bg-ak-surface-2'
+              }`}
+              aria-pressed={filterState === 'failed'}
+            >
+              Failed ({stateSummary.failed})
+            </button>
+          </div>
         </div>
       </Card>
 
       {error && <ErrorToast error={error} onClose={() => setError(null)} />}
+
+      {filteredJobs.length > 0 && (
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+          <Card className="bg-ak-surface p-3">
+            <p className="text-[11px] uppercase tracking-wide text-ak-text-secondary">Total</p>
+            <p className="mt-1 text-lg font-semibold text-ak-text-primary">{stateSummary.total}</p>
+          </Card>
+          <Card className="bg-ak-surface p-3">
+            <p className="text-[11px] uppercase tracking-wide text-ak-text-secondary">Pending</p>
+            <p className="mt-1 text-lg font-semibold text-amber-300">{stateSummary.pending}</p>
+          </Card>
+          <Card className="bg-ak-surface p-3">
+            <p className="text-[11px] uppercase tracking-wide text-ak-text-secondary">Running</p>
+            <p className="mt-1 text-lg font-semibold text-blue-300">{stateSummary.running}</p>
+          </Card>
+          <Card className="bg-ak-surface p-3">
+            <p className="text-[11px] uppercase tracking-wide text-ak-text-secondary">Completed</p>
+            <p className="mt-1 text-lg font-semibold text-emerald-300">{stateSummary.completed}</p>
+          </Card>
+          <Card className="bg-ak-surface p-3">
+            <p className="text-[11px] uppercase tracking-wide text-ak-text-secondary">Failed</p>
+            <p className="mt-1 text-lg font-semibold text-red-300">{stateSummary.failed}</p>
+          </Card>
+        </div>
+      )}
 
       {/* Jobs Table */}
       <Card className="bg-ak-surface overflow-hidden">
@@ -206,10 +448,12 @@ export default function JobsListPage() {
                   <TableRow>
                     <TableHead>ID</TableHead>
                     <TableHead>Type</TableHead>
+                    <TableHead>Scope</TableHead>
                     <TableHead>State</TableHead>
                     <TableHead>Error</TableHead>
                     <TableHead>Created</TableHead>
                     <TableHead>Updated</TableHead>
+                    <TableHead>Duration</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -226,6 +470,11 @@ export default function JobsListPage() {
                       <TableCell>
                         <Pill type={job.type} />
                       </TableCell>
+                      <TableCell className="text-sm text-ak-text-secondary">
+                        <span className="inline-flex max-w-[16rem] truncate rounded border border-ak-border bg-ak-bg px-2 py-0.5 font-mono text-[11px] text-ak-text-secondary">
+                          {resolveScopeLabel(job, showScopeDetails, tx('jobs.scope.hidden'))}
+                        </span>
+                      </TableCell>
                       <TableCell>
                         <Badge state={job.state} />
                       </TableCell>
@@ -237,10 +486,13 @@ export default function JobsListPage() {
                                 {job.errorCode}
                               </span>
                             )}
-                            {job.errorMessage && (
-                              <p className="mt-1 truncate text-xs text-ak-text-secondary" title={job.errorMessage}>
-                                {job.errorMessage}
+                            {job.errorMessage && showErrorDetails && (
+                              <p className="mt-1 truncate text-xs text-ak-text-secondary" title={redactJobText(job.errorMessage)}>
+                                {redactJobText(job.errorMessage)}
                               </p>
+                            )}
+                            {job.errorMessage && !showErrorDetails && (
+                              <p className="mt-1 text-xs text-ak-text-secondary/70">Details hidden for privacy</p>
                             )}
                           </div>
                         ) : (
@@ -252,6 +504,9 @@ export default function JobsListPage() {
                       </TableCell>
                       <TableCell className="text-sm text-ak-text-secondary">
                         {new Date(job.updatedAt).toLocaleString()}
+                      </TableCell>
+                      <TableCell className="text-sm text-ak-text-secondary">
+                        {formatDurationCompact(job.createdAt, job.updatedAt)}
                       </TableCell>
                     </TableRow>
                   ))}
@@ -268,7 +523,7 @@ export default function JobsListPage() {
         <div className="flex items-center justify-between text-xs text-ak-text-secondary">
           <span>
             Showing {filteredJobs.length} {filteredJobs.length === 1 ? 'job' : 'jobs'}
-            {searchQuery && ` matching "${searchQuery}"`}
+            {searchQuery && ` matching "${redactJobText(searchQuery)}"`}
           </span>
           {nextCursor && (
             <span>More jobs available</span>
