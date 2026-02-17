@@ -13,6 +13,7 @@ import { PlanView } from '../components/jobs/PlanView';
 import { FeedbackTab } from '../components/jobs/FeedbackTab';
 import { useJobStream, type TraceStreamEvent, type ArtifactStreamEvent } from '../hooks/useJobStream';
 import { useI18n } from '../i18n/useI18n';
+import { Skeleton, SkeletonCard } from '../components/ui/Skeleton';
 import {
   CitationBadge,
   ConfidenceIndicator,
@@ -645,10 +646,19 @@ export default function JobDetailPage() {
 
   if (isLoading && !job) {
     return (
-      <div className={`${containerClass} py-12`}>
-        <div className="flex flex-col items-center justify-center gap-4">
-          <div className="h-10 w-10 animate-spin rounded-full border-2 border-ak-primary border-t-transparent" />
-          <p className="text-sm text-ak-text-secondary">Loading job details...</p>
+      <div className={`${containerClass} py-12 space-y-6`}>
+        <div className="flex items-center gap-4">
+          <Skeleton className="h-8 w-48" />
+          <Skeleton className="h-6 w-20" />
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2 space-y-4">
+            <SkeletonCard />
+            <SkeletonCard />
+          </div>
+          <div className="space-y-4">
+            <SkeletonCard />
+          </div>
         </div>
       </div>
     );
