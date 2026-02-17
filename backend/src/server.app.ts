@@ -34,6 +34,8 @@ import { knowledgeRoutes } from './api/knowledge.js';
 import { marketplaceRoutes } from './api/marketplace.js';
 import { crewRoutes, initCrewRunManager } from './api/crew.js';
 import { ragRoutes } from './api/rag.js';
+import { adminRoutes } from './api/admin.js';
+import { pushLog } from './lib/logBuffer.js';
 import { initPiriRAGService } from './services/rag/PiriRAGService.js';
 import { AgentOrchestrator } from './core/orchestrator/AgentOrchestrator.js';
 import { createAIService } from './services/ai/AIService.js';
@@ -196,13 +198,17 @@ export async function buildApp() {
     );
 
     if (app.log && !QUIET_ROUTES.has(route)) {
-      app.log.info({
+      const entry = {
         method: request.method,
         url: request.url,
         statusCode: reply.statusCode,
         requestId: request.id,
         duration,
-      }, 'request completed');
+        msg: 'request completed',
+        level: 30,
+      };
+      pushLog(entry);
+      app.log.info(entry, 'request completed');
     }
   });
 
@@ -257,6 +263,7 @@ export async function buildApp() {
   await app.register(marketplaceRoutes);
   await app.register(crewRoutes);
   await app.register(ragRoutes);
+  await app.register(adminRoutes);
 
   // Initialize Piri RAG service if configured
   if (env.PIRI_BASE_URL) {

@@ -7,6 +7,7 @@ import { eq, desc, and, sql, asc, inArray } from 'drizzle-orm';
 import { JobNotFoundError, MissingAIKeyError, ModelNotAllowedError } from '../core/errors.js';
 import { metrics } from './metrics.js';
 import { formatErrorResponse, getStatusCodeForError } from '../utils/errorHandler.js';
+import { pushLog } from '../lib/logBuffer.js';
 import { requireAuth } from '../utils/auth.js';
 import { getUserAiKeyStatus } from '../services/ai/user-ai-keys.js';
 import { getScribeModelAllowlist, RECOMMENDED_MODELS } from '../services/ai/modelAllowlist.js';
@@ -798,6 +799,7 @@ export async function agentsRoutes(fastify: FastifyInstance) {
         const jobApiStart = Date.now();
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const route = (request as any).routeOptions?.url ?? (request as any).routerPath ?? request.url.split('?')[0];
+        pushLog({ jobId, agentType: body.type, userId: userId || null, msg: 'job_started', level: 30 });
         fastify.log?.info({ jobId, agentType: body.type, userId: userId || null, msg: 'job_started' });
 
         // Start job immediately (executes agent and transitions to completed/failed)
@@ -823,9 +825,11 @@ export async function agentsRoutes(fastify: FastifyInstance) {
               metrics.jobsFailed.inc({ type: body.type });
             }
           }
+          pushLog({ jobId, agentType: body.type, userId: userId || null, durationMs, state: finalState, msg: 'job_completed', level: 30 });
           fastify.log?.info({ jobId, agentType: body.type, userId: userId || null, durationMs, state: finalState, msg: 'job_completed' });
         } catch (_startError) {
           const durationMs = Date.now() - jobApiStart;
+          pushLog({ jobId, agentType: body.type, userId: userId || null, durationMs, err: _startError, msg: 'job_start_failed', level: 50 });
           (fastify.log as { warn?: (o: object, m?: string) => void })?.warn?.({ jobId, agentType: body.type, userId: userId || null, durationMs, err: _startError, msg: 'job_start_failed' });
           // If start fails, job is already marked as failed in DB
           try {
@@ -850,6 +854,14 @@ export async function agentsRoutes(fastify: FastifyInstance) {
         const req = request as any;
         const routeForError = req.routeOptions?.url ?? req.routerPath ?? request.url.split('?')[0];
         const userIdForError = userId;
+        pushLog({
+          requestId: request.id,
+          userId: userIdForError || null,
+          route: routeForError,
+          err: error instanceof Error ? error : new Error(String(error)),
+          msg: 'job_submit_error',
+          level: 60,
+        });
         fastify.log?.error({
           requestId: request.id,
           userId: userIdForError || null,
