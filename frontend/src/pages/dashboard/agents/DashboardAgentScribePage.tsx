@@ -16,6 +16,7 @@ import AgentRuntimeSettingsDrawer from '../../../components/agents/AgentRuntimeS
 import PiriContextSidebar from '../../../components/agents/PiriContextSidebar';
 import LiveAgentCanvas from '../../../components/agents/LiveAgentCanvas';
 import { useI18n } from '../../../i18n/useI18n';
+import { useAgentStatus } from '../../../hooks/useAgentStatus';
 import { usePiriContext } from '../../../hooks/usePiriContext';
 import SearchableSelect, { type SelectOption } from '../../../components/common/SearchableSelect';
 import {
@@ -52,6 +53,7 @@ interface Artifact {
 const DashboardAgentScribePage = () => {
   const { t: _t } = useI18n();
   const t = useCallback((key: string) => _t(key as never), [_t]);
+  const { status: agentStatus } = useAgentStatus('scribe');
 
   // Piri Context
   const piri = usePiriContext();
@@ -498,14 +500,36 @@ const DashboardAgentScribePage = () => {
     <>
       <div className="space-y-6">
       {/* Header */}
-      <header className="space-y-2">
-        <div className="flex items-center justify-between gap-3">
-          <div>
+      <header className="flex items-center justify-between">
+        <div className="space-y-1">
+          <div className="flex items-center gap-3">
             <h1 className="text-2xl font-semibold text-ak-text-primary">Scribe Console</h1>
-            <p className="text-sm text-ak-text-secondary">
-              Configure and run Scribe documentation agent.
-            </p>
+            <span
+              className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                agentStatus === 'active'
+                  ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                  : 'bg-ak-surface-2 text-ak-text-secondary border border-ak-border'
+              }`}
+            >
+              <span
+                className={`h-1.5 w-1.5 rounded-full ${
+                  agentStatus === 'active' ? 'bg-emerald-400 animate-pulse' : 'bg-ak-text-secondary/40'
+                }`}
+              />
+              {agentStatus === 'active' ? 'Active' : 'Inactive'}
+            </span>
           </div>
+          <p className="text-sm text-ak-text-secondary">
+            Configure and run Scribe documentation agent.
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Link
+            to="/agents"
+            className="text-xs font-medium text-ak-text-secondary hover:text-ak-primary transition-colors"
+          >
+            All Agents
+          </Link>
           <Button variant="secondary" onClick={() => setShowSettingsDrawer(true)}>
             Settings
           </Button>
