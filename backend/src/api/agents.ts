@@ -387,6 +387,7 @@ export async function agentsRoutes(fastify: FastifyInstance) {
       },
     },
     async (request, reply) => {
+      let userId: string | undefined;
       try {
         // Validate request body with Zod
         const body = submitJobSchema.parse(request.body);
@@ -395,7 +396,6 @@ export async function agentsRoutes(fastify: FastifyInstance) {
         let enrichedPayload = body.payload;
         let aiModel: string | undefined;
         let aiProvider: string | undefined;
-        let userId: string | undefined;
         let effectiveRuntime: RuntimeControl = DEFAULT_RUNTIME;
 
         if (body.type === 'scribe') {
@@ -795,10 +795,16 @@ export async function agentsRoutes(fastify: FastifyInstance) {
         // Phase 7.B: Record job created metric
         metrics.jobsCreated.inc({ type: body.type });
 
+        const jobApiStart = Date.now();
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const route = (request as any).routeOptions?.url ?? (request as any).routerPath ?? request.url.split('?')[0];
+        fastify.log?.info({ jobId, agentType: body.type, userId: userId || null, msg: 'job_started' });
+
         // Start job immediately (executes agent and transitions to completed/failed)
         let finalState = 'pending';
         try {
           await orchestrator.startJob(jobId);
+          const durationMs = Date.now() - jobApiStart;
           // Query final state after execution
           const [job] = await db.select().from(jobs).where(eq(jobs.id, jobId)).limit(1);
           if (job) {
@@ -817,9 +823,11 @@ export async function agentsRoutes(fastify: FastifyInstance) {
               metrics.jobsFailed.inc({ type: body.type });
             }
           }
+          fastify.log?.info({ jobId, agentType: body.type, userId: userId || null, durationMs, state: finalState, msg: 'job_completed' });
         } catch (_startError) {
+          const durationMs = Date.now() - jobApiStart;
+          (fastify.log as { warn?: (o: object, m?: string) => void })?.warn?.({ jobId, agentType: body.type, userId: userId || null, durationMs, err: _startError, msg: 'job_start_failed' });
           // If start fails, job is already marked as failed in DB
-          // Query state to return accurate status
           try {
             const [job] = await db.select().from(jobs).where(eq(jobs.id, jobId)).limit(1);
             if (job) {
@@ -838,6 +846,17 @@ export async function agentsRoutes(fastify: FastifyInstance) {
         // Phase 7.E: Use unified error model
         const errorResponse = formatErrorResponse(request, error);
         const statusCode = getStatusCodeForError(errorResponse.error.code);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const req = request as any;
+        const routeForError = req.routeOptions?.url ?? req.routerPath ?? request.url.split('?')[0];
+        const userIdForError = userId;
+        fastify.log?.error({
+          requestId: request.id,
+          userId: userIdForError || null,
+          route: routeForError,
+          err: error instanceof Error ? error : new Error(String(error)),
+          msg: 'job_submit_error',
+        });
         reply.code(statusCode).send(errorResponse);
       }
     }
