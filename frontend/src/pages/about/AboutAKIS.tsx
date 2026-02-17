@@ -1,9 +1,5 @@
-/**
- * AboutAKIS — Brand narrative page for the AKIS Platform
- * Fully i18n-aware with refined layout and consistent design language
- */
-
 import { useI18n } from '../../i18n/useI18n';
+import { usePageMeta } from '../../hooks/usePageMeta';
 
 /* ─────────────────────────────────────────────────────────────────────────────
    Section Label Component — reusable badge-style section header
@@ -180,6 +176,10 @@ const ProtoIcon = () => (
    ───────────────────────────────────────────────────────────────────────────── */
 export default function AboutAKIS() {
   const { t } = useI18n();
+  usePageMeta({
+    title: t('about.title') + ' | AKIS',
+    description: t('about.team.description'),
+  });
 
   return (
     <div className="min-h-screen bg-[var(--bg)]">
@@ -297,6 +297,34 @@ export default function AboutAKIS() {
               , {t('about.mission.items.logs').split(',').slice(1).join(',').trim()}
             </MissionItem>
           </ul>
+        </div>
+      </section>
+
+      <Divider />
+
+      {/* Team / Founder */}
+      <section className="relative px-4 py-16 sm:px-6 sm:py-20 lg:px-8 lg:py-24">
+        <div className="mx-auto max-w-4xl">
+          <SectionLabel>{t('about.team.label')}</SectionLabel>
+          <h2 className="mb-8 text-center text-[clamp(28px,4vw,40px)] font-semibold text-[var(--text)]">
+            {t('about.team.title')}
+          </h2>
+          <div className="rounded-[var(--radius-xl)] border border-[var(--glass-bdr)] bg-gradient-to-b from-[var(--glass-top)] to-transparent p-8 backdrop-blur-[var(--blur-card)]">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:gap-6">
+              <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-[var(--accent)]/10 text-2xl font-bold text-[var(--accent)]">
+                {t('about.team.founder.initials')}
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-[var(--text)]">{t('about.team.founder.name')}</h3>
+                <p className="text-sm font-medium uppercase tracking-wider text-[var(--accent)]">
+                  {t('about.team.founder.role')}
+                </p>
+                <p className="mt-3 text-base leading-relaxed text-[var(--muted)]">
+                  {t('about.team.founder.bio')}
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 

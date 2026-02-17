@@ -556,6 +556,26 @@ Not:
 
 ---
 
+## 🐳 Docker Full Stack (Lokal Dev)
+
+Tek komutla db, backend, frontend, (opsiyonel) mcp-gateway ve adminer çalıştırmak için:
+
+```bash
+docker compose -f docker-compose.fullstack.yml up
+```
+
+Port çakışması varsa (örn. 5433, 3000, 5173 zaten kullanımda) native backend/frontend'i durdurun veya portları boşaltın.
+
+- **db**: PostgreSQL 16, port 5433 (host) → migrations otomatik çalışır
+- **backend**: Hot reload (`tsx watch`), port 3000
+- **frontend**: Vite dev server, port 5173, proxy `/api` → backend
+- **mcp-gateway** (opsiyonel): `--profile mcp` ile, `.env.mcp.local` gerekli
+- **adminer** (opsiyonel): `--profile admin` ile, port 8080
+
+Şablon: `.env.docker.example` → `.env.docker` kopyalanabilir (override için).
+
+---
+
 ## 📚 İlgili Belgeler
 
 - [LOCAL_DEV_QUICKSTART.md](local-dev/LOCAL_DEV_QUICKSTART.md) - Kapsamlı local dev rehberi

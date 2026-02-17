@@ -236,4 +236,24 @@
 
 ---
 
+---
+
+## Faz 5 Validation — 2026-02-17 (Platform Polish)
+
+**Branch:** feat/S0.5-platform-polish  
+**Scope:** Full platform polish plan (Faz 1-5)
+
+| Check | Status | Notes |
+|-------|--------|-------|
+| `pnpm -r typecheck` | PASS | Backend, frontend, mcp-gateway |
+| `pnpm -r build` | PASS | Frontend + backend build |
+| `pnpm --filter frontend test --run` | PASS | 585 tests, 57 files |
+| `./scripts/staging_smoke.sh` | PASS | 13/13 (staging.akisflow.com) |
+| Playwright E2E | PARTIAL | 91 passed, 2 skipped (dev login), 2 require backend (health, jobs API) |
+| Docker fullstack build | PASS | backend + frontend images build; stack runs (db healthy, backend/frontend start) |
+
+**E2E note:** `health endpoint` and `jobs API returns 200` hit backend directly (127.0.0.1:3000). Run with `docker compose -f docker-compose.fullstack.yml up` or native backend for full pass.
+
+---
+
 *Related: [Staging Smoke Test](../deploy/STAGING_SMOKE_TEST_CHECKLIST.md) | [Agent Contracts](../agents/AGENT_CONTRACTS_S0.5.md)*
