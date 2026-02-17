@@ -26,7 +26,7 @@ describe('JobsListPage', () => {
       </BrowserRouter>
     );
 
-    expect(screen.getByText('Loading jobs...')).toBeInTheDocument();
+    expect(screen.getByTestId('jobs-loading-skeleton')).toBeInTheDocument();
   });
 
   it('should render jobs list', async () => {

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { getLogs, type LogEntry } from '../../services/api/logs';
 import Card from '../../components/common/Card';
 import { StatusBadge } from '../../components/ui/Badge';
@@ -17,7 +17,7 @@ export default function LogsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchLogs = async () => {
+  const fetchLogs = useCallback(async () => {
     try {
       const res = await getLogs({ level: level === 'all' ? undefined : level, limit: 100 });
       setLogs(res.logs);
@@ -27,13 +27,13 @@ export default function LogsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [level]);
 
   useEffect(() => {
     void fetchLogs();
     const id = setInterval(() => void fetchLogs(), 5000);
     return () => clearInterval(id);
-  }, [level]);
+  }, [fetchLogs]);
 
   const formatTime = (ts: number) => {
     const d = new Date(ts);
