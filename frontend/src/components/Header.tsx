@@ -83,7 +83,7 @@ export default function Header({ className }: HeaderProps) {
 
   // Navigation links
   const primaryLinks = [
-    { to: '/agents', label: t('header.nav.products') },
+    { to: '/products', label: t('header.nav.products') },
     { to: '/docs', label: t('header.nav.docs') },
     { to: '/pricing', label: t('header.nav.pricing') },
     { to: '/contact', label: t('header.nav.contact') },

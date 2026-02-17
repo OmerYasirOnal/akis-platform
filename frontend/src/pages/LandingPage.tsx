@@ -7,6 +7,7 @@ import FeaturesSection from '../components/landing/FeaturesSection';
 import TestimonialsSection from '../components/landing/TestimonialsSection';
 import FAQSection from '../components/landing/FAQSection';
 import Button from '../components/common/Button';
+import ScrollRevealSection from '../components/ScrollRevealSection';
 import { cn } from '../utils/cn';
 
 /**
@@ -24,29 +25,28 @@ import { cn } from '../utils/cn';
 export default function LandingPage() {
   return (
     <>
-      {/* Hero Section */}
       <Hero />
-
-      {/* Stats Section - Social proof with numbers */}
-      <StatsSection />
-
-      {/* Agents Section */}
-      <ModulesSection />
-
-      {/* Features Section */}
-      <FeaturesSection />
-
-      {/* How It Works Section */}
-      <HowItWorksSection />
-
-      {/* Testimonials Section */}
-      <TestimonialsSection />
-
-      {/* FAQ Section */}
-      <FAQSection />
-
-      {/* Final CTA Section */}
-      <FinalCTASection />
+      <ScrollRevealSection delay={100}>
+        <StatsSection />
+      </ScrollRevealSection>
+      <ScrollRevealSection delay={150}>
+        <ModulesSection />
+      </ScrollRevealSection>
+      <ScrollRevealSection delay={200}>
+        <FeaturesSection />
+      </ScrollRevealSection>
+      <ScrollRevealSection delay={100}>
+        <HowItWorksSection />
+      </ScrollRevealSection>
+      <ScrollRevealSection delay={150}>
+        <TestimonialsSection />
+      </ScrollRevealSection>
+      <ScrollRevealSection delay={100}>
+        <FAQSection />
+      </ScrollRevealSection>
+      <ScrollRevealSection delay={150}>
+        <FinalCTASection />
+      </ScrollRevealSection>
     </>
   );
 }
@@ -101,7 +101,7 @@ function HowItWorksSection() {
         {/* Section header */}
         <div className="mb-20 text-center">
           <span className="mb-4 inline-block rounded-full bg-ak-primary/10 px-4 py-1.5 text-sm font-medium text-ak-primary">
-            How It Works
+            {t('landing.howItWorks.badge')}
           </span>
           <h2 className="mb-4 text-[clamp(28px,4vw,40px)] font-bold text-ak-text-primary">
             {t('landing.howItWorks.title')}
@@ -184,7 +184,7 @@ function FinalCTASection() {
       <div className="relative mx-auto max-w-3xl text-center">
         {/* Badge */}
         <span className="mb-6 inline-block rounded-full bg-ak-primary/10 px-4 py-1.5 text-sm font-medium text-ak-primary">
-          Start Free Today
+          {t('landing.cta.badge')}
         </span>
 
         <h2 className="mb-6 text-[clamp(28px,4vw,40px)] font-bold text-ak-text-primary">
@@ -209,19 +209,19 @@ function FinalCTASection() {
             <svg className="h-4 w-4 text-ak-primary" fill="currentColor" viewBox="0 0 20 20">
               <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
             </svg>
-            <span>No credit card required</span>
+            <span>{t('landing.cta.trust1')}</span>
           </div>
           <div className="flex items-center gap-2">
             <svg className="h-4 w-4 text-ak-primary" fill="currentColor" viewBox="0 0 20 20">
               <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
             </svg>
-            <span>Free forever plan</span>
+            <span>{t('landing.cta.trust2')}</span>
           </div>
           <div className="flex items-center gap-2">
             <svg className="h-4 w-4 text-ak-primary" fill="currentColor" viewBox="0 0 20 20">
               <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
             </svg>
-            <span>Setup in 2 minutes</span>
+            <span>{t('landing.cta.trust3')}</span>
           </div>
         </div>
       </div>

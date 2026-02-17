@@ -37,6 +37,7 @@ const DashboardSettingsNotificationsPage = lazy(() => import('./pages/dashboard/
 const JobsListPage = lazy(() => import('./pages/JobsListPage'));
 const JobDetailPage = lazy(() => import('./pages/JobDetailPage'));
 
+const ProductsPage = lazy(() => import('./pages/public/ProductsPage'));
 const PricingPage = lazy(() => import('./pages/public/PricingPage'));
 const BlogIndexPage = lazy(() => import('./pages/public/BlogIndexPage'));
 const LearnLandingPage = lazy(() => import('./pages/public/LearnLandingPage'));
@@ -101,6 +102,7 @@ function App() {
           {/* Public Routes */}
           <Route element={<AppShell />}>
             <Route index element={<LandingPage />} />
+            <Route path="products" element={<Suspense fallback={<PageLoader />}><ProductsPage /></Suspense>} />
             <Route path="about" element={<Suspense fallback={<PageLoader />}><AboutAKIS /></Suspense>} />
             <Route path="pricing" element={<Suspense fallback={<PageLoader />}><PricingPage /></Suspense>} />
             <Route path="blog" element={<Suspense fallback={<PageLoader />}><BlogIndexPage /></Suspense>} />

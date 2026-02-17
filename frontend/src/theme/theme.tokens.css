@@ -8,11 +8,11 @@
   --ak-color-text-secondary-dark: #9AA6B2;
   --ak-color-border-dark: #2D343D;
 
-  /* Light palette — GitHub Primer style (canvas gray, white cards) */
-  --ak-color-bg-light: #f6f8fa;
-  --ak-color-surface-light: #ffffff;
-  --ak-color-surface-2-light: #f0f3f6;
-  --ak-color-surface-3-light: #e6eaef;
+  /* Light palette — softened whites (reduces eye strain) */
+  --ak-color-bg-light: #f8f9fb;
+  --ak-color-surface-light: #fefefe;
+  --ak-color-surface-2-light: #f2f4f7;
+  --ak-color-surface-3-light: #e8ecf0;
   --ak-color-text-primary-light: #1f2328;
   --ak-color-text-secondary-light: #656d76;
   --ak-color-border-light: #d0d7de;

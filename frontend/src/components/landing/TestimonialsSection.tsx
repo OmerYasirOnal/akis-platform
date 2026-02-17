@@ -107,17 +107,9 @@ export default function TestimonialsSection() {
 
         {/* Trust indicators */}
         <div className="mt-12 text-center">
-          <p className="mb-6 text-sm font-medium uppercase tracking-[0.15em] text-ak-text-secondary">
+          <p className="text-sm font-medium uppercase tracking-[0.15em] text-ak-text-secondary opacity-80">
             {t('landing.testimonials.trustedBy')}
           </p>
-          <div className="flex flex-wrap items-center justify-center gap-x-12 gap-y-4 opacity-60">
-            {/* Company logos as text for now */}
-            <span className="text-lg font-semibold text-ak-text-secondary">TechCorp</span>
-            <span className="text-lg font-semibold text-ak-text-secondary">DevTeam Inc</span>
-            <span className="text-lg font-semibold text-ak-text-secondary">BuildFast</span>
-            <span className="text-lg font-semibold text-ak-text-secondary">CodeLabs</span>
-            <span className="text-lg font-semibold text-ak-text-secondary">AgileFlow</span>
-          </div>
         </div>
       </div>
     </section>
