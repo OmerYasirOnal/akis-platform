@@ -5,6 +5,7 @@ import { CrewChat } from '../../../components/agents/CrewChat';
 import { CrewTaskBoard } from '../../../components/agents/CrewTaskBoard';
 import { useCrewStream } from '../../../hooks/useCrewStream';
 import { crewApi, type CrewRunDetail, type CrewMessage } from '../../../services/api/crew';
+import { Skeleton, SkeletonCard } from '../../../components/ui/Skeleton';
 
 type Tab = 'workers' | 'tasks' | 'chat' | 'merge';
 
@@ -128,8 +129,12 @@ export const CrewRunPage: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin w-6 h-6 border-2 border-zinc-500 border-t-transparent rounded-full" />
+      <div className="space-y-6 p-6">
+        <Skeleton className="h-8 w-64" />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <SkeletonCard />
+          <SkeletonCard />
+        </div>
       </div>
     );
   }

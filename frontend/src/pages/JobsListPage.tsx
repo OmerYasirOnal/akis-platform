@@ -15,6 +15,7 @@ import { Badge } from '../components/ui/Badge';
 import { Pill } from '../components/ui/Pill';
 import { Pagination } from '../components/ui/Pagination';
 import { ErrorToast } from '../components/ui/ErrorToast';
+import { Skeleton } from '../components/ui/Skeleton';
 
 // Icons
 const SearchIcon = () => (
@@ -174,11 +175,16 @@ export default function JobsListPage() {
       {/* Jobs Table */}
       <Card className="bg-ak-surface overflow-hidden">
         {isLoading && jobs.length === 0 ? (
-          <div className="flex items-center justify-center py-16">
-            <div className="flex flex-col items-center gap-3">
-              <div className="h-8 w-8 animate-spin rounded-full border-2 border-ak-primary border-t-transparent" />
-              <p className="text-sm text-ak-text-secondary">Loading jobs...</p>
-            </div>
+          <div className="p-4 space-y-3">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="flex items-center gap-4">
+                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-4 w-16" />
+                <Skeleton className="h-4 flex-1" />
+                <Skeleton className="h-4 w-20" />
+                <Skeleton className="h-4 w-28" />
+              </div>
+            ))}
           </div>
         ) : filteredJobs.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-center">

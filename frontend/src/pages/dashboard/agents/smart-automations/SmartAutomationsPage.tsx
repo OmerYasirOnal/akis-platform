@@ -6,6 +6,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import Button from '../../../../components/common/Button';
+import { Skeleton } from '../../../../components/ui/Skeleton';
 import {
   smartAutomationsApi,
   type AutomationWithLastRun,
@@ -188,8 +189,17 @@ export default function SmartAutomationsPage() {
         )}
 
         {loading ? (
-          <div className="flex items-center justify-center py-12">
-            <div className="h-8 w-8 animate-spin rounded-full border-2 border-ak-primary border-t-transparent" />
+          <div className="space-y-4 py-4">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="flex items-center gap-4 rounded-xl border border-ak-border bg-ak-surface p-4">
+                <Skeleton className="h-10 w-10 rounded-lg" />
+                <div className="flex-1 space-y-2">
+                  <Skeleton className="h-4 w-40" />
+                  <Skeleton className="h-3 w-64" />
+                </div>
+                <Skeleton className="h-6 w-16 rounded-full" />
+              </div>
+            ))}
           </div>
         ) : automations.length === 0 ? (
           /* Empty State */

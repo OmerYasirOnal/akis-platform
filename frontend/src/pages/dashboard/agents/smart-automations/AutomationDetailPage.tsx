@@ -6,6 +6,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, Link, useSearchParams } from 'react-router-dom';
 import Button from '../../../../components/common/Button';
+import { Skeleton, SkeletonCard } from '../../../../components/ui/Skeleton';
 import {
   smartAutomationsApi,
   type SmartAutomation,
@@ -175,8 +176,10 @@ export default function AutomationDetailPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-ak-bg flex items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-ak-primary border-t-transparent" />
+      <div className="min-h-screen bg-ak-bg p-6 space-y-6 max-w-4xl mx-auto">
+        <Skeleton className="h-8 w-48" />
+        <SkeletonCard />
+        <SkeletonCard />
       </div>
     );
   }
