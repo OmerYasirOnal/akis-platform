@@ -175,7 +175,7 @@ export default function JobsListPage() {
       {/* Jobs Table */}
       <Card className="bg-ak-surface overflow-hidden">
         {isLoading && jobs.length === 0 ? (
-          <div className="p-4 space-y-3">
+          <div className="p-4 space-y-3" data-testid="jobs-loading-skeleton">
             {Array.from({ length: 6 }).map((_, i) => (
               <div key={i} className="flex items-center gap-4">
                 <Skeleton className="h-4 w-24" />
