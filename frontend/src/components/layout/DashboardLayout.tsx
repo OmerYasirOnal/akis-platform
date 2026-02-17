@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import { Outlet, Link } from 'react-router-dom';
+import { Outlet, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { getReturnTo, clearReturnTo } from '../../utils/returnTo';
 import { useScreenshotMode } from '../../hooks/useScreenshotMode';
 import { cn } from '../../utils/cn';
 import DashboardSidebar from './DashboardSidebar';
@@ -22,8 +23,17 @@ const CloseIcon = () => (
 
 export function DashboardLayout() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const shotMode = useScreenshotMode();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  useEffect(() => {
+    const returnTo = getReturnTo();
+    if (returnTo) {
+      clearReturnTo();
+      navigate(returnTo, { replace: true });
+    }
+  }, [navigate]);
 
   useEffect(() => {
     setMobileMenuOpen(false);

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Button from '../../components/common/Button';
 import Logo from '../../components/branding/Logo';
+import { getReturnTo, clearReturnTo, setReturnTo } from '../../utils/returnTo';
 
 export default function PrivacyConsent() {
   const navigate = useNavigate();
@@ -15,16 +16,19 @@ export default function PrivacyConsent() {
       const { AuthAPI } = await import('../../services/api/auth');
       await AuthAPI.updatePreferences({ dataSharingConsent: consent });
 
-      // Fetch user to check next step in canonical order: privacy → welcome → dashboard
       const user = await AuthAPI.me();
+      const returnTo = getReturnTo();
       if (!user.hasSeenBetaWelcome) {
+        if (returnTo) setReturnTo(returnTo);
         navigate('/auth/welcome-beta');
       } else {
-        navigate('/dashboard');
+        clearReturnTo();
+        navigate(returnTo || '/dashboard');
       }
     } catch (err) {
       console.error('Failed to update preferences:', err);
-      // Still navigate to welcome-beta as fallback (safer than dashboard for new users)
+      const returnTo = getReturnTo();
+      if (returnTo) setReturnTo(returnTo);
       navigate('/auth/welcome-beta');
     } finally {
       setSubmitting(false);

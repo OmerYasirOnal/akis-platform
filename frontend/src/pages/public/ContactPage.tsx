@@ -1,7 +1,7 @@
 import { useI18n } from '../../i18n/useI18n';
 
 const CONTACT_EMAIL = 'info@akisflow.com';
-const CONTACT_PHONE = import.meta.env.VITE_CONTACT_PHONE || null;
+const CONTACT_PHONE = import.meta.env.VITE_CONTACT_PHONE || '+90 532 309 0261';
 
 const MailIcon = () => (
   <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
@@ -95,9 +95,9 @@ export default function ContactPage() {
             <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-ak-primary/10 text-ak-primary">
               <PhoneIcon />
             </div>
-            <h3 className="text-xl font-bold text-ak-text-primary">Telefon</h3>
+            <h3 className="text-xl font-bold text-ak-text-primary">{t('contact.phone')}</h3>
             <p className="mt-2 text-ak-text-secondary">
-              {CONTACT_PHONE ? 'Mesai saatlerinde arayabilirsiniz.' : 'Yakında aktif olacak.'}
+              {CONTACT_PHONE ? t('contact.phoneAvailable') : t('contact.phoneComingSoon')}
             </p>
             <div className="mt-6 flex items-center gap-3">
               {CONTACT_PHONE ? (
@@ -120,7 +120,7 @@ export default function ContactPage() {
                 </>
               ) : (
                 <div className="flex-1 rounded-xl bg-ak-surface-2 px-4 py-3 text-center font-medium text-ak-text-secondary">
-                  Coming soon
+                  {t('contact.phoneComingSoon')}
                 </div>
               )}
             </div>
