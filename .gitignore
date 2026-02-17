@@ -120,3 +120,4 @@ __pycache__/
 # Playwright
 .playwright-cli/
 
+output/
