@@ -1,6 +1,7 @@
 /**
  * Shared logger for use outside Fastify request context (e.g. orchestrator).
  * Same config as server: pino-pretty in dev, JSON in prod.
+ * Orchestrator/agents push to log buffer explicitly for /api/admin/logs.
  */
 import pino from 'pino';
 
