@@ -6,7 +6,7 @@
 > **Araştırma Temeli:** `docs/planning/RESEARCH_DEEP_DIVE_AGENT_ARCHITECTURE.md`  
 > **Operasyonel Playbook:** [`docs/planning/AKIS_OPERATIONAL_PLAYBOOK.md`](planning/AKIS_OPERATIONAL_PLAYBOOK.md) (4 Pillar + Moonshot — teyit edilmiş hedef)  
 > **Uygulama Haritası:** [`docs/planning/PLAYBOOK_IMPLEMENTATION_MAP.md`](planning/PLAYBOOK_IMPLEMENTATION_MAP.md)  
-> **Son Güncelleme:** 2026-02-16 (manual CI fallback + Trace/PR gates local run + staging deploy `ee5041f` doğrulaması)
+> **Son Güncelleme:** 2026-02-17 (Platform Polish plan tamamlandı: orphan temizlik, UI transitions, skeleton, log viewer, Docker fullstack, E2E doğrulama)
 
 ---
 
@@ -136,6 +136,27 @@ docs/NEXT.md                                             (bu dosya — anlık ey
 | S0.5.3-AGT-8 | Scribe derin analiz iyileştirmesi (deep scan + multi-doc + granular progress) | Tamamlandı | 10 fazlı uygulama: (1) maxTokens pipeline fix (4096→docDepth-aware), (2) Scribe AI character prompt, (3) 4 eksik contract kaydı, (4) recursive repo scan (3 seviye, 150 dosya), (5) auto-detect doc pack, (6-7) documentsRead metrik fix + maxTokens wiring, (8) granular chat events, (9) playbook timings, (10) frontend DocScope/DocDepth UI + i18n (2026-02-12) |
 | S0.5.3-AUTH-3 | Jobs user isolation (data leak fix) | Tamamlandı | GET /api/agents/jobs, GET /api/agents/jobs/:id, POST cancel, GET stream — requireAuth + payload->>userId filter; 4 integration test (2026-02-12) |
 | S0.5.3-UX-16 | GitHub-style light theme tokens | Tamamlandı | theme.tokens.css light palette (Primer), UI_DESIGN_SYSTEM.md token tablosu, SOCIAL_PLATFORM_VISION.md (M2/M3 vizyon) (2026-02-12) |
+
+### Platform Polish (feat/S0.5-platform-polish) — 2026-02-17
+
+| Faz | Görev | Durum | Notlar |
+|-----|-------|-------|--------|
+| 1 | Orphan sayfa temizliği (Login, Signup, DocsLanding, Integrations, AiProviders) | Tamamlandı | 6 dosya silindi, build doğrulandı |
+| 2a | Route transition aktifleştirme | Tamamlandı | VITE_MOTION_ENABLED=true |
+| 2b | Skeleton loading pattern | Tamamlandı | JobsList, JobDetail, AgentsHub, Overview, konsollar |
+| 2c-2d | Görsel tutarlılık + agent konsol UX | Tamamlandı | Card radius, status badge, Scribe kalibi |
+| 3a-3c | Log iyileştirme + viewer | Tamamlandı | jobId/phase/duration log, ring buffer API, /dashboard/logs |
+| 4 | Docker full stack | Tamamlandı | docker-compose.fullstack.yml, backend/frontend Dockerfile.dev |
+| 4b | Staging smoke | Tamamlandı | 13/13 geçti |
+| 5 | E2E doğrulama | Tamamlandı | typecheck, build, 585 unit test, 91 E2E passed |
+| **Sprint 2** | **Products + returnTo + Landing + Content** | **Tamamlandı** | **2026-02-17** |
+| 0 | Branch temizliği | Tamamlandı | stash, docs branch silindi, prune remotes |
+| 1a-1d | Products sayfası (/products) + Header link + returnTo (LoginPassword) + i18n | Tamamlandı | ProductsPage.tsx, returnTo.ts, en/tr.json |
+| 2a-2d | Landing polish | Tamamlandı | useScrollReveal, theme soften, placeholder temizliği, micro-animations |
+| 3a | Pricing pilot | Tamamlandı | Pilot/Coming Soon, i18n |
+| 3b | Contact gerçek bilgi | Tamamlandı | +90 532 309 0261, i18n |
+| 3c | About team/founder + SEO | Tamamlandı | usePageMeta, founder biyografi |
+| 3d | Docs diyagramları | Tamamlandı | SystemArchitectureDiagram, AgentSequenceDiagram → DocsIndexPage |
 
 ---
 

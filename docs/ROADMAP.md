@@ -4,7 +4,7 @@
 > **Operasyonel Playbook:** [`docs/planning/AKIS_OPERATIONAL_PLAYBOOK.md`](planning/AKIS_OPERATIONAL_PLAYBOOK.md) (4 Pillar + Moonshot — teyit edilmiş hedef)  
 > **Uygulama Haritası:** [`docs/planning/PLAYBOOK_IMPLEMENTATION_MAP.md`](planning/PLAYBOOK_IMPLEMENTATION_MAP.md)  
 > **Anlık Eylemler:** [`docs/NEXT.md`](NEXT.md)  
-> **Son Güncelleme:** 2026-02-15
+> **Son Güncelleme:** 2026-02-17
 
 ---
 
@@ -24,7 +24,7 @@
 
 | Kilometre Taşı | Hedef Tarih | Odak | Durum |
 |-----------------|-------------|------|-------|
-| **M1: Pilot Demo** | 28 Şubat 2026 | Staging düzeltme + Scribe/Trace/Proto golden path + pilot katılım | **Devam Ediyor** (66/66 görev tamamlandı, 1,695 test; final staging deploy doğrulandı: `ee5041f`, kalan: demo provası; dış bağımlılık: GitHub Actions billing, manuel fallback kanıtı: Issue #333) |
+| **M1: Pilot Demo** | 28 Şubat 2026 | Staging düzeltme + Scribe/Trace/Proto golden path + pilot katılım | **Devam Ediyor** (66/66 görev + Platform Polish 2026-02-17: orphan temizlik, UI transitions, skeleton, log viewer, Docker fullstack, E2E; staging smoke 13/13) |
 | **M2: Stabilizasyon** | 31 Mart 2026 | Hata düzeltme, pilot geri bildirim, pg_trgm prototip, tez taslağı | Başlanmadı |
 | **M3: Mezuniyet** | Mayıs 2026 | Final rapor, sunum, demo video, teslim paketi | Başlanmadı |
 
