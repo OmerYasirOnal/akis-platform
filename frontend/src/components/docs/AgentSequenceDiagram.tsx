@@ -6,7 +6,6 @@ export default function AgentSequenceDiagram() {
   const participants = ['User', 'UI', 'Backend', 'Orchestrator', 'Agent', 'MCP'];
   const boxWidth = 70;
   const startX = 30;
-  const lineHeight = 28;
 
   return (
     <svg
