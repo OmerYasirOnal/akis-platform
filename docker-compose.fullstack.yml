@@ -1,0 +1,149 @@
+# AKIS Full Stack - Local Development
+# Single command to run db, backend, frontend, mcp-gateway, adminer
+#
+# Usage:
+#   docker compose -f docker-compose.fullstack.yml up
+#   docker compose -f docker-compose.fullstack.yml up -d
+#
+# Optional: Copy .env.docker.example to .env.docker for overrides.
+# MCP Gateway: Create .env.mcp.local from env.mcp.local.example and add GITHUB_TOKEN.
+
+services:
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    ports: ["5433:5432"]
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: akis_v2
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+    networks:
+      - akis-fullstack
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+        tag: "{{.Name}}"
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
+    ports: ["3000:3000"]
+    environment:
+      NODE_ENV: development
+      PORT: 3000
+      AKIS_HOST: 0.0.0.0
+      AKIS_PORT: 3000
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/akis_v2
+      BACKEND_URL: http://localhost:3000
+      FRONTEND_URL: http://localhost:5173
+      CORS_ORIGINS: http://localhost:5173
+      AUTH_JWT_SECRET: "test-jwt-secret-at-least-32-chars-long"
+      GITHUB_MCP_BASE_URL: http://mcp-gateway:4010/mcp
+      AI_PROVIDER: mock
+      EMAIL_PROVIDER: mock
+      TRUST_PROXY: "false"
+    volumes:
+      - ./backend/src:/app/src
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    networks:
+      - akis-fullstack
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+        tag: "{{.Name}}"
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    ports: ["5173:5173"]
+    environment:
+      VITE_DEV_HOST: 0.0.0.0
+      VITE_PROXY_TARGET: http://backend:3000
+    volumes:
+      - ./frontend/src:/app/src
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - akis-fullstack
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+        tag: "{{.Name}}"
+
+  mcp-gateway:
+    build:
+      context: ./mcp-gateway
+      dockerfile: Dockerfile
+    container_name: akis-github-mcp-gateway
+    ports: ["4010:4010"]
+    env_file:
+      - ${COMPOSE_ENV_FILE:-.env.mcp.local}
+    environment:
+      MCP_GATEWAY_PORT: 4010
+      MCP_GATEWAY_HOST: 0.0.0.0
+      LOG_LEVEL: info
+      NODE_ENV: production
+    profiles:
+      - mcp
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:4010/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    networks:
+      - akis-fullstack
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+        tag: "{{.Name}}"
+
+  adminer:
+    image: adminer
+    ports: ["8080:8080"]
+    depends_on:
+      - db
+    networks:
+      - akis-fullstack
+    profiles:
+      - admin
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+        tag: "{{.Name}}"
+
+volumes:
+  pgdata:
+
+networks:
+  akis-fullstack:
+    name: akis-fullstack-network
+    driver: bridge

@@ -1,0 +1,10 @@
+# Frontend dev server - Vite with hot reload
+FROM node:20-alpine
+RUN apk add --no-cache wget
+RUN npm install -g pnpm@9
+WORKDIR /app
+COPY package.json pnpm-lock.yaml* ./
+RUN pnpm install --frozen-lockfile || pnpm install
+COPY . .
+EXPOSE 5173
+CMD ["pnpm", "dev"]
