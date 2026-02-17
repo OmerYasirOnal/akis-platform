@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import Button from '../../components/common/Button';
 import Logo from '../../components/branding/Logo';
-import { getReturnTo, clearReturnTo, setReturnTo } from '../../utils/returnTo';
+import { getReturnTo, clearReturnTo } from '../../utils/returnTo';
 
 export default function LoginPassword() {
   const navigate = useNavigate();
