@@ -884,7 +884,7 @@ export default function JobDetailPage() {
         {activeSection === 'overview' && (
           <div className="space-y-6">
             {verificationGates && (
-              <div className="space-y-3 rounded-lg border border-ak-border bg-ak-surface-2 p-4">
+              <div className="space-y-3 rounded-2xl border border-ak-border bg-ak-surface-2 p-4">
                 <h4 className="text-xs font-medium uppercase tracking-wider text-ak-text-secondary">
                   {t('verification.summary.title')}
                 </h4>
