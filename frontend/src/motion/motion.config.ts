@@ -26,15 +26,15 @@ export const MOTION_BUDGETS = {
 
 export const ROUTE_TRANSITION_PRESETS = {
   'fade-slide': {
-    duration: 240,
-    easing: 'cubic-bezier(0.33, 1, 0.68, 1)',
+    duration: 180,
+    easing: 'cubic-bezier(0.4, 0, 0.2, 1)',
     enter: {
-      from: { opacity: 0, transform: 'translate3d(0, 12px, 0)' },
+      from: { opacity: 0, transform: 'translate3d(0, 6px, 0)' },
       to: { opacity: 1, transform: 'translate3d(0, 0, 0)' },
     },
     exit: {
       from: { opacity: 1, transform: 'translate3d(0, 0, 0)' },
-      to: { opacity: 0, transform: 'translate3d(0, -8px, 0)' },
+      to: { opacity: 0, transform: 'translate3d(0, -4px, 0)' },
     },
   },
 } as const;
