@@ -307,7 +307,17 @@ export async function buildApp() {
     const statusCode = getStatusCodeForError(envelope.error.code as ErrorCode);
 
     if (statusCode >= 500 && app.log) {
-      app.log.error({ err: error, requestId: request.id }, 'Unhandled server error');
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const req = request as any;
+      const route = req.routeOptions?.url ?? req.routerPath ?? request.url.split('?')[0];
+      const userId = req.user?.id ?? null;
+      app.log.error({
+        err: error,
+        requestId: request.id,
+        route,
+        userId,
+        msg: 'unhandled_server_error',
+      });
     }
 
     return reply.code(statusCode).send(envelope);
