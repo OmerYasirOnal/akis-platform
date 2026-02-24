@@ -121,3 +121,7 @@ __pycache__/
 .playwright-cli/
 
 output/
+staging-screenshots/
+piri/
+ide/
+carreer_assistant/

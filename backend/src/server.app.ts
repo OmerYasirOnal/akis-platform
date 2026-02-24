@@ -26,7 +26,6 @@ import { triggersRoutes } from './api/triggers.js';
 import { registerPlaybookRoutes } from './api/playbooks.js';
 import { dashboardMetricsRoutes } from './api/dashboard-metrics.js';
 import { aiModelsRoutes } from './api/ai-models.js';
-import { smartAutomationsRoutes } from './api/smart-automations.js';
 import { feedbackRoutes } from './api/feedback.js';
 import { conversationsRoutes } from './api/conversations.js';
 import { studioRoutes } from './api/studio.js';
@@ -42,7 +41,6 @@ import { createAIService } from './services/ai/AIService.js';
 import type { MCPTools } from './services/mcp/adapters/index.js';
 import { GitHubMCPService } from './services/mcp/adapters/GitHubMCPService.js';
 import { StaleJobWatchdog } from './core/watchdog/StaleJobWatchdog.js';
-import { startAutomationScheduler, stopAutomationScheduler } from './services/smart-automations/index.js';
 import {
   FreshnessScheduler,
   setFreshnessSchedulerInstance,
@@ -117,9 +115,6 @@ export async function buildApp() {
   // Start stale job watchdog
   const watchdog = new StaleJobWatchdog();
   watchdog.start();
-
-  // Start smart automation scheduler (polls for due automations every 60s)
-  startAutomationScheduler();
 
   // Start knowledge freshness scheduler (M2-FP-1)
   let freshnessScheduler: FreshnessScheduler | null = null;
@@ -255,7 +250,6 @@ export async function buildApp() {
   await app.register(registerPlaybookRoutes);
   await app.register(dashboardMetricsRoutes);
   await app.register(aiModelsRoutes);
-  await app.register(smartAutomationsRoutes);
   await app.register(feedbackRoutes);
   await app.register(conversationsRoutes);
   await app.register(studioRoutes, { prefix: '/api/studio' });
@@ -343,7 +337,6 @@ export async function buildApp() {
 
   app.addHook('onClose', async () => {
     watchdog.stop();
-    stopAutomationScheduler();
     freshnessScheduler?.stop();
     setFreshnessSchedulerInstance(null);
   });

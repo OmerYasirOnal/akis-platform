@@ -4,7 +4,7 @@
 **Hazırlanma Tarihi:** Kasım 2025  
 **Amaç:** AKIS Platform web sitesinin kapsamlı bilgi mimarisi, sayfa yapıları ve kullanıcı akışları
 **Güncelleme Notu (Phase 9.1):** Solid dark hero, ak-surface-2 kart desenleri ve /login + /signup karanlık temalarıyla güncellendi.
-**Güncelleme Notu (S0.5.3):** Agent rotaları `/dashboard/agents/*` yerine `/agents/*` kanonik olarak güncellendi. LiveAgentCanvas, Studio ve Smart Automations eklendi.
+**Güncelleme Notu (S0.5.3):** Agent rotaları `/dashboard/agents/*` yerine `/agents/*` kanonik olarak güncellendi.
 
 ---
 
@@ -166,9 +166,7 @@ AKIS Platform (Public + Private Areas)
     │   ├── /agents/scribe (Scribe Console)
     │   ├── /agents/trace (Trace Console)
     │   ├── /agents/proto (Proto Console)
-    │   ├── /agents/studio (Agent Studio)
-    │   └── /agents/smart-automations (Smart Automations)
-    │       └── /agents/smart-automations/:id (Automation Detail)
+    │   └── /agents/studio (Agent Studio)
     │
     │   Note: /dashboard/agents/* redirects to /agents/* (legacy compat)
     │
