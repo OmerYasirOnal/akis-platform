@@ -7,6 +7,7 @@ This checklist ensures repeatable, reliable staging deployments.
 
 > **Related**:
 > - [Smoke Test Checklist](../deploy/STAGING_SMOKE_TEST_CHECKLIST.md) — Detailed pass/fail criteria
+> - [Ops Smoke Checklist](../ops/STAGING_SMOKE_CHECKLIST.md) — Concise A-G post-deploy smoke flow
 > - [Rollback Runbook](../deploy/STAGING_ROLLBACK_RUNBOOK.md) — When and how to rollback
 > - [OCI Staging Runbook](../deploy/OCI_STAGING_RUNBOOK.md) — Full operations guide
 
@@ -126,6 +127,12 @@ Same as GitHub Actions path (see OCI_STAGING_RUNBOOK.md Section 9).
 ---
 
 ## Post-Deployment Verification
+
+### Post-Deploy Smoke (A-G)
+
+- [ ] Run [`../ops/STAGING_SMOKE_CHECKLIST.md`](../ops/STAGING_SMOKE_CHECKLIST.md) end-to-end
+- [ ] Record PASS/FAIL and timestamp in release notes
+- [ ] If any critical step fails, apply rollback runbook immediately
 
 ### Required Endpoints
 
