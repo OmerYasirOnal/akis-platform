@@ -29,6 +29,8 @@ import { createTraceRecorder, type TraceRecorder } from '../tracing/TraceRecorde
 import { jobEventBus } from '../events/JobEventBus.js';
 import { computeQualityScore, type QualityInput } from '../../services/quality/QualityScoring.js';
 import { getCrewRunManager } from '../../api/crew.js';
+import { logger } from '../../lib/logger.js';
+import { pushLog } from '../../lib/logBuffer.js';
 import { GroundednessScorer } from '../../services/knowledge/verification/GroundednessScorer.js';
 import {
   type GateInput,
@@ -428,6 +430,7 @@ export class AgentOrchestrator {
     let aiMetrics: AICallMetricsCollector | null = null;
     let activeAiService: AIService | undefined;
 
+    const jobStartTime = Date.now();
     // Execute agent with Planner→Execute→Reflector pipeline
     try {
       if (!job) {
@@ -438,9 +441,14 @@ export class AgentOrchestrator {
         job = result[0];
       }
 
+      const payload = (job.payload || {}) as Record<string, unknown>;
+      const userId = payload.userId as string | undefined;
+      const initEntry = { jobId, agentType: job.type, userId: userId || null, phase: 'init', msg: 'orchestrator_job_started', level: 30 };
+      pushLog(initEntry);
+      logger.info(initEntry);
+
       // Prepare dependencies (DI)
       const env = getEnv();
-      const payload = (job.payload || {}) as Record<string, unknown>;
       const reliabilityPolicy = this.resolveReliabilityPolicy(payload);
       traceRecorder.recordInfo('Reliability rollout resolved', {
         contractMode: reliabilityPolicy.contract.effectiveMode,
@@ -568,6 +576,8 @@ export class AgentOrchestrator {
       if (!skipPlanning && playbook.requiresPlanning && activeAiService) {
         // Call agent's plan method
         if (agent.plan) {
+          pushLog({ jobId, agentType: job.type, userId: userId || null, phase: 'plan', msg: 'orchestrator_phase_started', level: 30 });
+          logger.info({ jobId, agentType: job.type, userId: userId || null, phase: 'plan', msg: 'orchestrator_phase_started' });
           jobEventBus.emitJobEvent(jobId, { phase: 'discovery', message: 'Planning phase started...', ts: new Date().toISOString() });
           try {
             plan = await agent.plan(activeAiService.planner, context);
@@ -669,6 +679,8 @@ export class AgentOrchestrator {
       }
 
       // Phase 5.D: Execution phase
+      pushLog({ jobId, agentType: job.type, userId: userId || null, phase: 'execute', msg: 'orchestrator_phase_started', level: 30 });
+      logger.info({ jobId, agentType: job.type, userId: userId || null, phase: 'execute', msg: 'orchestrator_phase_started' });
       jobEventBus.emitJobEvent(jobId, { phase: 'creating', message: 'Executing agent...', ts: new Date().toISOString() });
       let executionResult: unknown;
       if (agent.executeWithTools && this.mcpTools) {
@@ -697,6 +709,8 @@ export class AgentOrchestrator {
       
       if (playbook.requiresReflection && activeAiService && agent.reflect) {
         try {
+          pushLog({ jobId, agentType: job.type, userId: userId || null, phase: 'reflect', msg: 'orchestrator_phase_started', level: 30 });
+          logger.info({ jobId, agentType: job.type, userId: userId || null, phase: 'reflect', msg: 'orchestrator_phase_started' });
           // Run critical checks before reflection for tool-augmented feedback
           reflectionCheckResults = await this.checkRunner.runCriticalChecks();
           
@@ -748,6 +762,8 @@ export class AgentOrchestrator {
       // Phase 10: Validation phase (if requiresStrictValidation is true)
       if (job.requiresStrictValidation && activeAiService) {
         try {
+          pushLog({ jobId, agentType: job.type, userId: userId || null, phase: 'validate', msg: 'orchestrator_phase_started', level: 30 });
+          logger.info({ jobId, agentType: job.type, userId: userId || null, phase: 'validate', msg: 'orchestrator_phase_started' });
           // Run static checks (lint, typecheck) as part of validation
           const checkResults = await this.checkRunner.runCriticalChecks();
           
@@ -885,9 +901,26 @@ export class AgentOrchestrator {
         }
       }
 
-      // Auto-complete on success - MUST happen even if flush/metrics failed
+      const durationMs = Date.now() - jobStartTime;
+      const completeEntry = { jobId, agentType: job.type, userId: userId || null, phase: 'complete', durationMs, msg: 'orchestrator_job_completed', level: 30 };
+      pushLog(completeEntry);
+      logger.info(completeEntry);
       await this.completeJob(jobId, finalResult);
     } catch (error) {
+      const durationMs = Date.now() - jobStartTime;
+      const payloadFail = (job?.payload || {}) as Record<string, unknown>;
+      const failEntry = {
+        jobId,
+        agentType: job?.type ?? 'unknown',
+        userId: (payloadFail.userId as string) || null,
+        phase: 'failed',
+        durationMs,
+        msg: 'orchestrator_job_failed',
+        err: error instanceof Error ? error : new Error(String(error)),
+        level: 60,
+      };
+      pushLog(failEntry);
+      logger.error(failEntry);
       // S1.1: Record error in trace and flush before failing
       const errorCode = error instanceof McpConnectionError ? error.code :
                        error instanceof McpError ? error.code :

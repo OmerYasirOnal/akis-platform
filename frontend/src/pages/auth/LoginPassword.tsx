@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import Button from '../../components/common/Button';
 import Logo from '../../components/branding/Logo';
+import { getReturnTo, clearReturnTo } from '../../utils/returnTo';
 
 export default function LoginPassword() {
   const navigate = useNavigate();
@@ -42,16 +43,16 @@ export default function LoginPassword() {
       // Update auth context with user data
       setUser(response.user);
 
-      // Clear stored login data
       sessionStorage.removeItem('akis_login_data');
+      const returnTo = getReturnTo();
 
-      // Check if user needs to see data sharing consent
       if (response.needsDataSharingConsent) {
         navigate('/auth/privacy-consent');
       } else if (!response.user.hasSeenBetaWelcome) {
         navigate('/auth/welcome-beta');
       } else {
-        navigate('/dashboard');
+        clearReturnTo();
+        navigate(returnTo || '/dashboard');
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Incorrect password. Please try again.';

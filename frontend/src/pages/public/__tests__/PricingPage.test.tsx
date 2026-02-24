@@ -1,63 +1,63 @@
 import { describe, it, expect } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
+import { I18nProvider } from '../../../i18n/I18nProvider';
 import PricingPage from '../PricingPage';
 
 const Wrapper = ({ children }: { children: React.ReactNode }) => (
-  <MemoryRouter>{children}</MemoryRouter>
+  <I18nProvider>
+    <MemoryRouter>{children}</MemoryRouter>
+  </I18nProvider>
 );
 
 describe('PricingPage', () => {
-  it('renders the page heading', () => {
+  it('renders the page heading', async () => {
     render(<PricingPage />, { wrapper: Wrapper });
-    expect(screen.getByText(/Pricing/i)).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText(/Pricing/i)).toBeInTheDocument();
+    });
   });
 
-  it('renders all three pricing tiers', () => {
+  it('renders Pilot and Coming Soon tiers', async () => {
     render(<PricingPage />, { wrapper: Wrapper });
-    expect(screen.getByText('Developer')).toBeInTheDocument();
-    expect(screen.getByText('Team')).toBeInTheDocument();
-    expect(screen.getByText('Enterprise')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText('Pilot')).toBeInTheDocument();
+      expect(screen.getByText('Pro & Enterprise')).toBeInTheDocument();
+    });
   });
 
-  it('shows Free price for Developer tier', () => {
+  it('shows Free for Pilot tier', async () => {
     render(<PricingPage />, { wrapper: Wrapper });
-    expect(screen.getByText('Free')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText('Free')).toBeInTheDocument();
+    });
   });
 
-  it('shows $49 price for Team tier', () => {
+  it('renders Pilot CTA', async () => {
     render(<PricingPage />, { wrapper: Wrapper });
-    expect(screen.getByText('$49')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText('Join Pilot')).toBeInTheDocument();
+    });
   });
 
-  it('shows Custom price for Enterprise tier', () => {
+  it('renders Coming Soon CTA', async () => {
     render(<PricingPage />, { wrapper: Wrapper });
-    expect(screen.getByText('Custom')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText('Contact for early access')).toBeInTheDocument();
+    });
   });
 
-  it('renders CTA buttons', () => {
+  it('renders Pilot features', async () => {
     render(<PricingPage />, { wrapper: Wrapper });
-    expect(screen.getAllByText('Get Started Free').length).toBeGreaterThanOrEqual(1);
-    expect(screen.getAllByText('Start Free Trial').length).toBeGreaterThanOrEqual(1);
-    expect(screen.getAllByText('Contact Sales').length).toBeGreaterThanOrEqual(1);
+    await waitFor(() => {
+      expect(screen.getAllByText(/Scribe, Trace, Proto/).length).toBeGreaterThanOrEqual(1);
+    });
   });
 
-  it('renders key features for Developer tier', () => {
+  it('renders Coming Soon features', async () => {
     render(<PricingPage />, { wrapper: Wrapper });
-    expect(screen.getByText(/Scribe Agent/)).toBeInTheDocument();
-    expect(screen.getByText(/100 AI API calls/)).toBeInTheDocument();
-    expect(screen.getByText(/GitHub integration/)).toBeInTheDocument();
-  });
-
-  it('renders key features for Team tier', () => {
-    render(<PricingPage />, { wrapper: Wrapper });
-    expect(screen.getByText(/Unlimited AI API calls/)).toBeInTheDocument();
-    expect(screen.getByText(/Priority support/)).toBeInTheDocument();
-  });
-
-  it('renders key features for Enterprise tier', () => {
-    render(<PricingPage />, { wrapper: Wrapper });
-    expect(screen.getByText(/SSO & SAML/)).toBeInTheDocument();
-    expect(screen.getByText(/SLA guarantees/)).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText(/Unlimited jobs/)).toBeInTheDocument();
+    });
   });
 });

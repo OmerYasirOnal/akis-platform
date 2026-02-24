@@ -29,55 +29,27 @@ export default defineConfig({
     },
   },
   server: {
-    // Bind to 127.0.0.1 explicitly to avoid IPv6 ECONNREFUSED issues
-    host: '127.0.0.1',
+    host: process.env.VITE_DEV_HOST ?? '127.0.0.1',
     port: 5173,
     strictPort: true,
-    // Proxy API requests to backend (fixes JSON parse errors from HTML responses)
-    proxy: {
-      '/api': {
-        target: 'http://localhost:3000',
-        changeOrigin: true,
-      },
-      // Proxy backend auth endpoints (avoid proxying UI routes like /auth/privacy-consent, /auth/welcome-beta)
-      '/auth/oauth': {
-        target: 'http://localhost:3000',
-        changeOrigin: true,
-      },
-      '/auth/me': {
-        target: 'http://localhost:3000',
-        changeOrigin: true,
-      },
-      '/auth/logout': {
-        target: 'http://localhost:3000',
-        changeOrigin: true,
-      },
-      '/auth/signup': {
-        target: 'http://localhost:3000',
-        changeOrigin: true,
-      },
-      '/auth/login': {
-        target: 'http://localhost:3000',
-        changeOrigin: true,
-      },
-      '/auth/verify-email': {
-        target: 'http://localhost:3000',
-        changeOrigin: true,
-      },
-      '/auth/resend-code': {
-        target: 'http://localhost:3000',
-        changeOrigin: true,
-      },
-      '/auth/update-preferences': {
-        target: 'http://localhost:3000',
-        changeOrigin: true,
-      },
-      // Proxy only invite API endpoints, not SPA deep-link routes (/auth/invite/:token).
-      '^/auth/invite(?:$|/(?:validate|accept)$)': {
-        target: 'http://localhost:3000',
-        changeOrigin: true,
-      },
-    },
+    proxy: (() => {
+      const target = process.env.VITE_PROXY_TARGET ?? 'http://localhost:3000';
+      return {
+        '/api': { target, changeOrigin: true },
+        '/auth/oauth': { target, changeOrigin: true },
+        '/auth/me': { target, changeOrigin: true },
+        '/auth/logout': { target, changeOrigin: true },
+        '/auth/signup': { target, changeOrigin: true },
+        '/auth/login': { target, changeOrigin: true },
+        '/auth/verify-email': { target, changeOrigin: true },
+        '/auth/resend-code': { target, changeOrigin: true },
+        '/auth/update-preferences': { target, changeOrigin: true },
+        '^/auth/invite(?:$|/(?:validate|accept)$)': {
+          target,
+          changeOrigin: true,
+        },
+      };
+    })(),
   },
   test: {
     environment: 'jsdom',
@@ -87,7 +59,7 @@ export default defineConfig({
     // Define test-specific environment variables for import.meta.env
     env: {
       VITE_AGENTS_ENABLED: 'true',
-      VITE_MOTION_ENABLED: 'false',
+      VITE_MOTION_ENABLED: 'true',
       VITE_CURSOR_GLOW_ENABLED: 'false',
       VITE_ENABLE_DEV_LOGIN: 'true',
       VITE_API_URL: 'http://localhost:3000',

@@ -1,5 +1,7 @@
 import { Link } from 'react-router-dom';
 import { useI18n } from '../../i18n/useI18n';
+import SystemArchitectureDiagram from '../../components/docs/SystemArchitectureDiagram';
+import AgentSequenceDiagram from '../../components/docs/AgentSequenceDiagram';
 
 export default function DocsIndexPage() {
   const { t } = useI18n();
@@ -84,22 +86,14 @@ export default function DocsIndexPage() {
       <div className="mb-12">
         <h2 className="text-xl font-semibold text-ak-text-primary mb-5">{tx('docs.index.architecture')}</h2>
         <div className="rounded-xl border border-ak-border bg-ak-surface p-6">
-          <p className="text-sm text-ak-text-secondary leading-relaxed mb-5">{tx('docs.index.archDesc')}</p>
-          <div className="grid gap-3 sm:grid-cols-2">
-            {[
-              { label: 'Backend', tech: 'Fastify + TypeScript + PostgreSQL', icon: '⚡' },
-              { label: 'Frontend', tech: 'React + Vite SPA', icon: '🎨' },
-              { label: 'MCP Gateway', tech: 'Model Context Protocol', icon: '🔗' },
-              { label: 'AI Services', tech: 'OpenAI / OpenRouter', icon: '🧠' },
-            ].map((item) => (
-              <div key={item.label} className="flex items-center gap-3 rounded-lg bg-ak-bg/50 px-4 py-3 border border-ak-border/30">
-                <span className="text-lg">{item.icon}</span>
-                <div>
-                  <span className="text-sm font-medium text-ak-text-primary">{item.label}</span>
-                  <p className="text-xs text-ak-text-secondary">{item.tech}</p>
-                </div>
-              </div>
-            ))}
+          <p className="text-sm text-ak-text-secondary leading-relaxed mb-6">{tx('docs.index.archDesc')}</p>
+          <div className="mb-8 rounded-lg bg-ak-bg/30 p-4">
+            <h3 className="text-sm font-semibold text-ak-text-primary mb-3">System components</h3>
+            <SystemArchitectureDiagram />
+          </div>
+          <div className="rounded-lg bg-ak-bg/30 p-4">
+            <h3 className="text-sm font-semibold text-ak-text-primary mb-3">Agent execution flow</h3>
+            <AgentSequenceDiagram />
           </div>
         </div>
       </div>

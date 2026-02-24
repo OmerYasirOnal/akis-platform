@@ -26,7 +26,6 @@ import { triggersRoutes } from './api/triggers.js';
 import { registerPlaybookRoutes } from './api/playbooks.js';
 import { dashboardMetricsRoutes } from './api/dashboard-metrics.js';
 import { aiModelsRoutes } from './api/ai-models.js';
-import { smartAutomationsRoutes } from './api/smart-automations.js';
 import { feedbackRoutes } from './api/feedback.js';
 import { conversationsRoutes } from './api/conversations.js';
 import { studioRoutes } from './api/studio.js';
@@ -34,13 +33,14 @@ import { knowledgeRoutes } from './api/knowledge.js';
 import { marketplaceRoutes } from './api/marketplace.js';
 import { crewRoutes, initCrewRunManager } from './api/crew.js';
 import { ragRoutes } from './api/rag.js';
+import { adminRoutes } from './api/admin.js';
+import { pushLog } from './lib/logBuffer.js';
 import { initPiriRAGService } from './services/rag/PiriRAGService.js';
 import { AgentOrchestrator } from './core/orchestrator/AgentOrchestrator.js';
 import { createAIService } from './services/ai/AIService.js';
 import type { MCPTools } from './services/mcp/adapters/index.js';
 import { GitHubMCPService } from './services/mcp/adapters/GitHubMCPService.js';
 import { StaleJobWatchdog } from './core/watchdog/StaleJobWatchdog.js';
-import { startAutomationScheduler, stopAutomationScheduler } from './services/smart-automations/index.js';
 import {
   FreshnessScheduler,
   setFreshnessSchedulerInstance,
@@ -115,9 +115,6 @@ export async function buildApp() {
   // Start stale job watchdog
   const watchdog = new StaleJobWatchdog();
   watchdog.start();
-
-  // Start smart automation scheduler (polls for due automations every 60s)
-  startAutomationScheduler();
 
   // Start knowledge freshness scheduler (M2-FP-1)
   let freshnessScheduler: FreshnessScheduler | null = null;
@@ -196,13 +193,17 @@ export async function buildApp() {
     );
 
     if (app.log && !QUIET_ROUTES.has(route)) {
-      app.log.info({
+      const entry = {
         method: request.method,
         url: request.url,
         statusCode: reply.statusCode,
         requestId: request.id,
         duration,
-      }, 'request completed');
+        msg: 'request completed',
+        level: 30,
+      };
+      pushLog(entry);
+      app.log.info(entry, 'request completed');
     }
   });
 
@@ -249,7 +250,6 @@ export async function buildApp() {
   await app.register(registerPlaybookRoutes);
   await app.register(dashboardMetricsRoutes);
   await app.register(aiModelsRoutes);
-  await app.register(smartAutomationsRoutes);
   await app.register(feedbackRoutes);
   await app.register(conversationsRoutes);
   await app.register(studioRoutes, { prefix: '/api/studio' });
@@ -257,6 +257,7 @@ export async function buildApp() {
   await app.register(marketplaceRoutes);
   await app.register(crewRoutes);
   await app.register(ragRoutes);
+  await app.register(adminRoutes);
 
   // Initialize Piri RAG service if configured
   if (env.PIRI_BASE_URL) {
@@ -307,7 +308,17 @@ export async function buildApp() {
     const statusCode = getStatusCodeForError(envelope.error.code as ErrorCode);
 
     if (statusCode >= 500 && app.log) {
-      app.log.error({ err: error, requestId: request.id }, 'Unhandled server error');
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const req = request as any;
+      const route = req.routeOptions?.url ?? req.routerPath ?? request.url.split('?')[0];
+      const userId = req.user?.id ?? null;
+      app.log.error({
+        err: error,
+        requestId: request.id,
+        route,
+        userId,
+        msg: 'unhandled_server_error',
+      });
     }
 
     return reply.code(statusCode).send(envelope);
@@ -326,7 +337,6 @@ export async function buildApp() {
 
   app.addHook('onClose', async () => {
     watchdog.stop();
-    stopAutomationScheduler();
     freshnessScheduler?.stop();
     setFreshnessSchedulerInstance(null);
   });

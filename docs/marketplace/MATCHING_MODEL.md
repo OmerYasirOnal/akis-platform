@@ -43,7 +43,5 @@ Planned v1 additions:
 - fairness-aware reranking constraints
 
 ## 6. Research Mapping
-- Stability and two-sided fairness concepts map to
-  `carreer_assistant/marketplace-research/01_MATCHING_MECHANISMS.md`
-- Explainability schema maps to
-  `carreer_assistant/marketplace-research/03_FAIRNESS_TRANSPARENCY_EXPLAINABILITY.md`
+- Stability and two-sided fairness concepts map to the active M2 marketplace and trust planning docs.
+- Explainability schema maps to current trust/verification documentation in this repo.
