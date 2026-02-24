@@ -130,6 +130,7 @@ docs/NEXT.md                                             (bu dosya — anlık ey
 | S0.5.3-OPS-1 | `/ready` MCP diagnostics — her zaman `mcp` objesi + `missingEnv` dizisi | Tamamlandı | Schema fix + diagnostik alanlar + test (2026-02-10) |
 | S0.5.3-OPS-2 | Staging smoke + deploy docs contract drift fix (`mcp.github` → `mcp.gatewayReachable`) | Tamamlandı | `scripts/staging_smoke.sh`, OCI workflow metinleri ve staging deploy/checklist dokümanları güncellendi (2026-02-10) |
 | S0.5.3-OPS-3 | Hard scope cleanup (Smart Automations + out-of-scope modüllerin kaldırılması) | Tamamlandı | PR #336 ile `piri/`, `ide/`, `carreer_assistant/` ve Smart Automations uçtan uca kaldırıldı; rollback snapshot korundu (2026-02-24) |
+| S0.5.3-OPS-4 | Tag retention sadeleştirme + staging env snapshot guardrails | Tamamlandı | Origin/local tag cleanup (kalıcı rollback tag korunarak) + `.secrets/staging.env.snapshot` akışı + `docs/ops/STAGING_ENV_SNAPSHOT.md` (2026-02-24) |
 | S0.5.3-AUTH-1 | Public sayfa 401 console hata temizliği (AuthContext skip on public routes) | Tamamlandı | PR #285 — `requiresAuthResolve()` guard (2026-02-11) |
 | S0.5.3-I18N-1 | Docs i18n batch-1 (DocsIndex/GettingStarted/RestApi/Auth/Webhooks/BestPractices) + DocsSectionCard/DocsReferenceList | Tamamlandı | PR #286 — 6 sayfa + 2 ortak bileşen (2026-02-11) |
 | S0.5.3-I18N-2 | Docs i18n batch-2 (Integrations/Security/Guides + localhost temizliği) | Tamamlandı | PR #287 — 8 sayfa + i18n 687/687 key parity (2026-02-11) |
