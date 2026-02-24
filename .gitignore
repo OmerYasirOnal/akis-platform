@@ -19,6 +19,9 @@ build/
 .env.local
 .env.*.local
 .env.mcp.local
+.secrets/
+*.env.snapshot
+*.env.staging*
 
 # Backend env files
 backend/.env
