@@ -385,7 +385,6 @@ uvicorn main:app --host 0.0.0.0 --port 8000
 ./scripts/clean-env.sh   # __pycache__, .pytest_cache, .egg-info temizler
 ```
 
-> 📖 **Detaylı Bilgi**: [piri/README.md](../piri/README.md)
 
 ---
 
@@ -538,7 +537,6 @@ Not:
 | `PIRI_RERANKING` | Cross-encoder reranking aktif mi | `true` |
 | `PIRI_EMBEDDING_MODEL` | Embedding modeli | `intfloat/multilingual-e5-small` |
 
-> Piri Docker Compose overlay ile eklenir: `docker compose -f docker-compose.yml -f docker-compose.piri.yml up -d`
 
 ### Marketplace Feature Flag (MVP)
 
@@ -553,6 +551,26 @@ Not:
 ### Frontend Staging/Production Note
 
 > **Kritik:** Staging ve production build'lerinde `VITE_BACKEND_URL` **set edilmemelidir**. Frontend, API base URL'ini `window.location.origin` üzerinden `getApiBaseUrl()` fonksiyonu ile çözer. Bu, `frontend/src/services/api/config.ts` dosyasında tanımlıdır.
+
+---
+
+## 🐳 Docker Full Stack (Lokal Dev)
+
+Tek komutla db, backend, frontend, (opsiyonel) mcp-gateway ve adminer çalıştırmak için:
+
+```bash
+docker compose -f docker-compose.fullstack.yml up
+```
+
+Port çakışması varsa (örn. 5433, 3000, 5173 zaten kullanımda) native backend/frontend'i durdurun veya portları boşaltın.
+
+- **db**: PostgreSQL 16, port 5433 (host) → migrations otomatik çalışır
+- **backend**: Hot reload (`tsx watch`), port 3000
+- **frontend**: Vite dev server, port 5173, proxy `/api` → backend
+- **mcp-gateway** (opsiyonel): `--profile mcp` ile, `.env.mcp.local` gerekli
+- **adminer** (opsiyonel): `--profile admin` ile, port 8080
+
+Şablon: `.env.docker.example` → `.env.docker` kopyalanabilir (override için).
 
 ---
 

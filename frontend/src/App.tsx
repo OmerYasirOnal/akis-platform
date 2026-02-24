@@ -37,6 +37,7 @@ const DashboardSettingsNotificationsPage = lazy(() => import('./pages/dashboard/
 const JobsListPage = lazy(() => import('./pages/JobsListPage'));
 const JobDetailPage = lazy(() => import('./pages/JobDetailPage'));
 
+const ProductsPage = lazy(() => import('./pages/public/ProductsPage'));
 const PricingPage = lazy(() => import('./pages/public/PricingPage'));
 const BlogIndexPage = lazy(() => import('./pages/public/BlogIndexPage'));
 const LearnLandingPage = lazy(() => import('./pages/public/LearnLandingPage'));
@@ -75,10 +76,9 @@ const AgentsHubPage = lazy(() => import('./pages/dashboard/agents/AgentsHubPage'
 const DashboardAgentTracePage = lazy(() => import('./pages/dashboard/agents/trace/index'));
 const DashboardAgentProtoPage = lazy(() => import('./pages/dashboard/agents/proto/index'));
 const DashboardAgentStudioPage = lazy(() => import('./pages/dashboard/agents/studio/index'));
-const SmartAutomationsPage = lazy(() => import('./pages/dashboard/agents/smart-automations/SmartAutomationsPage'));
-const AutomationDetailPage = lazy(() => import('./pages/dashboard/agents/smart-automations/AutomationDetailPage'));
 const CrewRunPage = lazy(() => import('./pages/dashboard/agents/CrewRunPage'));
 const DashboardRAGPage = lazy(() => import('./pages/dashboard/DashboardRAGPage'));
+const LogsPage = lazy(() => import('./pages/dashboard/LogsPage'));
 
 const PageLoader = () => (
   <div className="flex min-h-[200px] items-center justify-center">
@@ -100,6 +100,7 @@ function App() {
           {/* Public Routes */}
           <Route element={<AppShell />}>
             <Route index element={<LandingPage />} />
+            <Route path="products" element={<Suspense fallback={<PageLoader />}><ProductsPage /></Suspense>} />
             <Route path="about" element={<Suspense fallback={<PageLoader />}><AboutAKIS /></Suspense>} />
             <Route path="pricing" element={<Suspense fallback={<PageLoader />}><PricingPage /></Suspense>} />
             <Route path="blog" element={<Suspense fallback={<PageLoader />}><BlogIndexPage /></Suspense>} />
@@ -165,28 +166,6 @@ function App() {
             }
           />
 
-          {/* Smart Automations - standalone route (no AgentsLayout) */}
-          <Route
-            path="/agents/smart-automations"
-            element={
-              <ProtectedRoute>
-                <Suspense fallback={<PageLoader />}>
-                  <SmartAutomationsPage />
-                </Suspense>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/agents/smart-automations/:id"
-            element={
-              <ProtectedRoute>
-                <Suspense fallback={<PageLoader />}>
-                  <AutomationDetailPage />
-                </Suspense>
-              </ProtectedRoute>
-            }
-          />
-
           {/* Dashboard Routes */}
           <Route
             path="/dashboard"
@@ -225,6 +204,7 @@ function App() {
               }
             />
             <Route path="knowledge" element={<Suspense fallback={<PageLoader />}><DashboardRAGPage /></Suspense>} />
+            <Route path="logs" element={<Suspense fallback={<PageLoader />}><LogsPage /></Suspense>} />
             <Route path="settings">
               <Route index element={<Navigate to="profile" replace />} />
               <Route path="profile" element={<Suspense fallback={<PageLoader />}><DashboardSettingsProfilePage /></Suspense>} />

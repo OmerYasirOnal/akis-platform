@@ -14,8 +14,20 @@ services:
       interval: 3s
       timeout: 3s
       retries: 10
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+        tag: "{{.Name}}"
   adminer:
     image: adminer
     ports: ["8080:8080"]
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+        tag: "{{.Name}}"
 volumes:
   pgdata:

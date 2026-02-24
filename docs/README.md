@@ -37,7 +37,6 @@ docs/planning/DELIVERY_PLAN_S0.5_FEB_TO_GRADUATION.md  →  ROADMAP.md  →  NEX
 | [CI_AUTOMATION.md](CI_AUTOMATION.md) | CI/CD automation |
 | [ops/OAUTH_SETUP.md](ops/OAUTH_SETUP.md) | GitHub & Google OAuth |
 | [integrations/ATLASSIAN_OAUTH_SETUP.md](integrations/ATLASSIAN_OAUTH_SETUP.md) | Atlassian OAuth |
-| [SMART_AUTOMATIONS.md](SMART_AUTOMATIONS.md) | RSS + AI smart automations |
 | [deploy/OCI_STAGING_RUNBOOK.md](deploy/OCI_STAGING_RUNBOOK.md) | Staging operations |
 | [deploy/STAGING_SMOKE_TEST_CHECKLIST.md](deploy/STAGING_SMOKE_TEST_CHECKLIST.md) | Smoke test checklist |
 | [deploy/STAGING_ROLLBACK_RUNBOOK.md](deploy/STAGING_ROLLBACK_RUNBOOK.md) | Rollback procedures |

@@ -16,7 +16,7 @@ export type ButtonProps<C extends React.ElementType> = ButtonOwnProps<C> &
 
 const variantClasses: Record<ButtonVariant, string> = {
   primary:
-    'bg-ak-primary text-[color:var(--ak-on-primary)] font-semibold shadow-ak-elevation-1 hover:brightness-110 hover:shadow-ak-elevation-2 active:brightness-95',
+    'bg-ak-primary text-[color:var(--ak-on-primary)] font-semibold shadow-ak-elevation-1 hover:brightness-110 hover:shadow-ak-elevation-2 hover:scale-[1.02] motion-reduce:hover:scale-100 active:brightness-95 active:scale-[0.98] motion-reduce:active:scale-100',
   secondary:
     'bg-ak-surface-2 text-ak-text-primary hover:bg-ak-surface',
   outline:
@@ -32,7 +32,7 @@ const sizeClasses: Record<ButtonSize, string> = {
 };
 
 const baseClasses =
-  'inline-flex items-center justify-center rounded-full font-semibold tracking-tight transition-colors duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ak-primary focus-visible:outline-offset-2 disabled:opacity-60 disabled:cursor-not-allowed whitespace-nowrap';
+  'inline-flex items-center justify-center rounded-full font-semibold tracking-tight transition-all duration-200 ease-out focus-visible:outline focus-visible:outline-2 focus-visible:outline-ak-primary focus-visible:outline-offset-2 disabled:opacity-60 disabled:cursor-not-allowed whitespace-nowrap';
 
 function Button<C extends React.ElementType = 'button'>(
   {

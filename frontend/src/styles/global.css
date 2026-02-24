@@ -87,6 +87,16 @@ a {
   color: var(--text);
 }
 
+@keyframes hero-gradient-pulse {
+  from { opacity: 0.5; }
+  to { opacity: 1; }
+}
+
+.hero-gradient-bg {
+  background: radial-gradient(ellipse 80% 50% at 50% 0%, rgba(7, 209, 175, 0.12) 0%, transparent 50%);
+  animation: hero-gradient-pulse 12s ease-in-out infinite alternate;
+}
+
 /* Base transition tokens for reduced-motion support */
 @media (prefers-reduced-motion: reduce) {
   *,

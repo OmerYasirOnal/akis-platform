@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import Button from '../../components/common/Button';
 import Logo from '../../components/branding/Logo';
 import { useI18n } from '../../i18n/useI18n';
 import type { MessageKey } from '../../i18n/i18n.types';
 import { getAuthBaseUrl } from '../../services/api/config';
+import { setReturnTo } from '../../utils/returnTo';
 
 // Map OAuth error codes to user-friendly i18n keys
 const OAUTH_ERROR_MAP: Record<string, string> = {
@@ -21,8 +22,14 @@ const OAUTH_ERROR_MAP: Record<string, string> = {
 
 export default function LoginEmail() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const { t } = useI18n();
+
+  useEffect(() => {
+    const from = (location.state as { from?: { pathname?: string } })?.from?.pathname;
+    if (from) setReturnTo(from);
+  }, [location.state]);
   const [email, setEmail] = useState('');
   const [error, setError] = useState('');
   const [oauthError, setOauthError] = useState('');
@@ -94,8 +101,8 @@ export default function LoginEmail() {
   }
 
   function handleOAuthLogin(provider: 'github' | 'google') {
-    // Full-page redirect to backend OAuth endpoint
-    // OAuth routes are at /auth/oauth/:provider (no /api prefix)
+    const from = (location.state as { from?: { pathname?: string } })?.from?.pathname;
+    if (from) setReturnTo(from);
     window.location.href = `${getAuthBaseUrl()}/auth/oauth/${provider}`;
   }
 

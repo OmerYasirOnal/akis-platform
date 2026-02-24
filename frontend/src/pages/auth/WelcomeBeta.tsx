@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Button from '../../components/common/Button';
 import Logo from '../../components/branding/Logo';
+import { getReturnTo, clearReturnTo } from '../../utils/returnTo';
 
 export default function WelcomeBeta() {
   const navigate = useNavigate();
@@ -20,8 +21,9 @@ export default function WelcomeBeta() {
       setSubmitting(false);
     }
     
-    // Navigate to dashboard (privacy-consent already completed per canonical order)
-    navigate('/dashboard');
+    const returnTo = getReturnTo();
+    clearReturnTo();
+    navigate(returnTo || '/dashboard');
   }
 
   function handleLearnMore() {

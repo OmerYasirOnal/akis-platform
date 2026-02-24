@@ -24,13 +24,13 @@ const threadIdParamsSchema = z.object({
 const createThreadSchema = z.object({
   id: z.string().uuid().optional(),
   title: z.string().trim().min(1).max(255).optional(),
-  agentType: z.enum(['scribe', 'trace', 'proto', 'smart-automations']).optional(),
+  agentType: z.enum(['scribe', 'trace', 'proto']).optional(),
 });
 
 const createMessageSchema = z.object({
   role: z.enum(['system', 'user', 'agent']),
   content: z.string().trim().min(1),
-  agentType: z.enum(['scribe', 'trace', 'proto', 'smart-automations']).optional(),
+  agentType: z.enum(['scribe', 'trace', 'proto']).optional(),
   metadata: z.record(z.unknown()).optional(),
 });
 

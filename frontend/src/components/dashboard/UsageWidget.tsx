@@ -4,6 +4,7 @@
  */
 import { useState, useEffect } from 'react';
 import Card from '../common/Card';
+import { Skeleton } from '../ui/Skeleton';
 
 interface UsageData {
   period: {
@@ -120,10 +121,12 @@ export const UsageWidget = () => {
 
   if (loading) {
     return (
-      <Card className="bg-ak-surface p-5">
-        <div className="animate-pulse space-y-4">
-          <div className="h-5 w-32 rounded bg-ak-surface-2" />
-          <div className="h-24 rounded bg-ak-surface-2" />
+      <Card className="bg-ak-surface p-5 space-y-4">
+        <Skeleton className="h-5 w-32" />
+        <Skeleton className="h-4 w-48" />
+        <div className="grid grid-cols-2 gap-3">
+          <Skeleton className="h-16" />
+          <Skeleton className="h-16" />
         </div>
       </Card>
     );
