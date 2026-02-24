@@ -797,8 +797,6 @@ export async function agentsRoutes(fastify: FastifyInstance) {
         metrics.jobsCreated.inc({ type: body.type });
 
         const jobApiStart = Date.now();
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const route = (request as any).routeOptions?.url ?? (request as any).routerPath ?? request.url.split('?')[0];
         pushLog({ jobId, agentType: body.type, userId: userId || null, msg: 'job_started', level: 30 });
         fastify.log?.info({ jobId, agentType: body.type, userId: userId || null, msg: 'job_started' });
 
