@@ -24,13 +24,14 @@
 |---|-------|----------|------|
 | 1.1 | `GET /health` | `{"status":"ok"}` HTTP 200 | [x] 2026-02-12 |
 | 1.2 | `GET /ready` | `{"ready":true}`, DB connected | [x] 2026-02-12 |
-| 1.3 | `GET /version` | Commit SHA matches deployed | [x] b723c2d 2026-02-12 |
+| 1.3 | `GET /version` | Commit SHA matches deployed (SSOT) | [x] fe0fd38 2026-02-18 — Demo Baseline Lock |
 | 1.4 | `GET /` | HTML with `id="root"` | [x] 2026-02-12 |
 | 1.5 | `/ready` → `.mcp` | `configured: true` | [x] 2026-02-12 |
 | 1.6 | `/ready` → `.oauth` | `github: true` or `google: true` | [x] both true 2026-02-12 |
 | 1.7 | `/ready` → `.encryption` | `configured: true` | [x] 2026-02-12 |
 | 1.8 | TLS cert valid | Not expired, Let's Encrypt | [x] LE E7, exp May 4 2026 |
 | 1.9 | No `localhost` in responses | Grep staging HTML/API responses | [x] 2026-02-12 |
+| 1.10 | Monorepo lint gate | `pnpm -r lint` passes for active workspace packages — workspace lint gate is green | [x] 2026-02-18 |
 
 ---
 
@@ -74,6 +75,19 @@
 | 3.6 | Google OAuth callback | User created/logged in | [ ] |
 
 ---
+
+## UI Smoke (Authenticated App)
+
+**Last verified:** 2026-02-18 (staging fe0fd38, smoke 13/13)
+
+| # | Check | Expected | Pass |
+|---|-------|----------|------|
+| US-1 | `https://staging.akisflow.com/dashboard` | Overview loads, PageHeader visible, Getting Started card | [ ] |
+| US-2 | `https://staging.akisflow.com/dashboard/jobs` | List/empty state, filters work | [ ] |
+| US-3 | `https://staging.akisflow.com/dashboard/integrations` (IntegrationsHub) | Cards render, status badges, MCP link in subtitle (→ /docs/integrations/mcp) | [ ] |
+| US-4 | `https://staging.akisflow.com/dashboard/knowledge` | Configured: tabs; Not configured: EmptyState with CTA | [ ] |
+| US-5 | `https://staging.akisflow.com/agents` | Hub loads, nav works | [ ] |
+| US-6 | `https://staging.akisflow.com/agents/scribe`, `trace`, `proto` | Console loads, form + tabs | [ ] |
 
 ## 4. Dashboard & Onboarding
 
@@ -203,16 +217,16 @@
 
 ---
 
-## Latest Test Run — 2026-02-12
+## Latest Test Run — 2026-02-18
 
-**Tester:** Codex (automated + browser verification)
-**Staging commit:** `b723c2d`
-**Main HEAD:** `b723c2d` (Scribe AGT-8 staging'de canlı)
+**Staging commit (SSOT):** `fe0fd38` — verify via `curl -s https://staging.akisflow.com/version | jq -r .commit`  
+**Smoke result:** 13/13 pass  
+**Rollback path:** `fe0fd38` (docs/deploy/STAGING_ROLLBACK_RUNBOOK.md)
 
 | Area | Status | Notes |
 |------|--------|-------|
-| Smoke tests (staging_smoke.sh) | PASS | `./scripts/staging_smoke.sh --commit b723c2d` → 12/12 (13:34 UTC) |
-| Infrastructure (/health, /ready, /version) | PASS | `/health` 200, `/ready` healthy, `/version.commit=b723c2d` |
+| Smoke tests (staging_smoke.sh) | PASS | `./scripts/staging_smoke.sh --commit fe0fd38` → 13/13 (2026-02-18) |
+| Infrastructure (/health, /ready, /version) | PASS | `/health` 200, `/ready` healthy, `/version.commit` = fe0fd38 |
 | MCP Gateway | PASS | `/ready.mcp.configured=true`, `gatewayReachable=true`, `missingEnv=[]` |
 | Email signup (API) | PASS | `/auth/signup/start` → 201 `pending_verification` |
 | Email signup (browser) | PARTIAL | `/signup` akışı password adımına geçti; verify-code adımı inbox erişimi nedeniyle tamamlanamadı |
@@ -228,7 +242,7 @@
 
 ## Execution Notes
 
-- Run automated smoke tests first: `./scripts/staging_smoke.sh`
+- Run automated smoke tests first: `DEPLOYED=$(curl -s https://staging.akisflow.com/version | jq -r .commit); ./scripts/staging_smoke.sh --commit $DEPLOYED`
 - Manual checks follow (sections 2-10)
 - All agents require: AI key + GitHub OAuth + MCP Gateway
 - Record results with date and tester name

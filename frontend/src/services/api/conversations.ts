@@ -22,7 +22,7 @@ export interface ConversationThread {
   id: string;
   title: string;
   status: ConversationThreadStatus;
-  agentType: 'scribe' | 'trace' | 'proto' | 'smart-automations';
+  agentType: 'scribe' | 'trace' | 'proto';
   activeRuns: number;
   lastMessageAt: string | null;
   createdAt: string;
@@ -73,7 +73,7 @@ export const conversationsApi = {
   createThread: async (body?: {
     id?: string;
     title?: string;
-    agentType?: 'scribe' | 'trace' | 'proto' | 'smart-automations';
+    agentType?: 'scribe' | 'trace' | 'proto';
   }): Promise<{ thread: ConversationThread }> => {
     return httpClient.post('/api/conversations/threads', body ?? {}, withCredentials);
   },
@@ -91,7 +91,7 @@ export const conversationsApi = {
     body: {
       role: ConversationMessageRole;
       content: string;
-      agentType?: 'scribe' | 'trace' | 'proto' | 'smart-automations';
+      agentType?: 'scribe' | 'trace' | 'proto';
       metadata?: Record<string, unknown>;
     }
   ): Promise<{ message: ConversationMessage }> => {

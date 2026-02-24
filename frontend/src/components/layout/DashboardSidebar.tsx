@@ -45,12 +45,6 @@ const AgentsHubIcon = () => (
   </svg>
 );
 
-const AutomationsIcon = () => (
-  <svg className="h-4.5 w-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" />
-  </svg>
-);
-
 const KnowledgeIcon = () => (
   <svg className="h-4.5 w-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
     <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" />
@@ -71,16 +65,11 @@ const StudioIcon = () => (
   </svg>
 );
 
-const PiriDot = () => (
-  <span className="ml-auto h-1.5 w-1.5 rounded-full bg-emerald-400" title="Piri context available" />
-);
-
 interface NavItem {
   to: string;
   label: string;
   icon: React.ReactNode;
   end?: boolean;
-  piriEnabled?: boolean;
 }
 
 interface NavGroup {
@@ -102,9 +91,8 @@ const navGroups: NavGroup[] = [
   {
     title: 'Agents',
     items: [
-      { to: '/agents', label: 'Agents Hub', icon: <AgentsHubIcon />, piriEnabled: true },
+      { to: '/agents', label: 'Agents Hub', icon: <AgentsHubIcon /> },
       { to: '/agents/studio', label: 'Studio', icon: <StudioIcon /> },
-      { to: '/agents/smart-automations', label: 'Automations', icon: <AutomationsIcon /> },
     ],
   },
   {
@@ -156,7 +144,7 @@ export function DashboardSidebar({
                     onClick={onNavClick}
                     className={({ isActive }) =>
                       cn(
-                        'flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] font-medium transition-colors',
+                        'flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-[13px] font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-ak-primary focus-visible:outline-offset-2 focus-visible:rounded-lg',
                         isActive
                           ? 'bg-ak-primary/10 text-ak-primary'
                           : 'text-ak-text-secondary hover:bg-ak-surface-2 hover:text-ak-text-primary'
@@ -165,7 +153,6 @@ export function DashboardSidebar({
                   >
                     <span className="flex-shrink-0">{item.icon}</span>
                     <span>{item.label}</span>
-                    {item.piriEnabled && <PiriDot />}
                   </NavLink>
                 </li>
               ))}

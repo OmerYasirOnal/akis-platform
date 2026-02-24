@@ -358,24 +358,7 @@ When AI generation fails or is unavailable, Proto produces a minimal scaffold:
 
 ---
 
-## 5. Piri Agent
-
-**Purpose:** RAG + web search motoru. Bilgi tabanında ve internette arama yaparak sorulara cevap verir.
-
-Piri, Scribe/Trace/Proto'dan farklı olarak **standalone FastAPI servisi** olarak çalışır (`devagents/piri`, port 8000). AKIS backend ile henüz HTTP entegrasyonu yok (M2-RAG-5 planında).
-
-| Özellik | Değer |
-|---------|-------|
-| **Route** | `http://localhost:8000` (standalone) |
-| **API** | `/rag/query`, `/rag/web-search`, `/rag/evaluate`, `/generate` |
-| **Kaynak** | `piri/main.py`, `piri/piri/engine.py` |
-| **Doküman** | [PIRI.md](PIRI.md) |
-
-> **Detaylı sözleşme:** [docs/agents/PIRI.md](PIRI.md)
-
----
-
-## 6. Error Taxonomy
+## 5. Error Taxonomy
 
 ### 6.0 Standard Error Envelope (AGT-6)
 

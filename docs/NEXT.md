@@ -6,7 +6,7 @@
 > **Araştırma Temeli:** `docs/planning/RESEARCH_DEEP_DIVE_AGENT_ARCHITECTURE.md`  
 > **Operasyonel Playbook:** [`docs/planning/AKIS_OPERATIONAL_PLAYBOOK.md`](planning/AKIS_OPERATIONAL_PLAYBOOK.md) (4 Pillar + Moonshot — teyit edilmiş hedef)  
 > **Uygulama Haritası:** [`docs/planning/PLAYBOOK_IMPLEMENTATION_MAP.md`](planning/PLAYBOOK_IMPLEMENTATION_MAP.md)  
-> **Son Güncelleme:** 2026-02-17 (Platform Polish plan tamamlandı: orphan temizlik, UI transitions, skeleton, log viewer, Docker fullstack, E2E doğrulama)
+> **Son Güncelleme:** 2026-02-18 (Demo baseline lock: fe0fd38, decision brief + operator pack)
 
 ---
 
@@ -27,9 +27,11 @@ docs/NEXT.md                                             (bu dosya — anlık ey
 | Alan | Değer |
 |------|-------|
 | URL | https://staging.akisflow.com |
-| Deploy Edilen Commit | `ee5041f` (canlı `/version` doğrulandı, 2026-02-16) |
+| Deploy Edilen Commit | `fe0fd38` (SSOT: `curl -s https://staging.akisflow.com/version | jq -r .commit`) |
+| Demo Baseline Commit | `fe0fd38` — locked (decision: `docs/qa/DEMO_RELEASE_CANDIDATE_DECISION.md`) |
+| Smoke Testleri | 13/13 (`staging_smoke.sh --commit fe0fd38`, 2026-02-18) |
+| Main HEAD | `b1f41bc` — staging AHEAD of main; redeploy would regress; baseline locked |
 | S0.5 PR | [#265](https://github.com/OmerYasirOnal/akis-platform-devolopment/pull/265) — onboarding, feedback, context packs, QA docs, 750+ yeni test |
-| Smoke Testleri | 13/13 geçti (`staging_smoke.sh --commit ee5041f`, 2026-02-16) |
 | Test Sayısı | Backend: 842 + Frontend: 549 = **1,391 toplam** (Phase 1-8 test kampanyası + S0.5 sprint, 2026-02-11) |
 | Kod Düzeltmeleri | MCP `/ready` durumu, OAuth hoşgeldin e-postası, agents yönlendirme `/agents/*`, logo güncelleme, güvenlik temizliği, E2E test hizalama, Scribe AGT-8 derin analiz iyileştirmesi, GitHub-style light theme tokenları, jobs user isolation (veri sızıntı fix), expandable logs + smart auto-scroll + light theme kontrast düzeltmesi, agents ownership guard hardening (approve/reject/comments/revise/revisions/stream) + duplicate-job UX iyileştirmesi |
 | CI Durumu | GitHub-hosted Actions billing engeli devam ediyor; joblar başlamadan `Billing & plans` anotasyonu ile fail. Geçici olarak manuel CI fallback uygulandı (backend/frontend gates + integration + Playwright + staging smoke), takip: Issue #333 (2026-02-16) |
@@ -41,6 +43,16 @@ docs/NEXT.md                                             (bu dosya — anlık ey
 | Scribe AGT-8 | `b723c2d` ile merge + staging deploy tamamlandı (2026-02-12) |
 | Son Merge'ler | PR #330 (S0.5.3 agent ownership + duplicate-run recovery), PR #329 (console E2E drift stabilization), PR #307 (light theme), PR #305 (jobs user isolation) — tümü `main`'de |
 | Logo | Full wordmark korunuyor (`frontend/src/assets/branding/akis-official-logo@*`), compact/favikon için A-mark only ailesi güncellendi (`frontend/src/assets/branding/akis-a-mark.png`, `akis-mark@2x.png`, `akis-mark@3x.png`, `frontend/public/brand/favicon*`) |
+
+### Demo Baseline Lock (2026-02-18)
+
+**Baseline:** `fe0fd38` (SSOT: `/version`). **Decision brief:** `docs/qa/DEMO_RELEASE_CANDIDATE_DECISION.md`.
+
+**Lock rule:** No new changes included unless a P0 fix is cherry-picked onto this baseline, re-smoked (13/13), and redeployed. Redeploying to main (b1f41bc) would regress — staging is ahead with proto fix + M2 UX.
+
+**Rollback (if any change breaks demo):** Follow `docs/deploy/STAGING_ROLLBACK_RUNBOOK.md` Section 2. Set `BACKEND_VERSION=fe0fd38`, `docker compose up -d --force-recreate backend`, verify `/version` shows `fe0fd38`.
+
+**If P0 fix required:** Use runbook deploy flow; after successful smoke → Doc Sync: Update NEXT.md, REGRESSION_CHECKLIST, DEMO_SCRIPT, GRADUATION_EVIDENCE with new `DEPLOYED` SHA.
 
 ---
 
@@ -101,19 +113,17 @@ docs/NEXT.md                                             (bu dosya — anlık ey
 | S0.5.3-QA-3 | KG kanıt dokümanı | Tamamlandı | `docs/qa/GRADUATION_EVIDENCE.md` (2026-02-09) |
 | S0.5.3-QA-4 | Tez hazırlık notu (taslak) | Tamamlandı | `docs/qa/THESIS_PREP_NOTE.md` (2026-02-09) |
 | S0.5.3-QA-5 | 5 golden path için exact URL + pass/fail acceptance matrix + 15dk demo hizası | Tamamlandı | `docs/qa/REGRESSION_CHECKLIST.md` + `docs/qa/DEMO_SCRIPT_15MIN.md` güncellendi (2026-02-10) |
+| S0.5.3-QA-6 | Demo Release Candidate Decision + Operator Pack | Tamamlandı | `docs/qa/DEMO_RELEASE_CANDIDATE_DECISION.md` — baseline fe0fd38 locked (2026-02-18) |
 | S0.5.3-DOC-1 | Public portfolio export akışı | Tamamlandı | `scripts/public-repo/export.sh` + `docs/public/` (2026-02-10) |
 | S0.5.3-UX-1 | Landing page CTA kontrast + sahte metrikler düzeltme | Tamamlandı | Button contrast fix + capability cards (2026-02-10) |
 | S0.5.3-DOC-2 | Screenshot shot list + portfolio referansları | Tamamlandı | `docs/public/assets/SHOTLIST.md` (2026-02-10) |
 | S0.5.3-DOC-3 | Public dokümanlar Türkçe-öncelikli + TR özet başlıkları | Tamamlandı | README.md TR, README.en.md EN, teknik doc'lara TR özet (2026-02-10) |
 | S0.5.3-UX-2 | Screenshot mode (`?shot=1`) — PII maskeleme | Tamamlandı | `useScreenshotMode` hook + ProfileMenu/AppHeader/FeedbackWidget (2026-02-10) |
 | S0.5.3-UX-3 | Button kontrast WCAG AA — tüm CTA'larda `text-ak-bg` → `text-[#111418]` | Tamamlandı | 13 dosyada fix, opacity hover → brightness (2026-02-10) |
-| S0.5.3-UX-4 | Automations sidebar + smart-automations erişilebilirliği | Tamamlandı | Sidebar nav item, i18n keys, Web IA güncelleme (2026-02-10) |
 | S0.5.3-UX-5 | Logo PNG transparency + duplicate cleanup | Tamamlandı | RGBA transparent logolar, `public/assets/branding/` + `logo.png` silindi (2026-02-10) |
-| S0.5.3-UX-6 | Agents Hub kalıcı conversation thread'leri (agent/automation), tür etiketi+ikon, AI kısa başlık üretimi | Tamamlandı | `/agents` içinde localStorage session kalıcılığı, sidebar thread listesi, type+title header, automation run-link mesajları (2026-02-11) |
 | S0.5.3-DOC-4 | `/docs/agents/*` sayfalarında TR/EN uyumlu içerik, referans blokları, görsel kart düzeni + link/kontrast stabilizasyonu | Tamamlandı | Scribe/Trace/Proto docs sayfaları i18n tabanlı yeniden düzenlendi; global link style scope daraltıldı, DocsLayout CTA kontrastı düzeltildi (2026-02-11) |
 | S0.5.3-UX-7 | Light/Dark theme readability tuning (göz yormayan arkaplan + secondary text contrast) | Tamamlandı | `theme.tokens.css` dark/light metin ve zemin tokenları güncellendi, primary CTA metin görünürlüğü `--ak-on-primary` ile sabitlendi (2026-02-11) |
 | S0.5.3-UX-8 | Doküman kalite görünürlüğü: Agent Hub + Job Details | Tamamlandı | Agent Hub completion mesajı + header quality badge, Job Details summary card quality gate (PASS/FAIL) eklendi (2026-02-11) |
-| S0.5.3-UX-9 | Trace guided prototype run (3-4 seçenekli soru) + automation execution özeti | Tamamlandı | Trace Console’da preference soruları eklendi (`testDepth/authScope/browserTarget/strictness`), payload’a `tracePreferences` bağlandı; TraceAgent sonuç metadata’sına `automationExecution` (executed/passed/failed/passRate/featureCoverage) eklendi + testler (2026-02-11) |
 | S0.5.3-UX-10 | Agent runtime controls (Settings drawer + 5 kademe command + runtime override) + Studio route scaffold | Tamamlandı | `agent-configs` runtime alanları (`runtimeProfile/temperatureValue/commandLevel/settingsVersion`), `/api/agents/jobs` `runtimeOverride` + `effectiveRuntime`, Scribe/Trace/Proto/AgentsHub settings drawer, `/agents/studio` MVP yüzeyi ve toast bildirimleri (2026-02-11) |
 | S0.5.3-UX-11 | Multi-Agent Thread Studio v1 (backend kalıcı thread + plan candidate domain + thread SSE) | Tamamlandı | Yeni conversation domain migration (`conversation_threads/messages/tasks/plan_candidates/plan_candidate_builds/thread_trust_snapshots`), `/api/conversations/*` endpoint ailesi, 3 aktif run build guard ve Agents Hub backend thread senkronu (2026-02-11) |
 | S0.5.3-UX-12 | Trace “Yaz→Koş→Raporla” coverage görünürlüğü (console + job detail) | Tamamlandı | Trace Console summary kartları (feature/test/duration/failures) + generated test preview, Job Details’e “Automation Coverage” kartı, i18n TR/EN key güncellemeleri ve test güncellemesi (2026-02-11) |
@@ -150,6 +160,10 @@ docs/NEXT.md                                             (bu dosya — anlık ey
 | 4b | Staging smoke | Tamamlandı | 13/13 geçti |
 | 5 | E2E doğrulama | Tamamlandı | typecheck, build, 585 unit test, 91 E2E passed |
 | **Sprint 2** | **Products + returnTo + Landing + Content** | **Tamamlandı** | **2026-02-17** |
+| **Authenticated App UI** | **PR1 Layout Primitives + Overview** | **Tamamlandı** | EmptyState, PageHeader, PageTransition, shell, i18n |
+| **Authenticated App UI** | **PR2 Jobs + Logs** | **Tamamlandı** | PageHeader, EmptyState, i18n, LogsPage test |
+| **Authenticated App UI** | **PR3 Integrations + KB** | **Tamamlandı** | PageHeader, EmptyState RAG, i18n, card styling |
+| **Authenticated App UI** | **PR4 Agents Hub + Consoles** | **Tamamlandı** | AgentsLayout tab a11y, EmptyState no-conversations |
 | 0 | Branch temizliği | Tamamlandı | stash, docs branch silindi, prune remotes |
 | 1a-1d | Products sayfası (/products) + Header link + returnTo (LoginPassword) + i18n | Tamamlandı | ProductsPage.tsx, returnTo.ts, en/tr.json |
 | 2a-2d | Landing polish | Tamamlandı | useScrollReveal, theme soften, placeholder temizliği, micro-animations |
@@ -157,6 +171,10 @@ docs/NEXT.md                                             (bu dosya — anlık ey
 | 3b | Contact gerçek bilgi | Tamamlandı | +90 532 309 0261, i18n |
 | 3c | About team/founder + SEO | Tamamlandı | usePageMeta, founder biyografi |
 | 3d | Docs diyagramları | Tamamlandı | SystemArchitectureDiagram, AgentSequenceDiagram → DocsIndexPage |
+| 6 | Workspace lint gate fix + IntegrationsHub i18n hardening | Tamamlandı | career_assistant eslint ENOENT fix (eslint + typescript-eslint devDeps), subtitleBefore/Link/After i18n keys, MCP link → /docs/integrations/mcp, I18nProvider test, 2026-02-17 |
+| 7 | Workspace ESLint gate fix | Tamamlandı | Recursive lint gate düzenlemeleri tamamlandı, 2026-02-17 |
+| 8 | Demo readiness closure (staging, regression, demo script) | Tamamlandı | Staging fe0fd38 doğrulandı, smoke 13/13, NEXT.md/REGRESSION_CHECKLIST/DEMO_SCRIPT güncellendi, rehearsal log eklendi, 2026-02-18 |
+| 9 | Staging redeploy to main (b1f41bc) | Operatör eylemi | Operator checklist NEXT.md'de. Deploy → doğrula → smoke 13/13. Başarısızsa rollback fe0fd38 |
 
 ---
 
@@ -345,27 +363,10 @@ docs/NEXT.md                                             (bu dosya — anlık ey
 | [`docs/planning/SOCIAL_PLATFORM_VISION.md`](planning/SOCIAL_PLATFORM_VISION.md) | M2/M3 social platform vizyonu (feed, marketplace, showcase) |
 | [`docs/planning/RAG_INTEGRATION_PLAN_M2.md`](planning/RAG_INTEGRATION_PLAN_M2.md) | M2 RAG entegrasyon planı (mimari + fazlar) |
 | Crew System Plan | M2 Crew System (Agent Teams) planı — `.cursor/plans/crew_system_+_research_c5c05ba8.plan.md` |
-| [`carreer_assistant/docs/CAREER_ASSISTANT_SPEC.md`](../carreer_assistant/docs/CAREER_ASSISTANT_SPEC.md) | Career Assistant + Freelance Automation spesifikasyonu (M2+ spike) |
 | [`docs/marketplace/PRD.md`](marketplace/PRD.md) | AKIS Workstream Marketplace MVP ürün/mimari paketi |
 
 ---
 
-### M2+ Spike: Career Assistant (Freelance Automation)
-
-> **Spec:** [`carreer_assistant/docs/CAREER_ASSISTANT_SPEC.md`](../carreer_assistant/docs/CAREER_ASSISTANT_SPEC.md)
-> **Mimari:** [`carreer_assistant/docs/FREELANCE_AGENT_ARCHITECTURE.md`](../carreer_assistant/docs/FREELANCE_AGENT_ARCHITECTURE.md)
-> **Durum:** Phase 0-5 tamamlandı (spec + code + 63 test, 2026-02-13)
-
-| ID | Görev | Durum |
-|----|-------|-------|
-| M2-CA-0 | Spec dokümanları + proje iskelesi | Tamamlandı (2026-02-13) |
-| M2-CA-1 | Skorlama motoru + sert filtreler + günlük limitler | Tamamlandı (2026-02-13) |
-| M2-CA-2 | Platform adaptörleri (Upwork API, Freelancer API, Fiverr/Bionluk/LinkedIn browser) | Tamamlandı (2026-02-13) |
-| M2-CA-3 | AI entegrasyonu (proposal üretimi, PersonaEngine, template sistemi) | Tamamlandı (2026-02-13) |
-| M2-CA-4 | Telegram bildirim + onay workflow | Tamamlandı (2026-02-13) |
-| M2-CA-5 | CLI aracı (discover, score, apply, status, profile, approve) | Tamamlandı (2026-02-13) |
-| M2-CA-6 | Platform API credential'ları + gerçek entegrasyon testi | Başlanmadı |
-| M2-CA-7 | AKIS AgentFactory entegrasyonu (CareerAgent olarak kayıt) | Başlanmadı |
 
 ---
 

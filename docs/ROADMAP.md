@@ -4,7 +4,7 @@
 > **Operasyonel Playbook:** [`docs/planning/AKIS_OPERATIONAL_PLAYBOOK.md`](planning/AKIS_OPERATIONAL_PLAYBOOK.md) (4 Pillar + Moonshot — teyit edilmiş hedef)  
 > **Uygulama Haritası:** [`docs/planning/PLAYBOOK_IMPLEMENTATION_MAP.md`](planning/PLAYBOOK_IMPLEMENTATION_MAP.md)  
 > **Anlık Eylemler:** [`docs/NEXT.md`](NEXT.md)  
-> **Son Güncelleme:** 2026-02-17
+> **Son Güncelleme:** 2026-02-18
 
 ---
 
@@ -24,7 +24,7 @@
 
 | Kilometre Taşı | Hedef Tarih | Odak | Durum |
 |-----------------|-------------|------|-------|
-| **M1: Pilot Demo** | 28 Şubat 2026 | Staging düzeltme + Scribe/Trace/Proto golden path + pilot katılım | **Devam Ediyor** (66/66 görev + Platform Polish 2026-02-17: orphan temizlik, UI transitions, skeleton, log viewer, Docker fullstack, E2E; staging smoke 13/13) |
+| **M1: Pilot Demo** | 28 Şubat 2026 | Staging düzeltme + Scribe/Trace/Proto golden path + pilot katılım | **Devam Ediyor** (67/67 + Demo baseline lock fe0fd38, 2026-02-18) |
 | **M2: Stabilizasyon** | 31 Mart 2026 | Hata düzeltme, pilot geri bildirim, pg_trgm prototip, tez taslağı | Başlanmadı |
 | **M3: Mezuniyet** | Mayıs 2026 | Final rapor, sunum, demo video, teslim paketi | Başlanmadı |
 
@@ -152,21 +152,6 @@
 | M2-UI-5 | P4 | ArtifactPreview inline citation + provenance | Başlanmadı |
 | M2-UI-6 | P4 | i18n: citation/confidence/freshness key'leri | Tamamlandı (2026-02-15) |
 
-### M2+ Spike: Career Assistant (Freelance Automation)
-
-> **Spec:** [`carreer_assistant/docs/CAREER_ASSISTANT_SPEC.md`](../carreer_assistant/docs/CAREER_ASSISTANT_SPEC.md)
-> **Mimari:** [`carreer_assistant/docs/FREELANCE_AGENT_ARCHITECTURE.md`](../carreer_assistant/docs/FREELANCE_AGENT_ARCHITECTURE.md)
-
-| Görev ID | Görev | Durum |
-|----------|-------|-------|
-| M2-CA-0 | Spec dokümanları + proje iskelesi + şablonlar | Tamamlandı (2026-02-13) |
-| M2-CA-1 | Skorlama motoru (6 boyut) + sert filtreler + günlük limitler | Tamamlandı (2026-02-13) |
-| M2-CA-2 | Platform adaptörleri (Upwork GraphQL, Freelancer REST, Fiverr/Bionluk/LinkedIn browser) | Tamamlandı (2026-02-13) |
-| M2-CA-3 | AI entegrasyonu (OpenAI proposal üretimi, PersonaEngine) | Tamamlandı (2026-02-13) |
-| M2-CA-4 | Telegram bildirim botu + onay workflow | Tamamlandı (2026-02-13) |
-| M2-CA-5 | CLI aracı (discover, score, apply, status, profile, approve) + 63 test | Tamamlandı (2026-02-13) |
-| M2-CA-6 | Platform API credential'ları + gerçek entegrasyon testi | Başlanmadı |
-| M2-CA-7 | AKIS AgentFactory entegrasyonu (CareerAgent olarak kayıt) | Başlanmadı |
 
 ### S0.5.4 Spike: AKIS Workstream Marketplace MVP
 
@@ -241,7 +226,6 @@
 | [`docs/planning/RAG_INTEGRATION_PLAN_M2.md`](planning/RAG_INTEGRATION_PLAN_M2.md) | M2 RAG entegrasyon planı |
 | [`docs/PROJECT_TRACKING_BASELINE.md`](PROJECT_TRACKING_BASELINE.md) | Geçmiş takvim çapası |
 | [`docs/deploy/OCI_STAGING_RUNBOOK.md`](deploy/OCI_STAGING_RUNBOOK.md) | Staging operasyonları |
-| [`carreer_assistant/docs/CAREER_ASSISTANT_SPEC.md`](../carreer_assistant/docs/CAREER_ASSISTANT_SPEC.md) | Career Assistant + Freelance Automation (M2+ spike) |
 | [`docs/marketplace/PRD.md`](marketplace/PRD.md) | AKIS Workstream Marketplace MVP ürün/mimari paketi |
 
 ---

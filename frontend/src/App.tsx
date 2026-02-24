@@ -76,8 +76,6 @@ const AgentsHubPage = lazy(() => import('./pages/dashboard/agents/AgentsHubPage'
 const DashboardAgentTracePage = lazy(() => import('./pages/dashboard/agents/trace/index'));
 const DashboardAgentProtoPage = lazy(() => import('./pages/dashboard/agents/proto/index'));
 const DashboardAgentStudioPage = lazy(() => import('./pages/dashboard/agents/studio/index'));
-const SmartAutomationsPage = lazy(() => import('./pages/dashboard/agents/smart-automations/SmartAutomationsPage'));
-const AutomationDetailPage = lazy(() => import('./pages/dashboard/agents/smart-automations/AutomationDetailPage'));
 const CrewRunPage = lazy(() => import('./pages/dashboard/agents/CrewRunPage'));
 const DashboardRAGPage = lazy(() => import('./pages/dashboard/DashboardRAGPage'));
 const LogsPage = lazy(() => import('./pages/dashboard/LogsPage'));
@@ -163,28 +161,6 @@ function App() {
               <ProtectedRoute>
                 <Suspense fallback={<PageLoader />}>
                   <CrewRunPage />
-                </Suspense>
-              </ProtectedRoute>
-            }
-          />
-
-          {/* Smart Automations - standalone route (no AgentsLayout) */}
-          <Route
-            path="/agents/smart-automations"
-            element={
-              <ProtectedRoute>
-                <Suspense fallback={<PageLoader />}>
-                  <SmartAutomationsPage />
-                </Suspense>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/agents/smart-automations/:id"
-            element={
-              <ProtectedRoute>
-                <Suspense fallback={<PageLoader />}>
-                  <AutomationDetailPage />
                 </Suspense>
               </ProtectedRoute>
             }

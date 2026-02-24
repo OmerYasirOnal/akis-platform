@@ -385,7 +385,6 @@ uvicorn main:app --host 0.0.0.0 --port 8000
 ./scripts/clean-env.sh   # __pycache__, .pytest_cache, .egg-info temizler
 ```
 
-> 📖 **Detaylı Bilgi**: [piri/README.md](../piri/README.md)
 
 ---
 
@@ -538,7 +537,6 @@ Not:
 | `PIRI_RERANKING` | Cross-encoder reranking aktif mi | `true` |
 | `PIRI_EMBEDDING_MODEL` | Embedding modeli | `intfloat/multilingual-e5-small` |
 
-> Piri Docker Compose overlay ile eklenir: `docker compose -f docker-compose.yml -f docker-compose.piri.yml up -d`
 
 ### Marketplace Feature Flag (MVP)
 

@@ -71,10 +71,10 @@ AKIS Workstream helps unemployed or displaced professionals find paid freelance 
 - Proposal-to-interview conversion proxy.
 
 ## 10. Research-Backed Product Decisions
-- Matching modes and fairness budget design are grounded in `carreer_assistant/marketplace-research/01_MATCHING_MECHANISMS.md`.
-- Retrieval/rerank architecture direction is grounded in `carreer_assistant/marketplace-research/02_JOB_RECSYS_AND_SKILLS_MATCHING.md`.
-- Explanation schema and transparency requirements are grounded in `carreer_assistant/marketplace-research/03_FAIRNESS_TRANSPARENCY_EXPLAINABILITY.md`.
-- Governance, audit, and metric policy are grounded in `carreer_assistant/marketplace-research/04_PLATFORM_WORK_GOVERNANCE_AND_MEASUREMENT.md`.
+- Matching modes and fairness budget design follow the M2 architecture decisions documented in this repository.
+- Retrieval/rerank architecture direction follows the current RAG and marketplace plans in `docs/planning`.
+- Explanation schema and transparency requirements follow the trust and verification guidelines under `docs/`.
+- Governance, audit, and metric policy follow the canonical delivery and QA documents.
 
 ## 11. Open Questions / TODO
 - TODO: Final legal policy per connector platform must be confirmed before any non-manual ingestion mode.

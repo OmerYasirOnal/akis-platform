@@ -12,7 +12,6 @@ import {
   type PlanCandidate as ApiPlanCandidate,
 } from '../../../services/api/conversations';
 import { githubDiscoveryApi, type GitHubRepo, type GitHubBranch } from '../../../services/api/github-discovery';
-import { smartAutomationsApi } from '../../../services/api/smart-automations';
 import { integrationsApi } from '../../../services/api/integrations';
 import { getMultiProviderStatus, type AIKeyProvider } from '../../../services/api/ai-keys';
 import type { ApiError } from '../../../services/api/HttpClient';
@@ -24,9 +23,10 @@ import {
   ConfidenceIndicator,
   FreshnessLabel,
 } from '../../../components/agents/verification';
+import EmptyState from '../../../components/common/EmptyState';
 
 interface AgentDefinition {
-  id: AgentType | 'smart-automations';
+  id: AgentType;
   name: string;
   description: string;
   icon: React.ReactNode;
@@ -60,7 +60,7 @@ interface ChatMessage {
   isThinking?: boolean;
 }
 
-type SessionKind = 'scribe' | 'trace' | 'proto' | 'automation';
+type SessionKind = 'scribe' | 'trace' | 'proto';
 
 interface ChatSession {
   id: string;
@@ -157,12 +157,6 @@ const ProtoIcon = () => (
   </svg>
 );
 
-const AutomationIcon = () => (
-  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12a7.5 7.5 0 0015 0m-15 0a7.5 7.5 0 1115 0m-15 0H3m16.5 0H21m-1.5 0H12m-8.457 3.077l1.41-.513m14.095-5.13l1.41-.513M5.106 17.785l1.15-.964m11.49-9.642l1.149-.964M7.501 19.795l.75-1.3m7.5-12.99l.75-1.3m-6.063 16.658l.26-1.477m2.605-14.772l.26-1.477m0 17.726l-.26-1.477M10.698 4.614l-.26-1.477M16.5 19.794l-.75-1.299M7.5 4.205L12 12m6.894 5.785l-1.149-.964M6.256 7.178l-1.15-.964m15.352 8.864l-1.41-.513M4.954 9.435l-1.41-.514M12.002 12l-3.75 6.495" />
-  </svg>
-);
-
 const SendIcon = () => (
   <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
     <path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
@@ -212,16 +206,6 @@ const builtInAgents: AgentDefinition[] = [
     inputPlaceholder: 'Describe what you want to build...\n\nExample: "A REST API with user auth, PostgreSQL, and Docker setup"',
     inputLabel: 'Requirements',
   },
-  {
-    id: 'smart-automations',
-    name: 'Akıllı Otomasyonlar',
-    description: 'RSS kaynaklarından günlük LinkedIn içeriği oluşturun.',
-    icon: <AutomationIcon />,
-    capabilities: ['RSS kaynak takibi', 'AI ile özetleme', 'LinkedIn taslağı', 'Slack bildirimi'],
-    status: 'available',
-    color: 'cyan-400',
-    requiresInput: false,
-  },
 ];
 
 const PHASE_LABELS: Record<string, { icon: string; label: string }> = {
@@ -242,18 +226,15 @@ function getAgentColor(id: string) {
     case 'scribe': return { bg: 'bg-ak-primary/10', text: 'text-ak-primary' };
     case 'trace': return { bg: 'bg-blue-500/10', text: 'text-blue-400' };
     case 'proto': return { bg: 'bg-purple-500/10', text: 'text-purple-400' };
-    case 'smart-automations': return { bg: 'bg-cyan-500/10', text: 'text-cyan-400' };
     default: return { bg: 'bg-ak-primary/10', text: 'text-ak-primary' };
   }
 }
 
 function getSessionKind(agentId: AgentDefinition['id']): SessionKind {
-  if (agentId === 'smart-automations') return 'automation';
   return agentId;
 }
 
 function getSessionTypeLabel(kind: SessionKind): string {
-  if (kind === 'automation') return 'AUTOMATION';
   return kind.toUpperCase();
 }
 
@@ -280,7 +261,6 @@ function safeSaveSessions(sessions: ChatSession[]) {
 }
 
 function getSessionIcon(kind: SessionKind) {
-  if (kind === 'automation') return <AutomationIcon />;
   if (kind === 'trace') return <TraceIcon />;
   if (kind === 'proto') return <ProtoIcon />;
   return <ScribeIcon />;
@@ -987,8 +967,7 @@ export default function AgentsHubPage() {
 
   const handleRunAgent = async (extraInput?: string) => {
     if (!selectedAgent || selectedAgent.status !== 'available') return;
-    const isAutomationAgent = selectedAgent.id === 'smart-automations';
-    if (!isAutomationAgent && (!githubConnected || !selectedRepo || !selectedBranch)) return;
+    if (!githubConnected || !selectedRepo || !selectedBranch) return;
 
     if (selectedAgent.requiresInput && !extraInput?.trim()) {
       setJobError(
@@ -1012,65 +991,16 @@ export default function AgentsHubPage() {
       role: 'user',
       content: extraInput?.trim()
         ? extraInput.trim()
-        : isAutomationAgent
-          ? `Run ${selectedAgent.name}`
-          : `Run ${selectedAgent.name} on ${githubUser}/${selectedRepo} (${selectedBranch})`,
+        : `Run ${selectedAgent.name} on ${githubUser}/${selectedRepo} (${selectedBranch})`,
     });
 
     appendMessageToSession(sessionId, {
       role: 'agent',
-      content: isAutomationAgent ? tx('agentsHub.automationStarting') : 'Starting agent...',
+      content: 'Starting agent...',
       phase: 'thinking',
     });
 
     try {
-      if (isAutomationAgent) {
-        const list = await smartAutomationsApi.list();
-        const needle = extraInput?.trim().toLowerCase();
-        const target = needle
-          ? list.find((automation) =>
-              automation.name.toLowerCase().includes(needle) ||
-              automation.topics.some((topic) => topic.toLowerCase().includes(needle))
-            ) ?? list.find((automation) => automation.enabled) ?? list[0]
-          : list.find((automation) => automation.enabled) ?? list[0];
-
-        if (!target) {
-          throw new Error(tx('agentsHub.noAutomationFound'));
-        }
-
-        appendMessageToSession(sessionId, {
-          role: 'agent',
-          content: `${tx('agentsHub.automationSelected')}: ${target.name}`,
-          phase: 'discovery',
-        });
-
-        const run = await smartAutomationsApi.runNow(target.id);
-        if (!run.success) {
-          throw new Error(run.error || 'Automation run failed');
-        }
-
-        appendMessageToSession(sessionId, {
-          role: 'agent',
-          content: `${tx('agentsHub.automationRunStarted')} (${run.runId.slice(0, 8)}) • ${target.name}`,
-          phase: 'done',
-          isSuccess: true,
-          automationId: target.id,
-          automationRunId: run.runId,
-        });
-
-        upsertSession(sessionId, (session) => ({
-          ...session,
-          automationId: target.id,
-          automationRunId: run.runId,
-          updatedAt: Date.now(),
-        }));
-        setIsRunning(false);
-        notifyUser(tx('agentsHub.notification.completed'), 'success');
-        finalizeCandidateBuild(sessionId, true);
-        runNextQueuedItem(sessionId);
-        return;
-      }
-
       // Use the tracked activeProvider state instead of re-fetching
       // This ensures consistency between displayed models and submitted provider
       let aiProvider: AIKeyProvider | undefined = activeProvider || undefined;
@@ -1453,12 +1383,11 @@ export default function AgentsHubPage() {
     (job) => job.payload?.owner === githubUser && job.payload?.repo === selectedRepo
   );
 
-  const isAutomationSelected = selectedAgent.id === 'smart-automations';
   const hasRepoContext = githubConnected && Boolean(selectedRepo) && Boolean(selectedBranch);
   const canRun = selectedAgent.status === 'available' &&
                  !isRunning &&
-                 (isAutomationSelected || hasRepoContext) &&
-                 (isAutomationSelected || !existingRunningJob);
+                 hasRepoContext &&
+                 !existingRunningJob;
   const canSend = userInput.trim().length > 0 && (canRun || isRunning);
 
   const agentColor = getAgentColor(selectedAgent.id);
@@ -1638,7 +1567,19 @@ export default function AgentsHubPage() {
               </button>
             </div>
             {chatSessions.length === 0 ? (
-              <p className="px-2 text-[11px] text-ak-text-secondary/60">{tx('agentsHub.noConversations')}</p>
+              <EmptyState
+                className="py-6"
+                title={tx('agentsHub.noConversations')}
+                primaryAction={
+                  <Button
+                    size="sm"
+                    variant="primary"
+                    onClick={() => createSession(selectedAgent, userInput)}
+                  >
+                    {tx('agentsHub.newConversation')}
+                  </Button>
+                }
+              />
             ) : (
               <div className="space-y-0.5">
                 {chatSessions.map((session) => {
@@ -1788,15 +1729,13 @@ export default function AgentsHubPage() {
                 Advanced Console
               </Link>
             )}
-            {selectedAgent.id !== 'smart-automations' && (
-              <Button
-                variant="secondary"
-                className="!px-2.5 !py-1.5 !text-xs"
-                onClick={() => setShowSettingsDrawer(true)}
-              >
-                Settings
-              </Button>
-            )}
+            <Button
+              variant="secondary"
+              className="!px-2.5 !py-1.5 !text-xs"
+              onClick={() => setShowSettingsDrawer(true)}
+            >
+              Settings
+            </Button>
             {currentJob && (
               <Link
                 to={`/dashboard/jobs/${currentJob.id}`}
@@ -1816,17 +1755,7 @@ export default function AgentsHubPage() {
           {/* Config Panel (collapsible) */}
           {showConfig && (
             <div className="rounded-xl border border-ak-border bg-ak-surface p-4 mb-4">
-              {isAutomationSelected ? (
-                <div className="space-y-2">
-                  <p className="text-sm font-medium text-ak-text-primary">{tx('agentsHub.automationExecutionTitle')}</p>
-                  <p className="text-xs text-ak-text-secondary">
-                    {tx('agentsHub.automationExecutionHint')}
-                  </p>
-                  <p className="text-[11px] text-ak-text-secondary/70">
-                    {tx('agentsHub.automationExecutionHint2')}
-                  </p>
-                </div>
-              ) : !githubConnected ? (
+              {!githubConnected ? (
                 <div className="flex items-center gap-3 p-3 rounded-lg bg-amber-500/[0.08] border border-amber-500/20">
                   <span className="text-amber-400 text-sm font-medium">!</span>
                   <div>
@@ -1897,7 +1826,7 @@ export default function AgentsHubPage() {
                 </div>
               )}
 
-              {!isAutomationSelected && existingRunningJob && (
+              {existingRunningJob && (
                 <div className="mt-3 flex items-center gap-2 p-2.5 rounded-lg bg-amber-500/[0.06] border border-amber-500/15">
                   <div className="h-1.5 w-1.5 rounded-full bg-amber-400 animate-pulse" />
                   <span className="text-xs text-amber-300">Agent already running for this repo</span>
@@ -2074,14 +2003,6 @@ export default function AgentsHubPage() {
                     View Full Results
                   </Link>
                 )}
-                {msg.automationId && msg.automationRunId && (
-                  <Link
-                    to={`/agents/smart-automations/${msg.automationId}?runId=${msg.automationRunId}`}
-                    className="inline-flex items-center gap-1 mt-2 text-xs font-medium text-ak-primary hover:text-ak-primary/80 transition-colors"
-                  >
-                    {tx('agentsHub.openAutomationRun')}
-                  </Link>
-                )}
                 <span className="block mt-1 text-[10px] text-ak-text-secondary/40">
                   {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
                 </span>
@@ -2107,7 +2028,7 @@ export default function AgentsHubPage() {
                   </span>
                 ))}
               </div>
-              {!selectedAgent.requiresInput && (isAutomationSelected || (githubConnected && selectedRepo)) && (
+              {!selectedAgent.requiresInput && githubConnected && selectedRepo && (
                 <Button
                   onClick={() => handleRunAgent()}
                   disabled={!canRun}
@@ -2153,7 +2074,7 @@ export default function AgentsHubPage() {
                 onChange={(e) => setUserInput(e.target.value)}
                 onKeyDown={handleKeyDown}
                 placeholder={
-                  !isAutomationSelected && !githubConnected ? 'Connect GitHub first...' :
+                  !githubConnected ? 'Connect GitHub first...' :
                   selectedAgent.inputPlaceholder || `Message ${selectedAgent.name}...`
                 }
                 rows={1}
@@ -2238,7 +2159,7 @@ export default function AgentsHubPage() {
               {showConfig ? 'Hide' : 'Show'} configuration
             </button>
             <div className="flex items-center gap-3 text-[11px] text-ak-text-secondary/40">
-              {!isAutomationSelected && selectedRepo && <span>{githubUser}/{selectedRepo}</span>}
+              {selectedRepo && <span>{githubUser}/{selectedRepo}</span>}
               {isRunning && (
                 <span className="rounded bg-ak-surface px-2 py-0.5 text-[10px] text-ak-text-secondary">
                   {tx('agentsHub.steer.runningHint')}
@@ -2328,20 +2249,18 @@ export default function AgentsHubPage() {
           </div>
         </div>
       )}
-      {selectedAgent.id !== 'smart-automations' && (
-        <AgentRuntimeSettingsDrawer
-          open={showSettingsDrawer}
-          agentType={selectedAgent.id}
-          onClose={() => setShowSettingsDrawer(false)}
-          onSaved={(next) =>
-            setRuntimeOverride({
-              runtimeProfile: next.runtimeProfile,
-              temperatureValue: next.temperatureValue,
-              commandLevel: next.commandLevel,
-            })
-          }
-        />
-      )}
+      <AgentRuntimeSettingsDrawer
+        open={showSettingsDrawer}
+        agentType={selectedAgent.id}
+        onClose={() => setShowSettingsDrawer(false)}
+        onSaved={(next) =>
+          setRuntimeOverride({
+            runtimeProfile: next.runtimeProfile,
+            temperatureValue: next.temperatureValue,
+            commandLevel: next.commandLevel,
+          })
+        }
+      />
     </div>
   );
 }
