@@ -6,7 +6,6 @@
 This checklist ensures repeatable, reliable staging deployments.
 
 > **Related**:
-> - [Smoke Test Checklist](../deploy/STAGING_SMOKE_TEST_CHECKLIST.md) — Detailed pass/fail criteria
 > - [Ops Smoke Checklist](../ops/STAGING_SMOKE_CHECKLIST.md) — Concise A-G post-deploy smoke flow
 > - [Rollback Runbook](../deploy/STAGING_ROLLBACK_RUNBOOK.md) — When and how to rollback
 > - [OCI Staging Runbook](../deploy/OCI_STAGING_RUNBOOK.md) — Full operations guide
