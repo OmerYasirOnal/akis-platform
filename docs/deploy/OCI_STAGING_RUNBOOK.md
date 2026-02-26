@@ -6,7 +6,7 @@
 **Target**: OCI Free Tier (single VM)
 
 > **Quick Reference**: For day-to-day releases, see the [Staging Release Checklist](../release/STAGING_RELEASE_CHECKLIST.md).
-> **Smoke Tests**: See [STAGING_SMOKE_TEST_CHECKLIST.md](STAGING_SMOKE_TEST_CHECKLIST.md) for pass/fail criteria.
+> **Smoke Tests**: See [../ops/STAGING_SMOKE_CHECKLIST.md](../ops/STAGING_SMOKE_CHECKLIST.md) for pass/fail criteria.
 > **Rollback**: See [STAGING_ROLLBACK_RUNBOOK.md](STAGING_ROLLBACK_RUNBOOK.md) for dedicated rollback procedures.
 >
 > **Note**: This is the canonical staging runbook. Legacy duplicates (`RUNBOOK_OCI.md`, `ops/STAGING_RUNBOOK.md`) have been archived.
@@ -73,7 +73,7 @@ Merge documentation updates **before** deployment workflow changes to ensure:
 |-------|-----------|----------|---------------|
 | 1 | Domain Strategy | `docs/deploy/AKISFLOW_DOMAIN_STRATEGY.md` | None |
 | 2 | Staging Runbook | `docs/deploy/OCI_STAGING_RUNBOOK.md` | Domain Strategy |
-| 3 | QA Smoke Pack | `docs/qa/QA_EVIDENCE_STAGING_SMOKE_PACK.md` | Runbook |
+| 3 | Ops Smoke Checklist | `docs/ops/STAGING_SMOKE_CHECKLIST.md` | Runbook |
 | 4 | Deployment Scaffolding | `deploy/oci/staging/*` | Runbook |
 | 5 | CI/CD Workflow | `.github/workflows/oci-staging-deploy.yml` | All above |
 

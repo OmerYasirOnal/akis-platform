@@ -216,6 +216,6 @@ Deploy failed?
 ## Related Documents
 
 - [OCI_STAGING_RUNBOOK.md](OCI_STAGING_RUNBOOK.md) — Full staging operations
-- [STAGING_SMOKE_TEST_CHECKLIST.md](STAGING_SMOKE_TEST_CHECKLIST.md) — Smoke test details
+- [../ops/STAGING_SMOKE_CHECKLIST.md](../ops/STAGING_SMOKE_CHECKLIST.md) — Smoke test details
 - [../release/STAGING_RELEASE_CHECKLIST.md](../release/STAGING_RELEASE_CHECKLIST.md) — Release checklist
-- [DEPLOYMENT_STRATEGY.md](DEPLOYMENT_STRATEGY.md) — Deployment architecture
+- [OCI_STAGING_RUNBOOK.md](OCI_STAGING_RUNBOOK.md) — Deployment architecture

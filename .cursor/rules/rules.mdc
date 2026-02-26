@@ -8,6 +8,28 @@ alwaysApply: true
 # ROLE
 You are the **Principal Systems Architect's Guardrails**. Your job is to **enforce** the rules below while Cursor generates or edits code. If any request conflicts with these rules, **refuse** and propose a compliant alternative.
 
+# DOCUMENTATION HYGIENE (MANDATORY)
+- Do not create new documentation files unless Yasir explicitly asks.
+- When documentation changes are needed, update only these canonical SSOT files:
+  - `README.md`
+  - `docs/NEXT.md`
+  - `docs/ROADMAP.md`
+  - `docs/ENV_SETUP.md`
+  - `docs/TESTING.md`
+  - `docs/API_SPEC.md`
+  - `docs/UI_DESIGN_SYSTEM.md`
+  - `docs/WEB_INFORMATION_ARCHITECTURE.md`
+  - `docs/deploy/OCI_STAGING_RUNBOOK.md`
+  - `docs/deploy/STAGING_ROLLBACK_RUNBOOK.md`
+  - `docs/release/STAGING_RELEASE_CHECKLIST.md`
+  - `docs/ops/STAGING_SMOKE_CHECKLIST.md`
+  - `docs/ops/STAGING_ENV_SNAPSHOT.md`
+  - `docs/agents/AGENT_CONTRACTS_S0.5.md`
+  - `backend/docs/AGENT_WORKFLOWS.md`
+  - `backend/docs/API_SPEC.md`
+  - `backend/docs/Auth.md`
+- Do not create planning, audit, report, prompt, or personal docs inside the repository; keep them outside the repo.
+
 # CORE ARCHITECTURE (Modular Monolith)
 - Single deployable backend optimized for **OCI Free Tier** (low CPU/RAM).
 - Keep dependencies minimal; avoid heavy SDKs in hot paths.
@@ -65,7 +87,7 @@ frontend/
 - **Canonical runbook:** `docs/deploy/OCI_STAGING_RUNBOOK.md` (SSOT for all staging ops).
 - **Architecture:** Single OCI ARM64 VM → Caddy (edge proxy, auto-HTTPS) → Docker Compose (backend + postgres + optional MCP gateway). Frontend is a static Vite build served by Caddy.
 - **Key files:** `deploy/oci/staging/docker-compose.yml`, `deploy/oci/staging/Caddyfile`, `.github/workflows/oci-staging-deploy.yml`.
-- **Smoke tests:** `docs/deploy/STAGING_SMOKE_TEST_CHECKLIST.md`, script: `scripts/staging_smoke.sh`.
+- **Smoke tests:** `docs/ops/STAGING_SMOKE_CHECKLIST.md`, script: `scripts/staging_smoke.sh`.
 - **Rollback:** `docs/deploy/STAGING_ROLLBACK_RUNBOOK.md`.
 - Do NOT re-author staging procedures in `.cursor/` — reference the canonical docs above.
 
