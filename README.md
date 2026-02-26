@@ -170,7 +170,7 @@ pnpm -C frontend dev
 # → http://localhost:5173 (proxies /api to backend:3000)
 ```
 
-For detailed setup: [`docs/local-dev/LOCAL_DEV_QUICKSTART.md`](docs/local-dev/LOCAL_DEV_QUICKSTART.md)
+For setup details: [`docs/ENV_SETUP.md`](docs/ENV_SETUP.md)
 
 ---
 
@@ -198,16 +198,14 @@ pnpm -C frontend test:e2e
 |-------|------|
 | Current sprint status | [`docs/NEXT.md`](docs/NEXT.md) |
 | Roadmap & milestones | [`docs/ROADMAP.md`](docs/ROADMAP.md) |
-| Local dev quickstart | [`docs/local-dev/LOCAL_DEV_QUICKSTART.md`](docs/local-dev/LOCAL_DEV_QUICKSTART.md) |
 | Environment variables | [`docs/ENV_SETUP.md`](docs/ENV_SETUP.md) |
 | API specification | [`backend/docs/API_SPEC.md`](backend/docs/API_SPEC.md) |
 | Agent contracts | [`docs/agents/AGENT_CONTRACTS_S0.5.md`](docs/agents/AGENT_CONTRACTS_S0.5.md) |
 | Agent workflows | [`backend/docs/AGENT_WORKFLOWS.md`](backend/docs/AGENT_WORKFLOWS.md) |
-| Context packs design | [`docs/agents/CONTEXT_PACKS.md`](docs/agents/CONTEXT_PACKS.md) |
 | Staging runbook | [`docs/deploy/OCI_STAGING_RUNBOOK.md`](docs/deploy/OCI_STAGING_RUNBOOK.md) |
-| Smoke test checklist | [`docs/deploy/STAGING_SMOKE_TEST_CHECKLIST.md`](docs/deploy/STAGING_SMOKE_TEST_CHECKLIST.md) |
-| Regression checklist | [`docs/qa/REGRESSION_CHECKLIST.md`](docs/qa/REGRESSION_CHECKLIST.md) |
-| Graduation evidence | [`docs/qa/GRADUATION_EVIDENCE.md`](docs/qa/GRADUATION_EVIDENCE.md) |
+| Rollback runbook | [`docs/deploy/STAGING_ROLLBACK_RUNBOOK.md`](docs/deploy/STAGING_ROLLBACK_RUNBOOK.md) |
+| Release checklist | [`docs/release/STAGING_RELEASE_CHECKLIST.md`](docs/release/STAGING_RELEASE_CHECKLIST.md) |
+| Smoke checklist | [`docs/ops/STAGING_SMOKE_CHECKLIST.md`](docs/ops/STAGING_SMOKE_CHECKLIST.md) |
 
 ---
 

@@ -53,7 +53,7 @@ const baseJob = {
   ],
   artifacts: [
     { id: 'a1', artifactType: 'doc_read', path: 'src/index.ts', operation: 'read', createdAt: '2026-01-30T10:01:00Z' },
-    { id: 'a2', artifactType: 'file_created', path: 'docs/README.md', operation: 'create', createdAt: '2026-01-30T10:03:00Z' },
+    { id: 'a2', artifactType: 'file_created', path: 'docs/NEXT.md', operation: 'create', createdAt: '2026-01-30T10:03:00Z' },
   ],
   ai: { summary: { totalTokens: 5000 } },
 };
