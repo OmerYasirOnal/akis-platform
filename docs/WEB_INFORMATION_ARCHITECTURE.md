@@ -3,7 +3,7 @@
 **Doküman Versiyonu:** v1.1  
 **Hazırlanma Tarihi:** Kasım 2025  
 **Amaç:** AKIS Platform web sitesinin kapsamlı bilgi mimarisi, sayfa yapıları ve kullanıcı akışları
-**Güncelleme Notu (Phase 9.1):** Solid dark hero, ak-surface-2 kart desenleri ve /login + /signup karanlık temalarıyla güncellendi.
+**Güncelleme Notu (Phase 9.1):** Solid dark hero, ak-surface-2 kart pattern'leri ve /login + /signup karanlık temalarıyla güncellendi.
 **Güncelleme Notu (S0.5.3):** Agent rotaları `/dashboard/agents/*` yerine `/agents/*` kanonik olarak güncellendi.
 
 ---

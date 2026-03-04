@@ -27,6 +27,6 @@ pnpm -C frontend test
 
 ## Staging Doğrulama
 
-- Release süreci: `docs/release/STAGING_RELEASE_CHECKLIST.md`
-- Smoke kontrolleri: `docs/ops/STAGING_SMOKE_CHECKLIST.md`
-- Rollback adımları: `docs/deploy/STAGING_ROLLBACK_RUNBOOK.md`
+- Release process: `docs/release/STAGING_RELEASE_CHECKLIST.md`
+- Smoke checks: `docs/ops/STAGING_SMOKE_CHECKLIST.md`
+- Rollback steps: `docs/deploy/STAGING_ROLLBACK_RUNBOOK.md`

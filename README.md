@@ -68,11 +68,22 @@ Her agent **Plan → Execute → Reflect** hattını izler; deterministik prompt
 
 ### Önemli Tasarım Kararları
 
-- **Sadece MCP entegrasyonları** — Harici servislere yalnızca Model Context Protocol adaptörleri üzerinden erişilir. Octokit, jira-client yok.
-- **Orchestrator deseni** — `AgentOrchestrator` agent yaşam döngüsünün tamamına sahiptir. Agentlar birbirini çağırmaz.
-- **FSM state machine** — Job'lar `pending → running → completed | failed | awaiting_approval` akışını izler.
-- **Contract-first agentlar** — Her agentın `Contract` + `Playbook` vardır. Promptlar deterministik (temp=0).
-- **Context packs** — Agent başına statik, deterministik dosya paketleri. Debug edilebilir, token verimli.
+- **Sadece MCP entegrasyonları** — Agent işlemleri (repo, commit, PR, Jira ticket vb.) yalnızca MCP adaptörleri üzerinden yapılır. Octokit, jira-client SDK yok. OAuth ve bağlantı testleri için gerekli minimal HTTP çağrıları hariç.
+- **Orchestrator pattern** — `AgentOrchestrator`, agent yaşam döngüsünün tamamına sahiptir. Agentlar birbirini çağırmaz.
+- **FSM (Finite State Machine)** — Job'lar `pending → running → completed | failed | awaiting_approval` akışını izler.
+- **Contract-first agentlar** — Her agentın `Contract` + `Playbook` vardır. Promptlar deterministik (temp=0: AI sıcaklık parametresi, tekrarlanabilir çıktı).
+- **Context packs** — Agent başına statik dosya paketleri; repodan seçilen dosyalar AI'ya bağlam olarak verilir. Token verimli, debug edilebilir.
+
+### Terimler
+
+| Terim | Açıklama |
+|-------|----------|
+| **FSM** (Finite State Machine) | Sonlu durum makinesi; job'ların pending → running → completed/failed akışını yönetir |
+| **Job** | Bir agent çalıştırması; kullanıcının tetiklediği tek bir görev (örn. Scribe ile doküman üretimi) |
+| **SSE** (Server-Sent Events) | Sunucudan istemciye tek yönlü gerçek zamanlı veri akışı; job ilerlemesi canlı izlenir |
+| **temp=0** | AI model sıcaklık parametresi; 0 = deterministik, tekrarlanabilir çıktı |
+| **Contract-first** | Her agentın girdi/çıktı şeması (Contract) ve faz tanımları (Playbook) vardır; çıktı doğrulanabilir |
+| **Context packs** | Agent başına statik dosya paketleri; repodan seçilen dosyalar AI'ya bağlam olarak verilir, token verimli ve debug edilebilir |
 
 ---
 
@@ -114,15 +125,15 @@ Her agent **Plan → Execute → Reflect** hattını izler; deterministik prompt
 - 6 haneli doğrulama kodlarıyla çok adımlı e-posta/şifre kimlik doğrulama
 - OAuth giriş (GitHub, Google) ve hoş geldin e-postası
 - 3 adımlı onboarding ile dashboard (GitHub bağla → AI anahtarı ekle → ilk agentı çalıştır)
-- Sayfalama, filtreleme ve gerçek zamanlı SSE streaming ile job geçmişi
+- Sayfalama, filtreleme ve gerçek zamanlı SSE (Server-Sent Events) streaming ile job (agent çalıştırması) geçmişi
 - Agents Hub — tüm agentlar için merkezi keşif sayfası
 - Geri bildirim widget'ı (yüzen buton, puan + mesaj)
 - i18n desteği (İngilizce + Türkçe, ~500 anahtar)
-- Error envelope deseni ile standart hata yönetimi
+- Error envelope pattern ile standart hata yönetimi
 
 ### Agent Sistemi
 - FSM yaşam döngüsü yönetimi ile AgentOrchestrator
-- Agent örneklemesi için Factory + Registry deseni
+- Agent örneklemesi için Factory + Registry pattern
 - Agent başına faz tanımları ile Playbook sistemi
 - Plan → Execute → Reflect/Critique hattı
 - Tamamlandıktan sonra 0–100 kalite skoru
