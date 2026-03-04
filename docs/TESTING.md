@@ -1,8 +1,8 @@
-# Testing Guide (Canonical)
+# Test Rehberi (Canonical)
 
-## Required Quality Gates
+## Zorunlu Kalite Kapıları
 
-Run these from repository root:
+Reponun kökünden çalıştırın:
 
 ```bash
 pnpm -r typecheck
@@ -11,7 +11,7 @@ pnpm -r build
 pnpm -r test
 ```
 
-## Package-Level Commands
+## Paket Bazlı Komutlar
 
 ### Backend
 
@@ -25,8 +25,8 @@ pnpm -C backend test
 pnpm -C frontend test
 ```
 
-## Staging Verification
+## Staging Doğrulama
 
-- Release process: `docs/release/STAGING_RELEASE_CHECKLIST.md`
-- Smoke checks: `docs/ops/STAGING_SMOKE_CHECKLIST.md`
-- Rollback steps: `docs/deploy/STAGING_ROLLBACK_RUNBOOK.md`
+- Release süreci: `docs/release/STAGING_RELEASE_CHECKLIST.md`
+- Smoke kontrolleri: `docs/ops/STAGING_SMOKE_CHECKLIST.md`
+- Rollback adımları: `docs/deploy/STAGING_ROLLBACK_RUNBOOK.md`

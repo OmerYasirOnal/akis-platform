@@ -1,41 +1,40 @@
 # Staging Smoke Checklist
 
-Use this right after each staging deploy.
+Her staging deploy'dan hemen sonra kullanın.
 
 ## A) Health
-- [ ] `GET /health` returns `200` and `{"status":"ok"}`
-- [ ] `GET /ready` returns `200` and `{"ready":true}`
-- [ ] `GET /version` returns `200` and expected commit/version
+- [ ] `GET /health` `200` ve `{"status":"ok"}` döner
+- [ ] `GET /ready` `200` ve `{"ready":true}` döner
+- [ ] `GET /version` `200` ve beklenen commit/version döner
 
 ## B) Auth
-- [ ] Login page loads without console/runtime errors
-- [ ] Valid login works and redirects to authenticated area
-- [ ] Invalid login shows expected error state (no crash)
-- [ ] Authenticated session survives one page refresh
+- [ ] Login sayfası konsol/runtime hatası olmadan yüklenir
+- [ ] Geçerli login çalışır ve kimlik doğrulanmış alana yönlendirir
+- [ ] Geçersiz login beklenen hata durumunu gösterir (crash yok)
+- [ ] Kimlik doğrulanmış oturum bir sayfa yenilemesinden sonra devam eder
 
-## C) Agents Lifecycle
-- [ ] Agents list page opens and primary cards are visible
-- [ ] Start one simple run (Scribe/Trace/Proto) successfully
-- [ ] Run transitions through expected states and completes/fails with visible status
-- [ ] Job detail page opens for the created run
+## C) Agent Yaşam Döngüsü
+- [ ] Agent listesi sayfası açılır ve birincil kartlar görünür
+- [ ] Bir basit çalıştırma (Scribe/Trace/Proto) başarıyla tamamlanır
+- [ ] Run beklenen durumlardan geçer ve görünür durumla tamamlanır/başarısız olur
+- [ ] Oluşturulan run için job detay sayfası açılır
 
 ## D) SSE
-- [ ] Job/event stream connects without repeated reconnect loops
-- [ ] Live updates appear during run progress
-- [ ] Stream closes/reconnects gracefully after completion
+- [ ] Job/event stream tekrarlayan reconnect döngüsü olmadan bağlanır
+- [ ] Run ilerlemesi sırasında canlı güncellemeler görünür
+- [ ] Stream tamamlandıktan sonra düzgün kapanır/yeniden bağlanır
 
-## E) Out-of-Scope Removal Verification
-- [ ] Out-of-scope navigation entries are absent in UI
-- [ ] `/agents/smart-automations` does not render feature content (404 or redirect acceptable)
-- [ ] No active API routes expose removed out-of-scope features
+## E) Kapsam Dışı Kaldırma Doğrulaması
+- [ ] Kapsam dışı navigasyon girişleri UI'da yok
+- [ ] `/agents/smart-automations` özellik içeriği render etmez (404 veya redirect kabul edilir)
+- [ ] Kaldırılan kapsam dışı özelliklere aktif API route'ları açık değil
 
-## F) Negative Tests
-- [ ] Unauthenticated call to protected endpoint returns 401/403 (not 500)
-- [ ] Unknown route returns 404 with standard error envelope
-- [ ] Invalid payload to one job endpoint returns validation error (not crash)
+## F) Negatif Testler
+- [ ] Korumalı endpoint'e kimlik doğrulanmamış çağrı 401/403 döner (500 değil)
+- [ ] Bilinmeyen route standart error envelope ile 404 döner
+- [ ] Bir job endpoint'ine geçersiz payload validation hatası döner (crash değil)
 
-## G) Logs
-- [ ] Backend logs contain no new error burst after deploy
-- [ ] No recurring unhandled exceptions during smoke run
-- [ ] Request and job logs include expected identifiers (`requestId`, `jobId`)
-
+## G) Loglar
+- [ ] Backend logları deploy sonrası yeni hata patlaması içermez
+- [ ] Smoke run sırasında tekrarlayan unhandled exception yok
+- [ ] Request ve job logları beklenen tanımlayıcıları içerir (`requestId`, `jobId`)

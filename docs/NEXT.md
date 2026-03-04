@@ -1,21 +1,22 @@
-# NEXT — S0.5 Execution Board
+# NEXT — S0.5 Yürütme Panosu
 
-Last updated: 2026-02-24
+Son güncelleme: 2026-03-04
 
-## Current Objective
+## Güncel Hedef
 
-- Keep pilot scope stable on staging.
-- Keep repository documentation minimal and canonical.
+- Pilot kapsamını staging ortamında kararlı tutmak.
+- Repo dokümantasyonunu minimal ve canonical tutmak.
 
-## S0.5 Operations Status
+## S0.5 Operasyon Durumu
 
-| ID | Task | Status | Notes |
+| ID | Görev | Durum | Notlar |
 |---|---|---|---|
-| S0.5.3-OPS-3 | Hard scope cleanup | Completed | Out-of-scope modules removed from repo. |
-| S0.5.3-OPS-4 | Tag retention + env snapshot guardrails | Completed | Permanent rollback tag preserved; staging snapshot process documented. |
-| S0.5.3-OPS-5 | Docs vault prune (move non-canonical docs outside repo) | Completed | Non-essential docs moved to local vault with structure preserved. |
+| S0.5.3-OPS-3 | Hard scope cleanup | Tamamlandı | Kapsam dışı modüller repodan kaldırıldı. |
+| S0.5.3-OPS-4 | Tag retention + env snapshot guardrails | Tamamlandı | Kalıcı rollback tag korundu; staging snapshot süreci dokümante edildi. |
+| S0.5.3-OPS-5 | Docs vault prune (canonical olmayan dokümanları repodan taşı) | Tamamlandı | Zorunlu olmayan dokümanlar yerel vault'a taşındı, yapı korundu. |
+| S0.5.4-DOC-1 | Dokümantasyon Türkçe-first politika | Tamamlandı | Canonical set Türkçe-primary; dil politikası README ve NEXT'te belirtildi. |
 
-## Canonical Documentation Set
+## Canonical Dokümantasyon Seti
 
 - `README.md`
 - `docs/NEXT.md`
@@ -35,8 +36,14 @@ Last updated: 2026-02-24
 - `backend/docs/API_SPEC.md`
 - `backend/docs/Auth.md`
 
-## Documentation Rules
+## Dokümantasyon Kuralları
 
-- Do not create new documentation files unless Yasir explicitly asks.
-- Update existing canonical files only.
-- Keep planning, audit, prompt, and report materials outside the repository.
+- Yasir açıkça istemedikçe yeni dokümantasyon dosyası oluşturma.
+- Sadece mevcut canonical dosyaları güncelle.
+- Planlama, denetim, prompt ve rapor materyallerini reponun dışında tut.
+
+## Dil Politikası
+
+- **Açıklama ve takip metinleri:** Türkçe.
+- **Teknik terimler, endpoint/path, komutlar:** İngilizce (JWT, MCP, SSE, FSM vb.).
+- **Agent prompt ve Cursor task blokları:** İngilizce.

@@ -1,42 +1,42 @@
 # AKIS Platform - OCI Staging Runbook
 
-**Version**: 1.8.0  
-**Last Updated**: 2026-02-09  
-**Scope**: Staging Environment (pilot-grade)  
-**Target**: OCI Free Tier (single VM)
+**Versiyon**: 1.8.0
+**Son Güncelleme**: 2026-02-09
+**Kapsam**: Staging Ortamı (pilot seviye)
+**Hedef**: OCI Free Tier (tek VM)
 
-> **Quick Reference**: For day-to-day releases, see the [Staging Release Checklist](../release/STAGING_RELEASE_CHECKLIST.md).
-> **Smoke Tests**: See [../ops/STAGING_SMOKE_CHECKLIST.md](../ops/STAGING_SMOKE_CHECKLIST.md) for pass/fail criteria.
-> **Rollback**: See [STAGING_ROLLBACK_RUNBOOK.md](STAGING_ROLLBACK_RUNBOOK.md) for dedicated rollback procedures.
+> **Hızlı Referans**: Günlük release'ler için [Staging Release Checklist](../release/STAGING_RELEASE_CHECKLIST.md)'e bakın.
+> **Smoke Testler**: Geçme/başarısız kriterleri için [../ops/STAGING_SMOKE_CHECKLIST.md](../ops/STAGING_SMOKE_CHECKLIST.md)'e bakın.
+> **Rollback**: Özel rollback prosedürleri için [STAGING_ROLLBACK_RUNBOOK.md](STAGING_ROLLBACK_RUNBOOK.md)'a bakın.
 >
-> **Note**: This is the canonical staging runbook. Legacy duplicates (`RUNBOOK_OCI.md`, `ops/STAGING_RUNBOOK.md`) have been archived.
-> **Security**: Never commit `backend/.env.staging` or any file containing real secrets to git.
+> **Not**: Bu canonical staging runbook'tur. Eski kopyalar (`RUNBOOK_OCI.md`, `ops/STAGING_RUNBOOK.md`) arşivlenmiştir.
+> **Güvenlik**: `backend/.env.staging` veya gerçek secret içeren hiçbir dosyayı git'e commit etmeyin.
 
 ---
 
-## Table of Contents
+## İçindekiler
 
-1. [Overview](#1-overview)
-2. [Merge and Rollout Order](#2-merge-and-rollout-order)
-3. [Domain and TLS Configuration](#3-domain-and-tls-configuration)
-4. [Environment Variables and Secrets](#4-environment-variables-and-secrets)
-5. [Initial Setup Checklist](#5-initial-setup-checklist)
-6. [Deployment Procedures](#6-deployment-procedures)
-7. [Database Management](#7-database-management)
-8. [Backup and Recovery](#8-backup-and-recovery)
-9. [Monitoring and Logging](#9-monitoring-and-logging)
-10. [Incident Response](#10-incident-response)
-11. [Rollback Procedures](#11-rollback-procedures)
-12. [Promotion to Production](#12-promotion-to-production)
-13. [Security Checklist](#13-security-checklist)
+1. [Genel Bakış](#1-genel-bakış)
+2. [Merge ve Rollout Sırası](#2-merge-ve-rollout-sırası)
+3. [Domain ve TLS Yapılandırması](#3-domain-and-tls-configuration)
+4. [Ortam Değişkenleri ve Secret'lar](#4-environment-variables-and-secrets)
+5. [İlk Kurulum Checklist'i](#5-initial-setup-checklist)
+6. [Deployment Prosedürleri](#6-deployment-procedures)
+7. [Veritabanı Yönetimi](#7-database-management)
+8. [Backup ve Kurtarma](#8-backup-and-recovery)
+9. [İzleme ve Loglama](#9-monitoring-and-logging)
+10. [Olay Müdahalesi](#10-incident-response)
+11. [Rollback Prosedürleri](#11-rollback-procedures)
+12. [Production'a Yükseltme](#12-promotion-to-production)
+13. [Güvenlik Checklist'i](#13-security-checklist)
 
 ---
 
-## 1. Overview
+## 1. Genel Bakış
 
-### Scope and Constraints
+### Kapsam ve Kısıtlamalar
 
-This runbook covers **staging-first deployment** on OCI Free Tier with minimal dependencies:
+Bu runbook **staging-first deployment**'ı OCI Free Tier'da minimal bağımlılıklarla kapsar:
 
 | Constraint | Value |
 |------------|-------|

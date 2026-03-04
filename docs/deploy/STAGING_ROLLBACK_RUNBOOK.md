@@ -1,52 +1,52 @@
 # Staging Rollback Runbook
 
-**Version**: 1.1.0
-**Last Updated**: 2026-02-16
-**Scope**: Staging Environment (`staging.akisflow.com`)
+**Versiyon**: 1.1.0
+**Son Güncelleme**: 2026-02-16
+**Kapsam**: Staging Ortamı (`staging.akisflow.com`)
 
-> Extracted from [OCI_STAGING_RUNBOOK.md](OCI_STAGING_RUNBOOK.md) Section 10, with additional detail.
+> [OCI_STAGING_RUNBOOK.md](OCI_STAGING_RUNBOOK.md) Bölüm 10'dan çıkarıldı, ek detaylarla.
 
 ---
 
-## When to Rollback
+## Ne Zaman Rollback Yapılır
 
-| Trigger | Severity | Action |
+| Tetikleyici | Önem | Aksiyon |
 |---------|----------|--------|
-| Smoke test version mismatch | CRITICAL | Immediate rollback |
-| Health endpoint 503 after deploy | HIGH | Rollback within 5 minutes |
-| Frontend blank page | HIGH | Check Caddy first, then rollback |
-| Auth flow broken post-deploy | MEDIUM | Investigate, rollback if not fixable in 15 min |
-| Trace reproducibility <98% | HIGH | Feature-flag rollback + investigate drift |
-| Trace flake rate >2% (15m window) | HIGH | Feature-flag rollback + quarantine review |
-| Trace edge-case coverage <90% | HIGH | Stop enforce rollout, revert to observe |
-| Non-critical UI bug | LOW | Fix forward, no rollback needed |
+| Smoke test versiyon uyuşmazlığı | KRİTİK | Anında rollback |
+| Deploy sonrası health endpoint 503 | YÜKSEK | 5 dakika içinde rollback |
+| Frontend boş sayfa | YÜKSEK | Önce Caddy kontrol et, sonra rollback |
+| Deploy sonrası auth akışı bozuk | ORTA | İncele, 15 dk'da düzeltilemezse rollback |
+| Trace tekrarlanabilirlik <%98 | YÜKSEK | Feature-flag rollback + drift incelemesi |
+| Trace flake oranı >%2 (15dk pencere) | YÜKSEK | Feature-flag rollback + karantina incelemesi |
+| Trace edge-case kapsamı <%90 | YÜKSEK | Enforce rollout'u durdur, observe'a geri dön |
+| Kritik olmayan UI bug | DÜŞÜK | İleri düzelt, rollback gerekmez |
 
 ---
 
-## M2 Reliability Emergency Rollback
+## M2 Güvenilirlik Acil Rollback
 
 M2 güvenilirlik dalgası için en hızlı rollback yolu deploy rollback değil, feature-flag rollback'tir.
 
-| Domain | Env Flag | Safe Rollback Value |
+| Alan | Env Flag | Güvenli Rollback Değeri |
 |--------|----------|---------------------|
 | Contract enforcement | `AGENT_CONTRACT_ENFORCEMENT_MODE` | `observe` |
 | Verification gates rollout | `VERIFICATION_GATE_ROLLOUT_MODE` | `observe` |
 | Canary gating | `RELIABILITY_CANARY_ENABLED` | `false` |
-| Contract canary ratio | `AGENT_CONTRACT_CANARY_PERCENT` | `0` |
-| Gate canary ratio | `VERIFICATION_GATE_CANARY_PERCENT` | `0` |
+| Contract canary oranı | `AGENT_CONTRACT_CANARY_PERCENT` | `0` |
+| Gate canary oranı | `VERIFICATION_GATE_CANARY_PERCENT` | `0` |
 | Deterministic planning force | `AI_FORCE_DETERMINISTIC_PLAN` | `false` (opsiyonel, sadece ihtiyaç halinde) |
 | Freshness scheduler | `FRESHNESS_SCHEDULER_ENABLED` | `false` |
 
-**Procedure (no code rollback):**
-1. Update staging `.env` flags above.
-2. Restart backend container.
-3. Run `GET /health`, `GET /ready`, `GET /api/knowledge/freshness/status`.
-4. Re-run smoke + regression subset.
+**Prosedür (kod rollback yok):**
+1. Yukarıdaki staging `.env` flag'lerini güncelle.
+2. Backend container'ı yeniden başlat.
+3. `GET /health`, `GET /ready`, `GET /api/knowledge/freshness/status` çalıştır.
+4. Smoke + regresyon alt kümesini yeniden çalıştır.
 
 > Not: OAuth token encryption write policy (`AI_KEY_ENCRYPTION_KEY`) feature-flag ile kapatılamaz.
 > Key eksikse callback write akışları block olur; rollback yerine key provisioning fix uygulanmalıdır.
 
-## Trace Rollout Audit Fields (Zorunlu)
+## Trace Rollout Audit Alanları (Zorunlu)
 
 Rollback veya enforce-mode değişikliği yapıldığında aşağıdaki alanlar incident notuna yazılır:
 
@@ -58,164 +58,164 @@ Rollback veya enforce-mode değişikliği yapıldığında aşağıdaki alanlar 
 
 ---
 
-## 1. Automatic Rollback (CI/CD)
+## 1. Otomatik Rollback (CI/CD)
 
-The `oci-staging-deploy.yml` workflow includes automatic rollback:
+`oci-staging-deploy.yml` workflow'u otomatik rollback içerir:
 
-1. After deployment, runs health check (30 attempts x 5s)
-2. If health check fails, pulls **previous** Docker image version
-3. Restarts backend with previous image
-4. Re-runs health check
+1. Deploy sonrası health check çalıştırır (30 deneme x 5s)
+2. Health check başarısız olursa **önceki** Docker image versiyonunu çeker
+3. Backend'i önceki image ile yeniden başlatır
+4. Health check'i yeniden çalıştırır
 
-**No manual intervention needed** — the workflow handles this.
+**Manuel müdahale gerekmez** — workflow bunu halleder.
 
-To check if automatic rollback triggered:
+Otomatik rollback tetiklenip tetiklenmediğini kontrol etmek için:
 ```bash
 gh run view <RUN_ID> --log | grep -i rollback
 ```
 
 ---
 
-## 2. Manual Rollback by Version
+## 2. Versiyon ile Manuel Rollback
 
-### Step 1: Identify Previous Working Version
+### Adım 1: Önceki Çalışan Versiyonu Belirle
 
 ```bash
-# Option A: Check recent GitHub Actions deploy runs
+# Seçenek A: Son GitHub Actions deploy run'larını kontrol et
 gh run list --workflow=oci-staging-deploy.yml -L 5
 
-# Option B: Check GHCR tags
+# Seçenek B: GHCR tag'lerini kontrol et
 docker image ls ghcr.io/omeryasironal/akis-backend --format '{{.Tag}}'
 
-# Option C: Check deploy logs on server
+# Seçenek C: Sunucudaki deploy loglarını kontrol et
 ssh <USER>@<STAGING_HOST> "cat /opt/akis/deploy.log | tail -20"
 ```
 
-### Step 2: SSH to VM
+### Adım 2: VM'e SSH ile Bağlan
 
 ```bash
 ssh -i ~/.ssh/akis-oci <USER>@<STAGING_HOST>
 cd /opt/akis
 ```
 
-### Step 3: Pull and Deploy Previous Version
+### Adım 3: Önceki Versiyonu Çek ve Deploy Et
 
 ```bash
-# Set target version (use commit SHA or tag)
+# Hedef versiyonu ayarla (commit SHA veya tag kullan)
 export BACKEND_VERSION=<previous_commit_sha>
 
-# Pull the specific version
+# Belirli versiyonu çek
 docker compose pull backend
 
-# Restart with previous version
+# Önceki versiyonla yeniden başlat
 docker compose up -d --force-recreate backend
 ```
 
-### Step 4: Verify Rollback
+### Adım 4: Rollback'i Doğrula
 
 ```bash
 # Health check
 curl -sf https://staging.akisflow.com/health | jq .
 
-# Version check (should show old commit)
+# Versiyon kontrolü (eski commit göstermeli)
 curl -sf https://staging.akisflow.com/version | jq .
 
-# Ready check (DB connection)
+# Ready kontrolü (DB bağlantısı)
 curl -sf https://staging.akisflow.com/ready | jq .
 ```
 
-### Step 5: Run Full Smoke Test
+### Adım 5: Tam Smoke Test Çalıştır
 
 ```bash
-# From dev machine
+# Dev makinesinden
 ./scripts/staging_smoke.sh --commit <previous_commit_sha>
 ```
 
 ---
 
-## 3. Database Considerations
+## 3. Veritabanı Hususları
 
-### Migration Policy: Forward-Only
+### Migration Politikası: Sadece İleri
 
-AKIS uses **forward-only migrations**. There is no automatic `down` migration.
+AKIS **sadece ileri migration** kullanır. Otomatik `down` migration yoktur.
 
-| Scenario | Action |
+| Senaryo | Aksiyon |
 |----------|--------|
-| New code + new migration | Rollback code, migration stays (must be backward-compatible) |
-| Migration broke data | Write a **compensating migration** (new forward migration that fixes the issue) |
-| Complete data corruption | Restore from backup (see below) |
+| Yeni kod + yeni migration | Kodu rollback et, migration kalır (geriye uyumlu olmalı) |
+| Migration veriyi bozdu | **Compensating migration** yaz (sorunu düzelten yeni ileri migration) |
+| Tam veri bozulması | Backup'tan geri yükle (aşağıya bakın) |
 
-### Why Forward-Only?
+### Neden Sadece İleri?
 
-- Drizzle ORM generates forward-only SQL
-- Down migrations are error-prone and often untested
-- Compensating migrations are safer and auditable
+- Drizzle ORM sadece ileri SQL üretir
+- Down migration'lar hataya açık ve genelde test edilmemiş
+- Compensating migration'lar daha güvenli ve denetlenebilir
 
-### Database Backup Restore (Last Resort)
+### Veritabanı Backup Geri Yükleme (Son Çare)
 
-> **Warning**: Restores to backup point. Any data created after backup will be lost.
+> **Uyarı**: Backup noktasına geri yükler. Backup'tan sonra oluşturulan tüm veri kaybolur.
 
 ```bash
 ssh <USER>@<STAGING_HOST>
 cd /opt/akis
 
-# 1. Stop backend
+# 1. Backend'i durdur
 docker compose stop backend
 
-# 2. List available backups
+# 2. Mevcut backup'ları listele
 ls -la backups/
 
-# 3. Restore from backup
+# 3. Backup'tan geri yükle
 docker exec -i akis-staging-db psql -U akis akis_staging < backups/<backup-file>.sql
 
-# 4. Restart backend with matching code version
+# 4. Backup ile eşleşen kod versiyonuyla backend'i yeniden başlat
 export BACKEND_VERSION=<version_matching_backup>
 docker compose up -d backend
 
-# 5. Verify
+# 5. Doğrula
 curl -sf https://staging.akisflow.com/health | jq .
 ```
 
 ---
 
-## 4. Rollback Decision Matrix
+## 4. Rollback Karar Matrisi
 
 ```
-Deploy failed?
-  ├── Health check fails → Automatic rollback (CI handles it)
-  ├── Health OK but version wrong → Manual rollback (Step 2)
-  ├── Health OK, version OK, but feature broken
-  │   ├── Auth broken → Manual rollback (Step 2)
-  │   ├── UI glitch → Fix forward (new PR)
-  │   └── Data issue → Compensating migration
-  └── DB migration failed → Check migration logs, fix and re-run
+Deploy başarısız mı?
+  ├── Health check başarısız → Otomatik rollback (CI halleder)
+  ├── Health OK ama versiyon yanlış → Manuel rollback (Adım 2)
+  ├── Health OK, versiyon OK, ama özellik bozuk
+  │   ├── Auth bozuk → Manuel rollback (Adım 2)
+  │   ├── UI glitch → İleri düzelt (yeni PR)
+  │   └── Veri sorunu → Compensating migration
+  └── DB migration başarısız → Migration loglarını kontrol et, düzelt ve yeniden çalıştır
 ```
 
 ---
 
-## 5. Communication Protocol
+## 5. İletişim Protokolü
 
-| When | Who | What |
-|------|-----|------|
-| Rollback initiated | Deployer | Post in project channel: "Rolling back staging to <version>, reason: <reason>" |
-| Rollback complete | Deployer | Post: "Rollback complete, smoke tests pass" |
-| Root cause identified | Deployer/Dev | Post: "Root cause: <description>, fix PR: #<number>" |
-
----
-
-## 6. Post-Rollback Checklist
-
-- [ ] Smoke tests pass on rolled-back version
-- [ ] Root cause identified
-- [ ] Fix PR created (conventional commit: `fix(scope): description`)
-- [ ] Fix PR passes CI
-- [ ] Re-deploy with fix
+| Ne Zaman | Kim | Ne |
+|------|-----|-----|
+| Rollback başlatıldı | Deployer | Proje kanalında: "Staging <version>'a rollback ediliyor, sebep: <reason>" |
+| Rollback tamamlandı | Deployer | "Rollback tamamlandı, smoke testler geçiyor" |
+| Kök neden belirlendi | Deployer/Dev | "Kök neden: <açıklama>, fix PR: #<numara>" |
 
 ---
 
-## Related Documents
+## 6. Rollback Sonrası Checklist
 
-- [OCI_STAGING_RUNBOOK.md](OCI_STAGING_RUNBOOK.md) — Full staging operations
-- [../ops/STAGING_SMOKE_CHECKLIST.md](../ops/STAGING_SMOKE_CHECKLIST.md) — Smoke test details
+- [ ] Smoke testler rollback edilen versiyonda geçiyor
+- [ ] Kök neden belirlendi
+- [ ] Fix PR oluşturuldu (conventional commit: `fix(scope): description`)
+- [ ] Fix PR CI'dan geçiyor
+- [ ] Fix ile yeniden deploy
+
+---
+
+## İlgili Dokümanlar
+
+- [OCI_STAGING_RUNBOOK.md](OCI_STAGING_RUNBOOK.md) — Tam staging operasyonları
+- [../ops/STAGING_SMOKE_CHECKLIST.md](../ops/STAGING_SMOKE_CHECKLIST.md) — Smoke test detayları
 - [../release/STAGING_RELEASE_CHECKLIST.md](../release/STAGING_RELEASE_CHECKLIST.md) — Release checklist
-- [OCI_STAGING_RUNBOOK.md](OCI_STAGING_RUNBOOK.md) — Deployment architecture
+- [OCI_STAGING_RUNBOOK.md](OCI_STAGING_RUNBOOK.md) — Deployment mimarisi

@@ -1,21 +1,21 @@
-# ROADMAP — Canonical Milestones
+# ROADMAP — Canonical Kilometre Taşları
 
-Last updated: 2026-02-24
+Son güncelleme: 2026-02-24
 
-## Milestones
+## Kilometre Taşları
 
-| Milestone | Target | Focus | Status |
+| Kilometre Taşı | Hedef | Odak | Durum |
 |---|---|---|---|
-| M1 Pilot Demo | 2026-02-28 | Staging reliability + Scribe/Trace/Proto flows | Active |
-| M2 Stabilization | 2026-03-31 | Reliability hardening + regression discipline | Planned |
-| M3 Graduation | 2026-04 to 2026-05 | Final thesis and delivery package | Planned |
+| M1 Pilot Demo | 2026-02-28 | Staging güvenilirliği + Scribe/Trace/Proto akışları | Aktif |
+| M2 Stabilizasyon | 2026-03-31 | Güvenilirlik sertleştirme + regresyon disiplini | Planlandı |
+| M3 Mezuniyet | 2026-04 - 2026-05 | Final tez ve teslim paketi | Planlandı |
 
-## Scope Boundaries
+## Kapsam Sınırları
 
-- In scope: Scribe, Trace, Proto, staging operations, pilot-quality checks.
-- Out of scope: marketplace expansion, private/archive research clusters, speculative roadmap docs.
+- Kapsamda: Scribe, Trace, Proto, staging operasyonları, pilot kalite kontrolleri.
+- Kapsam dışı: marketplace genişlemesi, özel/arşiv araştırma kümeleri, spekülatif roadmap dokümanları.
 
-## Canonical Execution References
+## Canonical Yürütme Referansları
 
 - `docs/NEXT.md`
 - `docs/deploy/OCI_STAGING_RUNBOOK.md`
