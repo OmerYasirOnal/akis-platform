@@ -1,12 +1,12 @@
-# Environment Setup (Canonical)
+# Ortam Kurulumu (Canonical)
 
-## Local Development
+## Yerel Geliştirme
 
 ### Backend
 
-1. Copy `backend/.env.example` to `backend/.env`.
-2. Set required values (`DATABASE_URL`, auth and app settings).
-3. Start backend:
+1. `backend/.env.example` dosyasını `backend/.env` olarak kopyalayın.
+2. Gerekli değerleri ayarlayın (`DATABASE_URL`, auth ve app ayarları).
+3. Backend'i başlatın:
 
 ```bash
 pnpm -C backend dev
@@ -14,34 +14,34 @@ pnpm -C backend dev
 
 ### Frontend
 
-1. Copy `frontend/.env.example` to `frontend/.env` if needed.
-2. Start frontend:
+1. Gerekirse `frontend/.env.example` dosyasını `frontend/.env` olarak kopyalayın.
+2. Frontend'i başlatın:
 
 ```bash
 pnpm -C frontend dev
 ```
 
-## Staging Environment
+## Staging Ortamı
 
-- Runtime source of truth: `/opt/akis/.env`
-- Snapshot process: `docs/ops/STAGING_ENV_SNAPSHOT.md`
-- Deployment and operations: `docs/deploy/OCI_STAGING_RUNBOOK.md`
+- Runtime kaynak: `/opt/akis/.env`
+- Snapshot süreci: `docs/ops/STAGING_ENV_SNAPSHOT.md`
+- Deployment ve operasyonlar: `docs/deploy/OCI_STAGING_RUNBOOK.md`
 
-## OAuth and Integration Essentials
+## OAuth ve Entegrasyon Temelleri
 
-### GitHub MCP (required for agent GitHub operations in staging)
+### GitHub MCP (staging'de agent GitHub işlemleri için gerekli)
 
-- Set `GITHUB_TOKEN` in staging `/opt/akis/.env`.
-- Ensure `GITHUB_MCP_BASE_URL` points to reachable gateway URL.
+- Staging `/opt/akis/.env` içinde `GITHUB_TOKEN` ayarlayın.
+- `GITHUB_MCP_BASE_URL`'in erişilebilir gateway URL'ine işaret ettiğinden emin olun.
 
-### Atlassian OAuth (if enabled)
+### Atlassian OAuth (etkinse)
 
-- Set `ATLASSIAN_OAUTH_CLIENT_ID`
-- Set `ATLASSIAN_OAUTH_CLIENT_SECRET`
-- Set `ATLASSIAN_OAUTH_CALLBACK_URL`
+- `ATLASSIAN_OAUTH_CLIENT_ID` ayarlayın
+- `ATLASSIAN_OAUTH_CLIENT_SECRET` ayarlayın
+- `ATLASSIAN_OAUTH_CALLBACK_URL` ayarlayın
 
-## Security Rules
+## Güvenlik Kuralları
 
-- Never commit real secrets.
-- Keep personal overrides in ignored files (`backend/.env.local`, `frontend/.env.local`).
-- Do not copy staging secrets into tracked template files.
+- Gerçek secret'ları asla commit etmeyin.
+- Kişisel override'ları ignore edilen dosyalarda tutun (`backend/.env.local`, `frontend/.env.local`).
+- Staging secret'larını takip edilen şablon dosyalarına kopyalamayın.

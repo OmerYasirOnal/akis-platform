@@ -1,28 +1,28 @@
 # AKIS Platform
 
-**AI Agent Orchestration System** — Automate repetitive software development tasks with autonomous AI agents.
+**AI Agent Orchestration System** — Otonom AI agentları ile tekrarlayan yazılım geliştirme görevlerini otomatikleştirin.
 
-AKIS Platform orchestrates specialized AI agents to handle documentation updates, test plan generation, and rapid prototyping — so developers can focus on what matters.
+AKIS Platform, dokümantasyon güncellemeleri, test planı üretimi ve hızlı prototipleme için özelleşmiş AI agentlarını yönetir — geliştiriciler önemli işlere odaklanabilsin diye.
 
-> **Live staging:** [staging.akisflow.com](https://staging.akisflow.com) | **Status:** All systems operational
+> **Canlı staging:** [staging.akisflow.com](https://staging.akisflow.com) | **Durum:** Tüm sistemler çalışır durumda
 
 ---
 
-## What It Does
+## Ne Yapar
 
-AKIS runs three specialized AI agents through a structured orchestration pipeline:
+AKIS, yapılandırılmış bir orkestrasyon hattı üzerinden üç özelleşmiş AI agentı çalıştırır:
 
-| Agent | Purpose | How It Works |
+| Agent | Amaç | Nasıl Çalışır |
 |-------|---------|-------------|
-| **Scribe** | Documentation generation | Analyzes source code via GitHub → generates Markdown docs → creates a PR |
-| **Trace** | Test plan generation | Reads code structure → produces test cases with edge cases and coverage recommendations |
-| **Proto** | Rapid prototyping | Takes a spec/idea → scaffolds working code → commits to a new branch |
+| **Scribe** | Dokümantasyon üretimi | GitHub üzerinden kaynak kodu analiz eder → Markdown dokümanlar üretir → PR açar |
+| **Trace** | Test planı üretimi | Kod yapısını okur → edge case'ler ve kapsam önerileriyle test senaryoları üretir |
+| **Proto** | Hızlı prototipleme | Spec/fikir alır → çalışan kod iskeleti oluşturur → yeni branch'e commit eder |
 
-Each agent follows a **Plan → Execute → Reflect** pipeline with deterministic prompts, quality scoring (0-100), and full trace logging.
+Her agent **Plan → Execute → Reflect** hattını izler; deterministik promptlar, 0–100 kalite skoru ve tam trace loglama ile.
 
 ---
 
-## Architecture
+## Mimari
 
 ```
                     ┌─────────────────────┐
@@ -53,155 +53,161 @@ Each agent follows a **Plan → Execute → Reflect** pipeline with deterministi
               └─────────────┘ └────────────┘
 ```
 
-### Tech Stack
+### Teknoloji Yığını
 
-| Layer | Technology | Notes |
+| Katman | Teknoloji | Notlar |
 |-------|-----------|-------|
-| **Frontend** | React 19, Vite 7, Tailwind 4 | SPA with lazy loading, vendor chunking |
-| **Backend** | Fastify 4, TypeScript (strict) | Modular monolith, pino logging |
-| **Database** | PostgreSQL 16, Drizzle ORM | 12+ tables, migration system |
-| **AI Integration** | OpenAI / OpenRouter | User-provided keys, AES-256-GCM encrypted |
-| **External Services** | MCP Protocol adapters | No direct vendor SDKs — all via MCP |
-| **Auth** | JWT in HTTP-only cookie | Email/password (multi-step) + OAuth (GitHub, Google) |
-| **Deployment** | OCI Free Tier, Docker Compose, Caddy | Single ARM64 VM, auto-HTTPS |
-| **CI/CD** | GitHub Actions | Typecheck + lint + build + test on every PR |
+| **Frontend** | React 19, Vite 7, Tailwind 4 | Lazy loading, vendor chunking ile SPA |
+| **Backend** | Fastify 4, TypeScript (strict) | Modüler monolit, pino logging |
+| **Veritabanı** | PostgreSQL 16, Drizzle ORM | 12+ tablo, migration sistemi |
+| **AI Entegrasyonu** | OpenAI / OpenRouter | Kullanıcı sağladığı anahtarlar, AES-256-GCM şifreli |
+| **Harici Servisler** | MCP Protocol adaptörleri | Doğrudan vendor SDK yok — hepsi MCP üzerinden |
+| **Auth** | JWT in HTTP-only cookie | E-posta/şifre (çok adımlı) + OAuth (GitHub, Google) |
+| **Deployment** | OCI Free Tier, Docker Compose, Caddy | Tek ARM64 VM, auto-HTTPS |
+| **CI/CD** | GitHub Actions | Her PR'da typecheck + lint + build + test |
 
-### Key Design Decisions
+### Önemli Tasarım Kararları
 
-- **MCP-only integrations** — External services accessed only through Model Context Protocol adapters. No Octokit, no jira-client.
-- **Orchestrator pattern** — `AgentOrchestrator` owns the full agent lifecycle. Agents never call each other.
-- **FSM state machine** — Jobs follow `pending → running → completed | failed | awaiting_approval`
-- **Contract-first agents** — Each agent has a `Contract` + `Playbook`. Prompts are deterministic (temp=0).
-- **Context packs** — Static, deterministic file bundles per agent. Debuggable, token-efficient.
+- **Sadece MCP entegrasyonları** — Harici servislere yalnızca Model Context Protocol adaptörleri üzerinden erişilir. Octokit, jira-client yok.
+- **Orchestrator deseni** — `AgentOrchestrator` agent yaşam döngüsünün tamamına sahiptir. Agentlar birbirini çağırmaz.
+- **FSM state machine** — Job'lar `pending → running → completed | failed | awaiting_approval` akışını izler.
+- **Contract-first agentlar** — Her agentın `Contract` + `Playbook` vardır. Promptlar deterministik (temp=0).
+- **Context packs** — Agent başına statik, deterministik dosya paketleri. Debug edilebilir, token verimli.
 
 ---
 
-## Project Metrics
+## Proje Metrikleri
 
-| Metric | Value |
+| Metrik | Değer |
 |--------|-------|
-| **Test count** | 1,344 (797 backend + 547 frontend) |
-| **Test files** | 106 across unit, component, and E2E |
-| **Source files** | 322 TypeScript/TSX files |
-| **Lines of code** | ~58,000 TS/TSX |
-| **API endpoints** | ~89 |
-| **i18n keys** | ~500 (English + Turkish) |
-| **Git commits** | 369+ |
-| **CI quality gates** | typecheck, lint, build, test — all green |
+| **Test sayısı** | 1.344 (797 backend + 547 frontend) |
+| **Test dosyası** | 106 (unit, component, E2E) |
+| **Kaynak dosya** | 322 TypeScript/TSX |
+| **Satır sayısı** | ~58.000 TS/TSX |
+| **API endpoint** | ~89 |
+| **i18n anahtarı** | ~500 (İngilizce + Türkçe) |
+| **Git commit** | 369+ |
+| **CI kalite kapıları** | typecheck, lint, build, test — hepsi yeşil |
 
 ---
 
-## Staging Environment
+## Staging Ortamı
 
 **URL:** [staging.akisflow.com](https://staging.akisflow.com)
 
-| Check | Status |
+| Kontrol | Durum |
 |-------|--------|
 | `/health` | `{"status":"ok"}` |
-| `/ready` | DB connected, encryption configured, SMTP active, OAuth (Google + GitHub) |
-| `/version` | Commit SHA, build time, semver |
-| Smoke tests | 12/12 passing |
+| `/ready` | DB bağlı, şifreleme yapılandırılmış, SMTP aktif, OAuth (Google + GitHub) |
+| `/version` | Commit SHA, build zamanı, semver |
+| Smoke testler | 12/12 geçiyor |
 | Frontend | Lazy-loaded SPA, 276 kB main chunk |
-| TLS | Auto-provisioned via Caddy (Let's Encrypt) |
+| TLS | Caddy ile otomatik (Let's Encrypt) |
 
-**Infrastructure:** Single OCI ARM64 VM (24GB RAM) → Caddy → Docker Compose (backend + postgres + MCP gateway)
+**Altyapı:** Tek OCI ARM64 VM (24GB RAM) → Caddy → Docker Compose (backend + postgres + MCP gateway)
 
 ---
 
-## Features
+## Özellikler
 
 ### Platform
-- Multi-step email/password authentication with 6-digit verification codes
-- OAuth login (GitHub, Google) with welcome email
-- Dashboard with 3-step onboarding (connect GitHub → add AI key → run first agent)
-- Job history with pagination, filtering, and real-time SSE streaming
-- Agents Hub — central discovery page for all agents
-- Feedback capture widget (floating button, rating + message)
-- i18n support (English + Turkish, ~500 keys)
-- Standardized error handling with error envelope pattern
+- 6 haneli doğrulama kodlarıyla çok adımlı e-posta/şifre kimlik doğrulama
+- OAuth giriş (GitHub, Google) ve hoş geldin e-postası
+- 3 adımlı onboarding ile dashboard (GitHub bağla → AI anahtarı ekle → ilk agentı çalıştır)
+- Sayfalama, filtreleme ve gerçek zamanlı SSE streaming ile job geçmişi
+- Agents Hub — tüm agentlar için merkezi keşif sayfası
+- Geri bildirim widget'ı (yüzen buton, puan + mesaj)
+- i18n desteği (İngilizce + Türkçe, ~500 anahtar)
+- Error envelope deseni ile standart hata yönetimi
 
-### Agent System
-- AgentOrchestrator with FSM lifecycle management
-- Factory + Registry pattern for agent instantiation
-- Playbook system with phase definitions per agent
-- Plan → Execute → Reflect/Critique pipeline
-- Quality scoring (0-100) post-completion
-- TraceRecorder for full observability
-- JobEventBus → SSE for real-time updates
-- StaleJobWatchdog for hung job detection
-- Context packs with per-agent token/file limits
+### Agent Sistemi
+- FSM yaşam döngüsü yönetimi ile AgentOrchestrator
+- Agent örneklemesi için Factory + Registry deseni
+- Agent başına faz tanımları ile Playbook sistemi
+- Plan → Execute → Reflect/Critique hattı
+- Tamamlandıktan sonra 0–100 kalite skoru
+- Tam gözlemlenebilirlik için TraceRecorder
+- Gerçek zamanlı güncellemeler için JobEventBus → SSE
+- Takılı job tespiti için StaleJobWatchdog
+- Agent başına token/dosya limitleri ile context packs
 
-### Security
-- JWT in HTTP-only, Secure, SameSite cookies (7-day expiry)
-- AES-256-GCM encryption for user AI keys
-- bcrypt password hashing
-- Rate limiting (env-configurable)
-- Helmet security headers
-- API key masking in UI (last 4 chars only)
-- Sensitive data redaction in SSE streams
+### Güvenlik
+- JWT in HTTP-only, Secure, SameSite cookie'ler (7 gün süre)
+- Kullanıcı AI anahtarları için AES-256-GCM şifreleme
+- bcrypt şifre hashleme
+- Rate limiting (env ile yapılandırılabilir)
+- Helmet güvenlik başlıkları
+- UI'da API anahtarı maskeleme (sadece son 4 karakter)
+- SSE stream'lerinde hassas veri redaksiyonu
 
 ### DevOps
-- GitHub Actions CI/CD with quality gates on every PR
-- Docker multi-arch builds (amd64 + arm64)
-- Staging deploy with health check, version verification, auto-rollback
-- MCP Gateway always-on in staging (no manual profile activation)
-- Smoke test script with 12 automated checks
-- Database migration with benign error handling
+- Her PR'da kalite kapıları ile GitHub Actions CI/CD
+- Docker multi-arch build (amd64 + arm64)
+- Health check, versiyon doğrulama, otomatik rollback ile staging deploy
+- Staging'de MCP Gateway her zaman açık (manuel profil aktivasyonu yok)
+- 12 otomatik kontrollü smoke test scripti
+- Zararsız hata yönetimi ile veritabanı migration
 
 ---
 
-## Quick Start (Local Development)
+## Hızlı Başlangıç (Yerel Geliştirme)
 
 ```bash
-# Clone
+# Klonla
 git clone https://github.com/OmerYasirOnal/akis-platform-devolopment.git
 cd akis-platform-devolopment/devagents
 
-# Install dependencies
+# Bağımlılıkları yükle
 pnpm install
 
 # Backend
 cp backend/.env.example backend/.env
-# Edit backend/.env with your database URL and secrets
+# backend/.env dosyasını veritabanı URL ve secret'larla düzenle
 pnpm -C backend dev
 
-# Frontend (separate terminal)
+# Frontend (ayrı terminal)
 pnpm -C frontend dev
-# → http://localhost:5173 (proxies /api to backend:3000)
+# → http://localhost:5173 (/api backend:3000'e proxy edilir)
 ```
 
-For setup details: [`docs/ENV_SETUP.md`](docs/ENV_SETUP.md)
+Kurulum detayları: [`docs/ENV_SETUP.md`](docs/ENV_SETUP.md)
 
 ---
 
-## Running Tests
+## Testleri Çalıştırma
 
 ```bash
-# All quality gates (what CI runs)
+# Tüm kalite kapıları (CI'da çalışanlar)
 pnpm -r typecheck && pnpm -r lint && pnpm -r build && pnpm -r test
 
-# Backend only (797 tests, node:test runner)
+# Sadece backend (797 test, node:test runner)
 pnpm -C backend test:unit
 
-# Frontend only (547 tests, Vitest + Testing Library)
+# Sadece frontend (547 test, Vitest + Testing Library)
 pnpm -C frontend test
 
-# E2E (Playwright — auth flows, agent consoles, navigation)
+# E2E (Playwright — auth akışları, agent konsolları, navigasyon)
 pnpm -C frontend test:e2e
 ```
 
 ---
 
-## Documentation
+## Dil Politikası
 
-| Topic | Link |
+Dokümantasyon **Türkçe-primary**: açıklama ve takip metinleri Türkçe; teknik terimler (JWT, MCP, SSE, FSM), komutlar ve agent promptları İngilizce kalır.
+
+---
+
+## Dokümantasyon
+
+| Konu | Bağlantı |
 |-------|------|
-| Current sprint status | [`docs/NEXT.md`](docs/NEXT.md) |
-| Roadmap & milestones | [`docs/ROADMAP.md`](docs/ROADMAP.md) |
-| Environment variables | [`docs/ENV_SETUP.md`](docs/ENV_SETUP.md) |
-| API specification | [`backend/docs/API_SPEC.md`](backend/docs/API_SPEC.md) |
-| Agent contracts | [`docs/agents/AGENT_CONTRACTS_S0.5.md`](docs/agents/AGENT_CONTRACTS_S0.5.md) |
-| Agent workflows | [`backend/docs/AGENT_WORKFLOWS.md`](backend/docs/AGENT_WORKFLOWS.md) |
+| Güncel sprint durumu | [`docs/NEXT.md`](docs/NEXT.md) |
+| Roadmap ve kilometre taşları | [`docs/ROADMAP.md`](docs/ROADMAP.md) |
+| Ortam değişkenleri | [`docs/ENV_SETUP.md`](docs/ENV_SETUP.md) |
+| API spesifikasyonu | [`backend/docs/API_SPEC.md`](backend/docs/API_SPEC.md) |
+| Agent contract'ları | [`docs/agents/AGENT_CONTRACTS_S0.5.md`](docs/agents/AGENT_CONTRACTS_S0.5.md) |
+| Agent iş akışları | [`backend/docs/AGENT_WORKFLOWS.md`](backend/docs/AGENT_WORKFLOWS.md) |
 | Staging runbook | [`docs/deploy/OCI_STAGING_RUNBOOK.md`](docs/deploy/OCI_STAGING_RUNBOOK.md) |
 | Rollback runbook | [`docs/deploy/STAGING_ROLLBACK_RUNBOOK.md`](docs/deploy/STAGING_ROLLBACK_RUNBOOK.md) |
 | Release checklist | [`docs/release/STAGING_RELEASE_CHECKLIST.md`](docs/release/STAGING_RELEASE_CHECKLIST.md) |
@@ -209,40 +215,40 @@ pnpm -C frontend test:e2e
 
 ---
 
-## Project Status
+## Proje Durumu
 
-| Phase | Status | Description |
+| Faz | Durum | Açıklama |
 |-------|--------|-------------|
-| 0.1–0.3 | Completed | Foundation, architecture, core engine (Nov 2025) |
-| 0.4 | Completed | Web shell, basic engine (Dec 2025) |
-| 1.0 | Completed | Scribe/Trace/Proto early access (Dec 2025) |
-| 1.5 | Completed | Logging + observability layer (Jan 2026) |
-| 2.0 | Completed | Cursor-inspired UI + Scribe console (Jan 2026) |
-| **S0.5** | **Active** | **Pilot demo — staging, UX, agent reliability, 1,344 tests** |
+| 0.1–0.3 | Tamamlandı | Temel, mimari, core engine (Kas 2025) |
+| 0.4 | Tamamlandı | Web shell, temel engine (Ara 2025) |
+| 1.0 | Tamamlandı | Scribe/Trace/Proto early access (Ara 2025) |
+| 1.5 | Tamamlandı | Logging + observability katmanı (Oca 2026) |
+| 2.0 | Tamamlandı | Cursor-inspired UI + Scribe konsolu (Oca 2026) |
+| **S0.5** | **Aktif** | **Pilot demo — staging, UX, agent güvenilirliği, 1.344 test** |
 
-**Current milestone:** M1 Pilot Demo → 28 February 2026
+**Güncel kilometre taşı:** M1 Pilot Demo → 28 Şubat 2026
 
-| Milestone | Target | Focus |
+| Kilometre Taşı | Hedef | Odak |
 |-----------|--------|-------|
-| **M1: Pilot Demo** | Feb 2026 | Live staging, golden paths, 30/30 tasks complete |
-| M2: Stabilization | Mar 2026 | Bug fixes, pilot feedback, pg_trgm, thesis draft |
-| M3: Graduation | May 2026 | Final report, presentation, defense |
+| **M1: Pilot Demo** | Şub 2026 | Canlı staging, golden path'ler, 30/30 görev tamam |
+| M2: Stabilizasyon | Mar 2026 | Bug fix, pilot geri bildirimi, pg_trgm, tez taslağı |
+| M3: Mezuniyet | May 2026 | Final rapor, sunum, savunma |
 
 ---
 
-## Contributing
+## Katkıda Bulunma
 
-- Branch naming: `feat/S0.5.X-short-desc` or `fix/S0.5.X-short-desc`
-- Conventional Commits: `feat|fix|chore|docs(scope): message`
-- PRs: small (≤ 300 LoC), squash merge, linked to GitHub issue
-- CI must pass: typecheck + lint + build + test
-
----
-
-## License
-
-MIT License — see [LICENSE](LICENSE)
+- Branch adlandırma: `feat/S0.5.X-kısa-açıklama` veya `fix/S0.5.X-kısa-açıklama`
+- Conventional Commits: `feat|fix|chore|docs(scope): mesaj`
+- PR'lar: küçük (≤ 300 LoC), squash merge, GitHub issue ile bağlantılı
+- CI geçmeli: typecheck + lint + build + test
 
 ---
 
-**Built by [Ömer Yasir Önal](https://github.com/OmerYasirOnal)** as a senior thesis project at Istanbul Fatih Sultan Mehmet University.
+## Lisans
+
+MIT License — bkz. [LICENSE](LICENSE)
+
+---
+
+**İstanbul Fatih Sultan Mehmet Üniversitesi'nde lisans bitirme projesi olarak [Ömer Yasir Önal](https://github.com/OmerYasirOnal) tarafından geliştirilmiştir.**

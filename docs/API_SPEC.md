@@ -1,12 +1,12 @@
-# API Specification (Canonical Index)
+# API Spesifikasyonu (Canonical İndeks)
 
-This file is the canonical API index for S0.5.
+Bu dosya S0.5 için canonical API indeksidir.
 
-## Primary Source
+## Birincil Kaynak
 
 - `backend/docs/API_SPEC.md`
 
-## Required Health Endpoints
+## Zorunlu Health Endpoint'leri
 
 - `GET /health` -> `{"status":"ok"}`
 - `GET /ready` -> `{"ready":true}`
