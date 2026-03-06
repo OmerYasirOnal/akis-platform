@@ -190,6 +190,10 @@ export const PipelineStateSchema = z.object({
   approvedSpec: StructuredSpecSchema.optional(),
   protoOutput: ProtoOutputSchema.optional(),
   traceOutput: TraceOutputSchema.optional(),
+  protoConfig: z.object({
+    repoName: z.string().min(1),
+    repoVisibility: z.enum(['public', 'private']),
+  }).optional(),
 
   metrics: PipelineMetricsSchema,
   error: PipelineErrorSchema.optional(),
