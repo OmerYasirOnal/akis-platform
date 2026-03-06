@@ -34,6 +34,8 @@ import { marketplaceRoutes } from './api/marketplace.js';
 import { crewRoutes, initCrewRunManager } from './api/crew.js';
 import { ragRoutes } from './api/rag.js';
 import { adminRoutes } from './api/admin.js';
+import { pipelinePlugin } from '../../pipeline/backend/api/pipeline.plugin.js';
+import { createPipelineOrchestrator, InMemoryPipelineStore } from '../../pipeline/backend/core/pipeline-factory.js';
 import { pushLog } from './lib/logBuffer.js';
 import { initPiriRAGService } from './services/rag/PiriRAGService.js';
 import { AgentOrchestrator } from './core/orchestrator/AgentOrchestrator.js';
@@ -46,6 +48,7 @@ import {
   setFreshnessSchedulerInstance,
 } from './services/knowledge/FreshnessScheduler.js';
 import { formatErrorResponse, getStatusCodeForError, type ErrorCode } from './utils/errorHandler.js';
+import { requireAuth } from './utils/auth.js';
 import { ZodError } from 'zod';
 
 const QUIET_ROUTES = new Set([
@@ -258,6 +261,26 @@ export async function buildApp() {
   await app.register(crewRoutes);
   await app.register(ragRoutes);
   await app.register(adminRoutes);
+
+  // Pipeline routes (Scribe → Proto → Trace pipeline)
+  // Uses in-memory store for now; PostgreSQL store in future migration
+  const pipelineGitHubStub = {
+    async createRepository(_o: string, name: string) { return { url: `https://github.com/stub/${name}` }; },
+    async createBranch() {},
+    async commitFile() {},
+    async createPR(_o: string, _r: string, _t: string, _b: string) { return { url: '' }; },
+    async listFiles() { return [] as string[]; },
+    async getFileContent() { return ''; },
+  };
+  const pipelineOrchestrator = createPipelineOrchestrator({
+    aiService: aiService as unknown as import('../../pipeline/backend/core/pipeline-factory.js').AIServiceLike,
+    githubService: pipelineGitHubStub,
+    getGitHubOwner: async () => 'stub-owner',
+  });
+  await app.register(
+    async (instance) => pipelinePlugin(instance, { orchestrator: pipelineOrchestrator, requireAuth }),
+    { prefix: '/api/pipelines' },
+  );
 
   // Initialize Piri RAG service if configured
   if (env.PIRI_BASE_URL) {

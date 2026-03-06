@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import type { Pipeline, PipelineStage } from '../types';
+import type { Pipeline } from '../types';
 import { PipelineProgress } from '../components/PipelineProgress';
 import { ChatMessage } from '../components/ChatMessage';
 import { SpecPreviewCard } from '../components/SpecPreviewCard';
