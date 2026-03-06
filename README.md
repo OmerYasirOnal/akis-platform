@@ -1,8 +1,8 @@
 # AKIS Platform
 
-**AI Agent Orchestration System** — Otonom AI agentları ile tekrarlayan yazılım geliştirme görevlerini otomatikleştirin.
+**AI-Powered Software Pipeline** — Fikirden çalışan koda, konuşarak.
 
-AKIS Platform, dokümantasyon güncellemeleri, test planı üretimi ve hızlı prototipleme için özelleşmiş AI agentlarını yönetir — geliştiriciler önemli işlere odaklanabilsin diye.
+AKIS Platform, sıralı bir pipeline ile yazılım projelerini hayata geçirir: Scribe fikrinizi spec'e çevirir, Proto çalışan kodu üretir, Trace testleri yazar — tek bir konuşma akışı içinde.
 
 > **Canlı staging:** [staging.akisflow.com](https://staging.akisflow.com) | **Durum:** Tüm sistemler çalışır durumda
 
@@ -12,13 +12,13 @@ AKIS Platform, dokümantasyon güncellemeleri, test planı üretimi ve hızlı p
 
 AKIS, yapılandırılmış bir orkestrasyon hattı üzerinden üç özelleşmiş AI agentı çalıştırır:
 
-| Agent | Amaç | Nasıl Çalışır |
-|-------|---------|-------------|
-| **Scribe** | Dokümantasyon üretimi | GitHub üzerinden kaynak kodu analiz eder → Markdown dokümanlar üretir → PR açar |
-| **Trace** | Test planı üretimi | Kod yapısını okur → edge case'ler ve kapsam önerileriyle test senaryoları üretir |
-| **Proto** | Hızlı prototipleme | Spec/fikir alır → çalışan kod iskeleti oluşturur → yeni branch'e commit eder |
+| Agent | Aşama | Ne Yapar |
+|-------|-------|---------|
+| **Scribe** | 1. Spec Yazma | Kullanıcıyla sohbet eder → sorular sorar → onaylanmış spec üretir |
+| **Proto** | 2. Kod Üretimi | Spec'ten MVP scaffold oluşturur → GitHub repo + branch + PR |
+| **Trace** | 3. Test Yazma | Üretilen kodu okur → Playwright E2E testleri yazar → coverage matrix |
 
-Her agent **Plan → Execute → Reflect** hattını izler; deterministik promptlar, 0–100 kalite skoru ve tam trace loglama ile.
+Pipeline akışı: `Fikir → Scribe → Spec Onayı → Proto → Trace → Tamamlandı`
 
 ---
 

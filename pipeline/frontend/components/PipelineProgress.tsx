@@ -6,13 +6,11 @@ const STEPS = [
   { key: 'trace', label: 'Trace', stages: ['trace_testing'] },
 ] as const;
 
-const TERMINAL_STAGES: PipelineStage[] = ['completed', 'completed_partial', 'failed', 'cancelled'];
-
 function getStepStatus(step: typeof STEPS[number], stage: PipelineStage): 'active' | 'completed' | 'pending' | 'error' {
   if (stage === 'failed') {
-    if (step.stages.some((s) => s === stage)) return 'error';
+    if (step.stages.some((s) => (s as string) === stage)) return 'error';
     const stepIdx = STEPS.findIndex((s) => s.key === step.key);
-    const activeIdx = STEPS.findIndex((s) => s.stages.some((st) => st === stage));
+    const activeIdx = STEPS.findIndex((s) => s.stages.some((st) => (st as string) === stage));
     return stepIdx < activeIdx ? 'completed' : 'pending';
   }
   if (stage === 'completed' || stage === 'completed_partial') return 'completed';

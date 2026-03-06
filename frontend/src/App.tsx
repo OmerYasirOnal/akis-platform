@@ -80,6 +80,11 @@ const CrewRunPage = lazy(() => import('./pages/dashboard/agents/CrewRunPage'));
 const DashboardRAGPage = lazy(() => import('./pages/dashboard/DashboardRAGPage'));
 const LogsPage = lazy(() => import('./pages/dashboard/LogsPage'));
 
+// Pipeline page — lazy (behind auth, full-page pipeline experience)
+const PipelinePage = lazy(() =>
+  import('../../pipeline/frontend/pages/PipelinePage').then((m) => ({ default: m.PipelinePage })),
+);
+
 const PageLoader = () => (
   <div className="flex min-h-[200px] items-center justify-center">
     <div className="h-8 w-8 animate-spin rounded-full border-2 border-ak-primary border-t-transparent" />
@@ -161,6 +166,18 @@ function App() {
               <ProtectedRoute>
                 <Suspense fallback={<PageLoader />}>
                   <CrewRunPage />
+                </Suspense>
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Pipeline — standalone full-page route (Scribe → Proto → Trace) */}
+          <Route
+            path="/pipeline"
+            element={
+              <ProtectedRoute>
+                <Suspense fallback={<PageLoader />}>
+                  <PipelinePage />
                 </Suspense>
               </ProtectedRoute>
             }

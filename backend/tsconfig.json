@@ -11,7 +11,7 @@
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "outDir": "./dist",
-    "rootDir": "./src",
+    "rootDir": "..",
     "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"]
@@ -22,6 +22,6 @@
     "declarationMap": true,
     "sourceMap": true
   },
-  "include": ["src/**/*"],
+  "include": ["src/**/*", "../pipeline/backend/**/*"],
   "exclude": ["node_modules", "dist", "test"]
 }
