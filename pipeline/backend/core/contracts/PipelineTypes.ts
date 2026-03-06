@@ -160,6 +160,7 @@ export interface PipelineState {
   approvedSpec?: StructuredSpec;
   protoOutput?: ProtoOutput;
   traceOutput?: TraceOutput;
+  protoConfig?: { repoName: string; repoVisibility: 'public' | 'private' };
 
   metrics: PipelineMetrics;
   error?: PipelineError;
