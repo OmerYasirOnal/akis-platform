@@ -109,7 +109,7 @@ const envSchema = z
     ATLASSIAN_API_TOKEN: z.string().optional(),
     ATLASSIAN_EMAIL: z.string().optional(),
     // AI Provider configuration
-    AI_PROVIDER: z.enum(['openrouter', 'openai', 'mock']).default('mock'),
+    AI_PROVIDER: z.enum(['openrouter', 'openai', 'anthropic', 'mock']).default('mock'),
     AI_KEY_ENCRYPTION_KEY: z.string().optional(),
     AI_KEY_ENCRYPTION_KEY_VERSION: z.string().default('v1'),
     AI_DETERMINISTIC_MODE: z.enum(['true', 'false']).default('true'),
@@ -129,7 +129,8 @@ const envSchema = z
     OPENROUTER_BASE_URL: z.string().url().optional(),
     OPENAI_BASE_URL: z.string().url().optional(),
     
-    // Model names - supports legacy OPENROUTER_MODEL/OPENAI_MODEL
+    // Model names - supports legacy OPENROUTER_MODEL/OPENAI_MODEL/AI_MODEL
+    AI_MODEL: z.string().optional(),
     AI_MODEL_DEFAULT: z.string().optional(),
     AI_MODEL_PLANNER: z.string().optional(),
     AI_MODEL_VALIDATION: z.string().optional(),
@@ -387,7 +388,7 @@ export type Env = z.infer<typeof envSchema>;
  * Resolved AI configuration with fallbacks for legacy variable names
  */
 export interface AIConfig {
-  provider: 'openrouter' | 'openai' | 'mock';
+  provider: 'openrouter' | 'openai' | 'anthropic' | 'mock';
   apiKey: string | undefined;
   baseUrl: string;
   modelDefault: string;
@@ -403,14 +404,17 @@ export interface AIConfig {
  * OpenRouter: contains '/', ':free', ':nitro'
  * OpenAI: starts with 'gpt-', 'o1', 'o3', 'text-', 'davinci'
  */
-function detectProviderFromModel(model: string): 'openai' | 'openrouter' | null {
-  if (model.startsWith('gpt-') || model.startsWith('o1') || 
-      model.startsWith('o3') || model.startsWith('text-') || 
+function detectProviderFromModel(model: string): 'openai' | 'openrouter' | 'anthropic' | null {
+  if (model.startsWith('gpt-') || model.startsWith('o1') ||
+      model.startsWith('o3') || model.startsWith('text-') ||
       model.startsWith('davinci')) {
     return 'openai';
   }
   if (model.includes('/') || model.includes(':free') || model.includes(':nitro')) {
     return 'openrouter';
+  }
+  if (model.startsWith('claude-')) {
+    return 'anthropic';
   }
   return null;
 }
@@ -420,8 +424,9 @@ function detectProviderFromModel(model: string): 'openai' | 'openrouter' | null 
  * OpenRouter keys start with 'sk-or-'
  * OpenAI keys start with 'sk-' (but not 'sk-or-')
  */
-function detectProviderFromKey(key: string): 'openai' | 'openrouter' | null {
+function detectProviderFromKey(key: string): 'openai' | 'openrouter' | 'anthropic' | null {
   if (key.startsWith('sk-or-')) return 'openrouter';
+  if (key.startsWith('sk-ant-')) return 'anthropic';
   if (key.startsWith('sk-')) return 'openai';
   return null;
 }
@@ -447,17 +452,22 @@ export function getAIConfig(env: Env): AIConfig {
     baseUrl: 'https://api.openai.com/v1',
     model: 'gpt-4o-mini',
   };
-  
+
   const OPENROUTER_DEFAULTS = {
     baseUrl: 'https://openrouter.ai/api/v1',
     model: 'anthropic/claude-sonnet-4',
   };
-  
+
+  const ANTHROPIC_DEFAULTS = {
+    baseUrl: 'https://api.anthropic.com',
+    model: 'claude-sonnet-4-6',
+  };
+
   // Step 1: Resolve API key (needed for provider detection)
   const apiKey = env.AI_API_KEY || env.OPENROUTER_API_KEY || env.OPENAI_API_KEY;
-  
+
   // Step 2: Determine provider with validation
-  let provider: 'openrouter' | 'openai' | 'mock' = env.AI_PROVIDER;
+  let provider: 'openrouter' | 'openai' | 'anthropic' | 'mock' = env.AI_PROVIDER;
   
   // Auto-detect provider if set to mock but we have a real key
   if (provider === 'mock' && apiKey) {
@@ -486,6 +496,9 @@ export function getAIConfig(env: Env): AIConfig {
     // Only use env override if it's NOT an OpenRouter URL
     const envUrl = env.AI_BASE_URL || env.OPENAI_BASE_URL;
     baseUrl = (envUrl && !envUrl.includes('openrouter.ai')) ? envUrl : OPENAI_DEFAULTS.baseUrl;
+  } else if (provider === 'anthropic') {
+    const envUrl = env.AI_BASE_URL;
+    baseUrl = (envUrl && envUrl.includes('anthropic.com')) ? envUrl : ANTHROPIC_DEFAULTS.baseUrl;
   } else {
     baseUrl = 'mock://localhost';
   }
@@ -505,12 +518,13 @@ export function getAIConfig(env: Env): AIConfig {
     return envModel;
   };
   
-  const providerDefault = provider === 'openai' ? OPENAI_DEFAULTS.model : 
-                          provider === 'openrouter' ? OPENROUTER_DEFAULTS.model : 
+  const providerDefault = provider === 'openai' ? OPENAI_DEFAULTS.model :
+                          provider === 'openrouter' ? OPENROUTER_DEFAULTS.model :
+                          provider === 'anthropic' ? ANTHROPIC_DEFAULTS.model :
                           'mock-model';
   
   const modelDefault = getValidatedModel(
-    env.AI_MODEL_DEFAULT || (provider === 'openrouter' ? env.OPENROUTER_MODEL : env.OPENAI_MODEL),
+    env.AI_MODEL_DEFAULT || env.AI_MODEL || (provider === 'openrouter' ? env.OPENROUTER_MODEL : env.OPENAI_MODEL),
     providerDefault
   );
   const modelPlanner = getValidatedModel(env.AI_MODEL_PLANNER, providerDefault);
