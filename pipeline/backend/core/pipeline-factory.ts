@@ -60,24 +60,23 @@ export class InMemoryPipelineStore implements PipelineStore {
 // Bridges the existing AIService to agent AI deps interfaces.
 
 export interface AIServiceLike {
-  generateText(options: {
-    model?: string;
-    systemPrompt: string;
-    userPrompt: string;
+  generateWorkArtifact(input: {
+    systemPrompt?: string;
+    task: string;
+    context?: unknown;
     maxTokens?: number;
-    temperature?: number;
-  }): Promise<string>;
+  }): Promise<{ content: string }>;
 }
 
 function createScribeAIDeps(aiService: AIServiceLike): ScribeAIDeps {
   return {
     async generateText(systemPrompt: string, userPrompt: string): Promise<string> {
-      return aiService.generateText({
+      const result = await aiService.generateWorkArtifact({
         systemPrompt,
-        userPrompt,
+        task: userPrompt,
         maxTokens: 8192,
-        temperature: 0.7,
       });
+      return result.content;
     },
   };
 }
@@ -85,12 +84,12 @@ function createScribeAIDeps(aiService: AIServiceLike): ScribeAIDeps {
 function createProtoAIDeps(aiService: AIServiceLike): ProtoAIDeps {
   return {
     async generateText(systemPrompt: string, userPrompt: string): Promise<string> {
-      return aiService.generateText({
+      const result = await aiService.generateWorkArtifact({
         systemPrompt,
-        userPrompt,
+        task: userPrompt,
         maxTokens: 16384,
-        temperature: 0.3,
       });
+      return result.content;
     },
   };
 }
@@ -98,12 +97,12 @@ function createProtoAIDeps(aiService: AIServiceLike): ProtoAIDeps {
 function createTraceAIDeps(aiService: AIServiceLike): TraceAIDeps {
   return {
     async generateText(systemPrompt: string, userPrompt: string): Promise<string> {
-      return aiService.generateText({
+      const result = await aiService.generateWorkArtifact({
         systemPrompt,
-        userPrompt,
+        task: userPrompt,
         maxTokens: 16384,
-        temperature: 0.3,
       });
+      return result.content;
     },
   };
 }

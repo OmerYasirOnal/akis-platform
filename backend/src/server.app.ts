@@ -273,12 +273,30 @@ export async function buildApp() {
     async getFileContent() { return ''; },
   };
   const pipelineOrchestrator = createPipelineOrchestrator({
-    aiService: aiService as unknown as import('../../pipeline/backend/core/pipeline-factory.js').AIServiceLike,
+    aiService,
     githubService: pipelineGitHubStub,
     getGitHubOwner: async () => 'stub-owner',
   });
+  // Resolve dev user for DEV_MODE auth bypass
+  let devUserId: string | undefined;
+  if (process.env.DEV_MODE === 'true') {
+    try {
+      const { db } = await import('./db/client.js');
+      const { users: usersTable } = await import('./db/schema.js');
+      const { eq } = await import('drizzle-orm');
+      const devUser = await db.query.users.findFirst({
+        where: eq(usersTable.status, 'active'),
+      });
+      devUserId = devUser?.id;
+      if (devUserId) {
+        console.log(`[buildApp] Pipeline DEV_MODE: auth bypass with user ${devUserId}`);
+      }
+    } catch {
+      console.log('[buildApp] Pipeline DEV_MODE: could not resolve dev user, auth required');
+    }
+  }
   await app.register(
-    async (instance) => pipelinePlugin(instance, { orchestrator: pipelineOrchestrator, requireAuth }),
+    async (instance) => pipelinePlugin(instance, { orchestrator: pipelineOrchestrator, requireAuth, devUserId }),
     { prefix: '/api/pipelines' },
   );
 
