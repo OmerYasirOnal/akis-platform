@@ -5,31 +5,71 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { createPipelineRoutes } from './pipeline.routes.js';
 import type { PipelineOrchestrator } from '../core/orchestrator/PipelineOrchestrator.js';
+import { ZodError } from 'zod';
 
 export interface PipelinePluginOptions {
   orchestrator: PipelineOrchestrator;
   requireAuth: (request: FastifyRequest) => Promise<{ id: string }>;
+  devUserId?: string;
 }
 
 export async function pipelinePlugin(
   fastify: FastifyInstance,
   opts: PipelinePluginOptions,
 ) {
-  const { orchestrator, requireAuth } = opts;
+  const { orchestrator, requireAuth, devUserId } = opts;
+  const isDevMode = process.env.DEV_MODE === 'true';
 
   const routes = createPipelineRoutes({
     orchestrator,
     getUserId: (request: unknown) => {
-      // userId is attached by the preHandler hook below
       return ((request as Record<string, unknown>).__pipelineUserId as string) ?? '';
     },
   });
 
-  // Auth preHandler — runs before every pipeline route
+  // Auth preHandler — dev mode bypass or real auth
   const authPreHandler = async (request: FastifyRequest) => {
+    if (isDevMode && devUserId) {
+      (request as unknown as Record<string, unknown>).__pipelineUserId = devUserId;
+      return;
+    }
     const user = await requireAuth(request);
     (request as unknown as Record<string, unknown>).__pipelineUserId = user.id;
   };
+
+  // Pipeline-scoped error handler: catches ZodError from pipeline's own zod module
+  // (backend global handler uses a different zod instance due to pnpm hoisting)
+  // Also catches orchestrator domain errors (invalid stage, not found) as 4xx
+  fastify.setErrorHandler((error: Error, request: FastifyRequest, reply: FastifyReply) => {
+    if (error instanceof ZodError) {
+      return reply.code(400).send({
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Request validation failed',
+          details: error.errors,
+        },
+        requestId: request.id,
+      });
+    }
+
+    // Orchestrator domain errors → 400 or 404
+    const msg = error.message ?? '';
+    if (msg.startsWith('Pipeline not found')) {
+      return reply.code(404).send({
+        error: { code: 'NOT_FOUND', message: msg },
+        requestId: request.id,
+      });
+    }
+    if (msg.startsWith('Invalid stage') || msg.startsWith('Cannot cancel') || msg.startsWith('Cannot skip')) {
+      return reply.code(400).send({
+        error: { code: 'INVALID_STAGE', message: msg },
+        requestId: request.id,
+      });
+    }
+
+    // Delegate to parent (global) error handler
+    throw error;
+  });
 
   // POST /api/pipelines — start new pipeline
   fastify.post('/', { preHandler: authPreHandler }, async (request: FastifyRequest, reply: FastifyReply) => {
