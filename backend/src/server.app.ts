@@ -35,7 +35,8 @@ import { crewRoutes, initCrewRunManager } from './api/crew.js';
 import { ragRoutes } from './api/rag.js';
 import { adminRoutes } from './api/admin.js';
 import { pipelinePlugin } from '../../pipeline/backend/api/pipeline.plugin.js';
-import { createPipelineOrchestrator, InMemoryPipelineStore } from '../../pipeline/backend/core/pipeline-factory.js';
+import { createPipelineOrchestrator, type GitHubServiceLike } from '../../pipeline/backend/core/pipeline-factory.js';
+import { createGitHubRESTAdapter, getGitHubOwnerViaREST } from '../../pipeline/backend/adapters/GitHubRESTAdapter.js';
 import { pushLog } from './lib/logBuffer.js';
 import { initPiriRAGService } from './services/rag/PiriRAGService.js';
 import { AgentOrchestrator } from './core/orchestrator/AgentOrchestrator.js';
@@ -263,19 +264,41 @@ export async function buildApp() {
   await app.register(adminRoutes);
 
   // Pipeline routes (Scribe → Proto → Trace pipeline)
-  // Uses in-memory store for now; PostgreSQL store in future migration
-  const pipelineGitHubStub = {
-    async createRepository(_o: string, name: string) { return { url: `https://github.com/stub/${name}` }; },
-    async createBranch() {},
-    async commitFile() {},
-    async createPR(_o: string, _r: string, _t: string, _b: string) { return { url: '' }; },
-    async listFiles() { return [] as string[]; },
-    async getFileContent() { return ''; },
-  };
+  // Priority: 1) REST API (GITHUB_TOKEN — no infra dependency), 2) Stub
+  let pipelineGitHubService: GitHubServiceLike;
+  let pipelineGetGitHubOwner: (userId: string) => Promise<string>;
+
+  const hasRealGitHubToken = env.GITHUB_TOKEN && !env.GITHUB_TOKEN.startsWith('<') && env.GITHUB_TOKEN.length > 10;
+  if (hasRealGitHubToken) {
+    // Direct REST API — works without MCP Gateway
+    pipelineGitHubService = createGitHubRESTAdapter({ token: env.GITHUB_TOKEN! });
+    const ghToken = env.GITHUB_TOKEN!;
+    pipelineGetGitHubOwner = async () => {
+      try {
+        return await getGitHubOwnerViaREST(ghToken);
+      } catch {
+        return 'unknown';
+      }
+    };
+    console.log('[buildApp] Pipeline GitHub: REAL (REST API)');
+  } else {
+    // Option 3: No token — stub mode
+    pipelineGitHubService = {
+      async createRepository(_o: string, name: string) { return { url: `https://github.com/stub/${name}` }; },
+      async createBranch() {},
+      async commitFile() {},
+      async createPR() { return { url: '' }; },
+      async listFiles() { return [] as string[]; },
+      async getFileContent() { return ''; },
+    };
+    pipelineGetGitHubOwner = async () => 'stub-owner';
+    console.log('[buildApp] Pipeline GitHub: STUB (set GITHUB_TOKEN for real push)');
+  }
+
   const pipelineOrchestrator = createPipelineOrchestrator({
     aiService,
-    githubService: pipelineGitHubStub,
-    getGitHubOwner: async () => 'stub-owner',
+    githubService: pipelineGitHubService,
+    getGitHubOwner: pipelineGetGitHubOwner,
   });
   // Resolve dev user for DEV_MODE auth bypass
   let devUserId: string | undefined;
