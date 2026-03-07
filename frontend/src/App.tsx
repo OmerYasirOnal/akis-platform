@@ -6,7 +6,6 @@ import { AgentsLayout } from './components/layout/AgentsLayout';
 import { ProtectedRoute, RequireRole } from './app/RouteGuards';
 import { AuthProvider } from './contexts/AuthContext';
 import { useI18n } from './i18n/useI18n';
-import LandingPage from './pages/LandingPage';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import FeedbackWidget from './components/feedback/FeedbackWidget';
 import { ToastContainer } from './components/ui/Toast';
@@ -21,8 +20,7 @@ const WelcomeBeta = lazy(() => import('./pages/auth/WelcomeBeta'));
 const PrivacyConsent = lazy(() => import('./pages/auth/PrivacyConsent'));
 const InviteAccept = lazy(() => import('./pages/auth/InviteAccept'));
 
-// Public pages — lazy (rarely visited on first load)
-const AboutAKIS = lazy(() => import('./pages/about/AboutAKIS'));
+// Public pages — lazy (legal pages kept, scope-out pages removed)
 const LegalTermsPage = lazy(() => import('./pages/legal/LegalTermsPage'));
 const LegalPrivacyPage = lazy(() => import('./pages/legal/LegalPrivacyPage'));
 
@@ -37,14 +35,7 @@ const DashboardSettingsNotificationsPage = lazy(() => import('./pages/dashboard/
 const JobsListPage = lazy(() => import('./pages/JobsListPage'));
 const JobDetailPage = lazy(() => import('./pages/JobDetailPage'));
 
-const ProductsPage = lazy(() => import('./pages/public/ProductsPage'));
-const PricingPage = lazy(() => import('./pages/public/PricingPage'));
-const BlogIndexPage = lazy(() => import('./pages/public/BlogIndexPage'));
-const LearnLandingPage = lazy(() => import('./pages/public/LearnLandingPage'));
-const WaitlistPage = lazy(() => import('./pages/public/WaitlistPage'));
-const ContactPage = lazy(() => import('./pages/public/ContactPage'));
-const TechnologyPage = lazy(() => import('./pages/public/TechnologyPage'));
-const MarketplaceOverviewPage = lazy(() => import('./pages/marketplace/MarketplaceOverviewPage'));
+// Scope-out public pages removed: Products, Pricing, Blog, Learn, Waitlist, Contact, Technology, Marketplace
 const MarketplaceAppShell = lazy(() => import('./pages/marketplace/app/MarketplaceAppShell'));
 const OnboardingPage = lazy(() => import('./pages/marketplace/app/OnboardingPage'));
 const MarketplaceJobsPage = lazy(() => import('./pages/marketplace/app/JobsPage'));
@@ -104,18 +95,8 @@ function App() {
         <Routes>
           {/* Public Routes */}
           <Route element={<AppShell />}>
-            <Route index element={<LandingPage />} />
-            <Route path="products" element={<Suspense fallback={<PageLoader />}><ProductsPage /></Suspense>} />
-            <Route path="about" element={<Suspense fallback={<PageLoader />}><AboutAKIS /></Suspense>} />
-            <Route path="pricing" element={<Suspense fallback={<PageLoader />}><PricingPage /></Suspense>} />
-            <Route path="blog" element={<Suspense fallback={<PageLoader />}><BlogIndexPage /></Suspense>} />
-            <Route path="learn" element={<Suspense fallback={<PageLoader />}><LearnLandingPage /></Suspense>} />
-            <Route path="waitlist" element={<Suspense fallback={<PageLoader />}><WaitlistPage /></Suspense>} />
-            <Route path="marketplace" element={<Suspense fallback={<PageLoader />}><MarketplaceOverviewPage /></Suspense>} />
-            <Route path="technology" element={<Suspense fallback={<PageLoader />}><TechnologyPage /></Suspense>} />
-            <Route path="teknoloji" element={<Suspense fallback={<PageLoader />}><TechnologyPage /></Suspense>} />
-            <Route path="contact" element={<Suspense fallback={<PageLoader />}><ContactPage /></Suspense>} />
-            <Route path="iletisim" element={<Suspense fallback={<PageLoader />}><ContactPage /></Suspense>} />
+            {/* Root redirects to pipeline — pipeline-first development */}
+            <Route index element={<Navigate to="/pipeline" replace />} />
             <Route path="legal">
               <Route path="terms" element={<Suspense fallback={<PageLoader />}><LegalTermsPage /></Suspense>} />
               <Route path="privacy" element={<Suspense fallback={<PageLoader />}><LegalPrivacyPage /></Suspense>} />
