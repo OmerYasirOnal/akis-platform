@@ -6,7 +6,6 @@ import { useTheme } from '../theme/useTheme';
 import { cn } from '../utils/cn';
 import Button from './common/Button';
 import Logo from './branding/Logo';
-import { openWaitlist } from '../utils/waitlist';
 
 // Theme toggle icon component
 function ThemeToggleIcon({ isDark }: { isDark: boolean }) {
@@ -81,13 +80,10 @@ export default function Header({ className }: HeaderProps) {
 
   const closeMobileMenu = () => setMobileOpen(false);
 
-  // Navigation links
+  // Navigation links — pipeline-focused (scope-out pages removed)
   const primaryLinks = [
-    { to: '/products', label: t('header.nav.products') },
+    { to: '/pipeline', label: 'Pipeline' },
     { to: '/docs', label: t('header.nav.docs') },
-    { to: '/pricing', label: t('header.nav.pricing') },
-    { to: '/contact', label: t('header.nav.contact') },
-    { to: '/about', label: t('header.nav.about') },
   ];
 
   return (
@@ -166,8 +162,8 @@ export default function Header({ className }: HeaderProps) {
         <div className="hidden items-center gap-3 md:flex">
           {isAuthenticated ? (
             <>
-              <Button as={Link} to="/dashboard" variant="ghost">
-                {t('header.dashboard')}
+              <Button as={Link} to="/pipeline" variant="ghost">
+                Pipeline
               </Button>
               <Button
                 onClick={handleLogout}
@@ -178,17 +174,9 @@ export default function Header({ className }: HeaderProps) {
               </Button>
             </>
           ) : (
-            <>
-              <Button as={Link} to="/login" variant="outline">
-                {t('header.login')}
-              </Button>
-              <Button
-                onClick={() => openWaitlist('website', 'header_cta')}
-                variant="primary"
-              >
-                {t('waitlist.cta') || 'Join Waitlist'}
-              </Button>
-            </>
+            <Button as={Link} to="/login" variant="outline">
+              {t('header.login')}
+            </Button>
           )}
         </div>
 
@@ -288,8 +276,8 @@ export default function Header({ className }: HeaderProps) {
           <div className="flex flex-col gap-3 border-t border-[var(--glass-bdr)] pt-4">
             {isAuthenticated ? (
               <>
-                <Button as={Link} to="/dashboard" variant="outline" onClick={closeMobileMenu}>
-                  {t('header.dashboard')}
+                <Button as={Link} to="/pipeline" variant="outline" onClick={closeMobileMenu}>
+                  Pipeline
                 </Button>
                 <Button
                   onClick={() => {
@@ -303,20 +291,9 @@ export default function Header({ className }: HeaderProps) {
                 </Button>
               </>
             ) : (
-              <>
-                <Button as={Link} to="/login" variant="outline" onClick={closeMobileMenu}>
-                  {t('header.login')}
-                </Button>
-                <Button
-                  onClick={() => {
-                    openWaitlist('website', 'header_mobile_cta');
-                    closeMobileMenu();
-                  }}
-                  variant="primary"
-                >
-                  {t('waitlist.cta') || 'Join Waitlist'}
-                </Button>
-              </>
+              <Button as={Link} to="/login" variant="outline" onClick={closeMobileMenu}>
+                {t('header.login')}
+              </Button>
             )}
           </div>
         </div>
