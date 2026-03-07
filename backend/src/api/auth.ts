@@ -167,6 +167,14 @@ export async function authRoutes(fastify: FastifyInstance) {
   );
 
   fastify.get('/me', async (request, reply) => {
+    // DEV_MODE: return first active user without requiring session cookie
+    if (process.env.DEV_MODE === 'true') {
+      const devUser = await db.query.users.findFirst({
+        where: eq(users.status, 'active'),
+      });
+      if (devUser) return sanitizeUser(devUser);
+    }
+
     const token = request.cookies?.[env.AUTH_COOKIE_NAME];
     if (!token) {
       return reply.code(401).send({ user: null });

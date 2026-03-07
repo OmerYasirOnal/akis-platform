@@ -34,6 +34,9 @@ import { marketplaceRoutes } from './api/marketplace.js';
 import { crewRoutes, initCrewRunManager } from './api/crew.js';
 import { ragRoutes } from './api/rag.js';
 import { adminRoutes } from './api/admin.js';
+import { pipelinePlugin } from '../../pipeline/backend/api/pipeline.plugin.js';
+import { createPipelineOrchestrator, type GitHubServiceLike } from '../../pipeline/backend/core/pipeline-factory.js';
+import { createGitHubRESTAdapter, getGitHubOwnerViaREST } from '../../pipeline/backend/adapters/GitHubRESTAdapter.js';
 import { pushLog } from './lib/logBuffer.js';
 import { initPiriRAGService } from './services/rag/PiriRAGService.js';
 import { AgentOrchestrator } from './core/orchestrator/AgentOrchestrator.js';
@@ -46,6 +49,7 @@ import {
   setFreshnessSchedulerInstance,
 } from './services/knowledge/FreshnessScheduler.js';
 import { formatErrorResponse, getStatusCodeForError, type ErrorCode } from './utils/errorHandler.js';
+import { requireAuth } from './utils/auth.js';
 import { ZodError } from 'zod';
 
 const QUIET_ROUTES = new Set([
@@ -258,6 +262,66 @@ export async function buildApp() {
   await app.register(crewRoutes);
   await app.register(ragRoutes);
   await app.register(adminRoutes);
+
+  // Pipeline routes (Scribe → Proto → Trace pipeline)
+  // Priority: 1) REST API (GITHUB_TOKEN — no infra dependency), 2) Stub
+  let pipelineGitHubService: GitHubServiceLike;
+  let pipelineGetGitHubOwner: (userId: string) => Promise<string>;
+
+  const hasRealGitHubToken = env.GITHUB_TOKEN && !env.GITHUB_TOKEN.startsWith('<') && env.GITHUB_TOKEN.length > 10;
+  if (hasRealGitHubToken) {
+    // Direct REST API — works without MCP Gateway
+    pipelineGitHubService = createGitHubRESTAdapter({ token: env.GITHUB_TOKEN! });
+    const ghToken = env.GITHUB_TOKEN!;
+    pipelineGetGitHubOwner = async () => {
+      try {
+        return await getGitHubOwnerViaREST(ghToken);
+      } catch {
+        return 'unknown';
+      }
+    };
+    console.log('[buildApp] Pipeline GitHub: REAL (REST API)');
+  } else {
+    // Option 3: No token — stub mode
+    pipelineGitHubService = {
+      async createRepository(_o: string, name: string) { return { url: `https://github.com/stub/${name}` }; },
+      async createBranch() {},
+      async commitFile() {},
+      async createPR() { return { url: '' }; },
+      async listFiles() { return [] as string[]; },
+      async getFileContent() { return ''; },
+    };
+    pipelineGetGitHubOwner = async () => 'stub-owner';
+    console.log('[buildApp] Pipeline GitHub: STUB (set GITHUB_TOKEN for real push)');
+  }
+
+  const pipelineOrchestrator = createPipelineOrchestrator({
+    aiService,
+    githubService: pipelineGitHubService,
+    getGitHubOwner: pipelineGetGitHubOwner,
+  });
+  // Resolve dev user for DEV_MODE auth bypass
+  let devUserId: string | undefined;
+  if (process.env.DEV_MODE === 'true') {
+    try {
+      const { db } = await import('./db/client.js');
+      const { users: usersTable } = await import('./db/schema.js');
+      const { eq } = await import('drizzle-orm');
+      const devUser = await db.query.users.findFirst({
+        where: eq(usersTable.status, 'active'),
+      });
+      devUserId = devUser?.id;
+      if (devUserId) {
+        console.log(`[buildApp] Pipeline DEV_MODE: auth bypass with user ${devUserId}`);
+      }
+    } catch {
+      console.log('[buildApp] Pipeline DEV_MODE: could not resolve dev user, auth required');
+    }
+  }
+  await app.register(
+    async (instance) => pipelinePlugin(instance, { orchestrator: pipelineOrchestrator, requireAuth, devUserId }),
+    { prefix: '/api/pipelines' },
+  );
 
   // Initialize Piri RAG service if configured
   if (env.PIRI_BASE_URL) {
