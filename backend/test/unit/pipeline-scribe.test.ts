@@ -246,12 +246,6 @@ describe('Scribe — AI error handling', () => {
   });
 
   it('returns error after all spec retries exhausted', async () => {
-    const ai: ScribeAIDeps = {
-      async generateText(_s, _u) {
-        return readyJson; // Always return "ready" for clarification, then invalid for spec
-      },
-    };
-
     // Override to test: always return ready, then invalid JSON for spec
     let phase = 'clarify';
     const ai2: ScribeAIDeps = {
