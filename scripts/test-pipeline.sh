@@ -8,7 +8,7 @@ API="http://localhost:3000/api/pipelines"
 echo "=== STEP 1: Create Pipeline ==="
 RESPONSE=$(curl -s -X POST "$API" \
   -H "Content-Type: application/json" \
-  -d '{"idea": "React ile basit bir sayac uygulamasi. Bir buton ile artirma, bir buton ile azaltma, ortada sayaci gosteren bir metin."}')
+  -d '{"idea": "React ile kullanicilarin not ekleyip silebilecegi, notlari LocalStorage da saklayan bir uygulama."}')
 
 echo "$RESPONSE" | python3 -m json.tool 2>/dev/null || echo "$RESPONSE"
 
@@ -79,9 +79,11 @@ done
 
 echo ""
 echo "=== STEP 3: Approve Spec ==="
+REPO_NAME="akis-test-$(date +%s)"
+echo "  Repo name: $REPO_NAME"
 APPROVE_RESPONSE=$(curl -s -X POST "$API/$PIPELINE_ID/approve" \
   -H "Content-Type: application/json" \
-  -d '{"repoName": "akis-test-counter", "repoVisibility": "private"}')
+  -d "{\"repoName\": \"$REPO_NAME\", \"repoVisibility\": \"private\"}")
 
 APPROVE_STAGE=$(echo "$APPROVE_RESPONSE" | python3 -c "import sys,json; print(json.load(sys.stdin)['pipeline']['stage'])" 2>/dev/null)
 echo "  Stage after approve: $APPROVE_STAGE"
