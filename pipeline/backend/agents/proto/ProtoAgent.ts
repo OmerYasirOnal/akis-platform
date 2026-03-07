@@ -44,21 +44,38 @@ export type ProtoResult =
 
 // ─── Constants ────────────────────────────────────
 
-const MIN_SCAFFOLD_FILES = 3;
+const MIN_SCAFFOLD_FILES = 6;
 
 const SCAFFOLD_SYSTEM_PROMPT = `You are Proto, an MVP scaffold builder.
 
-Generate a MINIMAL working codebase. Output ONLY valid JSON — no markdown, no explanations, no code fences.
+Generate a WORKING codebase with proper file structure. Output ONLY valid JSON — no markdown, no explanations, no code fences.
+
+FOLDER STRUCTURE (minimum required files):
+  index.html          — Vite HTML entry (<div id="root">, <script type="module" src="/src/main.jsx">)
+  package.json        — react, react-dom, vite, @vitejs/plugin-react as deps + "dev": "vite" script
+  vite.config.js      — import react plugin, export default
+  .gitignore          — node_modules, dist, .env
+  README.md           — Turkish, proje açıklaması + kurulum adımları (npm install && npm run dev)
+  src/main.jsx        — ONLY ReactDOM.createRoot + <App /> render, nothing else
+  src/App.jsx         — Main layout, imports and renders all feature components
+  src/App.css         — Basic styling (no inline styles!)
+  src/components/     — ONE component file per user story from the spec
 
 RULES:
-- Exactly 4-5 files. Each file under 50 lines.
+- Create 8-12 files total. Each file UNDER 80 lines.
+- src/main.jsx must ONLY do ReactDOM.createRoot(document.getElementById('root')).render(<App />)
+- src/App.jsx imports and composes feature components
+- Each user story from the spec gets its OWN component in src/components/
+- Each acceptance criterion must have corresponding UI/logic in a component
+- Use a SINGLE src/App.css for all styles — NO inline styles
+- index.html must have <div id="root"></div> and module script tag
+- package.json: "type": "module", react + react-dom + vite + @vitejs/plugin-react
 - No comments in code. No test files. No CI/CD.
-- README.md in Turkish, code in English.
-- package.json: minimal deps only.
-- .gitignore: standard node.
+- README.md in Turkish with: project description, setup steps, features list.
+- Code in English, UI text in Turkish.
 
 JSON format (respond with ONLY this, nothing else):
-{"files":[{"filePath":"README.md","content":"...","linesOfCode":10},{"filePath":"package.json","content":"...","linesOfCode":15},{"filePath":".gitignore","content":"node_modules\\ndist\\n.env","linesOfCode":3},{"filePath":"src/main.tsx","content":"...","linesOfCode":30}],"setupCommands":["npm install","npm run dev"],"metadata":{"filesCreated":4,"totalLinesOfCode":58,"stackUsed":"React + Vite"}}`;
+{"files":[{"filePath":"index.html","content":"...","linesOfCode":12},{"filePath":"package.json","content":"...","linesOfCode":20},{"filePath":"vite.config.js","content":"...","linesOfCode":7},{"filePath":".gitignore","content":"node_modules\\ndist\\n.env","linesOfCode":3},{"filePath":"README.md","content":"...","linesOfCode":25},{"filePath":"src/main.jsx","content":"...","linesOfCode":8},{"filePath":"src/App.jsx","content":"...","linesOfCode":40},{"filePath":"src/App.css","content":"...","linesOfCode":60},{"filePath":"src/components/FeatureName.jsx","content":"...","linesOfCode":45}],"setupCommands":["npm install","npm run dev"],"metadata":{"filesCreated":9,"totalLinesOfCode":220,"stackUsed":"React + Vite"}}`;
 
 // ─── ProtoAgent ───────────────────────────────────
 
@@ -155,11 +172,19 @@ export class ProtoAgent {
     | { type: 'output'; data: { files: ProtoOutput['files']; setupCommands: string[]; metadata: Omit<ProtoOutput['metadata'], 'committed'> } }
     | { type: 'error'; error: PipelineError }
   > {
-    // Send a condensed spec to reduce input tokens and leave room for output
     const condensedSpec = {
       title: spec.title,
       problem: spec.problemStatement,
-      features: spec.userStories.map((s) => s.action).slice(0, 5),
+      userStories: spec.userStories.slice(0, 6).map((s) => ({
+        persona: s.persona,
+        action: s.action,
+        benefit: s.benefit,
+      })),
+      acceptanceCriteria: spec.acceptanceCriteria.slice(0, 8).map((ac) => ({
+        id: ac.id,
+        when: ac.when,
+        then: ac.then,
+      })),
       stack: spec.technicalConstraints?.stack ?? 'React + Vite + TypeScript',
     };
     const userPrompt = JSON.stringify(condensedSpec);
