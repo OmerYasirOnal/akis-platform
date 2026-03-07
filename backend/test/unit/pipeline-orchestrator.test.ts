@@ -1,4 +1,4 @@
-import { describe, it, beforeEach } from 'node:test';
+import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
 
@@ -11,8 +11,6 @@ import {
 import type {
   PipelineState,
   PipelineStage,
-  PipelineMetrics,
-  ScribeMessageType,
   ScribeOutput,
   ScribeClarification,
   StructuredSpec,
@@ -22,7 +20,6 @@ import type {
 import type { ScribeAgent, ScribeState, ScribeResult } from '../../../pipeline/backend/agents/scribe/ScribeAgent.js';
 import type { ProtoAgent, ProtoResult } from '../../../pipeline/backend/agents/proto/ProtoAgent.js';
 import type { TraceAgent, TraceResult } from '../../../pipeline/backend/agents/trace/TraceAgent.js';
-import type { PipelineError } from '../../../pipeline/backend/core/contracts/PipelineTypes.js';
 
 // ─── Test Fixtures ────────────────────────────────
 
@@ -110,6 +107,24 @@ class InMemoryStore implements PipelineStore {
   }
 }
 
+// ─── Helpers ─────────────────────────────────────
+
+async function waitForStage(
+  store: PipelineStore,
+  id: string,
+  targetStages: PipelineStage[],
+  timeoutMs = 5000,
+): Promise<PipelineState> {
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    const p = await store.getById(id);
+    if (p && targetStages.includes(p.stage)) return p;
+    await new Promise((r) => setTimeout(r, 10));
+  }
+  const p = await store.getById(id);
+  throw new Error(`Timeout: expected ${targetStages.join('|')}, got ${p?.stage}`);
+}
+
 // ─── Mock Factories ───────────────────────────────
 
 function createMockScribe(overrides?: {
@@ -180,16 +195,19 @@ function createOrchestrator(overrides?: {
 
 describe('Orchestrator — Happy path', () => {
   it('clear idea → spec → approve → completed', async () => {
-    const { orchestrator } = createOrchestrator();
+    const { orchestrator, store } = createOrchestrator();
 
-    // Step 1: Start pipeline — clear idea → directly generates spec
     const started = await orchestrator.startPipeline('user-1', { idea: 'React todo app with Google Auth' });
-    assert.equal(started.stage, 'awaiting_approval');
-    assert.ok(started.scribeOutput);
-    assert.equal(started.title, 'Todo App');
 
-    // Step 2: Approve spec → Proto → Trace → completed
-    const completed = await orchestrator.approveSpec(started.id, 'my-todo-app', 'private');
+    // Background: Scribe runs async — wait for it
+    const specReady = await waitForStage(store, started.id, ['awaiting_approval']);
+    assert.equal(specReady.stage, 'awaiting_approval');
+    assert.ok(specReady.scribeOutput);
+    assert.equal(specReady.title, 'Todo App');
+
+    // Approve spec → background Proto+Trace
+    await orchestrator.approveSpec(specReady.id, 'my-todo-app', 'private');
+    const completed = await waitForStage(store, started.id, ['completed']);
     assert.equal(completed.stage, 'completed');
     assert.ok(completed.protoOutput);
     assert.ok(completed.traceOutput);
@@ -198,29 +216,30 @@ describe('Orchestrator — Happy path', () => {
   });
 
   it('vague idea → clarification → answer → spec → approve → completed', async () => {
-    let callCount = 0;
     const scribe = createMockScribe({
       analyzIdea: async () => {
-        callCount++;
         return { type: 'clarification', data: mockClarification };
       },
       continueAfterAnswer: async () => {
         return { type: 'spec', data: mockScribeOutput };
       },
     });
-    const { orchestrator } = createOrchestrator({ scribe });
+    const { orchestrator, store } = createOrchestrator({ scribe });
 
-    // Step 1: Start → clarification
+    // Step 1: Start → wait for clarification
     const started = await orchestrator.startPipeline('user-1', { idea: 'Bir uygulama istiyorum' });
-    assert.equal(started.stage, 'scribe_clarifying');
-    assert.equal(started.scribeConversation.length, 2); // user_idea + clarification
+    const clarifying = await waitForStage(store, started.id, ['scribe_clarifying']);
+    assert.equal(clarifying.stage, 'scribe_clarifying');
+    assert.equal(clarifying.scribeConversation.length, 2); // user_idea + clarification
 
-    // Step 2: Send answer → spec
-    const answered = await orchestrator.sendMessage(started.id, 'Google Auth istiyorum');
-    assert.equal(answered.stage, 'awaiting_approval');
+    // Step 2: Send answer → wait for spec
+    await orchestrator.sendMessage(started.id, 'Google Auth istiyorum');
+    const specReady = await waitForStage(store, started.id, ['awaiting_approval']);
+    assert.equal(specReady.stage, 'awaiting_approval');
 
-    // Step 3: Approve → completed
-    const completed = await orchestrator.approveSpec(answered.id, 'my-app', 'private');
+    // Step 3: Approve → wait for completed
+    await orchestrator.approveSpec(started.id, 'my-app', 'private');
+    const completed = await waitForStage(store, started.id, ['completed']);
     assert.equal(completed.stage, 'completed');
   });
 });
@@ -242,19 +261,21 @@ describe('Orchestrator — Error and retry', () => {
         return { type: 'output' as const, data: mockProtoOutput };
       },
     });
-    const { orchestrator } = createOrchestrator({ proto });
+    const { orchestrator, store } = createOrchestrator({ proto });
 
-    // Start → spec
+    // Start → wait for spec
     const started = await orchestrator.startPipeline('user-1', { idea: 'React todo app' });
-    assert.equal(started.stage, 'awaiting_approval');
+    await waitForStage(store, started.id, ['awaiting_approval']);
 
     // Approve → Proto fails
-    const failed = await orchestrator.approveSpec(started.id, 'my-app', 'private');
+    await orchestrator.approveSpec(started.id, 'my-app', 'private');
+    const failed = await waitForStage(store, started.id, ['failed']);
     assert.equal(failed.stage, 'failed');
     assert.equal(failed.error?.code, 'GITHUB_API_ERROR');
 
     // Retry → Proto succeeds → Trace → completed
-    const retried = await orchestrator.retryStage(failed.id);
+    await orchestrator.retryStage(failed.id);
+    const retried = await waitForStage(store, started.id, ['completed']);
     assert.equal(retried.stage, 'completed');
     assert.equal(protoCallCount, 2);
   });
@@ -273,11 +294,12 @@ describe('Orchestrator — Error and retry', () => {
         return { type: 'clarification', data: mockClarification };
       },
     });
-    const { orchestrator } = createOrchestrator({ scribe });
+    const { orchestrator, store } = createOrchestrator({ scribe });
 
-    // Start → error
+    // Start → wait for error
     const started = await orchestrator.startPipeline('user-1', { idea: 'Bir uygulama istiyorum' });
-    assert.equal(started.stage, 'failed');
+    const errored = await waitForStage(store, started.id, ['failed']);
+    assert.equal(errored.stage, 'failed');
 
     // Retry → clarification
     const retried = await orchestrator.retryStage(started.id);
@@ -295,15 +317,15 @@ describe('Orchestrator — Graceful degradation', () => {
         error: { code: 'TRACE_TEST_GENERATION_FAILED', message: 'AI failed', retryable: true },
       }),
     });
-    const { orchestrator } = createOrchestrator({ trace });
+    const { orchestrator, store } = createOrchestrator({ trace });
 
     const started = await orchestrator.startPipeline('user-1', { idea: 'Todo app' });
-    const completed = await orchestrator.approveSpec(started.id, 'my-app', 'private');
-    assert.equal(completed.stage, 'completed_partial');
-    // Proto output should still be saved
-    const status = await orchestrator.getStatus(completed.id);
-    assert.ok(status.protoOutput);
-    assert.equal(status.traceOutput, undefined);
+    await waitForStage(store, started.id, ['awaiting_approval']);
+    await orchestrator.approveSpec(started.id, 'my-app', 'private');
+    const final = await waitForStage(store, started.id, ['completed_partial']);
+    assert.equal(final.stage, 'completed_partial');
+    assert.ok(final.protoOutput);
+    assert.equal(final.traceOutput, undefined);
   });
 });
 
@@ -314,24 +336,25 @@ describe('Orchestrator — Cancel', () => {
     const scribe = createMockScribe({
       analyzIdea: async () => ({ type: 'clarification', data: mockClarification }),
     });
-    const { orchestrator } = createOrchestrator({ scribe });
+    const { orchestrator, store } = createOrchestrator({ scribe });
 
     const started = await orchestrator.startPipeline('user-1', { idea: 'Some app idea here' });
-    assert.equal(started.stage, 'scribe_clarifying');
+    await waitForStage(store, started.id, ['scribe_clarifying']);
 
     const cancelled = await orchestrator.cancelPipeline(started.id);
     assert.equal(cancelled.stage, 'cancelled');
   });
 
   it('rejects cancel on completed pipeline', async () => {
-    const { orchestrator } = createOrchestrator();
+    const { orchestrator, store } = createOrchestrator();
 
     const started = await orchestrator.startPipeline('user-1', { idea: 'Todo app' });
-    const completed = await orchestrator.approveSpec(started.id, 'my-app', 'private');
-    assert.equal(completed.stage, 'completed');
+    await waitForStage(store, started.id, ['awaiting_approval']);
+    await orchestrator.approveSpec(started.id, 'my-app', 'private');
+    await waitForStage(store, started.id, ['completed']);
 
     await assert.rejects(
-      () => orchestrator.cancelPipeline(completed.id),
+      () => orchestrator.cancelPipeline(started.id),
       { message: /Cannot cancel/ },
     );
   });
@@ -341,21 +364,15 @@ describe('Orchestrator — Cancel', () => {
 
 describe('Orchestrator — Skip trace', () => {
   it('skips trace → completed_partial', async () => {
-    // Use a trace that never completes (we'll skip before it matters)
-    // We need Proto to succeed and then Trace to be "in progress"
-    // For this test, we simulate being in trace_testing stage manually
     const store = new InMemoryStore();
     const trace = createMockTrace({
       execute: async () => {
-        // This won't be called because we'll skip trace
         return { type: 'output' as const, data: mockTraceOutput };
       },
     });
     const { orchestrator } = createOrchestrator({ store, trace });
 
     const started = await orchestrator.startPipeline('user-1', { idea: 'Todo app' });
-    // Approve → Proto succeeds → trace_testing → but trace also succeeds immediately
-    // To test skipTrace, we need a trace that takes time. Instead, let's set stage manually.
     await store.update(started.id, {
       stage: 'trace_testing' as PipelineStage,
       protoOutput: mockProtoOutput,
@@ -371,14 +388,13 @@ describe('Orchestrator — Skip trace', () => {
 
 describe('Orchestrator — Reject spec', () => {
   it('rejects spec → regenerates → awaiting_approval', async () => {
-    const { orchestrator } = createOrchestrator();
+    const { orchestrator, store } = createOrchestrator();
 
     const started = await orchestrator.startPipeline('user-1', { idea: 'Todo app' });
-    assert.equal(started.stage, 'awaiting_approval');
+    await waitForStage(store, started.id, ['awaiting_approval']);
 
     const rejected = await orchestrator.rejectSpec(started.id, 'User story eksik');
     assert.equal(rejected.stage, 'awaiting_approval');
-    // Conversation should have spec_rejected + spec_draft
     const hasRejection = rejected.scribeConversation.some((m) => m.type === 'spec_rejected');
     assert.ok(hasRejection);
   });
@@ -388,10 +404,10 @@ describe('Orchestrator — Reject spec', () => {
 
 describe('Orchestrator — Stage validation', () => {
   it('rejects sendMessage in wrong stage', async () => {
-    const { orchestrator } = createOrchestrator();
+    const { orchestrator, store } = createOrchestrator();
 
     const started = await orchestrator.startPipeline('user-1', { idea: 'Todo app' });
-    assert.equal(started.stage, 'awaiting_approval');
+    await waitForStage(store, started.id, ['awaiting_approval']);
 
     await assert.rejects(
       () => orchestrator.sendMessage(started.id, 'hello'),
@@ -403,10 +419,10 @@ describe('Orchestrator — Stage validation', () => {
     const scribe = createMockScribe({
       analyzIdea: async () => ({ type: 'clarification', data: mockClarification }),
     });
-    const { orchestrator } = createOrchestrator({ scribe });
+    const { orchestrator, store } = createOrchestrator({ scribe });
 
     const started = await orchestrator.startPipeline('user-1', { idea: 'Some idea for an app' });
-    assert.equal(started.stage, 'scribe_clarifying');
+    await waitForStage(store, started.id, ['scribe_clarifying']);
 
     await assert.rejects(
       () => orchestrator.approveSpec(started.id, 'repo', 'private'),
@@ -419,22 +435,24 @@ describe('Orchestrator — Stage validation', () => {
 
 describe('Orchestrator — Concurrent pipelines', () => {
   it('handles multiple pipelines for same user independently', async () => {
-    const { orchestrator } = createOrchestrator();
+    const { orchestrator, store } = createOrchestrator();
 
     const p1 = await orchestrator.startPipeline('user-1', { idea: 'Todo app one' });
     const p2 = await orchestrator.startPipeline('user-1', { idea: 'Todo app two' });
 
     assert.notEqual(p1.id, p2.id);
-    assert.equal(p1.stage, 'awaiting_approval');
-    assert.equal(p2.stage, 'awaiting_approval');
+
+    // Both should reach awaiting_approval async
+    await waitForStage(store, p1.id, ['awaiting_approval']);
+    await waitForStage(store, p2.id, ['awaiting_approval']);
 
     // Complete p1
-    const c1 = await orchestrator.approveSpec(p1.id, 'app-one', 'private');
-    assert.equal(c1.stage, 'completed');
+    await orchestrator.approveSpec(p1.id, 'app-one', 'private');
+    await waitForStage(store, p1.id, ['completed']);
 
     // p2 still awaiting
-    const s2 = await orchestrator.getStatus(p2.id);
-    assert.equal(s2.stage, 'awaiting_approval');
+    const s2 = await store.getById(p2.id);
+    assert.equal(s2?.stage, 'awaiting_approval');
 
     // List shows both
     const list = await orchestrator.listPipelines('user-1');
@@ -447,14 +465,16 @@ describe('Orchestrator — Concurrent pipelines', () => {
 describe('Orchestrator — Events', () => {
   it('emits events during pipeline lifecycle', async () => {
     const events: PipelineEvent[] = [];
-    const { orchestrator } = createOrchestrator({
+    const { orchestrator, store } = createOrchestrator({
       emit: (event) => events.push(event),
     });
 
     const started = await orchestrator.startPipeline('user-1', { idea: 'Todo app' });
-    const completed = await orchestrator.approveSpec(started.id, 'my-app', 'private');
+    await waitForStage(store, started.id, ['awaiting_approval']);
+    await orchestrator.approveSpec(started.id, 'my-app', 'private');
+    await waitForStage(store, started.id, ['completed']);
 
-    assert.ok(events.length >= 3); // stage_change to awaiting_approval, proto_building, trace_testing, completed
+    assert.ok(events.length >= 3);
     assert.ok(events.some((e) => e.type === 'stage_change' && e.stage === 'awaiting_approval'));
     assert.ok(events.some((e) => e.type === 'stage_change' && e.stage === 'proto_building'));
     assert.ok(events.some((e) => e.type === 'completed'));
