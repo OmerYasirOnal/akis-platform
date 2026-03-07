@@ -217,8 +217,10 @@ REQUIRED_FILES=(
   "deploy/oci/staging/deploy.sh"
   "deploy/oci/staging/docker-compose.yml"
   "deploy/oci/staging/Caddyfile"
-  "backend/Dockerfile"
+  "Dockerfile.backend"
   "backend/package.json"
+  "backend/tsconfig.json"
+  "pipeline/backend/agents/scribe/ScribeAgent.ts"
 )
 
 for file in "${REQUIRED_FILES[@]}"; do
@@ -414,10 +416,14 @@ if [ "$CONFIRM" = true ]; then
   # Create tarballs for efficient transfer
   echo "Creating tarballs..."
 
-  # Backend source tarball
-  tar -czf /tmp/backend-src-$$.tar.gz -C backend \
-    Dockerfile package.json pnpm-lock.yaml tsconfig.json drizzle.config.ts \
-    src migrations
+  # Repo source tarball (backend + pipeline + Dockerfile.backend)
+  # deploy.sh on server uses /opt/akis/repo-src/ as Docker build context
+  # Dockerfile.backend needs: backend/ + pipeline/backend/ at repo root
+  tar -czf /tmp/repo-src-$$.tar.gz \
+    Dockerfile.backend \
+    backend/package.json backend/pnpm-lock.yaml backend/tsconfig.json \
+    backend/drizzle.config.ts backend/src backend/migrations \
+    pipeline/backend
 
   # Frontend dist tarball
   tar -czf /tmp/frontend-dist-$$.tar.gz -C frontend/dist .
@@ -448,19 +454,20 @@ if [ "$CONFIRM" = true ]; then
 
   echo "✅ Copied Caddyfile"
 
-  # Transfer and extract backend source
-  echo "Copying backend source..."
+  # Transfer and extract repo source (replaces old backend-src approach)
+  echo "Copying repo source (backend + pipeline)..."
   scp -i "$SSH_KEY" -o StrictHostKeyChecking=no \
-    /tmp/backend-src-$$.tar.gz "${SSH_USER}@${SSH_HOST}:/tmp/backend-src.tar.gz"
+    /tmp/repo-src-$$.tar.gz "${SSH_USER}@${SSH_HOST}:/tmp/repo-src.tar.gz"
 
   ssh -i "$SSH_KEY" -o StrictHostKeyChecking=no "${SSH_USER}@${SSH_HOST}" \
-    "mkdir -p /opt/akis/backend-src && \
-     tar -xzf /tmp/backend-src.tar.gz -C /opt/akis/backend-src && \
-     rm /tmp/backend-src.tar.gz"
+    "rm -rf /opt/akis/repo-src && \
+     mkdir -p /opt/akis/repo-src && \
+     tar -xzf /tmp/repo-src.tar.gz -C /opt/akis/repo-src && \
+     rm /tmp/repo-src.tar.gz"
 
-  rm /tmp/backend-src-$$.tar.gz
+  rm /tmp/repo-src-$$.tar.gz
 
-  echo "✅ Copied backend source"
+  echo "✅ Copied repo source (backend + pipeline + Dockerfile.backend)"
 
   # Transfer and extract frontend dist
   echo "Copying frontend dist..."
@@ -469,6 +476,7 @@ if [ "$CONFIRM" = true ]; then
 
   ssh -i "$SSH_KEY" -o StrictHostKeyChecking=no "${SSH_USER}@${SSH_HOST}" \
     "mkdir -p /opt/akis/frontend && \
+     rm -rf /opt/akis/frontend/* && \
      tar -xzf /tmp/frontend-dist.tar.gz -C /opt/akis/frontend && \
      rm /tmp/frontend-dist.tar.gz"
 
@@ -476,12 +484,12 @@ if [ "$CONFIRM" = true ]; then
 
   echo "✅ Copied frontend dist"
 else
-  echo "[DRY-RUN] Would create tarball: backend-src.tar.gz"
+  echo "[DRY-RUN] Would create tarball: repo-src.tar.gz (backend + pipeline + Dockerfile.backend)"
   echo "[DRY-RUN] Would create tarball: frontend-dist.tar.gz"
   echo "[DRY-RUN] Would copy: deploy.sh → /opt/akis/deploy.sh"
   echo "[DRY-RUN] Would copy: docker-compose.yml → /opt/akis/docker-compose.yml"
   echo "[DRY-RUN] Would copy: Caddyfile → /opt/akis/Caddyfile"
-  echo "[DRY-RUN] Would copy: backend source → /opt/akis/backend-src/"
+  echo "[DRY-RUN] Would copy: repo source → /opt/akis/repo-src/ (backend + pipeline)"
   echo "[DRY-RUN] Would copy: frontend dist → /opt/akis/frontend/"
 fi
 
