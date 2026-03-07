@@ -30,6 +30,33 @@ export function PipelinePage() {
     fetchHistory();
   }, []);
 
+  // Poll pipeline status when in a working/waiting state
+  useEffect(() => {
+    if (!pipeline) return;
+    const needsPolling =
+      pipeline.stage === 'scribe_clarifying' ||
+      pipeline.stage === 'scribe_generating' ||
+      pipeline.stage === 'proto_building' ||
+      pipeline.stage === 'trace_testing';
+    if (!needsPolling) return;
+
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch(`${API_BASE}/${pipeline.id}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.pipeline) {
+            setPipeline(data.pipeline);
+          }
+        }
+      } catch {
+        // silently fail
+      }
+    }, 2000);
+
+    return () => clearInterval(interval);
+  }, [pipeline?.id, pipeline?.stage]);
+
   // ─── API Calls ──────────────────────────────
 
   async function fetchHistory() {
