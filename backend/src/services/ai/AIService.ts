@@ -363,6 +363,117 @@ class RealAIService implements AIService {
   }
 
   /**
+   * Build request for Anthropic Messages API
+   */
+  private buildAnthropicRequest(
+    messages: ChatMessage[],
+    model: string,
+    options: { temperature?: number; maxTokens?: number },
+  ): { endpoint: string; headers: Record<string, string>; body: Record<string, unknown> } {
+    const endpoint = `${this.config.baseUrl}/v1/messages`;
+
+    // Separate system message from user/assistant messages
+    const systemMessages = messages.filter((m) => m.role === 'system');
+    const nonSystemMessages = messages.filter((m) => m.role !== 'system');
+
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      'x-api-key': this.config.apiKey!,
+      'anthropic-version': '2023-06-01',
+    };
+
+    const body: Record<string, unknown> = {
+      model,
+      max_tokens: options.maxTokens ?? 4096,
+      messages: nonSystemMessages.map((m) => ({ role: m.role, content: m.content })),
+      ...(options.temperature !== undefined && { temperature: options.temperature }),
+    };
+
+    if (systemMessages.length > 0) {
+      body.system = systemMessages.map((m) => m.content).join('\n\n');
+    }
+
+    return { endpoint, headers, body };
+  }
+
+  /**
+   * Build request for OpenAI-compatible APIs (OpenAI, OpenRouter)
+   */
+  private buildOpenAIRequest(
+    messages: ChatMessage[],
+    model: string,
+    options: { temperature?: number; maxTokens?: number; seed?: number | null },
+  ): { endpoint: string; headers: Record<string, string>; body: Record<string, unknown> } {
+    const endpoint = `${this.config.baseUrl}/chat/completions`;
+    const resolvedSeed = options.seed === null ? undefined : (options.seed ?? DETERMINISTIC_SEED);
+
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${this.config.apiKey}`,
+    };
+
+    if (this.config.siteUrl) {
+      headers['HTTP-Referer'] = this.config.siteUrl;
+    } else {
+      headers['HTTP-Referer'] = 'https://akis.dev';
+    }
+    if (this.config.appName) {
+      headers['X-Title'] = this.config.appName;
+    } else {
+      headers['X-Title'] = 'AKIS Platform';
+    }
+
+    const body: Record<string, unknown> = {
+      model,
+      messages,
+      temperature: options.temperature ?? 0.7,
+      max_tokens: options.maxTokens ?? 2048,
+      ...(resolvedSeed !== undefined && { seed: resolvedSeed }),
+    };
+
+    return { endpoint, headers, body };
+  }
+
+  /**
+   * Parse Anthropic Messages API response into standard format
+   */
+  private parseAnthropicResponse(data: Record<string, unknown>): { content: string; usage?: AIUsage } {
+    const contentArray = data.content as Array<{ type: string; text: string }>;
+    const textBlocks = contentArray?.filter((b) => b.type === 'text') ?? [];
+    const content = textBlocks.map((b) => b.text).join('');
+
+    const rawUsage = data.usage as { input_tokens?: number; output_tokens?: number } | undefined;
+    const usage: AIUsage | undefined = rawUsage
+      ? {
+          inputTokens: rawUsage.input_tokens,
+          outputTokens: rawUsage.output_tokens,
+          totalTokens: (rawUsage.input_tokens ?? 0) + (rawUsage.output_tokens ?? 0),
+        }
+      : undefined;
+
+    return { content, usage };
+  }
+
+  /**
+   * Parse OpenAI-compatible response into standard format
+   */
+  private parseOpenAIResponse(data: ChatCompletionResponse): { content: string; usage?: AIUsage } {
+    if (!data.choices || data.choices.length === 0) {
+      throw new AIProviderError('AI_INVALID_RESPONSE', 'AI API returned no choices', this.config.provider);
+    }
+
+    const usage: AIUsage | undefined = data.usage
+      ? {
+          inputTokens: data.usage.prompt_tokens,
+          outputTokens: data.usage.completion_tokens,
+          totalTokens: data.usage.total_tokens,
+        }
+      : undefined;
+
+    return { content: data.choices[0].message.content, usage };
+  }
+
+  /**
    * Make a chat completion request to the AI API with retry logic
    */
   private async chatCompletion(
@@ -379,43 +490,17 @@ class RealAIService implements AIService {
       );
     }
 
-    const endpoint = `${this.config.baseUrl}/chat/completions`;
-
-    // Resolve deterministic seed: explicit null = no seed, undefined = use default
-    const resolvedSeed = options.seed === null ? undefined : (options.seed ?? DETERMINISTIC_SEED);
-
-    const body: Record<string, unknown> = {
-      model,
-      messages,
-      temperature: options.temperature ?? 0.7,
-      max_tokens: options.maxTokens ?? 2048,
-      ...(resolvedSeed !== undefined && { seed: resolvedSeed }),
-    };
+    // Build provider-specific request
+    const isAnthropic = this.config.provider === 'anthropic';
+    const { endpoint, headers, body } = isAnthropic
+      ? this.buildAnthropicRequest(messages, model, options)
+      : this.buildOpenAIRequest(messages, model, options);
 
     let lastError: Error | null = null;
 
     for (let attempt = 0; attempt <= this.maxRetries; attempt++) {
       try {
         const startTime = Date.now();
-        // Build headers - OpenRouter specific headers are optional
-        const headers: Record<string, string> = {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${this.config.apiKey}`,
-        };
-        
-        // Add OpenRouter specific headers if configured (ignored by OpenAI)
-        if (this.config.siteUrl) {
-          headers['HTTP-Referer'] = this.config.siteUrl;
-        } else {
-          headers['HTTP-Referer'] = 'https://akis.dev';
-        }
-        
-        if (this.config.appName) {
-          headers['X-Title'] = this.config.appName;
-        } else {
-          headers['X-Title'] = 'AKIS Platform';
-        }
-
         const response = await fetch(endpoint, {
           method: 'POST',
           headers,
@@ -462,7 +547,7 @@ class RealAIService implements AIService {
           
           // Auth errors (401, 403) - provide clear, actionable message
           if (response.status === 401 || response.status === 403) {
-            const providerLabel = this.config.provider === 'openai' ? 'OpenAI' : 'OpenRouter';
+            const providerLabel = this.config.provider === 'openai' ? 'OpenAI' : this.config.provider === 'anthropic' ? 'Anthropic' : 'OpenRouter';
             
             // Create user-friendly error message (don't expose raw API errors like "cookie auth")
             let friendlyMessage: string;
@@ -494,7 +579,7 @@ class RealAIService implements AIService {
           
           // Model not found errors (404) - provide actionable message
           if (response.status === 404) {
-            const providerLabel = this.config.provider === 'openai' ? 'OpenAI' : 'OpenRouter';
+            const providerLabel = this.config.provider === 'openai' ? 'OpenAI' : this.config.provider === 'anthropic' ? 'Anthropic' : 'OpenRouter';
             const modelNotFoundError = new AIProviderError(
               'AI_MODEL_NOT_FOUND',
               `Model "${model}" is not available on ${providerLabel}. Please select a different model in the agent configuration.`,
@@ -524,11 +609,13 @@ class RealAIService implements AIService {
           }
           
           // Generic error - provide friendly message
-          const providerLabel = this.config.provider === 'openai' ? 'OpenAI' : 'OpenRouter';
+          const providerLabel = this.config.provider === 'openai' ? 'OpenAI' : this.config.provider === 'anthropic' ? 'Anthropic' : 'OpenRouter';
           let friendlyMessage = `${providerLabel} returned an error (${response.status}).`;
           
           // Add context based on error content
-          if (errorText.toLowerCase().includes('rate') || errorText.toLowerCase().includes('limit')) {
+          if (errorText.toLowerCase().includes('credit') || errorText.toLowerCase().includes('billing') || errorText.toLowerCase().includes('balance')) {
+            friendlyMessage = `${providerLabel} account has insufficient credits. Please add credits or update your API key.`;
+          } else if (errorText.toLowerCase().includes('rate') || errorText.toLowerCase().includes('limit')) {
             friendlyMessage = `${providerLabel} rate limit exceeded. Please try again in a few moments.`;
           } else if (errorText.toLowerCase().includes('model') || errorText.toLowerCase().includes('route')) {
             friendlyMessage = `Model "${model}" may not be available on ${providerLabel}. Please try a different model.`;
@@ -553,26 +640,15 @@ class RealAIService implements AIService {
           throw providerError;
         }
 
-        const data = (await response.json()) as ChatCompletionResponse;
+        const data = await response.json();
 
-        if (!data.choices || data.choices.length === 0) {
-          throw new AIProviderError(
-            'AI_INVALID_RESPONSE',
-            'AI API returned no choices',
-            this.config.provider
-          );
-        }
+        // Parse response based on provider format
+        const parsed = isAnthropic
+          ? this.parseAnthropicResponse(data as Record<string, unknown>)
+          : this.parseOpenAIResponse(data as ChatCompletionResponse);
 
-        const usage: AIUsage | undefined = data.usage
-          ? {
-              inputTokens: data.usage.prompt_tokens,
-              outputTokens: data.usage.completion_tokens,
-              totalTokens: data.usage.total_tokens,
-            }
-          : undefined;
-
-        const estimatedCostUsd = usage
-          ? estimateCostUsd(model, usage.inputTokens, usage.outputTokens)
+        const estimatedCostUsd = parsed.usage
+          ? estimateCostUsd(model, parsed.usage.inputTokens, parsed.usage.outputTokens)
           : null;
 
         this.observer?.onAiCall({
@@ -580,14 +656,14 @@ class RealAIService implements AIService {
           provider: this.config.provider,
           model,
           durationMs,
-          usage,
+          usage: parsed.usage,
           estimatedCostUsd,
           success: true,
         });
 
         return {
-          content: data.choices[0].message.content,
-          usage,
+          content: parsed.content,
+          usage: parsed.usage,
           durationMs,
         };
       } catch (error) {

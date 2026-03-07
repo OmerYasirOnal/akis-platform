@@ -1610,3 +1610,36 @@ export const feedback = pgTable('feedback', {
 
 export type Feedback = typeof feedback.$inferSelect;
 export type NewFeedback = typeof feedback.$inferInsert;
+
+// ============================================================================
+// Pipeline System (Scribe → Proto → Trace)
+// ============================================================================
+
+export const pipelineStageEnum = pgEnum('pipeline_stage', [
+  'scribe_clarifying', 'scribe_generating', 'awaiting_approval',
+  'proto_building', 'trace_testing',
+  'completed', 'completed_partial', 'failed', 'cancelled',
+]);
+
+export const pipelines = pgTable('pipelines', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  stage: pipelineStageEnum('stage').notNull().default('scribe_clarifying'),
+  title: text('title'),
+  scribeConversation: jsonb('scribe_conversation').default([]),
+  scribeOutput: jsonb('scribe_output'),
+  approvedSpec: jsonb('approved_spec'),
+  protoOutput: jsonb('proto_output'),
+  traceOutput: jsonb('trace_output'),
+  protoConfig: jsonb('proto_config'),
+  metrics: jsonb('metrics').default({}),
+  error: jsonb('error'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  userIdIdx: index('idx_pipelines_user_id').on(table.userId),
+  stageIdx: index('idx_pipelines_stage').on(table.stage),
+}));
+
+export type Pipeline = typeof pipelines.$inferSelect;
+export type NewPipeline = typeof pipelines.$inferInsert;
