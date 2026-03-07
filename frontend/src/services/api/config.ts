@@ -17,9 +17,9 @@ function isLocalhost(url: string): boolean {
 export function getApiBaseUrl(): string {
   if (import.meta.env.VITE_BACKEND_URL) {
     const url = import.meta.env.VITE_BACKEND_URL.replace(/\/api\/?$/, '');
-    if (import.meta.env.PROD && isLocalhost(url)) {
-      // Production build must never call localhost — fall through
-    } else {
+    if (isLocalhost(url)) {
+      // Localhost backend — use relative paths so Vite proxy handles CORS
+    } else if (!import.meta.env.PROD) {
       return url;
     }
   }
@@ -32,9 +32,9 @@ export function getApiBaseUrl(): string {
     } else if (apiUrl.startsWith('http')) {
       try {
         const origin = new URL(apiUrl).origin;
-        if (import.meta.env.PROD && isLocalhost(origin)) {
-          // Production build must never call localhost — fall through
-        } else {
+        if (isLocalhost(origin)) {
+          // Localhost — use relative paths so Vite proxy handles CORS
+        } else if (!import.meta.env.PROD) {
           return origin;
         }
       } catch {
