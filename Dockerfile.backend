@@ -1,0 +1,91 @@
+# AKIS Backend Dockerfile — Staging/Production
+# Multi-stage build that includes pipeline/ agent code
+# Build context: REPO ROOT (not backend/)
+#
+# Usage:
+#   docker build -f Dockerfile.backend -t akis-backend .
+
+# =============================================================================
+# Stage 1: Build
+# =============================================================================
+FROM node:20-alpine AS builder
+
+RUN apk add --no-cache python3 make g++ wget
+RUN npm install -g pnpm@9
+
+# Recreate repo structure for TypeScript compilation
+# tsconfig rootDir=".." and includes "../pipeline/backend/**/*"
+WORKDIR /build/backend
+
+# Copy package files first (for layer caching)
+COPY backend/package.json backend/pnpm-lock.yaml ./
+
+# Install all dependencies (including devDependencies for build)
+RUN pnpm install --frozen-lockfile
+
+# Copy TypeScript config
+COPY backend/tsconfig.json ./
+COPY backend/drizzle.config.ts ./
+
+# Copy backend source
+COPY backend/src ./src
+
+# Copy pipeline backend source (agents, orchestrator, adapters)
+COPY pipeline/backend /build/pipeline/backend
+
+# Node module resolution: pipeline code imports from 'zod' etc.
+# Since node_modules is at /build/backend/node_modules, create a symlink
+# at /build/node_modules so resolution walks up from /build/pipeline/ and finds it.
+RUN ln -s /build/backend/node_modules /build/node_modules
+
+# Build TypeScript — output goes to dist/backend/src/ and dist/pipeline/backend/
+RUN pnpm run build
+
+# Remove devDependencies
+RUN pnpm prune --prod
+
+# =============================================================================
+# Stage 2: Production
+# =============================================================================
+FROM node:20-alpine AS production
+
+ARG BUILD_COMMIT=unknown
+ARG BUILD_TIME=unknown
+ARG APP_VERSION=0.1.0
+
+ENV BUILD_COMMIT=${BUILD_COMMIT}
+ENV BUILD_TIME=${BUILD_TIME}
+ENV APP_VERSION=${APP_VERSION}
+
+RUN apk add --no-cache wget dumb-init && \
+    npm install -g pnpm@9
+
+# Create non-root user
+RUN addgroup -g 1001 -S akis && \
+    adduser -S -D -u 1001 -h /home/akis -s /sbin/nologin -G akis akis && \
+    mkdir -p /home/akis/.local/share && \
+    chown -R akis:akis /home/akis
+
+WORKDIR /app
+
+# Copy built files from builder
+# dist/ contains: backend/src/ (compiled backend) + pipeline/backend/ (compiled pipeline)
+COPY --from=builder --chown=akis:akis /build/backend/dist ./dist
+COPY --from=builder --chown=akis:akis /build/backend/node_modules ./node_modules
+COPY --from=builder --chown=akis:akis /build/backend/package.json ./
+
+# Copy migrations (for runtime migration support)
+COPY --chown=akis:akis backend/migrations ./migrations
+COPY --chown=akis:akis backend/drizzle.config.ts ./
+
+USER akis
+
+EXPOSE 3000
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+    CMD wget --no-verbose --tries=1 --spider http://localhost:3000/health || exit 1
+
+ENTRYPOINT ["dumb-init", "--"]
+
+# Entry point: dist/backend/src/server.js (rootDir=".." puts backend code under dist/backend/src/)
+CMD ["node", "dist/backend/src/server.js"]

@@ -301,7 +301,7 @@ export class ScribeAgent {
           type: 'error',
           error: createPipelineError(
             PipelineErrorCode.SCRIBE_SPEC_VALIDATION_FAILED,
-            `Schema validation failed: ${outputResult.error.issues.map((i) => i.message).join(', ')}`
+            `Schema validation failed: ${outputResult.error.issues.map((i: { message: string }) => i.message).join(', ')}`
           ),
         };
       }

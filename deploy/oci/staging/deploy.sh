@@ -82,17 +82,32 @@ echo ">>> Step 2: Check if local build needed..."
 if [ "$PULL_SUCCESS" = "false" ]; then
     echo "=== Building image locally (fallback) ==="
     
-    if [ ! -d /opt/akis/backend-src ]; then
-        echo "ERROR: /opt/akis/backend-src not found!"
-        exit 1
+    if [ ! -d /opt/akis/repo-src ]; then
+        # Fallback: check legacy backend-src directory
+        if [ -d /opt/akis/backend-src ]; then
+            echo "WARNING: Using legacy backend-src (no pipeline code)"
+            cd /opt/akis/backend-src
+        else
+            echo "ERROR: /opt/akis/repo-src not found!"
+            exit 1
+        fi
+    else
+        cd /opt/akis/repo-src
     fi
-    
-    cd /opt/akis/backend-src
-    
+
     # Use --no-cache to ensure BUILD_COMMIT is always fresh
+    # Dockerfile.backend uses repo root as context (includes backend/ + pipeline/)
     echo "Building with --no-cache to ensure commit hash is embedded..."
+    DOCKERFILE="Dockerfile.backend"
+    if [ ! -f "$DOCKERFILE" ]; then
+        # Fallback: use legacy backend/Dockerfile
+        echo "WARNING: Dockerfile.backend not found, using backend/Dockerfile"
+        DOCKERFILE="backend/Dockerfile"
+        cd backend 2>/dev/null || true
+    fi
     if docker build \
         --no-cache \
+        -f "$DOCKERFILE" \
         --build-arg BUILD_COMMIT="${BACKEND_VERSION}" \
         --build-arg BUILD_TIME="${BUILD_TIME}" \
         --build-arg APP_VERSION="0.1.0" \
