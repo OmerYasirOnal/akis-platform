@@ -85,33 +85,108 @@ const SPEC_GENERATION_SYSTEM_PROMPT = `You are Scribe, a conversational spec wri
 
 Your task is to generate a comprehensive, structured software specification from the user's idea and any clarification answers.
 
-Generate a StructuredSpec with these fields:
-1. title: Concise project name (3-8 words)
-2. problemStatement: What problem does this solve? (2-4 sentences)
-3. userStories: Array of {persona, action, benefit} — minimum 1
-4. acceptanceCriteria: Array of {id, given, when, then} — minimum 1, IDs like "ac-1"
-5. technicalConstraints: {stack?, integrations?, nonFunctional?}
-6. outOfScope: What this MVP will NOT include
+CRITICAL: All array fields MUST be JSON arrays [], never strings. Follow the exact structure below.
 
-Also generate:
-- rawMarkdown: Human-readable markdown version of the spec
-- confidence: 0-1 score based on information completeness
-- clarificationsAsked: number of clarification rounds completed
-
-Respond ONLY with valid JSON matching this structure:
+Respond ONLY with valid JSON matching this EXACT structure:
 {
-  "spec": { "title": "...", "problemStatement": "...", "userStories": [...], "acceptanceCriteria": [...], "technicalConstraints": {...}, "outOfScope": [...] },
-  "rawMarkdown": "...",
+  "spec": {
+    "title": "Proje Başlığı (3-8 kelime)",
+    "problemStatement": "Bu proje şu sorunu çözüyor... (2-4 cümle)",
+    "userStories": [
+      {"persona": "Son kullanıcı", "action": "Uygulamaya giriş yapabilmeli", "benefit": "Kişiselleştirilmiş deneyim sunulması"},
+      {"persona": "Yönetici", "action": "Kullanıcıları yönetebilmeli", "benefit": "Sistem kontrolü sağlanması"}
+    ],
+    "acceptanceCriteria": [
+      {"id": "ac-1", "given": "Kullanıcı giriş sayfasında", "when": "Email ve şifre girip submit ettiğinde", "then": "Dashboard'a yönlendirilir"},
+      {"id": "ac-2", "given": "Kullanıcı kayıtlı değilse", "when": "Kayıt formunu doldurduğunda", "then": "Hesap oluşturulur ve doğrulama emaili gönderilir"}
+    ],
+    "technicalConstraints": {
+      "stack": "React + Node.js",
+      "integrations": ["GitHub API", "OAuth 2.0"],
+      "nonFunctional": ["Response time < 2s", "Mobile responsive"]
+    },
+    "outOfScope": ["Admin paneli", "Ödeme sistemi", "Mobil uygulama"]
+  },
+  "rawMarkdown": "# Proje Başlığı\\n\\n## Problem\\n...\\n\\n## User Stories\\n...\\n\\n## Kabul Kriterleri\\n...",
   "confidence": 0.85,
-  "clarificationsAsked": 2
+  "clarificationsAsked": 0
 }
 
-Rules:
+IMPORTANT RULES:
+- "userStories" MUST be a JSON ARRAY of objects with "persona", "action", "benefit" keys
+- "acceptanceCriteria" MUST be a JSON ARRAY of objects with "id", "given", "when", "then" keys
+- "outOfScope" MUST be a JSON ARRAY of strings
+- "integrations" and "nonFunctional" MUST be JSON ARRAYS of strings (or omitted)
 - Spec content should be in Turkish
 - rawMarkdown should be human-readable Turkish
 - Be specific and actionable
 - Do NOT add features the user didn't mention
-- Keep MVP scope tight`;
+- Keep MVP scope tight
+- NEVER return string values where arrays are expected`;
+
+// ─── AI Response Normalization ───────────────────
+
+/**
+ * Normalizes raw AI JSON to fix common output mistakes before Zod validation.
+ * Handles: string-instead-of-array, flat string userStories/acceptanceCriteria.
+ */
+function normalizeSpecResponse(raw: Record<string, unknown>): Record<string, unknown> {
+  const spec = (raw.spec ?? raw) as Record<string, unknown>;
+
+  // userStories: should be [{persona, action, benefit}, ...]
+  if (typeof spec.userStories === 'string') {
+    try {
+      const parsed = JSON.parse(spec.userStories as string);
+      spec.userStories = Array.isArray(parsed) ? parsed : [parsed];
+    } catch {
+      spec.userStories = [
+        { persona: 'Kullanıcı', action: spec.userStories, benefit: 'Belirtilmedi' },
+      ];
+    }
+  }
+
+  // acceptanceCriteria: should be [{id, given, when, then}, ...]
+  if (typeof spec.acceptanceCriteria === 'string') {
+    try {
+      const parsed = JSON.parse(spec.acceptanceCriteria as string);
+      spec.acceptanceCriteria = Array.isArray(parsed) ? parsed : [parsed];
+    } catch {
+      spec.acceptanceCriteria = [
+        { id: 'ac-1', given: 'Sistem hazır', when: spec.acceptanceCriteria, then: 'Belirtilmedi' },
+      ];
+    }
+  }
+
+  // outOfScope: should be string[]
+  if (typeof spec.outOfScope === 'string') {
+    try {
+      const parsed = JSON.parse(spec.outOfScope as string);
+      spec.outOfScope = Array.isArray(parsed) ? parsed : [String(parsed)];
+    } catch {
+      spec.outOfScope = [(spec.outOfScope as string)];
+    }
+  }
+  if (!Array.isArray(spec.outOfScope)) {
+    spec.outOfScope = [];
+  }
+
+  // technicalConstraints nested arrays
+  if (spec.technicalConstraints && typeof spec.technicalConstraints === 'object') {
+    const tc = spec.technicalConstraints as Record<string, unknown>;
+    if (typeof tc.integrations === 'string') {
+      tc.integrations = [tc.integrations];
+    }
+    if (typeof tc.nonFunctional === 'string') {
+      tc.nonFunctional = [tc.nonFunctional];
+    }
+  }
+
+  if (raw.spec) {
+    raw.spec = spec;
+  }
+
+  return raw;
+}
 
 // ─── ScribeAgent ──────────────────────────────────
 
@@ -214,6 +289,11 @@ export class ScribeAgent {
         };
       }
 
+      // Normalize AI response before validation (fix string-instead-of-array etc.)
+      if (rawParsed && typeof rawParsed === 'object') {
+        rawParsed = normalizeSpecResponse(rawParsed as Record<string, unknown>);
+      }
+
       const outputResult = ScribeOutputSchema.safeParse(rawParsed);
       if (!outputResult.success) {
         if (attempt < RETRY_CONFIG.specValidationMaxRetries) continue;
@@ -312,6 +392,11 @@ export class ScribeAgent {
         }
       } else if (msg.type === 'user_answer') {
         lines.push(`C: ${msg.content}`);
+      } else if (msg.type === 'spec_rejected') {
+        const feedback = typeof msg.content === 'object' && msg.content !== null
+          ? (msg.content as Record<string, unknown>).feedback
+          : msg.content;
+        lines.push(`[KULLANICI REDDETTİ — Geri bildirim: ${feedback}]`);
       }
     }
     return lines.join('\n');

@@ -62,20 +62,36 @@ export class PipelineOrchestrator {
 
   async startPipeline(userId: string, input: ScribeInput): Promise<PipelineState> {
     const pipeline = await this.store.create(userId);
-    const scribeState = this.scribe.createInitialState(input);
 
     const conversation: ScribeMessageType[] = [
       { type: 'user_idea', content: input.idea },
     ];
 
-    await this.store.update(pipeline.id, {
+    const updated = await this.store.update(pipeline.id, {
       title: input.idea.slice(0, 100),
       scribeConversation: conversation,
       metrics: { ...pipeline.metrics, startedAt: new Date() },
     });
 
+    // Run Scribe in background (non-blocking)
+    this.runScribeAnalysis(pipeline.id, pipeline.metrics, input, conversation).catch((err) => {
+      console.error(`[Pipeline] Background Scribe failed for ${pipeline.id}:`, err);
+    });
+
+    return updated;
+  }
+
+  // ─── Background Scribe Analysis ───────────────
+
+  private async runScribeAnalysis(
+    pipelineId: string,
+    metrics: PipelineMetrics,
+    input: ScribeInput,
+    conversation: ScribeMessageType[],
+  ): Promise<void> {
+    const scribeState = this.scribe.createInitialState(input);
     const result = await this.scribe.analyzIdea(scribeState);
-    return this.handleScribeResult(pipeline.id, pipeline.metrics, conversation, result);
+    await this.handleScribeResult(pipelineId, metrics, conversation, result);
   }
 
   // ─── Send Message (Scribe Chat) ──────────────
@@ -92,8 +108,31 @@ export class PipelineOrchestrator {
       { type: 'user_answer', content: message },
     ];
 
+    // Update with user answer immediately
+    const updated = await this.store.update(pipelineId, {
+      scribeConversation: conversation,
+      stage: 'scribe_generating',
+    });
+    this.emitEvent(pipelineId, 'stage_change', 'scribe_generating');
+
+    // Run Scribe continuation in background
+    this.runScribeContinuation(pipelineId, pipeline.metrics, scribeState, conversation).catch((err) => {
+      console.error(`[Pipeline] Background Scribe continuation failed for ${pipelineId}:`, err);
+    });
+
+    return updated;
+  }
+
+  // ─── Background Scribe Continuation ───────────
+
+  private async runScribeContinuation(
+    pipelineId: string,
+    metrics: PipelineMetrics,
+    scribeState: ScribeState,
+    conversation: ScribeMessageType[],
+  ): Promise<void> {
     const result = await this.scribe.continueAfterAnswer(scribeState);
-    return this.handleScribeResult(pipelineId, pipeline.metrics, conversation, result, scribeState.clarificationRound);
+    await this.handleScribeResult(pipelineId, metrics, conversation, result, scribeState.clarificationRound);
   }
 
   // ─── Approve Spec → Proto → Trace ───────────
@@ -115,8 +154,8 @@ export class PipelineOrchestrator {
       { type: 'spec_approved', content: spec },
     ];
 
-    // Transition to proto_building
-    await this.store.update(pipelineId, {
+    // Transition to proto_building — return immediately
+    const updated = await this.store.update(pipelineId, {
       stage: 'proto_building',
       approvedSpec: spec,
       protoConfig: { repoName, repoVisibility },
@@ -126,27 +165,46 @@ export class PipelineOrchestrator {
     });
     this.emitEvent(pipelineId, 'stage_change', 'proto_building');
 
+    // Run Proto + Trace in background (non-blocking)
+    this.runProtoAndTrace(pipelineId, pipeline.metrics, spec, repoName, repoVisibility, owner).catch((err) => {
+      console.error(`[Pipeline] Background Proto+Trace failed for ${pipelineId}:`, err);
+    });
+
+    return updated;
+  }
+
+  // ─── Background Proto + Trace Runner ────────
+
+  private async runProtoAndTrace(
+    pipelineId: string,
+    metrics: PipelineMetrics,
+    spec: StructuredSpec,
+    repoName: string,
+    repoVisibility: 'public' | 'private',
+    owner: string,
+  ): Promise<void> {
     // Run Proto
     const protoResult = await this.proto.execute({ spec, repoName, repoVisibility, owner });
 
     if (protoResult.type === 'error') {
-      const updated = await this.store.update(pipelineId, {
+      await this.store.update(pipelineId, {
         stage: 'failed',
         error: protoResult.error,
       });
       this.emitEvent(pipelineId, 'error', 'failed', protoResult.error);
-      return updated;
+      return;
     }
 
-    // Proto succeeded → auto-run Trace
+    // Proto succeeded → transition to trace_testing
     await this.store.update(pipelineId, {
       protoOutput: protoResult.data,
       stage: 'trace_testing',
-      metrics: { ...pipeline.metrics, approvedAt: pipeline.metrics.approvedAt ?? new Date(), protoCompletedAt: new Date() },
+      metrics: { ...metrics, approvedAt: metrics.approvedAt ?? new Date(), protoCompletedAt: new Date() },
     });
     this.emitEvent(pipelineId, 'stage_change', 'trace_testing');
 
-    return this.runTrace(pipelineId, pipeline.metrics, owner, repoName, protoResult.data.branch, spec);
+    // Run Trace
+    await this.runTrace(pipelineId, metrics, owner, repoName, protoResult.data.branch, spec);
   }
 
   // ─── Reject Spec ─────────────────────────────
@@ -200,17 +258,23 @@ export class PipelineOrchestrator {
     const pipeline = await this.getPipeline(pipelineId);
     this.assertStage(pipeline, 'failed');
 
-    await this.store.update(pipelineId, {
+    const updated = await this.store.update(pipelineId, {
       error: null,
       metrics: { ...pipeline.metrics, retryCount: pipeline.metrics.retryCount + 1 },
     });
 
     // Determine which stage failed based on existing data
     if (pipeline.protoOutput && !pipeline.traceOutput) {
-      return this.retryTrace(pipelineId, pipeline);
+      this.retryTrace(pipelineId, pipeline).catch((err) => {
+        console.error(`[Pipeline] Retry trace failed for ${pipelineId}:`, err);
+      });
+      return updated;
     }
     if (pipeline.approvedSpec && !pipeline.protoOutput) {
-      return this.retryProto(pipelineId, pipeline);
+      this.retryProto(pipelineId, pipeline).catch((err) => {
+        console.error(`[Pipeline] Retry proto failed for ${pipelineId}:`, err);
+      });
+      return updated;
     }
     return this.retryScribe(pipelineId, pipeline);
   }

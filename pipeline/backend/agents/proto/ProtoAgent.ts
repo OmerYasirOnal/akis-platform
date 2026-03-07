@@ -44,44 +44,21 @@ export type ProtoResult =
 
 // ─── Constants ────────────────────────────────────
 
-const SCAFFOLD_SYSTEM_PROMPT = `You are Proto, an MVP scaffold builder for a software project pipeline.
+const MIN_SCAFFOLD_FILES = 3;
 
-Your task is to generate a complete, working MVP codebase from an approved software specification.
+const SCAFFOLD_SYSTEM_PROMPT = `You are Proto, an MVP scaffold builder.
 
-Instructions:
-1. Read the spec's problem statement, user stories, and technical constraints.
-2. Determine the appropriate tech stack (use spec's preference if stated).
-3. Generate these files for EVERY project:
-   - README.md (project description, setup, run commands — in Turkish)
-   - package.json (dependencies with pinned versions)
-   - .gitignore (standard ignores for the stack)
-   - src/ directory (main application code)
-   - Basic routing/page structure
-   - .env.example (environment variable template)
-4. Generate setup commands specific to this project.
+Generate a MINIMAL working codebase. Output ONLY valid JSON — no markdown, no explanations, no code fences.
 
-Output Format — respond ONLY with valid JSON:
-{
-  "files": [
-    {"filePath": "package.json", "content": "...", "linesOfCode": 25},
-    {"filePath": "src/App.tsx", "content": "...", "linesOfCode": 45}
-  ],
-  "setupCommands": ["npm install", "npm run dev"],
-  "metadata": {
-    "filesCreated": 8,
-    "totalLinesOfCode": 320,
-    "stackUsed": "React + Vite + TypeScript"
-  }
-}
+RULES:
+- Exactly 4-5 files. Each file under 50 lines.
+- No comments in code. No test files. No CI/CD.
+- README.md in Turkish, code in English.
+- package.json: minimal deps only.
+- .gitignore: standard node.
 
-Rules:
-- Generate MINIMAL but WORKING code
-- Do NOT generate test files (Trace agent handles testing)
-- Do NOT add CI/CD pipelines
-- Do NOT add technologies the user didn't request
-- All code must be syntactically valid
-- Use modern best practices
-- README in Turkish`;
+JSON format (respond with ONLY this, nothing else):
+{"files":[{"filePath":"README.md","content":"...","linesOfCode":10},{"filePath":"package.json","content":"...","linesOfCode":15},{"filePath":".gitignore","content":"node_modules\\ndist\\n.env","linesOfCode":3},{"filePath":"src/main.tsx","content":"...","linesOfCode":30}],"setupCommands":["npm install","npm run dev"],"metadata":{"filesCreated":4,"totalLinesOfCode":58,"stackUsed":"React + Vite"}}`;
 
 // ─── ProtoAgent ───────────────────────────────────
 
@@ -178,13 +155,21 @@ export class ProtoAgent {
     | { type: 'output'; data: { files: ProtoOutput['files']; setupCommands: string[]; metadata: Omit<ProtoOutput['metadata'], 'committed'> } }
     | { type: 'error'; error: PipelineError }
   > {
-    const userPrompt = `Specification:\n${JSON.stringify(spec, null, 2)}`;
+    // Send a condensed spec to reduce input tokens and leave room for output
+    const condensedSpec = {
+      title: spec.title,
+      problem: spec.problemStatement,
+      features: spec.userStories.map((s) => s.action).slice(0, 5),
+      stack: spec.technicalConstraints?.stack ?? 'React + Vite + TypeScript',
+    };
+    const userPrompt = JSON.stringify(condensedSpec);
 
     for (let attempt = 0; attempt <= RETRY_CONFIG.specValidationMaxRetries; attempt++) {
       let responseText: string;
       try {
         responseText = await this.ai.generateText(SCAFFOLD_SYSTEM_PROMPT, userPrompt);
-      } catch {
+      } catch (err) {
+        console.error(`[Proto] Attempt ${attempt + 1}: AI call error:`, err instanceof Error ? err.message : String(err));
         if (attempt < RETRY_CONFIG.specValidationMaxRetries) continue;
         return {
           type: 'error',
@@ -196,23 +181,59 @@ export class ProtoAgent {
       }
 
       let parsed: unknown;
+      let wasRepaired = false;
       try {
-        parsed = JSON.parse(this.extractJson(responseText));
-      } catch {
-        if (attempt < RETRY_CONFIG.specValidationMaxRetries) continue;
-        return {
-          type: 'error',
-          error: createPipelineError(
-            PipelineErrorCode.PROTO_SCAFFOLD_GENERATION_FAILED,
-            'Invalid JSON from scaffold generation'
-          ),
-        };
+        const jsonStr = this.extractJson(responseText);
+        // First try raw parse, then try with control char sanitization
+        try {
+          parsed = JSON.parse(jsonStr);
+        } catch {
+          const sanitized = this.sanitizeJsonControlChars(jsonStr);
+          parsed = JSON.parse(sanitized);
+          console.warn(`[Proto] Parsed after sanitizing control chars`);
+        }
+      } catch (parseErr) {
+        console.warn(`[Proto] JSON parse failed (attempt ${attempt + 1}, len=${responseText.length}): ${parseErr instanceof Error ? parseErr.message : String(parseErr)}`);
+        // Try to repair truncated JSON
+        const repaired = this.repairTruncatedJson(responseText);
+        if (repaired) {
+          try {
+            parsed = JSON.parse(repaired);
+            wasRepaired = true;
+          } catch {
+            // Also try sanitized repair
+            try {
+              parsed = JSON.parse(this.sanitizeJsonControlChars(repaired));
+              wasRepaired = true;
+            } catch {
+              // repair also failed
+            }
+          }
+        }
+        if (!parsed) {
+          if (attempt < RETRY_CONFIG.specValidationMaxRetries) continue;
+          return {
+            type: 'error',
+            error: createPipelineError(
+              PipelineErrorCode.PROTO_SCAFFOLD_GENERATION_FAILED,
+              `Invalid JSON from scaffold generation (response length: ${responseText.length})`
+            ),
+          };
+        }
       }
 
       const obj = parsed as Record<string, unknown>;
       const files = obj.files as ProtoOutput['files'] | undefined;
       const setupCmds = obj.setupCommands as string[] | undefined;
       const meta = obj.metadata as Record<string, unknown> | undefined;
+
+      const fileCount = Array.isArray(files) ? files.length : 0;
+
+      // If repaired result has too few files, it's likely truncated — retry
+      if (wasRepaired && fileCount < MIN_SCAFFOLD_FILES) {
+        console.warn(`[Proto] Repaired JSON only has ${fileCount} files (min: ${MIN_SCAFFOLD_FILES}), retrying...`);
+        if (attempt < RETRY_CONFIG.specValidationMaxRetries) continue;
+      }
 
       if (!files || !Array.isArray(files) || files.length === 0) {
         if (attempt < RETRY_CONFIG.specValidationMaxRetries) continue;
@@ -361,8 +382,44 @@ export class ProtoAgent {
     ].join('\n');
   }
 
+  /**
+   * Escape raw control characters inside JSON string values.
+   * AI often outputs actual newlines/tabs instead of \n \t escape sequences.
+   */
+  private sanitizeJsonControlChars(json: string): string {
+    let result = '';
+    let inString = false;
+    for (let i = 0; i < json.length; i++) {
+      const c = json[i];
+      const code = c.charCodeAt(0);
+
+      if (c === '"' && (i === 0 || json[i - 1] !== '\\')) {
+        inString = !inString;
+        result += c;
+      } else if (inString && code < 32) {
+        if (code === 10) result += '\\n';
+        else if (code === 13) result += '\\r';
+        else if (code === 9) result += '\\t';
+        else result += `\\u${code.toString(16).padStart(4, '0')}`;
+      } else {
+        result += c;
+      }
+    }
+    return result;
+  }
+
   private extractJson(text: string): string {
-    const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/);
+    // If response starts with { it's already pure JSON — don't try fenced extraction
+    // (fenced regex can match backticks INSIDE JSON string values like README content)
+    const trimmed = text.trim();
+    if (trimmed.startsWith('{')) {
+      const braceEnd = trimmed.lastIndexOf('}');
+      if (braceEnd > 0) return trimmed.slice(0, braceEnd + 1);
+      return trimmed;
+    }
+
+    // Try fenced code block only when response is NOT pure JSON
+    const fenced = text.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/);
     if (fenced) return fenced[1].trim();
 
     const braceStart = text.indexOf('{');
@@ -371,7 +428,55 @@ export class ProtoAgent {
       return text.slice(braceStart, braceEnd + 1);
     }
 
-    return text.trim();
+    return trimmed;
+  }
+
+  /**
+   * Attempt to repair truncated JSON (e.g. from max_tokens cutoff).
+   * Tries to close open strings, arrays, and objects.
+   */
+  private repairTruncatedJson(text: string): string | null {
+    // Extract the JSON portion
+    let json = this.extractJson(text);
+    if (!json.startsWith('{')) return null;
+
+    // If it already parses, return it
+    try { JSON.parse(json); return json; } catch { /* continue */ }
+
+    // Try progressively closing brackets
+    // First, close any open string
+    const quoteCount = (json.match(/(?<!\\)"/g) || []).length;
+    if (quoteCount % 2 !== 0) {
+      json += '"';
+    }
+
+    // Close arrays and objects
+    const opens: string[] = [];
+    let inString = false;
+    for (let i = 0; i < json.length; i++) {
+      const c = json[i];
+      if (c === '"' && (i === 0 || json[i - 1] !== '\\')) {
+        inString = !inString;
+        continue;
+      }
+      if (inString) continue;
+      if (c === '{' || c === '[') opens.push(c);
+      if (c === '}' || c === ']') opens.pop();
+    }
+
+    // Close in reverse
+    while (opens.length > 0) {
+      const open = opens.pop();
+      json += open === '{' ? '}' : ']';
+    }
+
+    try {
+      JSON.parse(json);
+      console.warn(`[Proto] Repaired truncated JSON (added ${json.length - this.extractJson(text).length} closing chars)`);
+      return json;
+    } catch {
+      return null;
+    }
   }
 
   private delay(ms: number): Promise<void> {
