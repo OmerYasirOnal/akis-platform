@@ -33,6 +33,11 @@ COPY backend/src ./src
 # Copy pipeline backend source (agents, orchestrator, adapters)
 COPY pipeline/backend /build/pipeline/backend
 
+# Copy root package.json for "type": "module" — ensures tsc compiles
+# pipeline/backend/ as ESM (not CJS). Without this, NodeNext module
+# resolution falls back to CJS for files outside backend/.
+COPY package.json /build/package.json
+
 # Node module resolution: pipeline code imports from 'zod' etc.
 # Since node_modules is at /build/backend/node_modules, create a symlink
 # at /build/node_modules so resolution walks up from /build/pipeline/ and finds it.
