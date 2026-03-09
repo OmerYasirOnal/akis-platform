@@ -62,4 +62,26 @@
   --ak-section-gap: 24px;
   --ak-card-padding: 20px;
   --ak-card-radius: 16px;
+
+  /* ── Linear/Vercel Design Tokens ── */
+
+  /* Tertiary text (muted labels, footnotes) */
+  --ak-color-text-tertiary-dark: #5A6577;
+  --ak-color-text-tertiary-light: #8b949e;
+
+  /* Typography scale */
+  --ak-text-display: 1.75rem;
+  --ak-text-heading: 1.125rem;
+  --ak-text-body: 0.875rem;
+  --ak-text-caption: 0.75rem;
+  --ak-text-micro: 0.625rem;
+
+  /* Subtle border system (alpha-based for layering) */
+  --ak-border-subtle: rgba(255, 255, 255, 0.04);
+  --ak-border-default: rgba(255, 255, 255, 0.08);
+  --ak-border-strong: rgba(255, 255, 255, 0.14);
+
+  /* Hover/interactive surfaces */
+  --ak-hover-surface: rgba(255, 255, 255, 0.03);
+  --ak-active-surface: rgba(255, 255, 255, 0.06);
 }
