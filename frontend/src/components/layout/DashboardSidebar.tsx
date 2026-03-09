@@ -45,61 +45,78 @@ export function DashboardSidebar() {
       .catch(() => {});
   }, []);
 
-  const navItems: NavItem[] = [
+  const mainNav: NavItem[] = [
     { to: '/dashboard', label: 'Overview', icon: <HomeIcon />, end: true },
     { to: '/dashboard/workflows', label: 'Workflows', icon: <WorkflowIcon />, badge: workflowCount || undefined },
     { to: '/dashboard/agents', label: 'Agents', icon: <AgentsIcon /> },
+  ];
+
+  const bottomNav: NavItem[] = [
     { to: '/dashboard/settings', label: 'Settings', icon: <CogIcon /> },
   ];
 
+  const renderNavItem = (item: NavItem) => (
+    <li key={item.to}>
+      <NavLink
+        to={item.to}
+        end={item.end}
+        className={({ isActive }) =>
+          cn(
+            'flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-medium transition-all duration-150',
+            isActive
+              ? 'bg-white/[0.06] text-ak-text-primary'
+              : 'text-ak-text-secondary hover:bg-white/[0.03] hover:text-ak-text-primary'
+          )
+        }
+      >
+        <span className="flex-shrink-0">{item.icon}</span>
+        <span className="flex-1">{item.label}</span>
+        {item.badge !== undefined && item.badge > 0 && (
+          <span className="rounded-md bg-white/[0.08] px-1.5 py-0.5 text-[10px] font-medium text-ak-text-secondary">
+            {item.badge}
+          </span>
+        )}
+      </NavLink>
+    </li>
+  );
+
   return (
-    <div className="flex h-full w-[230px] flex-col border-r border-[#1e2738] bg-[#131820]">
+    <div className="flex h-full w-[230px] flex-col border-r border-ak-border bg-ak-surface">
       {/* Logo */}
       <div className="flex items-center gap-2.5 px-5 py-5">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-[#2dd4a8] to-[#1a9a78] text-sm font-bold text-white">
+        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-ak-primary to-emerald-600 text-sm font-bold text-white">
           A
         </div>
         <div>
-          <p className="text-sm font-bold tracking-wide text-[#e2e8f0]">AKIS</p>
-          <p className="text-[10px] font-medium uppercase tracking-widest text-[#4a5568]">Dashboard</p>
+          <p className="text-sm font-bold tracking-wide text-ak-text-primary">AKIS</p>
+          <p className="text-micro font-medium uppercase tracking-widest text-ak-text-tertiary">Dashboard</p>
         </div>
       </div>
 
-      {/* Navigation */}
+      {/* Main Navigation */}
       <nav className="flex-1 px-3 py-2">
-        <ul className="space-y-1">
-          {navItems.map((item) => (
-            <li key={item.to}>
-              <NavLink
-                to={item.to}
-                end={item.end}
-                className={({ isActive }) =>
-                  cn(
-                    'flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-medium transition-colors',
-                    isActive
-                      ? 'border-l-[3px] border-l-[#2dd4a8] bg-[#2dd4a8]/6 text-[#2dd4a8]'
-                      : 'border-l-[3px] border-l-transparent text-[#8492a6] hover:bg-[#1c2233] hover:text-[#e2e8f0]'
-                  )
-                }
-              >
-                <span className="flex-shrink-0">{item.icon}</span>
-                <span className="flex-1">{item.label}</span>
-                {item.badge !== undefined && item.badge > 0 && (
-                  <span className="rounded-md bg-[#2dd4a8]/25 px-1.5 py-0.5 text-[10px] font-semibold text-[#2dd4a8]">
-                    {item.badge}
-                  </span>
-                )}
-              </NavLink>
-            </li>
-          ))}
+        <ul className="space-y-0.5">
+          {mainNav.map(renderNavItem)}
+        </ul>
+
+        {/* Divider */}
+        <div className="mx-3 my-3 border-t border-ak-border-subtle" />
+
+        <ul className="space-y-0.5">
+          {bottomNav.map(renderNavItem)}
         </ul>
       </nav>
 
       {/* Footer */}
-      <div className="p-4">
-        <p className="text-center text-[10px] text-[#4a5568]">
-          AKIS v0.1.0 &middot; DEV MODE
-        </p>
+      <div className="border-t border-ak-border-subtle px-4 py-3">
+        <div className="flex items-center justify-between">
+          <span className="text-micro text-ak-text-tertiary">AKIS v0.1.0</span>
+          <div className="flex items-center gap-1" title="All agents operational">
+            <span className="h-1.5 w-1.5 rounded-full bg-ak-scribe" />
+            <span className="h-1.5 w-1.5 rounded-full bg-ak-proto" />
+            <span className="h-1.5 w-1.5 rounded-full bg-ak-trace" />
+          </div>
+        </div>
       </div>
     </div>
   );
