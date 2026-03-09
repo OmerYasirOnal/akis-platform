@@ -117,24 +117,25 @@ export function mapPipelineToWorkflow(pipeline: Pipeline): Workflow {
   const scribeData = mapScribeOutput(pipeline.scribeOutput);
   stages.scribe = { ...stages.scribe, ...scribeData };
 
-  if (pipeline.metrics.scribeCompletedAt) {
-    stages.scribe.endTime = pipeline.metrics.scribeCompletedAt;
+  const metrics = pipeline.metrics;
+  if (metrics?.scribeCompletedAt) {
+    stages.scribe.endTime = metrics.scribeCompletedAt;
   }
-  if (pipeline.metrics.approvedAt) {
+  if (metrics?.approvedAt) {
     stages.approve.status = 'completed';
-    stages.approve.endTime = pipeline.metrics.approvedAt;
+    stages.approve.endTime = metrics.approvedAt;
   }
 
   const protoData = mapProtoOutput(pipeline.protoOutput);
   stages.proto = { ...stages.proto, ...protoData };
-  if (pipeline.metrics.protoCompletedAt) {
-    stages.proto.endTime = pipeline.metrics.protoCompletedAt;
+  if (metrics?.protoCompletedAt) {
+    stages.proto.endTime = metrics.protoCompletedAt;
   }
 
   const traceData = mapTraceOutput(pipeline.traceOutput);
   stages.trace = { ...stages.trace, ...traceData };
-  if (pipeline.metrics.traceCompletedAt) {
-    stages.trace.endTime = pipeline.metrics.traceCompletedAt;
+  if (metrics?.traceCompletedAt) {
+    stages.trace.endTime = metrics.traceCompletedAt;
   }
 
   // If pipeline has error, mark the current running stage as failed
