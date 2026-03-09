@@ -5,7 +5,6 @@ import { useAuth } from '../contexts/AuthContext';
 import { useScreenshotMode } from '../hooks/useScreenshotMode';
 import Logo from '../components/branding/Logo';
 import Button from '../components/common/Button';
-import ThemeToggle from '../components/ThemeToggle';
 import { cn } from '../utils/cn';
 
 const primaryLinks = [
@@ -80,7 +79,7 @@ const AppHeader = () => {
           </nav>
 
           <div className="flex items-center gap-2">
-            <ThemeToggle />
+            {/* theme toggle removed */}
             {isAuthenticated ? (
               <>
                 <Button as={Link} to="/dashboard" variant="ghost">
@@ -109,7 +108,7 @@ const AppHeader = () => {
         </div>
 
         <div className="flex items-center gap-2 md:hidden">
-          <ThemeToggle size="sm" />
+          {/* theme toggle removed */}
           <Button
             variant="secondary"
             size="md"
