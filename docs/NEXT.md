@@ -34,18 +34,23 @@ Son güncelleme: 2026-03-06
 - `docs/TESTING.md`
 - `docs/API_SPEC.md`
 - `docs/UI_DESIGN_SYSTEM.md`
-- `docs/WEB_INFORMATION_ARCHITECTURE.md`
+- `docs/USE_CASES.md`
 - `docs/deploy/OCI_STAGING_RUNBOOK.md`
+- `docs/deploy/OCI_STAGING_DEPLOY.md`
 - `docs/deploy/STAGING_ROLLBACK_RUNBOOK.md`
 - `docs/release/STAGING_RELEASE_CHECKLIST.md`
 - `docs/ops/STAGING_SMOKE_CHECKLIST.md`
 - `docs/ops/STAGING_ENV_SNAPSHOT.md`
-- `docs/agents/AGENT_CONTRACTS_S0.5.md`
-- `backend/docs/AGENT_WORKFLOWS.md`
 - `backend/docs/API_SPEC.md`
 - `backend/docs/Auth.md`
 - `pipeline/docs/BRAND.md`
 - `PIPELINE_PLAN.md`
+
+### Akademik Belgeler (Bitirme Projesi)
+
+- `docs/academic/bitirme1/Proje_Kapsami_ve_Gereksinimler_2221221562_ÖmerYasir_Önal.pdf`
+- `docs/academic/bitirme1/Çözüm_Tasarımı_ve_Teknik_Analiz_Dokümanı_2221221562_ÖmerYasir_Önal.pdf`
+- `docs/academic/bitirme1/AKIS_Solution_Design_and_Technical_Analysis_EN.pdf`
 
 ## Dokümantasyon Kuralları
 

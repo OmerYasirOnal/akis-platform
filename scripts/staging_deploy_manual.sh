@@ -416,11 +416,12 @@ if [ "$CONFIRM" = true ]; then
   # Create tarballs for efficient transfer
   echo "Creating tarballs..."
 
-  # Repo source tarball (backend + pipeline + Dockerfile.backend)
+  # Repo source tarball (backend + pipeline + Dockerfile.backend + root package.json)
   # deploy.sh on server uses /opt/akis/repo-src/ as Docker build context
-  # Dockerfile.backend needs: backend/ + pipeline/backend/ at repo root
+  # Dockerfile.backend needs: backend/ + pipeline/backend/ + root package.json ("type":"module" for ESM)
   tar -czf /tmp/repo-src-$$.tar.gz \
     Dockerfile.backend \
+    package.json \
     backend/package.json backend/pnpm-lock.yaml backend/tsconfig.json \
     backend/drizzle.config.ts backend/src backend/migrations \
     pipeline/backend
@@ -484,7 +485,7 @@ if [ "$CONFIRM" = true ]; then
 
   echo "✅ Copied frontend dist"
 else
-  echo "[DRY-RUN] Would create tarball: repo-src.tar.gz (backend + pipeline + Dockerfile.backend)"
+  echo "[DRY-RUN] Would create tarball: repo-src.tar.gz (backend + pipeline + Dockerfile.backend + root package.json)"
   echo "[DRY-RUN] Would create tarball: frontend-dist.tar.gz"
   echo "[DRY-RUN] Would copy: deploy.sh → /opt/akis/deploy.sh"
   echo "[DRY-RUN] Would copy: docker-compose.yml → /opt/akis/docker-compose.yml"
