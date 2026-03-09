@@ -1,0 +1,88 @@
+# AKIS Platform - Caddyfile
+# Reverse proxy: HTTPS termination, static frontend, API routing
+# Domain: staging.akisflow.com
+
+{
+    email {$ACME_EMAIL:yasir@akisflow.com}
+}
+
+staging.akisflow.com {
+    # Compression
+    encode gzip zstd
+
+    # Security headers
+    header {
+        X-Content-Type-Options nosniff
+        X-Frame-Options DENY
+        X-XSS-Protection "1; mode=block"
+        Referrer-Policy strict-origin-when-cross-origin
+        Strict-Transport-Security "max-age=31536000; includeSubDomains"
+        -Server
+    }
+
+    # Health/Ready endpoints → Backend
+    handle /health {
+        reverse_proxy backend:3000
+    }
+
+    handle /ready {
+        reverse_proxy backend:3000
+    }
+
+    handle /version {
+        reverse_proxy backend:3000
+    }
+
+    # API routes → Backend
+    handle /api/* {
+        reverse_proxy backend:3000
+    }
+
+    # OAuth routes → Backend (all methods)
+    handle /auth/oauth/* {
+        reverse_proxy backend:3000
+    }
+
+    # POST/PUT/PATCH/DELETE /auth/* → Backend API
+    @auth_mutation {
+        method POST PUT PATCH DELETE
+        path /auth/*
+    }
+    handle @auth_mutation {
+        reverse_proxy backend:3000
+    }
+
+    # GET-only backend API endpoints under /auth/
+    @auth_get_api path /auth/me /auth/health
+    handle @auth_get_api {
+        reverse_proxy backend:3000
+    }
+
+    # OpenAPI / Swagger UI → Backend
+    handle /api/docs* {
+        reverse_proxy backend:3000
+    }
+
+    handle /openapi.json {
+        reverse_proxy backend:3000
+    }
+
+    # Metrics → Backend
+    handle /metrics {
+        reverse_proxy backend:3000
+    }
+
+    # Frontend — static files (SPA fallback)
+    handle {
+        root * /srv/frontend
+        try_files {path} /index.html
+        file_server
+    }
+
+    # Access logging
+    log {
+        output stdout
+        format console
+        level INFO
+    }
+}
