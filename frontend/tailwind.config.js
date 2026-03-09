@@ -18,6 +18,13 @@ export default {
         'ak-text-secondary': 'var(--ak-text-secondary)',
         'ak-border': 'var(--ak-border)',
         'ak-danger': 'var(--ak-danger)',
+        'ak-scribe': '#38bdf8',
+        'ak-proto': '#f59e0b',
+        'ak-trace': '#a78bfa',
+      },
+      fontFamily: {
+        sans: ["'DM Sans'", 'system-ui', 'sans-serif'],
+        mono: ["'JetBrains Mono'", 'monospace'],
       },
       // Glow shadows (Liquid Neon)
       boxShadow: {
