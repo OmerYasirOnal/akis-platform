@@ -12,6 +12,12 @@
   --ak-on-primary: #071a17;
   --ak-primary-soft: var(--ak-color-primary-soft);
   --ak-danger: var(--ak-color-danger);
+  --ak-text-tertiary: var(--ak-color-text-tertiary-dark);
+  --ak-border-subtle: rgba(255, 255, 255, 0.04);
+  --ak-border-default: rgba(255, 255, 255, 0.08);
+  --ak-border-strong: rgba(255, 255, 255, 0.14);
+  --ak-hover-surface: rgba(255, 255, 255, 0.03);
+  --ak-active-surface: rgba(255, 255, 255, 0.06);
 }
 
 [data-theme='light'] {
@@ -27,6 +33,12 @@
   --ak-on-primary: #082019;
   --ak-primary-soft: rgba(7, 209, 175, 0.12);
   --ak-danger: var(--ak-color-danger);
+  --ak-text-tertiary: var(--ak-color-text-tertiary-light);
+  --ak-border-subtle: rgba(0, 0, 0, 0.04);
+  --ak-border-default: rgba(0, 0, 0, 0.08);
+  --ak-border-strong: rgba(0, 0, 0, 0.14);
+  --ak-hover-surface: rgba(0, 0, 0, 0.02);
+  --ak-active-surface: rgba(0, 0, 0, 0.04);
   /* Softer elevations for light mode */
   --ak-elevation-1: var(--ak-elevation-1-light);
   --ak-elevation-2: var(--ak-elevation-2-light);
