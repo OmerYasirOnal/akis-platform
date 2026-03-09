@@ -51,17 +51,20 @@ export default function WorkflowsPage() {
   const filtered = workflows.filter(wf => matchesFilter(wf.status, filter));
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-fade-in">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-[#e2e8f0]">Workflows</h1>
-          <p className="mt-1 text-sm text-[#8492a6]">Manage your Scribe &rarr; Proto &rarr; Trace runs</p>
+          <h1 className="text-display text-ak-text-primary">Workflows</h1>
+          <p className="mt-1 text-body text-ak-text-secondary">Manage your Scribe &rarr; Proto &rarr; Trace runs</p>
         </div>
         <Link
           to="/dashboard/workflows/new"
-          className="rounded-lg bg-[#2dd4a8] px-5 py-2.5 text-sm font-semibold text-[#0c1017] shadow-[0_0_20px_rgba(45,212,168,0.3)] transition-all hover:bg-[#34e0b4]"
+          className="group flex items-center gap-2 rounded-lg bg-ak-primary px-4 py-2 text-body font-semibold text-[#0a1215] shadow-ak-glow-sm transition-all duration-150 hover:shadow-ak-glow hover:-translate-y-px"
         >
+          <svg className="h-4 w-4 transition-transform duration-150 group-hover:rotate-90" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+          </svg>
           New Workflow
         </Link>
       </div>
@@ -73,10 +76,10 @@ export default function WorkflowsPage() {
             key={f.key}
             onClick={() => setFilter(f.key)}
             className={cn(
-              'rounded-full px-4 py-1.5 text-xs font-semibold transition-colors',
+              'rounded-full px-4 py-1.5 text-caption font-semibold transition-all duration-150',
               filter === f.key
-                ? 'bg-[#2dd4a8] text-[#0c1017]'
-                : 'border border-[#1e2738] bg-[#131820] text-[#8492a6] hover:border-[#2a3548] hover:text-[#e2e8f0]'
+                ? 'bg-ak-primary text-[#0a1215]'
+                : 'border border-ak-border bg-ak-surface text-ak-text-secondary hover:border-ak-border-strong hover:text-ak-text-primary'
             )}
           >
             {f.label}
@@ -87,30 +90,30 @@ export default function WorkflowsPage() {
       {/* List */}
       {loading ? (
         <div className="flex h-32 items-center justify-center">
-          <div className="h-6 w-6 animate-spin rounded-full border-2 border-[#2dd4a8] border-t-transparent" />
+          <div className="h-5 w-5 animate-spin rounded-full border-2 border-ak-primary border-t-transparent" />
         </div>
       ) : filtered.length === 0 ? (
-        <div className="rounded-xl border border-[#1e2738] bg-[#131820] p-8 text-center">
-          <p className="text-sm text-[#8492a6]">
+        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-ak-border bg-ak-surface/50 py-16">
+          <p className="text-body text-ak-text-secondary">
             {filter === 'all' ? 'No workflows yet.' : `No ${filter.replace('_', ' ')} workflows.`}
           </p>
         </div>
       ) : (
-        <div className="overflow-hidden rounded-xl border border-[#1e2738] bg-[#131820]">
+        <div className="overflow-hidden rounded-xl border border-ak-border bg-ak-surface">
           {filtered.map((wf, i) => (
             <button
               key={wf.id}
               onClick={() => navigate(`/dashboard/workflows/${wf.id}`)}
               className={cn(
-                'flex w-full items-center gap-4 px-4 py-3 text-left transition-colors hover:bg-[#1c2233]',
-                i > 0 && 'border-t border-[#1e2738]',
+                'group flex w-full items-center gap-4 px-4 py-3 text-left transition-all duration-150 hover:bg-ak-hover',
+                i > 0 && 'border-t border-ak-border-subtle',
               )}
             >
               <MiniPipeline stages={wf.stages} />
-              <span className="flex-1 truncate text-sm font-medium text-[#e2e8f0]">{wf.title}</span>
-              <span className="text-xs text-[#4a5568]">{timeAgo(wf.createdAt)}</span>
+              <span className="flex-1 truncate text-body font-medium text-ak-text-primary">{wf.title}</span>
+              <span className="text-caption text-ak-text-tertiary">{timeAgo(wf.createdAt)}</span>
               <StatusBadge status={wf.status} size="small" />
-              <svg className="h-4 w-4 text-[#4a5568]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <svg className="h-4 w-4 text-ak-text-tertiary transition-transform duration-150 group-hover:translate-x-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
               </svg>
             </button>
