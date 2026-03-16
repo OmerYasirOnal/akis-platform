@@ -1,8 +1,8 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { ScribeAgent, type ScribeAIDeps } from '../../../pipeline/backend/agents/scribe/ScribeAgent.js';
-import { validateScribeInput } from '../../../pipeline/backend/agents/scribe/SpecContract.js';
+import { ScribeAgent, type ScribeAIDeps } from '../../src/pipeline/agents/scribe/ScribeAgent.js';
+import { validateScribeInput } from '../../src/pipeline/agents/scribe/SpecContract.js';
 
 // ─── Test Fixtures ────────────────────────────────
 

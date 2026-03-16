@@ -15,7 +15,7 @@ CREATE TYPE pipeline_stage AS ENUM (
 CREATE TABLE pipelines (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES users(id),
-  stage pipeline_stage NOT NULL DEFAULT 'scribe_clarifying',
+  stage pipeline_stage NOT NULL DEFAULT 'scribe_generating',
   title TEXT,
   scribe_conversation JSONB DEFAULT '[]',
   scribe_output JSONB,

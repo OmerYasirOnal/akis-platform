@@ -7,7 +7,7 @@ import {
   type PipelineStore,
   type PipelineStateUpdate,
   type PipelineEvent,
-} from '../../../pipeline/backend/core/orchestrator/PipelineOrchestrator.js';
+} from '../../src/pipeline/core/orchestrator/PipelineOrchestrator.js';
 import type {
   PipelineState,
   PipelineStage,
@@ -16,10 +16,10 @@ import type {
   StructuredSpec,
   ProtoOutput,
   TraceOutput,
-} from '../../../pipeline/backend/core/contracts/PipelineTypes.js';
-import type { ScribeAgent, ScribeState, ScribeResult } from '../../../pipeline/backend/agents/scribe/ScribeAgent.js';
-import type { ProtoAgent, ProtoResult } from '../../../pipeline/backend/agents/proto/ProtoAgent.js';
-import type { TraceAgent, TraceResult } from '../../../pipeline/backend/agents/trace/TraceAgent.js';
+} from '../../src/pipeline/core/contracts/PipelineTypes.js';
+import type { ScribeAgent, ScribeState, ScribeResult } from '../../src/pipeline/agents/scribe/ScribeAgent.js';
+import type { ProtoAgent, ProtoResult } from '../../src/pipeline/agents/proto/ProtoAgent.js';
+import type { TraceAgent, TraceResult } from '../../src/pipeline/agents/trace/TraceAgent.js';
 
 // ─── Test Fixtures ────────────────────────────────
 
@@ -73,7 +73,7 @@ class InMemoryStore implements PipelineStore {
     const pipeline: PipelineState = {
       id,
       userId,
-      stage: 'scribe_clarifying',
+      stage: 'scribe_generating',
       scribeConversation: [],
       metrics: { startedAt: new Date(), clarificationRounds: 0, retryCount: 0 },
       createdAt: new Date(),

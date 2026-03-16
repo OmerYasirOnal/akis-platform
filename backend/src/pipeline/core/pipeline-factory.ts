@@ -21,7 +21,7 @@ export class InMemoryPipelineStore implements PipelineStore {
     const pipeline: PipelineState = {
       id,
       userId,
-      stage: 'scribe_clarifying',
+      stage: 'scribe_generating',
       scribeConversation: [],
       metrics: {
         startedAt: now,
