@@ -91,12 +91,17 @@ export default {
           '0%': { opacity: '0', transform: 'translateY(4px)' },
           '100%': { opacity: '1', transform: 'translateY(0)' },
         },
+        'thinking': {
+          '0%, 100%': { opacity: '0.2' },
+          '50%': { opacity: '1' },
+        },
       },
       animation: {
         'blob-drift': 'blob-drift 20s ease-in-out infinite',
         'blob-drift-alt': 'blob-drift-alt 25s ease-in-out infinite',
         'slide-in-right': 'slide-in-right 200ms ease-out',
         'fade-in': 'fade-in 300ms ease-out',
+        'thinking': 'thinking 1.4s infinite',
       },
     },
   },

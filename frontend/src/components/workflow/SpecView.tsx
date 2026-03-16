@@ -10,15 +10,15 @@ export function SpecView({ spec }: SpecViewProps) {
 
   return (
     <div className="space-y-4">
-      <p className="font-mono text-[10px] font-semibold uppercase tracking-widest text-[#4a5568]">
+      <p className="font-mono text-[10px] font-semibold uppercase tracking-widest text-ak-text-tertiary">
         Structured Spec
       </p>
 
       {/* Problem Statement */}
       {spec.problemStatement && (
         <div>
-          <h4 className="mb-1.5 text-xs font-semibold text-[#2dd4a8]">Problem Statement</h4>
-          <div className="rounded-lg bg-[#1a2030] p-3 text-sm leading-relaxed text-[#e2e8f0]">
+          <h4 className="mb-1.5 text-xs font-semibold text-ak-primary">Problem Statement</h4>
+          <div className="rounded-lg bg-ak-surface-2 p-3 text-sm leading-relaxed text-ak-text-primary">
             {spec.problemStatement}
           </div>
         </div>
@@ -27,16 +27,16 @@ export function SpecView({ spec }: SpecViewProps) {
       {/* User Stories */}
       {stories.length > 0 && (
         <div>
-          <h4 className="mb-1.5 text-xs font-semibold text-[#2dd4a8]">User Stories</h4>
+          <h4 className="mb-1.5 text-xs font-semibold text-ak-primary">User Stories</h4>
           <div className="space-y-2">
             {stories.map((story, i) => (
-              <div key={i} className="rounded-lg border border-[#1e2738] bg-[#131820] p-3 text-sm">
-                <span className="text-[#4a5568]">As </span>
-                <span className="font-medium text-[#e2e8f0]">{story.persona || story.as}</span>
-                <span className="text-[#4a5568]">, I want </span>
-                <span className="font-medium text-[#e2e8f0]">{story.action || story.iWant}</span>
-                <span className="text-[#4a5568]">, so that </span>
-                <span className="font-medium text-[#e2e8f0]">{story.benefit || story.soThat}</span>
+              <div key={i} className="rounded-lg border border-ak-border bg-ak-surface p-3 text-sm">
+                <span className="text-ak-text-tertiary">As </span>
+                <span className="font-medium text-ak-text-primary">{story.persona || story.as}</span>
+                <span className="text-ak-text-tertiary">, I want </span>
+                <span className="font-medium text-ak-text-primary">{story.action || story.iWant}</span>
+                <span className="text-ak-text-tertiary">, so that </span>
+                <span className="font-medium text-ak-text-primary">{story.benefit || story.soThat}</span>
               </div>
             ))}
           </div>
@@ -46,16 +46,16 @@ export function SpecView({ spec }: SpecViewProps) {
       {/* Acceptance Criteria */}
       {criteria.length > 0 && (
         <div>
-          <h4 className="mb-1.5 text-xs font-semibold text-[#2dd4a8]">Acceptance Criteria</h4>
+          <h4 className="mb-1.5 text-xs font-semibold text-ak-primary">Acceptance Criteria</h4>
           <div className="space-y-2">
             {criteria.map((ac, i) => (
-              <div key={i} className="rounded-lg border border-[#1e2738] bg-[#131820] p-3 text-sm">
-                <span className="text-[#4a5568]">Given </span>
-                <span className="font-medium text-[#e2e8f0]">{ac.given}</span>
-                <span className="text-[#4a5568]">, When </span>
-                <span className="font-medium text-[#e2e8f0]">{ac.when}</span>
-                <span className="text-[#4a5568]">, Then </span>
-                <span className="font-medium text-[#e2e8f0]">{ac.then}</span>
+              <div key={i} className="rounded-lg border border-ak-border bg-ak-surface p-3 text-sm">
+                <span className="text-ak-text-tertiary">Given </span>
+                <span className="font-medium text-ak-text-primary">{ac.given}</span>
+                <span className="text-ak-text-tertiary">, When </span>
+                <span className="font-medium text-ak-text-primary">{ac.when}</span>
+                <span className="text-ak-text-tertiary">, Then </span>
+                <span className="font-medium text-ak-text-primary">{ac.then}</span>
               </div>
             ))}
           </div>

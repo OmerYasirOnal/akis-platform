@@ -71,7 +71,7 @@ export default function SignupVerifyEmail() {
 
     const fullCode = code.join('');
     if (fullCode.length !== 6) {
-      setError('Please enter the complete 6-digit code');
+      setError('Lütfen 6 haneli kodun tamamını girin');
       return;
     }
 
@@ -93,7 +93,7 @@ export default function SignupVerifyEmail() {
       // Navigate to beta welcome screen
       navigate('/auth/welcome-beta');
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Code is incorrect or expired. Please try again.';
+      const errorMessage = err instanceof Error ? err.message : 'Kod yanlış veya süresi dolmuş. Lütfen tekrar deneyin.';
       
       // Try to parse error JSON for better messages
       try {
@@ -120,9 +120,9 @@ export default function SignupVerifyEmail() {
       await AuthAPI.resendCode({ userId });
 
       // Show success message
-      alert('Verification code resent to your email');
+      alert('Doğrulama kodu e-postanıza tekrar gönderildi');
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Unable to resend code. Please try again.';
+      const errorMessage = err instanceof Error ? err.message : 'Kod tekrar gönderilemedi. Lütfen tekrar deneyin.';
       
       // Try to parse error JSON for better messages
       try {
@@ -147,15 +147,14 @@ export default function SignupVerifyEmail() {
           <Logo size="sm" linkToHome={false} />
         </div>
 
-        <h1 className="text-h2 mb-2">Verify your email</h1>
+        <h1 className="text-h2 mb-2">E-postanızı doğrulayın</h1>
         <p className="text-sm text-ak-text-secondary mb-6">
-          We sent a 6-digit code to{' '}
-          <span className="text-ak-text-primary font-medium">{email}</span>
+          <span className="text-ak-text-primary font-medium">{email}</span> adresine 6 haneli bir kod gönderdik
         </p>
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
-            <label className="text-sm font-medium block mb-3">Verification code</label>
+            <label className="text-sm font-medium block mb-3">Doğrulama kodu</label>
             <div className="flex gap-2 justify-center">
               {code.map((digit, index) => (
                 <input
@@ -184,12 +183,12 @@ export default function SignupVerifyEmail() {
               disabled={resending}
               className="text-sm text-ak-primary hover:underline disabled:opacity-60"
             >
-              {resending ? 'Resending...' : "Didn't receive it? Resend code"}
+              {resending ? 'Gönderiliyor...' : 'Kod gelmedi mi? Tekrar gönder'}
             </button>
           </div>
 
           <Button type="submit" disabled={submitting} className="w-full justify-center">
-            {submitting ? 'Verifying...' : 'Verify'}
+            {submitting ? 'Doğrulanıyor...' : 'Doğrula'}
           </Button>
         </form>
       </div>

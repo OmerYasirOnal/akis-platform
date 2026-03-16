@@ -1,7 +1,8 @@
-import { NavLink } from 'react-router-dom';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { cn } from '../../utils/cn';
 import { useEffect, useState } from 'react';
 import { workflowsApi } from '../../services/api/workflows';
+import { AuthAPI } from '../../services/api/auth';
 
 const HomeIcon = () => (
   <svg className="h-[18px] w-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
@@ -28,6 +29,12 @@ const CogIcon = () => (
   </svg>
 );
 
+const LogoutIcon = () => (
+  <svg className="h-[18px] w-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9" />
+  </svg>
+);
+
 interface NavItem {
   to: string;
   label: string;
@@ -36,8 +43,22 @@ interface NavItem {
   badge?: number;
 }
 
-export function DashboardSidebar() {
+interface DashboardSidebarProps {
+  onClose?: () => void;
+  collapsed?: boolean;
+  onToggleCollapse?: () => void;
+}
+
+export function DashboardSidebar({ onClose, collapsed: controlledCollapsed, onToggleCollapse }: DashboardSidebarProps) {
+  const location = useLocation();
+  const navigate = useNavigate();
   const [workflowCount, setWorkflowCount] = useState(0);
+  const [loggingOut, setLoggingOut] = useState(false);
+  const [internalCollapsed, setInternalCollapsed] = useState(false);
+
+  // Use controlled state if provided, otherwise internal
+  const collapsed = controlledCollapsed ?? internalCollapsed;
+  const toggleCollapse = onToggleCollapse ?? (() => setInternalCollapsed(prev => !prev));
 
   useEffect(() => {
     workflowsApi.list()
@@ -45,14 +66,19 @@ export function DashboardSidebar() {
       .catch(() => {});
   }, []);
 
+  // Auto-close sidebar on navigation (mobile)
+  useEffect(() => {
+    onClose?.();
+  }, [location.pathname]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const mainNav: NavItem[] = [
-    { to: '/dashboard', label: 'Overview', icon: <HomeIcon />, end: true },
-    { to: '/dashboard/workflows', label: 'Workflows', icon: <WorkflowIcon />, badge: workflowCount || undefined },
-    { to: '/dashboard/agents', label: 'Agents', icon: <AgentsIcon /> },
+    { to: '/dashboard', label: 'Genel Bakış', icon: <HomeIcon />, end: true },
+    { to: '/dashboard/workflows', label: 'İş Akışları', icon: <WorkflowIcon />, badge: workflowCount || undefined },
+    { to: '/dashboard/agents', label: 'Ajanlar', icon: <AgentsIcon /> },
   ];
 
   const bottomNav: NavItem[] = [
-    { to: '/dashboard/settings', label: 'Settings', icon: <CogIcon /> },
+    { to: '/dashboard/settings', label: 'Ayarlar', icon: <CogIcon /> },
   ];
 
   const renderNavItem = (item: NavItem) => (
@@ -60,9 +86,11 @@ export function DashboardSidebar() {
       <NavLink
         to={item.to}
         end={item.end}
+        title={collapsed ? item.label : undefined}
         className={({ isActive }) =>
           cn(
-            'flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-medium transition-all duration-150',
+            'flex items-center rounded-lg text-[13px] font-medium transition-all duration-150',
+            collapsed ? 'justify-center px-0 py-2' : 'gap-2.5 px-3 py-2',
             isActive
               ? 'bg-white/[0.06] text-ak-text-primary'
               : 'text-ak-text-secondary hover:bg-white/[0.03] hover:text-ak-text-primary'
@@ -70,8 +98,8 @@ export function DashboardSidebar() {
         }
       >
         <span className="flex-shrink-0">{item.icon}</span>
-        <span className="flex-1">{item.label}</span>
-        {item.badge !== undefined && item.badge > 0 && (
+        {!collapsed && <span className="flex-1 truncate">{item.label}</span>}
+        {!collapsed && item.badge !== undefined && item.badge > 0 && (
           <span className="rounded-md bg-white/[0.08] px-1.5 py-0.5 text-[10px] font-medium text-ak-text-secondary">
             {item.badge}
           </span>
@@ -81,16 +109,35 @@ export function DashboardSidebar() {
   );
 
   return (
-    <div className="flex h-full w-[230px] flex-col border-r border-ak-border bg-ak-surface">
-      {/* Logo */}
-      <div className="flex items-center gap-2.5 px-5 py-5">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-ak-primary to-emerald-600 text-sm font-bold text-white">
-          A
+    <div
+      className="flex h-full flex-col border-r border-ak-border bg-ak-surface overflow-y-auto overflow-x-hidden transition-[width] duration-200 ease-out"
+      style={{ width: collapsed ? 64 : 230 }}
+    >
+      {/* Logo + close button */}
+      <div className={cn('flex items-center py-5', collapsed ? 'justify-center px-2' : 'justify-between px-5')}>
+        <div className="flex items-center gap-2.5">
+          <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-ak-primary to-emerald-600 text-sm font-bold text-white">
+            A
+          </div>
+          {!collapsed && (
+            <div className="min-w-0">
+              <p className="text-sm font-bold tracking-wide text-ak-text-primary">AKIS</p>
+              <p className="text-micro font-medium uppercase tracking-widest text-ak-text-tertiary">Dashboard</p>
+            </div>
+          )}
         </div>
-        <div>
-          <p className="text-sm font-bold tracking-wide text-ak-text-primary">AKIS</p>
-          <p className="text-micro font-medium uppercase tracking-widest text-ak-text-tertiary">Dashboard</p>
-        </div>
+        {/* Close button — mobile only */}
+        {!collapsed && onClose && (
+          <button
+            onClick={onClose}
+            className="rounded-lg p-1 text-ak-text-tertiary transition-colors hover:bg-white/[0.06] hover:text-ak-text-primary lg:hidden"
+            aria-label="Menüyü kapat"
+          >
+            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        )}
       </div>
 
       {/* Main Navigation */}
@@ -108,15 +155,53 @@ export function DashboardSidebar() {
       </nav>
 
       {/* Footer */}
-      <div className="border-t border-ak-border-subtle px-4 py-3">
-        <div className="flex items-center justify-between">
-          <span className="text-micro text-ak-text-tertiary">AKIS v0.1.0</span>
-          <div className="flex items-center gap-1" title="All agents operational">
-            <span className="h-1.5 w-1.5 rounded-full bg-ak-scribe" />
-            <span className="h-1.5 w-1.5 rounded-full bg-ak-proto" />
-            <span className="h-1.5 w-1.5 rounded-full bg-ak-trace" />
+      <div className="border-t border-ak-border-subtle px-3 py-3 space-y-2">
+        {/* Sign out */}
+        <button
+          onClick={async () => {
+            setLoggingOut(true);
+            try {
+              await AuthAPI.logout();
+            } catch { /* ignore */ }
+            navigate('/login', { replace: true });
+          }}
+          disabled={loggingOut}
+          title={collapsed ? (loggingOut ? 'Çıkış yapılıyor...' : 'Çıkış Yap') : undefined}
+          className={cn(
+            'flex w-full items-center rounded-lg text-[13px] font-medium text-ak-text-secondary transition-all duration-150 hover:bg-red-500/10 hover:text-red-400 disabled:opacity-50',
+            collapsed ? 'justify-center py-2 px-0' : 'gap-2.5 px-3 py-2'
+          )}
+        >
+          <LogoutIcon />
+          {!collapsed && <span>{loggingOut ? 'Çıkış yapılıyor...' : 'Çıkış Yap'}</span>}
+        </button>
+
+        {/* Collapse toggle */}
+        <button
+          onClick={toggleCollapse}
+          className={cn(
+            'hidden lg:flex w-full items-center rounded-lg text-[13px] font-medium text-ak-text-tertiary transition-all duration-150 hover:bg-white/[0.03] hover:text-ak-text-secondary',
+            collapsed ? 'justify-center py-2 px-0' : 'gap-2.5 px-3 py-2'
+          )}
+          title={collapsed ? 'Kenar çubuğunu genişlet' : 'Kenar çubuğunu daralt'}
+        >
+          <svg className={cn('h-4 w-4 transition-transform duration-200', collapsed && 'rotate-180')} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M18.75 19.5l-7.5-7.5 7.5-7.5m-6 15L5.25 12l7.5-7.5" />
+          </svg>
+          {!collapsed && <span>Daralt</span>}
+        </button>
+
+        {/* Version + status */}
+        {!collapsed && (
+          <div className="flex items-center justify-between px-3">
+            <span className="text-micro text-ak-text-tertiary">AKIS v0.1.0</span>
+            <div className="flex items-center gap-1" title="Tüm ajanlar aktif">
+              <span className="h-1.5 w-1.5 rounded-full bg-ak-scribe" />
+              <span className="h-1.5 w-1.5 rounded-full bg-ak-proto" />
+              <span className="h-1.5 w-1.5 rounded-full bg-ak-trace" />
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );

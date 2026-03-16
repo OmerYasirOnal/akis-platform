@@ -42,49 +42,49 @@ export default function PrivacyConsent() {
           <Logo size="sm" linkToHome={false} />
         </div>
 
-        <h1 className="text-h2 mb-4">Help improve AKIS</h1>
+        <h1 className="text-h2 mb-4">AKIS'i geliştirmemize yardımcı olun</h1>
 
         <div className="space-y-6 mb-8 text-ak-text-secondary">
           <p>
-            AKIS may collect anonymized usage data to improve the platform. This includes:
+            AKIS, platformu geliştirmek için anonimleştirilmiş kullanım verileri toplayabilir. Bunlar:
           </p>
 
           <div className="bg-ak-surface border border-ak-border rounded-xl p-6">
             <h3 className="text-sm font-semibold text-ak-text-primary mb-3">
-              ✓ What we collect (if you opt in):
+              ✓ Topladıklarımız (onay verirseniz):
             </h3>
             <ul className="space-y-2 text-sm">
               <li className="flex items-start gap-2">
                 <span className="text-ak-primary mt-0.5">•</span>
-                <span>Agent job types and success rates</span>
+                <span>Ajan iş türleri ve başarı oranları</span>
               </li>
               <li className="flex items-start gap-2">
                 <span className="text-ak-primary mt-0.5">•</span>
-                <span>Feature usage (which pages you visit)</span>
+                <span>Özellik kullanımı (hangi sayfaları ziyaret ettiğiniz)</span>
               </li>
               <li className="flex items-start gap-2">
                 <span className="text-ak-primary mt-0.5">•</span>
-                <span>Error logs (anonymized stack traces)</span>
+                <span>Hata kayıtları (anonimleştirilmiş stack trace'ler)</span>
               </li>
             </ul>
           </div>
 
           <div className="bg-ak-surface border border-ak-border rounded-xl p-6">
             <h3 className="text-sm font-semibold text-ak-text-primary mb-3">
-              ✗ What we never collect:
+              ✗ Asla toplamadıklarımız:
             </h3>
             <ul className="space-y-2 text-sm">
               <li className="flex items-start gap-2">
                 <span className="text-ak-danger mt-0.5">✗</span>
-                <span>Your code or repository contents</span>
+                <span>Kodunuz veya depo içerikleriniz</span>
               </li>
               <li className="flex items-start gap-2">
                 <span className="text-ak-danger mt-0.5">✗</span>
-                <span>Jira/Confluence data</span>
+                <span>Jira/Confluence verileri</span>
               </li>
               <li className="flex items-start gap-2">
                 <span className="text-ak-danger mt-0.5">✗</span>
-                <span>Integration tokens or credentials</span>
+                <span>Entegrasyon tokenları veya kimlik bilgileri</span>
               </li>
             </ul>
           </div>
@@ -97,9 +97,9 @@ export default function PrivacyConsent() {
               className="mt-1 w-5 h-5 rounded border-ak-border bg-ak-surface text-ak-primary focus:ring-2 focus:ring-ak-primary focus:ring-offset-0 focus:ring-offset-ak-surface-2 transition-colors"
             />
             <span className="text-sm">
-              I'm okay with AKIS using my anonymized usage data to improve the product. I can
-              change this anytime in{' '}
-              <span className="text-ak-text-primary font-medium">Settings → Privacy</span>.
+              AKIS'in ürünü geliştirmek için anonimleştirilmiş kullanım verilerimi kullanmasına izin veriyorum.
+              Bunu istediğim zaman{' '}
+              <span className="text-ak-text-primary font-medium">Ayarlar → Gizlilik</span> bölümünden değiştirebilirim.
             </span>
           </label>
         </div>
@@ -110,7 +110,7 @@ export default function PrivacyConsent() {
             disabled={submitting}
             className="flex-1 justify-center"
           >
-            {submitting ? 'Saving...' : 'Continue to Dashboard'}
+            {submitting ? 'Kaydediliyor...' : "Dashboard'a Devam Et"}
           </Button>
           <a
             href="/legal/privacy-policy"
@@ -118,7 +118,7 @@ export default function PrivacyConsent() {
             rel="noopener noreferrer"
             className="text-sm text-ak-primary hover:underline text-center py-3"
           >
-            Learn more about privacy
+            Gizlilik hakkında daha fazla bilgi
           </a>
         </div>
       </div>

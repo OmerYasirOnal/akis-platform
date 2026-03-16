@@ -5,7 +5,7 @@ import Logo from '../../components/branding/Logo';
 import { useI18n } from '../../i18n/useI18n';
 import type { MessageKey } from '../../i18n/i18n.types';
 import { getAuthBaseUrl } from '../../services/api/config';
-import { setReturnTo } from '../../utils/returnTo';
+import { clearReturnTo, setReturnTo } from '../../utils/returnTo';
 
 const OAUTH_ERROR_MAP: Record<string, string> = {
   oauth_invalid_state: 'auth.oauth.error.invalidState',
@@ -27,7 +27,12 @@ export default function LoginEmail() {
 
   useEffect(() => {
     const from = (location.state as { from?: { pathname?: string } })?.from?.pathname;
-    if (from) setReturnTo(from);
+    if (from) {
+      setReturnTo(from);
+    } else {
+      // Clear stale redirect targets when login is opened directly.
+      clearReturnTo();
+    }
   }, [location.state]);
   const [email, setEmail] = useState('');
   const [error, setError] = useState('');
@@ -67,7 +72,7 @@ export default function LoginEmail() {
 
       navigate('/login/password');
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Unable to proceed. Please try again.';
+      const errorMessage = err instanceof Error ? err.message : 'Devam edilemiyor. Lütfen tekrar deneyin.';
 
       try {
         const errorData = JSON.parse(errorMessage);
@@ -77,7 +82,7 @@ export default function LoginEmail() {
             userId: errorData.userId,
             email,
           }));
-          setError('Email not verified. Redirecting to verification...');
+          setError('E-posta doğrulanmadı. Doğrulama sayfasına yönlendiriliyor...');
           setTimeout(() => navigate('/signup/verify-email'), 2000);
           return;
         }
@@ -93,7 +98,11 @@ export default function LoginEmail() {
 
   function handleOAuthLogin(provider: 'github' | 'google') {
     const from = (location.state as { from?: { pathname?: string } })?.from?.pathname;
-    if (from) setReturnTo(from);
+    if (from) {
+      setReturnTo(from);
+    } else {
+      clearReturnTo();
+    }
     window.location.href = `${getAuthBaseUrl()}/auth/oauth/${provider}`;
   }
 

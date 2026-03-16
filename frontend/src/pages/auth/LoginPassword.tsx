@@ -55,7 +55,7 @@ export default function LoginPassword() {
         navigate(returnTo || '/dashboard');
       }
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Incorrect password. Please try again.';
+      const errorMessage = err instanceof Error ? err.message : 'Yanlış şifre. Lütfen tekrar deneyin.';
       
       // Try to parse error JSON for better messages
       try {
@@ -94,21 +94,21 @@ export default function LoginPassword() {
                 d="M15 19l-7-7 7-7"
               />
             </svg>
-            Back
+            Geri
           </button>
 
           <Logo size="sm" linkToHome={false} />
         </div>
 
-        <h1 className="text-h2 mb-2">Enter your password</h1>
+        <h1 className="text-h2 mb-2">Şifrenizi girin</h1>
         <p className="text-sm text-ak-text-secondary mb-6">
-          Signing in as <span className="text-ak-text-primary font-medium">{email}</span>
+          <span className="text-ak-text-primary font-medium">{email}</span> olarak giriş yapılıyor
         </p>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <label className="text-sm font-medium" htmlFor="password">
-              Password
+              Şifre
             </label>
             <div className="relative">
               <input
@@ -126,9 +126,9 @@ export default function LoginPassword() {
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium uppercase tracking-wide text-ak-text-secondary hover:text-ak-primary focus:outline-none focus:ring-2 focus:ring-ak-primary focus:ring-offset-0 px-2 py-1 rounded transition-colors"
-                aria-label={showPassword ? 'Hide password' : 'Show password'}
+                aria-label={showPassword ? 'Şifreyi gizle' : 'Şifreyi göster'}
               >
-                {showPassword ? 'HIDE' : 'SHOW'}
+                {showPassword ? 'GİZLE' : 'GÖSTER'}
               </button>
             </div>
           </div>
@@ -138,14 +138,14 @@ export default function LoginPassword() {
               to="/auth/reset-password"
               className="text-sm text-ak-primary hover:underline"
             >
-              Forgot password?
+              Şifremi unuttum
             </Link>
           </div>
 
           {error ? <p className="text-ak-danger text-sm">{error}</p> : null}
 
           <Button type="submit" disabled={submitting} className="w-full justify-center">
-            {submitting ? 'Signing in...' : 'Sign in'}
+            {submitting ? 'Giriş yapılıyor...' : 'Giriş yap'}
           </Button>
         </form>
       </div>

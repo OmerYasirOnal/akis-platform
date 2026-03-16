@@ -1,5 +1,6 @@
 import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
+import { VitePWA } from 'vite-plugin-pwa';
 import { execSync } from 'child_process';
 import path from 'path';
 
@@ -14,7 +15,36 @@ const getGitSha = () => {
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react()],
+  plugins: [
+    react(),
+    VitePWA({
+      registerType: 'autoUpdate',
+      includeAssets: ['icon.svg'],
+      manifest: false,
+      workbox: {
+        runtimeCaching: [
+          {
+            urlPattern: /^https?:\/\/.*\/api\//,
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'api-cache',
+              networkTimeoutSeconds: 10,
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
+          {
+            urlPattern: /\.(?:js|css|woff2|png|svg|ico)$/,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'static-cache',
+              expiration: { maxEntries: 100, maxAgeSeconds: 60 * 60 * 24 * 30 },
+            },
+          },
+        ],
+        navigateFallbackDenylist: [/\/api\//, /\/auth\//],
+      },
+    }),
+  ],
   resolve: {
     alias: {
       // Ensure pipeline/ files resolve react from frontend node_modules
@@ -43,7 +73,7 @@ export default defineConfig({
     proxy: (() => {
       const target = process.env.VITE_PROXY_TARGET ?? 'http://localhost:3000';
       return {
-        '/api': { target, changeOrigin: true },
+        '/api': { target, changeOrigin: true, timeout: 0 },
         '/auth/oauth': { target, changeOrigin: true },
         '/auth/me': { target, changeOrigin: true },
         '/auth/logout': { target, changeOrigin: true },
@@ -52,6 +82,8 @@ export default defineConfig({
         '/auth/verify-email': { target, changeOrigin: true },
         '/auth/resend-code': { target, changeOrigin: true },
         '/auth/update-preferences': { target, changeOrigin: true },
+        '/auth/profile': { target, changeOrigin: true },
+        '/auth/password': { target, changeOrigin: true },
         '^/auth/invite(?:$|/(?:validate|accept)$)': {
           target,
           changeOrigin: true,

@@ -2,9 +2,9 @@ import { cn } from '../../utils/cn';
 import type { WorkflowStages, StageStatus } from '../../types/workflow';
 
 const AGENT_META = {
-  scribe: { icon: '\u25C6', label: 'Scribe', colorClass: 'text-[#38bdf8] border-[#38bdf8]', bgClass: 'bg-[#38bdf8]/10' },
-  proto: { icon: '\u2B21', label: 'Proto', colorClass: 'text-[#f59e0b] border-[#f59e0b]', bgClass: 'bg-[#f59e0b]/10' },
-  trace: { icon: '\u25C8', label: 'Trace', colorClass: 'text-[#a78bfa] border-[#a78bfa]', bgClass: 'bg-[#a78bfa]/10' },
+  scribe: { icon: '\u25C6', label: 'Scribe', colorClass: 'text-ak-scribe border-ak-scribe', bgClass: 'bg-ak-scribe/10' },
+  proto: { icon: '\u2B21', label: 'Proto', colorClass: 'text-ak-proto border-ak-proto', bgClass: 'bg-ak-proto/10' },
+  trace: { icon: '\u25C8', label: 'Trace', colorClass: 'text-ak-trace border-ak-trace', bgClass: 'bg-ak-trace/10' },
 } as const;
 
 function getNodeClasses(status: StageStatus, agentKey: keyof typeof AGENT_META) {
@@ -18,7 +18,7 @@ function getNodeClasses(status: StageStatus, agentKey: keyof typeof AGENT_META) 
   if (active) {
     return cn(meta.colorClass, meta.bgClass);
   }
-  return 'text-[#4a5568]/50 border-[#4a5568]/50 bg-transparent';
+  return 'text-ak-text-tertiary/50 border-ak-text-tertiary/50 bg-transparent';
 }
 
 interface MiniPipelineProps {
@@ -54,7 +54,7 @@ export function MiniPipeline({ stages, className }: MiniPipelineProps) {
               <div
                 className={cn(
                   'h-[1.5px] w-4',
-                  lineActive ? 'bg-[#4a5568]/60' : 'bg-[#4a5568]/25',
+                  lineActive ? 'bg-ak-text-tertiary/60' : 'bg-ak-text-tertiary/25',
                 )}
               />
             )}

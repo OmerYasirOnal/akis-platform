@@ -17,8 +17,22 @@ export type StageStatus = 'idle' | 'running' | 'completed' | 'failed' | 'pending
 export interface StructuredSpec {
   title?: string;
   problemStatement: string;
-  userStories: Array<{ persona?: string; as?: string; action?: string; iWant?: string; benefit?: string; soThat?: string }>;
-  acceptanceCriteria: Array<{ id?: string; given: string; when: string; then: string }>;
+  userStories: Array<{
+    persona?: string;
+    as?: string;
+    action?: string;
+    iWant?: string;
+    benefit?: string;
+    soThat?: string;
+    priority?: 'P0' | 'P1' | 'P2';
+  }>;
+  acceptanceCriteria: Array<{
+    id?: string;
+    summary?: string;
+    given: string;
+    when: string;
+    then: string;
+  }>;
   technicalConstraints?: { stack?: string; integrations?: string[]; nonFunctional?: string[] } | string[];
   outOfScope?: string[];
 }
@@ -46,6 +60,53 @@ export interface WorkflowStages {
   trace: StageResult;
 }
 
+// ═══ Conversation Types ═══
+
+export interface ConversationMessage {
+  role: 'user' | 'scribe' | 'proto' | 'trace' | 'system';
+  type: 'message' | 'clarification' | 'spec' | 'proto_result' | 'trace_result' | 'error';
+  content: string;
+  timestamp: string;
+  // Clarification
+  questions?: Array<{
+    id: string;
+    question: string;
+    reason: string;
+    suggestions?: string[];
+  }>;
+  // Spec
+  spec?: StructuredSpec;
+  confidence?: number;
+  // Proto result
+  protoResult?: {
+    branch: string;
+    repo: string;
+    files: FileTreeNode[];
+    totalFiles: number;
+    totalLines: number;
+  };
+  // Trace result
+  traceResult?: {
+    testCount: number;
+    passing: number;
+    failing: number;
+    coverage: string;
+    duration: string;
+    testFiles: FileTreeNode[];
+  };
+}
+
+export interface FileTreeNode {
+  name: string;
+  type: 'file' | 'folder';
+  path?: string;
+  lang?: string;
+  lines?: number;
+  agent?: 'proto' | 'trace';
+  status?: 'new' | 'modified' | 'test';
+  children?: FileTreeNode[];
+}
+
 export interface Workflow {
   id: string;
   title: string;
@@ -53,6 +114,7 @@ export interface Workflow {
   createdAt: string;
   updatedAt?: string;
   stages: WorkflowStages;
+  conversation?: ConversationMessage[];
 }
 
 export interface WorkflowStats {

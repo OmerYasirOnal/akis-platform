@@ -1,29 +1,36 @@
 import { useState } from 'react';
 import { cn } from '../../utils/cn';
+import { formatConfidence } from '../../utils/format';
 import { StatusBadge } from './StatusBadge';
 import { SpecView } from './SpecView';
+import { ActivityLog } from '../pipeline/ActivityLog';
 import type { Workflow, StageResult } from '../../types/workflow';
+import type { PipelineActivity } from '../../hooks/usePipelineStream';
 
 const STAGE_META = [
-  { key: 'scribe' as const, label: 'Scribe', role: 'Idea \u2192 Spec', color: '#38bdf8', icon: '\u25C6' },
-  { key: 'approve' as const, label: 'Human Gate', role: 'Human-in-the-loop', color: '#2dd4a8', icon: '\u2713' },
-  { key: 'proto' as const, label: 'Proto', role: 'Spec \u2192 Scaffold', color: '#f59e0b', icon: '\u2B21' },
-  { key: 'trace' as const, label: 'Trace', role: 'Code \u2192 Tests', color: '#a78bfa', icon: '\u25C8' },
+  { key: 'scribe' as const, label: 'Scribe', role: 'Fikir → Spec', color: '#38bdf8', icon: '◆' },
+  { key: 'approve' as const, label: 'İnsan Onayı', role: 'Human-in-the-loop', color: '#2dd4a8', icon: '✓' },
+  { key: 'proto' as const, label: 'Proto', role: 'Spec → Scaffold', color: '#f59e0b', icon: '⬡' },
+  { key: 'trace' as const, label: 'Trace', role: 'Kod → Test', color: '#a78bfa', icon: '◈' },
 ];
 
 interface StageTimelineProps {
   workflow: Workflow;
-  onApprove?: () => void;
-  onReject?: () => void;
+  onApprove?: (repoName: string, repoVisibility?: 'public' | 'private') => void;
+  onReject?: (feedback?: string) => void;
   onRetry?: () => void;
+  activities?: PipelineActivity[];
+  currentStep?: PipelineActivity | null;
+  isConnected?: boolean;
+  progressByStage?: Record<string, number>;
 }
 
 function StageContent({ stageKey, stage, workflow, onApprove, onReject, onRetry }: {
   stageKey: string;
   stage: StageResult;
   workflow: Workflow;
-  onApprove?: () => void;
-  onReject?: () => void;
+  onApprove?: (repoName: string, repoVisibility?: 'public' | 'private') => void;
+  onReject?: (feedback?: string) => void;
   onRetry?: () => void;
 }) {
   if (stageKey === 'scribe' && stage.status === 'completed' && stage.spec) {
@@ -33,31 +40,13 @@ function StageContent({ stageKey, stage, workflow, onApprove, onReject, onRetry 
   if (stageKey === 'approve') {
     if (stage.status === 'completed') {
       return (
-        <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-3 text-sm text-emerald-400">
-          &#10003; Spec approved by user &middot; Human-in-the-loop gate passed
+        <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-3 text-sm text-emerald-600">
+          ✓ Spec kullanıcı tarafından onaylandı · İnsan onayı geçildi
         </div>
       );
     }
     if (stage.status === 'pending' && workflow.status === 'awaiting_approval') {
-      return (
-        <div className="space-y-3">
-          <p className="text-sm text-[#8492a6]">Review the spec and decide how to proceed.</p>
-          <div className="flex gap-2">
-            <button
-              onClick={onApprove}
-              className="rounded-lg bg-emerald-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-emerald-600"
-            >
-              Approve &amp; Continue
-            </button>
-            <button
-              onClick={onReject}
-              className="rounded-lg border border-red-500/30 px-4 py-2 text-sm font-medium text-red-400 transition-colors hover:bg-red-500/10"
-            >
-              Reject
-            </button>
-          </div>
-        </div>
-      );
+      return <ApproveSection onApprove={onApprove} onReject={onReject} defaultRepoName={workflow.title} />;
     }
     return null;
   }
@@ -67,15 +56,15 @@ function StageContent({ stageKey, stage, workflow, onApprove, onReject, onRetry 
       return (
         <div className="space-y-2">
           <div className="flex items-center gap-2 text-sm">
-            <span className="text-[#8492a6]">Branch:</span>
-            <code className="rounded bg-[#1a2030] px-2 py-0.5 font-mono text-xs text-[#f59e0b]">{stage.branch}</code>
+            <span className="text-ak-text-secondary">Branch:</span>
+            <code className="rounded bg-ak-surface-2 px-2 py-0.5 font-mono text-xs text-ak-proto">{stage.branch}</code>
           </div>
           {stage.files && stage.files.length > 0 && (
             <div>
-              <p className="mb-1 text-xs text-[#8492a6]">Files ({stage.files.length}):</p>
+              <p className="mb-1 text-xs text-ak-text-secondary">Dosyalar ({stage.files.length}):</p>
               <div className="space-y-0.5">
                 {stage.files.map((f, i) => (
-                  <p key={i} className="font-mono text-xs text-[#e2e8f0]/70">{f}</p>
+                  <p key={i} className="font-mono text-xs text-ak-text-primary/70">{f}</p>
                 ))}
               </div>
             </div>
@@ -85,10 +74,23 @@ function StageContent({ stageKey, stage, workflow, onApprove, onReject, onRetry 
     }
     if (stage.status === 'running') {
       return (
-        <div className="flex items-center gap-2 text-sm text-[#8492a6]">
-          <span className="h-2 w-2 animate-pulse rounded-full bg-[#f59e0b]" />
-          Generating scaffold...
+        <div className="flex items-center gap-2 text-sm text-ak-text-secondary">
+          <span className="h-2 w-2 animate-pulse rounded-full bg-ak-proto" />
+          Scaffold oluşturuluyor...
           {stage.elapsed && <span className="font-mono text-xs">{stage.elapsed}</span>}
+        </div>
+      );
+    }
+    if (stage.status === 'failed') {
+      return (
+        <div className="space-y-2">
+          <p className="text-sm text-red-500">{stage.error || 'Proto başarısız oldu'}</p>
+          <button
+            onClick={onRetry}
+            className="rounded-lg border border-ak-proto/30 px-3 py-1.5 text-sm font-medium text-ak-proto transition-colors hover:bg-ak-proto/10"
+          >
+            Tekrar Dene
+          </button>
         </div>
       );
     }
@@ -100,12 +102,12 @@ function StageContent({ stageKey, stage, workflow, onApprove, onReject, onRetry 
       return (
         <div className="flex gap-6">
           <div>
-            <p className="text-2xl font-bold text-[#a78bfa]">{stage.tests ?? 0}</p>
-            <p className="text-xs text-[#8492a6]">Tests Written</p>
+            <p className="text-2xl font-bold text-ak-trace">{stage.tests ?? 0}</p>
+            <p className="text-xs text-ak-text-secondary">Yazılan Test</p>
           </div>
           <div>
-            <p className="text-2xl font-bold text-[#a78bfa]">{stage.coverage ?? 'N/A'}</p>
-            <p className="text-xs text-[#8492a6]">Coverage</p>
+            <p className="text-2xl font-bold text-ak-trace">{stage.coverage ?? 'N/A'}</p>
+            <p className="text-xs text-ak-text-secondary">Kapsam</p>
           </div>
         </div>
       );
@@ -113,21 +115,21 @@ function StageContent({ stageKey, stage, workflow, onApprove, onReject, onRetry 
     if (stage.status === 'failed') {
       return (
         <div className="space-y-2">
-          <p className="text-sm text-red-400">{stage.error || 'Trace failed'}</p>
+          <p className="text-sm text-red-500">{stage.error || 'Trace başarısız oldu'}</p>
           <button
             onClick={onRetry}
-            className="rounded-lg border border-[#a78bfa]/30 px-3 py-1.5 text-sm font-medium text-[#a78bfa] transition-colors hover:bg-[#a78bfa]/10"
+            className="rounded-lg border border-ak-trace/30 px-3 py-1.5 text-sm font-medium text-ak-trace transition-colors hover:bg-ak-trace/10"
           >
-            Retry Trace
+            Tekrar Dene
           </button>
         </div>
       );
     }
     if (stage.status === 'running') {
       return (
-        <div className="flex items-center gap-2 text-sm text-[#8492a6]">
-          <span className="h-2 w-2 animate-pulse rounded-full bg-[#a78bfa]" />
-          Writing tests...
+        <div className="flex items-center gap-2 text-sm text-ak-text-secondary">
+          <span className="h-2 w-2 animate-pulse rounded-full bg-ak-trace" />
+          Testler yazılıyor...
         </div>
       );
     }
@@ -137,7 +139,42 @@ function StageContent({ stageKey, stage, workflow, onApprove, onReject, onRetry 
   return null;
 }
 
-export function StageTimeline({ workflow, onApprove, onReject, onRetry }: StageTimelineProps) {
+function ApproveSection({
+  onApprove,
+  onReject,
+  defaultRepoName,
+}: {
+  onApprove?: (repoName: string, repoVisibility?: 'public' | 'private') => void;
+  onReject?: (feedback?: string) => void;
+  defaultRepoName?: string;
+}) {
+  const deriveSlug = (title?: string) =>
+    (title || 'my-app').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 50);
+  const repoName = deriveSlug(defaultRepoName);
+
+  return (
+    <div className="space-y-3">
+      <p className="text-sm text-ak-text-secondary">Spec'i inceleyin ve nasıl devam edileceğine karar verin.</p>
+      <div className="flex gap-2">
+        <button
+          onClick={() => repoName.trim() && onApprove?.(repoName.trim(), 'private')}
+          disabled={!repoName.trim()}
+          className="rounded-lg bg-emerald-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-emerald-600 disabled:opacity-40 disabled:cursor-not-allowed"
+        >
+          ✓ Onayla ve Devam Et
+        </button>
+        <button
+          onClick={() => onReject?.()}
+          className="rounded-lg border border-red-500/30 px-4 py-2 text-sm font-medium text-red-500 transition-colors hover:bg-red-500/10"
+        >
+          Reddet
+        </button>
+      </div>
+    </div>
+  );
+}
+
+export function StageTimeline({ workflow, onApprove, onReject, onRetry, activities, currentStep, isConnected, progressByStage }: StageTimelineProps) {
   const [expandedStage, setExpandedStage] = useState<string | null>(() => {
     // Auto-expand the current active stage
     if (workflow.status === 'awaiting_approval') return 'approve';
@@ -164,7 +201,7 @@ export function StageTimeline({ workflow, onApprove, onReject, onRetry }: StageT
                 className={cn(
                   'absolute left-[16px] top-[34px] w-0.5',
                   isExpanded ? 'h-[calc(100%-34px)]' : 'h-[calc(100%-14px)]',
-                  stage.status === 'completed' ? 'bg-emerald-500/40' : 'bg-[#1e2738]',
+                  stage.status === 'completed' ? 'bg-emerald-500/40' : 'bg-ak-border',
                 )}
               />
             )}
@@ -174,7 +211,7 @@ export function StageTimeline({ workflow, onApprove, onReject, onRetry }: StageT
               onClick={() => hasContent && setExpandedStage(isExpanded ? null : meta.key)}
               className={cn(
                 'flex w-full items-center gap-3 rounded-lg p-2 text-left transition-colors',
-                hasContent && 'cursor-pointer hover:bg-[#1a2030]',
+                hasContent && 'cursor-pointer hover:bg-ak-hover',
                 !hasContent && 'cursor-default opacity-50',
               )}
             >
@@ -182,9 +219,9 @@ export function StageTimeline({ workflow, onApprove, onReject, onRetry }: StageT
               <div
                 className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg text-sm font-bold"
                 style={{
-                  background: stage.status === 'completed' ? `${meta.color}18` : stage.status === 'running' ? `${meta.color}18` : '#1e273830',
-                  color: stage.status !== 'idle' ? meta.color : '#4a5568',
-                  border: `1.5px solid ${stage.status !== 'idle' ? meta.color : '#4a556830'}`,
+                  background: stage.status === 'completed' || stage.status === 'running' ? `${meta.color}12` : 'var(--ak-surface-2)',
+                  color: stage.status !== 'idle' ? meta.color : 'var(--ak-text-tertiary)',
+                  border: `1.5px solid ${stage.status !== 'idle' ? `${meta.color}40` : 'var(--ak-border)'}`,
                 }}
               >
                 {meta.icon}
@@ -193,11 +230,11 @@ export function StageTimeline({ workflow, onApprove, onReject, onRetry }: StageT
               {/* Label + role */}
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium text-[#e2e8f0]">{meta.label}</span>
-                  <span className="text-xs text-[#4a5568]">{meta.role}</span>
+                  <span className="text-sm font-medium text-ak-text-primary">{meta.label}</span>
+                  <span className="text-xs text-ak-text-tertiary">{meta.role}</span>
                 </div>
-                {stage.confidence && (
-                  <span className="text-xs text-[#8492a6]">Confidence: {stage.confidence}%</span>
+                {stage.confidence != null && stage.confidence > 0 && (
+                  <span className="text-xs text-ak-text-secondary">Güven: {formatConfidence(stage.confidence)}</span>
                 )}
               </div>
 
@@ -207,7 +244,7 @@ export function StageTimeline({ workflow, onApprove, onReject, onRetry }: StageT
               {/* Expand indicator */}
               {hasContent && (
                 <svg
-                  className={cn('h-4 w-4 text-[#4a5568] transition-transform', isExpanded && 'rotate-180')}
+                  className={cn('h-4 w-4 text-ak-text-tertiary transition-transform', isExpanded && 'rotate-180')}
                   fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}
                 >
                   <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
@@ -217,7 +254,7 @@ export function StageTimeline({ workflow, onApprove, onReject, onRetry }: StageT
 
             {/* Expanded content */}
             {isExpanded && hasContent && (
-              <div className="ml-11 mt-1 mb-3 rounded-lg border border-[#1e2738] bg-[#131820] p-4">
+              <div className="ml-11 mt-1 mb-3 rounded-lg border border-ak-border bg-ak-surface p-4">
                 <StageContent
                   stageKey={meta.key}
                   stage={stage}
@@ -226,6 +263,23 @@ export function StageTimeline({ workflow, onApprove, onReject, onRetry }: StageT
                   onReject={onReject}
                   onRetry={onRetry}
                 />
+                {stage.status === 'running' && meta.key !== 'approve' && (
+                  <>
+                    <ActivityLog
+                      activities={activities ?? []}
+                      currentStep={currentStep ?? null}
+                      isRunning={true}
+                      stageName={meta.key as 'scribe' | 'proto' | 'trace'}
+                      progress={progressByStage?.[meta.key]}
+                    />
+                    {isConnected === false && (
+                      <div className="text-xs opacity-40 flex items-center gap-1 mt-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-yellow-500 animate-pulse" />
+                        <span>Yeniden bağlanıyor...</span>
+                      </div>
+                    )}
+                  </>
+                )}
               </div>
             )}
           </div>

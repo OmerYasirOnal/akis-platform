@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../contexts/AuthContext';
 import Button from '../../components/common/Button';
 import Logo from '../../components/branding/Logo';
 
 export default function SignupPassword() {
   const navigate = useNavigate();
+  const { setUser } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -31,13 +33,13 @@ export default function SignupPassword() {
 
     // Validate passwords match
     if (password !== confirmPassword) {
-      setError('Passwords do not match');
+      setError('Şifreler eşleşmiyor');
       return;
     }
 
     // Validate minimum length
     if (password.length < 8) {
-      setError('Password must be at least 8 characters');
+      setError('Şifre en az 8 karakter olmalıdır');
       return;
     }
 
@@ -46,21 +48,35 @@ export default function SignupPassword() {
     try {
       const storedData = sessionStorage.getItem('akis_signup_data');
       if (!storedData) {
-        throw new Error('Signup session expired. Please start again.');
+        throw new Error('Kayıt oturumu sona erdi. Lütfen tekrar başlatın.');
       }
 
       const data = JSON.parse(storedData);
       const { AuthAPI } = await import('../../services/api/auth');
       
-      await AuthAPI.signupPassword({
+      const response = await AuthAPI.signupPassword({
         userId: data.userId,
         password,
       });
 
-      // Navigate to verification step
+      if (response.verificationBypassed && response.user) {
+        setUser(response.user);
+        sessionStorage.removeItem('akis_signup_data');
+
+        if (response.needsDataSharingConsent) {
+          navigate('/auth/privacy-consent');
+        } else if (!response.user.hasSeenBetaWelcome) {
+          navigate('/auth/welcome-beta');
+        } else {
+          navigate('/dashboard');
+        }
+        return;
+      }
+
+      // Default flow: navigate to email verification step
       navigate('/signup/verify-email');
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Unable to set password. Please try again.';
+      const errorMessage = err instanceof Error ? err.message : 'Şifre belirlenemedi. Lütfen tekrar deneyin.';
       
       // Try to parse error JSON for better messages
       try {
@@ -99,21 +115,21 @@ export default function SignupPassword() {
                 d="M15 19l-7-7 7-7"
               />
             </svg>
-            Back
+            Geri
           </button>
 
           <Logo size="sm" linkToHome={false} />
         </div>
 
-        <h1 className="text-h2 mb-2">Create a password</h1>
+        <h1 className="text-h2 mb-2">Şifre oluşturun</h1>
         <p className="text-sm text-ak-text-secondary mb-6">
-          For <span className="text-ak-text-primary font-medium">{email}</span>
+          <span className="text-ak-text-primary font-medium">{email}</span> için
         </p>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <label className="text-sm font-medium" htmlFor="password">
-              Password (min. 8 characters)
+              Şifre (en az 8 karakter)
             </label>
             <div className="relative">
               <input
@@ -131,16 +147,16 @@ export default function SignupPassword() {
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium uppercase tracking-wide text-ak-text-secondary hover:text-ak-primary focus:outline-none focus:ring-2 focus:ring-ak-primary focus:ring-offset-0 px-2 py-1 rounded transition-colors"
-                aria-label={showPassword ? 'Hide password' : 'Show password'}
+                aria-label={showPassword ? 'Şifreyi gizle' : 'Şifreyi göster'}
               >
-                {showPassword ? 'HIDE' : 'SHOW'}
+                {showPassword ? 'GİZLE' : 'GÖSTER'}
               </button>
             </div>
           </div>
 
           <div className="space-y-2">
             <label className="text-sm font-medium" htmlFor="confirmPassword">
-              Confirm password
+              Şifre tekrar
             </label>
             <div className="relative">
               <input
@@ -157,9 +173,9 @@ export default function SignupPassword() {
                 type="button"
                 onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium uppercase tracking-wide text-ak-text-secondary hover:text-ak-primary focus:outline-none focus:ring-2 focus:ring-ak-primary focus:ring-offset-0 px-2 py-1 rounded transition-colors"
-                aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
+                aria-label={showConfirmPassword ? 'Şifreyi gizle' : 'Şifreyi göster'}
               >
-                {showConfirmPassword ? 'HIDE' : 'SHOW'}
+                {showConfirmPassword ? 'GİZLE' : 'GÖSTER'}
               </button>
             </div>
           </div>
@@ -167,7 +183,7 @@ export default function SignupPassword() {
           {error ? <p className="text-ak-danger text-sm">{error}</p> : null}
 
           <Button type="submit" disabled={submitting} className="w-full justify-center">
-            {submitting ? 'Setting password...' : 'Continue'}
+            {submitting ? 'Şifre ayarlanıyor...' : 'Devam et'}
           </Button>
         </form>
       </div>
