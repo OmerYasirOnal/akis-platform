@@ -122,6 +122,7 @@ export interface WorkerInput {
   previousSteps?: string[];
   maxTokens?: number;
   systemPrompt?: string;
+  modelOverride?: string;
 }
 
 export interface ReflectionInput {
@@ -822,13 +823,14 @@ class RealAIService implements AIService {
     const temps = this.getTemperatures();
     const systemPrompt = input.systemPrompt ?? GENERATE_SYSTEM_PROMPT;
     const userPrompt = buildGenerateUserPrompt(input.task, input.context, input.previousSteps);
+    const model = input.modelOverride || this.config.modelDefault;
 
     const response = await this.chatCompletion(
       [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt },
       ],
-      this.config.modelDefault,
+      model,
       { temperature: temps.generate, maxTokens: input.maxTokens ?? 4096 },
       'generate'
     );
@@ -836,7 +838,7 @@ class RealAIService implements AIService {
     return {
       content: response.content,
       metadata: {
-        model: this.config.modelDefault,
+        model,
         task: input.task,
         provider: this.config.provider,
         usage: response.usage,

@@ -534,6 +534,12 @@ export const users = pgTable('users', {
   activeAiProvider: aiProviderEnum('active_ai_provider').default('openrouter'),
   /** User role for access control */
   role: userRoleEnum('role').notNull().default('member'),
+  /** GitHub Personal Access Token (stored for pipeline GitHub operations) */
+  githubToken: text('github_token'),
+  /** GitHub username (cached from API validation) */
+  githubUsername: text('github_username'),
+  /** GitHub avatar URL (cached from API validation) */
+  githubAvatarUrl: text('github_avatar_url'),
   createdAt: timestamp('created_at', { withTimezone: false }).defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: false }).defaultNow(),
 }, (table) => ({
@@ -1634,6 +1640,8 @@ export const pipelines = pgTable('pipelines', {
   protoConfig: jsonb('proto_config'),
   metrics: jsonb('metrics').default({}),
   error: jsonb('error'),
+  intermediateState: jsonb('intermediate_state'),
+  attemptCount: integer('attempt_count').default(0).notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 }, (table) => ({

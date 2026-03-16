@@ -72,6 +72,7 @@ export async function registerMultiStepAuthRoutes(
   fastify: FastifyInstance,
   emailService: EmailService
 ) {
+  const isDevMode = process.env.DEV_MODE === 'true';
   const verificationService = new VerificationService(emailService, {
     ttlMinutes: 15, // Can be made configurable
   });
@@ -159,6 +160,41 @@ export async function registerMultiStepAuthRoutes(
     // Hash and store password
     const passwordHash = await hashPassword(body.password);
     
+    if (isDevMode) {
+      const [updatedUser] = await db
+        .update(users)
+        .set({
+          passwordHash,
+          status: 'active',
+          emailVerified: true,
+          updatedAt: new Date(),
+        })
+        .where(eq(users.id, body.userId))
+        .returning();
+
+      const resolvedUser = updatedUser ?? {
+        ...user,
+        passwordHash,
+        status: 'active' as const,
+        emailVerified: true,
+      };
+
+      const jwt = await sign({
+        sub: resolvedUser.id,
+        email: resolvedUser.email,
+        name: resolvedUser.name,
+      });
+      reply.setCookie(env.AUTH_COOKIE_NAME, jwt, cookieOpts);
+
+      return {
+        ok: true,
+        message: 'Password set successfully (DEV_MODE verification bypass)',
+        verificationBypassed: true,
+        user: sanitizeUser(resolvedUser),
+        needsDataSharingConsent: resolvedUser.dataSharingConsent === null,
+      };
+    }
+
     await db
       .update(users)
       .set({
@@ -170,6 +206,7 @@ export async function registerMultiStepAuthRoutes(
     return {
       ok: true,
       message: 'Password set successfully',
+      verificationBypassed: false,
     };
   });
 
@@ -268,6 +305,30 @@ export async function registerMultiStepAuthRoutes(
     }
 
     if (user.status === 'pending_verification' || !user.emailVerified) {
+      if (isDevMode && user.status !== 'disabled' && user.status !== 'deleted') {
+        const [promotedUser] = await db
+          .update(users)
+          .set({
+            status: 'active',
+            emailVerified: true,
+            updatedAt: new Date(),
+          })
+          .where(eq(users.id, user.id))
+          .returning();
+
+        const resolvedUser = promotedUser ?? {
+          ...user,
+          status: 'active' as const,
+          emailVerified: true,
+        };
+
+        return {
+          userId: resolvedUser.id,
+          email: resolvedUser.email,
+          requiresPassword: true,
+          status: resolvedUser.status,
+        };
+      }
       return sendError(reply, request, 'EMAIL_NOT_VERIFIED', 'Email not verified', { userId: user.id });
     }
 
