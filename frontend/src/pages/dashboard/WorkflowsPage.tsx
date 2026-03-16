@@ -9,21 +9,21 @@ import { cn } from '../../utils/cn';
 function timeAgo(dateStr: string): string {
   const diff = Date.now() - new Date(dateStr).getTime();
   const mins = Math.floor(diff / 60000);
-  if (mins < 1) return 'just now';
-  if (mins < 60) return `${mins}m ago`;
+  if (mins < 1) return 'az önce';
+  if (mins < 60) return `${mins}dk önce`;
   const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}h ago`;
-  return `${Math.floor(hrs / 24)}d ago`;
+  if (hrs < 24) return `${hrs}sa önce`;
+  return `${Math.floor(hrs / 24)}g önce`;
 }
 
 type FilterKey = 'all' | 'completed' | 'running' | 'awaiting_approval' | 'failed';
 
 const FILTERS: { key: FilterKey; label: string }[] = [
-  { key: 'all', label: 'All' },
-  { key: 'completed', label: 'Completed' },
-  { key: 'running', label: 'Running' },
-  { key: 'awaiting_approval', label: 'Awaiting' },
-  { key: 'failed', label: 'Failed' },
+  { key: 'all', label: 'Tümü' },
+  { key: 'completed', label: 'Tamamlanan' },
+  { key: 'running', label: 'Çalışan' },
+  { key: 'awaiting_approval', label: 'Onay Bekleyen' },
+  { key: 'failed', label: 'Başarısız' },
 ];
 
 function matchesFilter(status: WorkflowStatus, filter: FilterKey): boolean {
@@ -55,8 +55,8 @@ export default function WorkflowsPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-display text-ak-text-primary">Workflows</h1>
-          <p className="mt-1 text-body text-ak-text-secondary">Manage your Scribe &rarr; Proto &rarr; Trace runs</p>
+          <h1 className="text-display text-ak-text-primary">İş Akışları</h1>
+          <p className="mt-1 text-body text-ak-text-secondary">Scribe &rarr; Proto &rarr; Trace iş akışlarınızı yönetin</p>
         </div>
         <Link
           to="/dashboard/workflows/new"
@@ -65,7 +65,7 @@ export default function WorkflowsPage() {
           <svg className="h-4 w-4 transition-transform duration-150 group-hover:rotate-90" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
           </svg>
-          New Workflow
+          Yeni İş Akışı
         </Link>
       </div>
 
@@ -95,7 +95,7 @@ export default function WorkflowsPage() {
       ) : filtered.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-ak-border bg-ak-surface/50 py-16">
           <p className="text-body text-ak-text-secondary">
-            {filter === 'all' ? 'No workflows yet.' : `No ${filter.replace('_', ' ')} workflows.`}
+            {filter === 'all' ? 'Henüz iş akışı yok.' : `${FILTERS.find(f => f.key === filter)?.label ?? filter} iş akışı bulunamadı.`}
           </p>
         </div>
       ) : (

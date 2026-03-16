@@ -86,4 +86,15 @@ export const api = {
   submitFeedback: async (data: { rating: number; message: string; page?: string }): Promise<{ id: string; createdAt: string }> => {
     return httpClient.post('/api/feedback', data);
   },
+
+  // GET /api/usage/current-month
+  getUsage: async (): Promise<{
+    usage: { totalTokens: number; estimatedCostUsd: number; jobCount: number };
+    freeQuota: { tokens: number; costUsd: number };
+    used: { tokens: number; costUsd: number };
+    remaining: { tokens: number; costUsd: number };
+    percentUsed: { tokens: number; cost: number };
+  }> => {
+    return httpClient.get('/api/usage/current-month');
+  },
 };

@@ -1,0 +1,38 @@
+{
+  "name": "AKIS — AI Kod Uretim Platformu",
+  "short_name": "AKIS",
+  "description": "Scribe, Proto, Trace pipeline ile fikrinizden koda",
+  "start_url": "/dashboard",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#0A1215",
+  "theme_color": "#07D1AF",
+  "categories": ["productivity", "developer", "utilities"],
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/brand/android-chrome-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/brand/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Yeni Is Akisi",
+      "url": "/dashboard/workflows/new",
+      "description": "Yeni bir AKIS is akisi baslat"
+    }
+  ]
+}

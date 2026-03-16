@@ -4,8 +4,8 @@
  */
 import { HttpClient } from './HttpClient';
 import { getApiBaseUrl } from './config';
-import type { Workflow, WorkflowStages, WorkflowStatus, StageResult } from '../../types/workflow';
-import type { Pipeline, PipelineStage, ScribeOutput, ProtoOutput, TraceOutput } from '../../../../pipeline/frontend/types';
+import type { Workflow, WorkflowStages, WorkflowStatus, StageResult, ConversationMessage } from '../../types/workflow';
+import type { Pipeline, PipelineStage, ScribeOutput, ProtoOutput, TraceOutput, ScribeMessageType, ScribeClarification } from '../../types/pipeline';
 
 const http = new HttpClient(getApiBaseUrl());
 
@@ -110,6 +110,143 @@ function mapTraceOutput(traceOutput?: TraceOutput): Partial<StageResult> {
   };
 }
 
+function mapConversation(pipeline: Pipeline): ConversationMessage[] {
+  const messages: ConversationMessage[] = [];
+  const scribeConv = pipeline.scribeConversation;
+
+  if (!Array.isArray(scribeConv)) return messages;
+
+  for (const entry of scribeConv) {
+    const msg = entry as ScribeMessageType;
+
+    switch (msg.type) {
+      case 'user_idea':
+        messages.push({
+          role: 'user',
+          type: 'message',
+          content: msg.content,
+          timestamp: pipeline.createdAt,
+        });
+        break;
+      case 'clarification': {
+        const clarification = msg.content as ScribeClarification;
+        messages.push({
+          role: 'scribe',
+          type: 'clarification',
+          content: 'Fikrini daha iyi anlayabilmem için birkaç sorum var:',
+          questions: clarification.questions,
+          timestamp: new Date().toISOString(),
+        });
+        break;
+      }
+      case 'user_answer':
+        messages.push({
+          role: 'user',
+          type: 'message',
+          content: msg.content as string,
+          timestamp: new Date().toISOString(),
+        });
+        break;
+      case 'spec_draft': {
+        const specOutput = msg.content as ScribeOutput;
+        messages.push({
+          role: 'scribe',
+          type: 'spec',
+          content: 'Spec oluşturuldu:',
+          spec: {
+            title: specOutput.spec.title,
+            problemStatement: specOutput.spec.problemStatement,
+            userStories: specOutput.spec.userStories.map(s => ({
+              persona: s.persona,
+              as: s.persona,
+              action: s.action,
+              iWant: s.action,
+              benefit: s.benefit,
+              soThat: s.benefit,
+            })),
+            acceptanceCriteria: specOutput.spec.acceptanceCriteria,
+            technicalConstraints: specOutput.spec.technicalConstraints,
+            outOfScope: specOutput.spec.outOfScope,
+          },
+          confidence: specOutput.confidence,
+          timestamp: pipeline.metrics?.scribeCompletedAt || new Date().toISOString(),
+        });
+        break;
+      }
+      case 'spec_approved':
+        messages.push({
+          role: 'system',
+          type: 'message',
+          content: 'Spec onaylandı — Proto aşamasına geçiliyor.',
+          timestamp: pipeline.metrics?.approvedAt || new Date().toISOString(),
+        });
+        break;
+      case 'spec_rejected': {
+        const rejection = msg.content as { feedback: string };
+        messages.push({
+          role: 'system',
+          type: 'message',
+          content: `Spec reddedildi: ${rejection.feedback}`,
+          timestamp: new Date().toISOString(),
+        });
+        break;
+      }
+    }
+  }
+
+  // Add proto result message if completed
+  if (pipeline.protoOutput?.ok) {
+    messages.push({
+      role: 'proto',
+      type: 'proto_result',
+      content: `Scaffold oluşturuldu — ${pipeline.protoOutput.metadata.filesCreated} dosya, ${pipeline.protoOutput.metadata.totalLinesOfCode} satır`,
+      timestamp: pipeline.metrics?.protoCompletedAt || new Date().toISOString(),
+      protoResult: {
+        branch: pipeline.protoOutput.branch,
+        repo: pipeline.protoOutput.repo,
+        files: pipeline.protoOutput.files.map(f => ({
+          name: f.filePath.split('/').pop() || f.filePath,
+          type: 'file' as const,
+          path: f.filePath,
+          lines: f.linesOfCode,
+          agent: 'proto' as const,
+          status: 'new' as const,
+        })),
+        totalFiles: pipeline.protoOutput.metadata.filesCreated,
+        totalLines: pipeline.protoOutput.metadata.totalLinesOfCode,
+      },
+    });
+  }
+
+  // Add trace result message if completed
+  if (pipeline.traceOutput) {
+    const ts = pipeline.traceOutput.testSummary;
+    messages.push({
+      role: 'trace',
+      type: 'trace_result',
+      content: `Test yazıldı — ${ts.totalTests} test, %${ts.coveragePercentage} coverage`,
+      timestamp: pipeline.metrics?.traceCompletedAt || new Date().toISOString(),
+      traceResult: {
+        testCount: ts.totalTests,
+        passing: ts.totalTests, // backend doesn't separate pass/fail in summary
+        failing: 0,
+        coverage: `${ts.coveragePercentage}%`,
+        duration: '',
+        testFiles: pipeline.traceOutput.testFiles.map(f => ({
+          name: f.filePath.split('/').pop() || f.filePath,
+          type: 'file' as const,
+          path: f.filePath,
+          lines: f.testCount,
+          agent: 'trace' as const,
+          status: 'test' as const,
+        })),
+      },
+    });
+  }
+
+  return messages;
+}
+
 export function mapPipelineToWorkflow(pipeline: Pipeline): Workflow {
   const { workflowStatus, stages } = mapStageStatus(pipeline.stage);
 
@@ -140,7 +277,11 @@ export function mapPipelineToWorkflow(pipeline: Pipeline): Workflow {
 
   // If pipeline has error, mark the current running stage as failed
   if (pipeline.error) {
-    if (stages.trace.status === 'running' || pipeline.stage === 'trace_testing') {
+    if (pipeline.stage === 'completed_partial') {
+      // Trace failed gracefully — carry error to trace stage
+      stages.trace.status = 'failed';
+      stages.trace.error = pipeline.error.message;
+    } else if (stages.trace.status === 'running' || pipeline.stage === 'trace_testing') {
       stages.trace.status = 'failed';
       stages.trace.error = pipeline.error.message;
     } else if (stages.proto.status === 'running' || pipeline.stage === 'proto_building') {
@@ -161,43 +302,49 @@ export function mapPipelineToWorkflow(pipeline: Pipeline): Workflow {
     createdAt: pipeline.createdAt,
     updatedAt: pipeline.updatedAt,
     stages,
+    conversation: mapConversation(pipeline),
   };
 }
 
+// Backend wraps responses: { pipeline: ... } or { pipelines: [...] }
+interface PipelineResponse { pipeline: Pipeline }
+interface PipelinesResponse { pipelines: Pipeline[] }
+
 export const workflowsApi = {
   list: async (): Promise<Workflow[]> => {
-    const pipelines = await http.get<Pipeline[]>('/api/pipelines');
+    const res = await http.get<PipelinesResponse>('/api/pipelines');
+    const pipelines = res.pipelines;
     return (Array.isArray(pipelines) ? pipelines : []).map(mapPipelineToWorkflow);
   },
 
   get: async (id: string): Promise<Workflow> => {
-    const pipeline = await http.get<Pipeline>(`/api/pipelines/${id}`);
-    return mapPipelineToWorkflow(pipeline);
+    const res = await http.get<PipelineResponse>(`/api/pipelines/${id}`);
+    return mapPipelineToWorkflow(res.pipeline);
   },
 
-  create: async (data: { idea: string; targetRepo?: string }): Promise<Workflow> => {
-    const pipeline = await http.post<Pipeline>('/api/pipelines', data);
-    return mapPipelineToWorkflow(pipeline);
+  create: async (data: { idea: string; targetRepo?: string; model?: string }): Promise<Workflow> => {
+    const res = await http.post<PipelineResponse>('/api/pipelines', data);
+    return mapPipelineToWorkflow(res.pipeline);
   },
 
-  approve: async (id: string): Promise<Workflow> => {
-    const pipeline = await http.post<Pipeline>(`/api/pipelines/${id}/approve`);
-    return mapPipelineToWorkflow(pipeline);
+  approve: async (id: string, repoName: string, repoVisibility: 'public' | 'private' = 'private'): Promise<Workflow> => {
+    const res = await http.post<PipelineResponse>(`/api/pipelines/${id}/approve`, { repoName, repoVisibility });
+    return mapPipelineToWorkflow(res.pipeline);
   },
 
   reject: async (id: string, feedback?: string): Promise<Workflow> => {
-    const pipeline = await http.post<Pipeline>(`/api/pipelines/${id}/reject`, feedback ? { feedback } : undefined);
-    return mapPipelineToWorkflow(pipeline);
+    const res = await http.post<PipelineResponse>(`/api/pipelines/${id}/reject`, feedback ? { feedback } : undefined);
+    return mapPipelineToWorkflow(res.pipeline);
   },
 
   retry: async (id: string): Promise<Workflow> => {
-    const pipeline = await http.post<Pipeline>(`/api/pipelines/${id}/retry`);
-    return mapPipelineToWorkflow(pipeline);
+    const res = await http.post<PipelineResponse>(`/api/pipelines/${id}/retry`);
+    return mapPipelineToWorkflow(res.pipeline);
   },
 
   skipTrace: async (id: string): Promise<Workflow> => {
-    const pipeline = await http.post<Pipeline>(`/api/pipelines/${id}/skip-trace`);
-    return mapPipelineToWorkflow(pipeline);
+    const res = await http.post<PipelineResponse>(`/api/pipelines/${id}/skip-trace`);
+    return mapPipelineToWorkflow(res.pipeline);
   },
 
   cancel: async (id: string): Promise<void> => {
@@ -205,7 +352,29 @@ export const workflowsApi = {
   },
 
   poll: async (id: string): Promise<Workflow> => {
-    const pipeline = await http.get<Pipeline>(`/api/pipelines/${id}`);
-    return mapPipelineToWorkflow(pipeline);
+    const res = await http.get<PipelineResponse>(`/api/pipelines/${id}`);
+    return mapPipelineToWorkflow(res.pipeline);
+  },
+
+  sendMessage: async (id: string, message: string): Promise<Workflow> => {
+    const res = await http.post<PipelineResponse>(`/api/pipelines/${id}/message`, { message });
+    return mapPipelineToWorkflow(res.pipeline);
+  },
+
+  getAllFiles: async (pipelineId: string): Promise<{
+    files: Record<string, string>;
+    title: string;
+  }> => {
+    return http.get(`/api/pipelines/${pipelineId}/files-all`);
+  },
+
+  getFileContent: async (pipelineId: string, filePath: string): Promise<{
+    path: string;
+    content: string;
+    language: string;
+    lines: number;
+    agent: 'proto' | 'trace';
+  }> => {
+    return http.get(`/api/pipelines/${pipelineId}/files/${filePath}`);
   },
 };

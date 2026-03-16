@@ -41,7 +41,7 @@ export default function SignupEmail() {
       // Navigate to password step
       navigate('/signup/password');
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Unable to create account. Please try again.';
+      const errorMessage = err instanceof Error ? err.message : 'Hesap olusturulamadi. Lutfen tekrar deneyin.';
       
       // Try to parse error JSON for better messages
       try {

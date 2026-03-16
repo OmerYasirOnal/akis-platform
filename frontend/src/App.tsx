@@ -6,6 +6,7 @@ import { ProtectedRoute } from './app/RouteGuards';
 import { AuthProvider } from './contexts/AuthContext';
 import { useI18n } from './i18n/useI18n';
 import { ToastContainer } from './components/ui/Toast';
+import { PWAInstallPrompt } from './components/PWAInstallPrompt';
 
 // Auth pages — lazy
 const LoginEmail = lazy(() => import('./pages/auth/LoginEmail'));
@@ -92,6 +93,7 @@ function App() {
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
         <ToastContainer />
+        <PWAInstallPrompt />
       </AuthProvider>
     </BrowserRouter>
   );

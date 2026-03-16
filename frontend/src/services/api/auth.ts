@@ -50,14 +50,25 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return response.json() as Promise<T>;
 }
 
-export type AuthUser = { 
-  id: string; 
-  name: string; 
+export type AuthUser = {
+  id: string;
+  name: string;
   email: string;
   status?: string;
   emailVerified?: boolean;
   dataSharingConsent?: boolean | null;
   hasSeenBetaWelcome?: boolean;
+};
+
+export type UserProfile = {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  emailVerified: boolean;
+  githubUsername: string | null;
+  githubAvatarUrl: string | null;
+  createdAt: string;
 };
 
 export type SignupStartResponse = {
@@ -77,6 +88,14 @@ export type LoginStartResponse = {
 export type LoginCompleteResponse = {
   user: AuthUser;
   needsDataSharingConsent: boolean;
+};
+
+export type SignupPasswordResponse = {
+  ok: boolean;
+  message: string;
+  verificationBypassed?: boolean;
+  user?: AuthUser;
+  needsDataSharingConsent?: boolean;
 };
 
 export type VerifyEmailResponse = {
@@ -117,7 +136,7 @@ export const AuthAPI = {
       body: JSON.stringify(data),
     }),
   signupPassword: (data: { userId: string; password: string }) =>
-    request<{ ok: boolean; message: string }>('/auth/signup/password', {
+    request<SignupPasswordResponse>('/auth/signup/password', {
       method: 'POST',
       body: JSON.stringify(data),
     }),
@@ -167,5 +186,20 @@ export const AuthAPI = {
       method: 'POST',
       body: JSON.stringify(data),
     }),
+
+  // Profile & Account management
+  getProfile: () => request<UserProfile>('/auth/profile'),
+  updateProfile: (data: { name?: string; email?: string }) =>
+    request<AuthUser>('/auth/profile', {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+  changePassword: (data: { currentPassword: string; newPassword: string }) =>
+    request<{ ok: boolean }>('/auth/password', {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+  deleteAccount: () =>
+    request<{ ok: boolean }>('/auth/account', { method: 'DELETE' }),
 };
 

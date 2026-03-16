@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Button from '../../components/common/Button';
 import Logo from '../../components/branding/Logo';
-import { getReturnTo, clearReturnTo } from '../../utils/returnTo';
+import { clearReturnTo } from '../../utils/returnTo';
 
 export default function WelcomeBeta() {
   const navigate = useNavigate();
@@ -21,9 +21,8 @@ export default function WelcomeBeta() {
       setSubmitting(false);
     }
     
-    const returnTo = getReturnTo();
     clearReturnTo();
-    navigate(returnTo || '/dashboard');
+    navigate('/dashboard', { replace: true });
   }
 
   function handleLearnMore() {
@@ -39,43 +38,41 @@ export default function WelcomeBeta() {
             <Logo size="sm" linkToHome={false} />
           </div>
           <div className="text-6xl mb-4">🎉</div>
-          <h1 className="text-3xl font-bold mb-2">Welcome to AKIS!</h1>
-          <p className="text-xl text-ak-primary font-semibold">You're in early access</p>
+          <h1 className="text-3xl font-bold mb-2">AKIS'e Hoş Geldiniz!</h1>
+          <p className="text-xl text-ak-primary font-semibold">Erken erişimdesiniz</p>
         </div>
 
         <div className="bg-ak-surface border border-ak-border rounded-xl p-6 mb-8 text-left">
           <p className="text-ak-text-secondary mb-4">
-            AKIS is currently in <span className="text-ak-text-primary font-medium">beta</span>. You
-            have free access to all agents (Scribe, Trace, Proto) with some usage limits:
+            AKIS şu anda <span className="text-ak-text-primary font-medium">beta</span> aşamasında. Tüm ajanlara (Scribe, Trace, Proto) bazı kullanım limitleriyle ücretsiz erişiminiz var:
           </p>
 
           <ul className="space-y-2 text-ak-text-secondary">
             <li className="flex items-start gap-2">
               <span className="text-ak-primary mt-0.5">•</span>
-              <span>100 jobs per month</span>
+              <span>Ayda 100 iş akışı</span>
             </li>
             <li className="flex items-start gap-2">
               <span className="text-ak-primary mt-0.5">•</span>
-              <span>Community support (Discord)</span>
+              <span>Topluluk desteği (Discord)</span>
             </li>
             <li className="flex items-start gap-2">
               <span className="text-ak-primary mt-0.5">•</span>
-              <span>7-day log retention</span>
+              <span>7 günlük log saklama</span>
             </li>
           </ul>
 
           <p className="text-ak-text-secondary mt-4 text-sm">
-            Paid plans with unlimited jobs and priority support will launch in Q2 2026. Early users
-            get lifetime discounts!
+            Sınırsız iş akışı ve öncelikli destek içeren ücretli planlar 2026 Q2'de başlatılacak. Erken kullanıcılar ömür boyu indirim kazanır!
           </p>
         </div>
 
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
           <Button onClick={handleContinue} disabled={submitting} className="justify-center px-8">
-            {submitting ? 'Loading...' : 'Continue to AKIS Dashboard →'}
+            {submitting ? 'Yükleniyor...' : "AKIS Dashboard'a Git →"}
           </Button>
           <Button onClick={handleLearnMore} variant="outline" className="justify-center px-8">
-            Learn more about pricing
+            Fiyatlandırma hakkında bilgi al
           </Button>
         </div>
       </div>
