@@ -169,6 +169,8 @@ function mapConversation(pipeline: Pipeline): ConversationMessage[] {
             outOfScope: specOutput.spec.outOfScope,
           },
           confidence: specOutput.confidence,
+          reviewNotes: specOutput.reviewNotes,
+          assumptions: specOutput.assumptions,
           timestamp: pipeline.metrics?.scribeCompletedAt || new Date().toISOString(),
         });
         break;
@@ -214,6 +216,7 @@ function mapConversation(pipeline: Pipeline): ConversationMessage[] {
         })),
         totalFiles: pipeline.protoOutput.metadata.filesCreated,
         totalLines: pipeline.protoOutput.metadata.totalLinesOfCode,
+        verificationReport: pipeline.protoOutput.verificationReport,
       },
     });
   }
@@ -240,6 +243,7 @@ function mapConversation(pipeline: Pipeline): ConversationMessage[] {
           agent: 'trace' as const,
           status: 'test' as const,
         })),
+        traceability: pipeline.traceOutput.traceability,
       },
     });
   }

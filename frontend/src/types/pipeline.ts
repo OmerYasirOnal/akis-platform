@@ -45,11 +45,19 @@ export interface StructuredSpec {
   outOfScope: string[];
 }
 
+export interface ReviewNotes {
+  selfReviewPassed?: boolean;
+  revisionsApplied?: string[];
+  assumptionsMade?: string[];
+}
+
 export interface ScribeOutput {
   spec: StructuredSpec;
   rawMarkdown: string;
   confidence: number;
   clarificationsAsked: number;
+  reviewNotes?: string | ReviewNotes;
+  assumptions?: string[];
 }
 
 export type ScribeMessageType =
@@ -59,6 +67,14 @@ export type ScribeMessageType =
   | { type: 'spec_draft'; content: ScribeOutput }
   | { type: 'spec_approved'; content: StructuredSpec }
   | { type: 'spec_rejected'; content: { feedback: string } };
+
+export interface VerificationReport {
+  specCoverage: string;
+  integrityIssues: string[];
+  missingDependencies?: string[];
+  unresolvedImports?: string[];
+  confidenceScore: number;
+}
 
 export interface ProtoOutput {
   ok: boolean;
@@ -78,6 +94,14 @@ export interface ProtoOutput {
     stackUsed: string;
     committed: boolean;
   };
+  verificationReport?: VerificationReport;
+}
+
+export interface TraceabilityEntry {
+  criterionId: string;
+  testFile: string;
+  testName: string;
+  coverage: 'full' | 'partial' | 'none';
 }
 
 export interface TraceOutput {
@@ -94,6 +118,7 @@ export interface TraceOutput {
     coveredCriteria: string[];
     uncoveredCriteria: string[];
   };
+  traceability?: TraceabilityEntry[];
   branch?: string;
   prUrl?: string;
 }

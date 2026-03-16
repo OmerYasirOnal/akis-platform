@@ -143,12 +143,16 @@ function downloadSpec(spec: StructuredSpec) {
 function SpecBlock({
   spec,
   confidence,
+  reviewNotes,
+  assumptions,
   onApprove,
   onReject,
   showActions,
 }: {
   spec: StructuredSpec;
   confidence?: number;
+  reviewNotes?: string | { selfReviewPassed?: boolean; revisionsApplied?: string[]; assumptionsMade?: string[] };
+  assumptions?: string[];
   onApprove: (repoName: string, repoVisibility?: 'public' | 'private') => void;
   onReject?: (feedback?: string) => void;
   showActions: boolean;
@@ -208,6 +212,16 @@ function SpecBlock({
               {formatConfidence(confidence)}
             </span>
           )}
+          {typeof reviewNotes === 'object' && reviewNotes?.selfReviewPassed && (
+            <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-400">
+              ✓ Self-review
+            </span>
+          )}
+          {assumptions && assumptions.length > 0 && (
+            <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-medium text-amber-400">
+              ⚠ {assumptions.length} varsayım
+            </span>
+          )}
         </div>
         <span className="text-[11px] text-ak-text-tertiary">
           {stories.length} Hikaye · {criteria.length} Kriter · {Array.isArray(constraints) ? constraints.length : (constraints ? 1 : 0)} Kisit
@@ -217,6 +231,31 @@ function SpecBlock({
       {/* Expanded content */}
       {specExpanded && (
         <div className="space-y-3 border-t border-ak-border px-4 pb-4 pt-3">
+          {/* Verification badges */}
+          {(assumptions?.length || (typeof reviewNotes === 'object' && reviewNotes?.revisionsApplied?.length)) && (
+            <div className="space-y-2">
+              {assumptions && assumptions.length > 0 && (
+                <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 p-3">
+                  <p className="text-[11px] font-semibold text-amber-400">⚠ Varsayımlar</p>
+                  <ul className="mt-1 space-y-0.5">
+                    {assumptions.map((a, i) => (
+                      <li key={i} className="text-[11px] text-amber-300/80">• {a}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {typeof reviewNotes === 'object' && reviewNotes?.revisionsApplied && reviewNotes.revisionsApplied.length > 0 && (
+                <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-3">
+                  <p className="text-[11px] font-semibold text-emerald-400">✓ Self-Review Düzeltmeleri</p>
+                  <ul className="mt-1 space-y-0.5">
+                    {reviewNotes.revisionsApplied.map((r, i) => (
+                      <li key={i} className="text-[11px] text-emerald-300/80">• {r}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          )}
           {/* Toolbar */}
           <div className="flex items-center justify-end gap-1">
             <div className="flex rounded-md border border-ak-border bg-ak-surface-2 p-0.5">
@@ -426,73 +465,119 @@ function ProtoResultBlock({ message }: { message: ConversationMessage }) {
   const r = message.protoResult;
   if (!r) return null;
   const githubUrl = r.repo ? `https://github.com/${r.repo}/tree/${r.branch}` : null;
+  const vr = r.verificationReport;
   return (
-    <div className="mt-2 rounded-lg border border-ak-proto/20 bg-ak-proto/5 p-3 text-sm">
-      <div className="flex items-center gap-3">
-        <div>
-          <p className="text-lg font-bold text-ak-proto">{r.totalFiles}</p>
-          <p className="text-[11px] text-ak-text-tertiary">{TR.filesLabel}</p>
-        </div>
-        <div>
-          <p className="text-lg font-bold text-ak-proto">{r.totalLines}</p>
-          <p className="text-[11px] text-ak-text-tertiary">{TR.linesLabel}</p>
-        </div>
-        <div className="ml-auto flex items-center gap-2">
-          <code className="rounded bg-ak-surface-2 px-2 py-0.5 font-mono text-xs text-ak-proto">⑂ {r.branch}</code>
-          {githubUrl && (
-            <a
-              href={githubUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-1 rounded-md border border-ak-proto/20 bg-ak-surface-2 px-2 py-0.5 text-[11px] text-ak-proto transition-colors hover:bg-ak-proto/10"
-            >
-              <svg className="h-3 w-3" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z" />
-              </svg>
-              GitHub
-            </a>
-          )}
+    <div className="mt-2 space-y-2">
+      <div className="rounded-lg border border-ak-proto/20 bg-ak-proto/5 p-3 text-sm">
+        <div className="flex items-center gap-3">
+          <div>
+            <p className="text-lg font-bold text-ak-proto">{r.totalFiles}</p>
+            <p className="text-[11px] text-ak-text-tertiary">{TR.filesLabel}</p>
+          </div>
+          <div>
+            <p className="text-lg font-bold text-ak-proto">{r.totalLines}</p>
+            <p className="text-[11px] text-ak-text-tertiary">{TR.linesLabel}</p>
+          </div>
+          <div className="ml-auto flex items-center gap-2">
+            <code className="rounded bg-ak-surface-2 px-2 py-0.5 font-mono text-xs text-ak-proto">⑂ {r.branch}</code>
+            {githubUrl && (
+              <a
+                href={githubUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1 rounded-md border border-ak-proto/20 bg-ak-surface-2 px-2 py-0.5 text-[11px] text-ak-proto transition-colors hover:bg-ak-proto/10"
+              >
+                <svg className="h-3 w-3" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z" />
+                </svg>
+                GitHub
+              </a>
+            )}
+          </div>
         </div>
       </div>
+      {vr && (
+        <div className="flex items-center gap-2 text-[11px]">
+          <span className="rounded-full bg-ak-proto/10 px-2 py-0.5 font-medium text-ak-proto">
+            ✓ Spec: {vr.specCoverage}
+          </span>
+          {vr.integrityIssues.length === 0 ? (
+            <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 font-medium text-emerald-400">
+              ✓ Sorun yok
+            </span>
+          ) : (
+            <span className="rounded-full bg-amber-500/15 px-2 py-0.5 font-medium text-amber-400">
+              ⚠ {vr.integrityIssues.length} sorun
+            </span>
+          )}
+        </div>
+      )}
     </div>
   );
 }
 
 function TraceResultBlock({ message, workflow }: { message: ConversationMessage; workflow: Workflow }) {
+  const [showMatrix, setShowMatrix] = useState(false);
   const r = message.traceResult;
   if (!r) return null;
-  // Build GitHub link from proto result info
   const protoMsg = workflow.conversation?.find(m => m.type === 'proto_result');
   const repo = protoMsg?.protoResult?.repo;
-  const traceBranch = workflow.stages.proto.branch; // trace tests go on same branch
+  const traceBranch = workflow.stages.proto.branch;
   const githubUrl = repo && traceBranch ? `https://github.com/${repo}/tree/${traceBranch}` : null;
   return (
-    <div className="mt-2 rounded-lg border border-ak-trace/20 bg-ak-trace/5 p-3 text-sm">
-      <div className="flex items-center gap-4">
-        <div>
-          <p className="text-lg font-bold text-ak-trace">{r.testCount}</p>
-          <p className="text-[11px] text-ak-text-tertiary">{TR.testsLabel}</p>
-        </div>
-        <div>
-          <p className="text-lg font-bold text-ak-trace">{r.coverage}</p>
-          <p className="text-[11px] text-ak-text-tertiary">{TR.coverageLabel}</p>
-        </div>
-        {githubUrl && (
-          <div className="ml-auto">
-            <a
-              href={githubUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-1 rounded-md border border-ak-trace/20 bg-ak-surface-2 px-2 py-0.5 text-[11px] text-ak-trace transition-colors hover:bg-ak-trace/10"
-            >
-              <svg className="h-3 w-3" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z" />
-              </svg>
-              GitHub
-            </a>
+    <div className="mt-2 space-y-2">
+      <div className="rounded-lg border border-ak-trace/20 bg-ak-trace/5 p-3 text-sm">
+        <div className="flex items-center gap-4">
+          <div>
+            <p className="text-lg font-bold text-ak-trace">{r.testCount}</p>
+            <p className="text-[11px] text-ak-text-tertiary">{TR.testsLabel}</p>
           </div>
-        )}
+          <div>
+            <p className="text-lg font-bold text-ak-trace">{r.coverage}</p>
+            <p className="text-[11px] text-ak-text-tertiary">{TR.coverageLabel}</p>
+          </div>
+          <div className="ml-auto flex items-center gap-2">
+            {r.traceability && r.traceability.length > 0 && (
+              <button
+                onClick={() => setShowMatrix(!showMatrix)}
+                className="rounded-md border border-ak-trace/20 bg-ak-surface-2 px-2 py-0.5 text-[11px] text-ak-trace transition-colors hover:bg-ak-trace/10"
+              >
+                {showMatrix ? 'Gizle' : 'Matris'}
+              </button>
+            )}
+            {githubUrl && (
+              <a
+                href={githubUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1 rounded-md border border-ak-trace/20 bg-ak-surface-2 px-2 py-0.5 text-[11px] text-ak-trace transition-colors hover:bg-ak-trace/10"
+              >
+                <svg className="h-3 w-3" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z" />
+                </svg>
+                GitHub
+              </a>
+            )}
+          </div>
+        </div>
       </div>
+      {showMatrix && r.traceability && (
+        <div className="rounded-lg border border-ak-trace/20 bg-ak-surface p-3">
+          <p className="mb-2 text-[11px] font-semibold text-ak-trace">İzlenebilirlik Matrisi</p>
+          <div className="space-y-1">
+            {r.traceability.map((t, i) => (
+              <div key={i} className="flex items-center gap-2 text-[11px]">
+                <span className={`w-4 text-center ${t.coverage === 'full' ? 'text-emerald-400' : t.coverage === 'partial' ? 'text-amber-400' : 'text-red-400'}`}>
+                  {t.coverage === 'full' ? '✓' : t.coverage === 'partial' ? '◐' : '✗'}
+                </span>
+                <code className="rounded bg-ak-surface-2 px-1 py-0.5 font-mono text-ak-text-tertiary">{t.criterionId}</code>
+                <span className="text-ak-text-secondary">{t.testName}</span>
+                <span className="ml-auto font-mono text-ak-text-tertiary">{t.testFile.split('/').pop()}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -565,6 +650,8 @@ function ChatMessage({
           <SpecBlock
             spec={message.spec}
             confidence={message.confidence}
+            reviewNotes={message.reviewNotes}
+            assumptions={message.assumptions}
             onApprove={onApprove}
             onReject={onReject}
             showActions={showApproveActions}
