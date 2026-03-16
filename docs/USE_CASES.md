@@ -30,7 +30,7 @@
 **Son Kosul:** Pipeline `completed` veya `completed_partial` durumunda. Kullanici repo URL ve test sonuclarini gorur.
 **Ilgili Agent:** Scribe + Proto + Trace (sequential)
 **Tez Iliskisi:** Tam dogrulama zinciri: Scribe→Insan onayi (human-in-the-loop), Proto→Trace (automated verification), Trace→Otomatik test calistirma. Knowledge integrity'nin 3 katmanli dogrulamasi.
-**Durum:** ⚠️ Kismen — Scribe ve UI tamamen calisiyor. Proto AI scaffold uretiyor. GitHub push: `GITHUB_MCP_BASE_URL` + `GITHUB_TOKEN` set ise gercek `GitHubMCPAdapter` kullanilir, yoksa stub (no-op). Trace: gercek GitHub baglandiysa kodu okuyabilir, yoksa `TRACE_EMPTY_CODEBASE` hatasi alir. **Calisir hale getirmek icin:** MCP Gateway olmadan calisabilecek `GitHubRESTAdapter` olusturulmali (FAZ 3).
+**Durum:** ✅ Mevcut — Tum pipeline akisi calisiyor. `GitHubRESTAdapter` ile dogrudan GitHub REST API kullanilir (MCP Gateway bagimliligina gerek yok). `GITHUB_TOKEN` set ise gercek push, yoksa stub. Pipeline kodu `backend/src/pipeline/` altinda konsolide edildi.
 
 ---
 
@@ -107,7 +107,7 @@
 **Son Kosul:** GitHub'da yeni branch olusturulmus, scaffold dosyalari push edilmis, output'ta gercek URL donulmus.
 **Ilgili Agent:** Proto
 **Tez Iliskisi:** Agent verification framework — Proto'nun urettigi kod Trace tarafindan dogrulanacak. Uretilen artifact'in traceability'si.
-**Durum:** ⚠️ Kismen — AI scaffold uretimi tamamen calisiyor (dosya listesi, icerik, setup komutlari, JSON repair, truncation handling). `server.app.ts`'de: `GITHUB_MCP_BASE_URL` + `GITHUB_TOKEN` varsa `GitHubMCPAdapter` ile gercek push yapilir (`createRepository`, `createBranch`, `commitFile`, `createPR`). Yoksa stub inject edilir. **Calisir hale getirmek icin:** MCP Gateway bagimliligi kaldirip dogrudan GitHub REST API kullanan `GitHubRESTAdapter` olusturulmali.
+**Durum:** ✅ Mevcut — AI scaffold uretimi tamamen calisiyor (dosya listesi, icerik, setup komutlari, JSON repair, truncation handling). `server.app.ts`'de `GITHUB_TOKEN` varsa `GitHubRESTAdapter` ile gercek push yapilir (`createRepository`, `createBranch`, `commitFile`, `createPR`). Yoksa stub inject edilir. MCP Gateway bagimliligi kaldirildi, dogrudan GitHub REST API v3 kullaniliyor.
 
 ---
 
@@ -135,7 +135,7 @@
 **Son Kosul:** Proto'nun urettigi koda uygun Playwright testleri yazilmis, coverage matrix elde edilmis.
 **Ilgili Agent:** Trace
 **Tez Iliskisi:** Automated verification — AI uretilen kodun AI tarafindan dogrulanmasi. Knowledge integrity'nin "makineden makineye dogrulama" katmani. Coverage matrix tez raporuna dahil edilecek metrik.
-**Durum:** ⚠️ Kismen — Trace agent kodu tamamen yazilmis: `readCodebase()` (listFiles + getFileContent + filtering), `generateTests()` (AI + retry + JSON parse), `pushTestFiles()` (branch + commit + PR), coverage matrix olusturma. Orchestrator handoff dogru: `Proto.output.branch → Trace.input.branch`. Ancak gercek test edilmedi — GitHub stub aktifken `listFiles()` bos donuyor → `TRACE_EMPTY_CODEBASE`. **Calisir hale getirmek icin:** Gercek GitHub adapter (FAZ 3) ile birlikte calismali.
+**Durum:** ✅ Mevcut — Trace agent kodu tamamen yazilmis: `readCodebase()` (listFiles + getFileContent + filtering), `generateTests()` (AI + retry + JSON parse), `pushTestFiles()` (branch + commit + PR), coverage matrix olusturma. Orchestrator handoff dogru: `Proto.output.branch → Trace.input.branch`. `GitHubRESTAdapter` ile gercek GitHub islemleri yapilabilir (`GITHUB_TOKEN` gerekli). Stub modunda `listFiles()` bos donuyor → `TRACE_EMPTY_CODEBASE` (beklenen davranis).
 
 ---
 
@@ -216,13 +216,13 @@
 
 ## Ozet Tablosu
 
-| UC | Baslik | Durum | Eksik |
-|----|--------|-------|-------|
-| UC-001 | End-to-end pipeline | ⚠️ Kismen | GitHub REST adapter gerekli (MCP Gateway bagimliligi) |
+| UC | Baslik | Durum | Not |
+|----|--------|-------|-----|
+| UC-001 | End-to-end pipeline | ✅ Mevcut | GitHubRESTAdapter ile tam calisir (GITHUB_TOKEN gerekli) |
 | UC-002 | Scribe spec + onay | ✅ Mevcut | — |
-| UC-003 | Spec duzenleme | ✅ Mevcut | Geri bildirim prompt'a dahil edildi (fix) |
-| UC-004 | Proto scaffold + push | ⚠️ Kismen | MCP Gateway olmadan stub — REST adapter gerekli |
-| UC-005 | Trace test yazimi | ⚠️ Kismen | Kod tamam, gercek GitHub ile test edilmedi |
-| UC-006 | Durum goruntuleme | ✅ Mevcut | — |
+| UC-003 | Spec duzenleme | ✅ Mevcut | — |
+| UC-004 | Proto scaffold + push | ✅ Mevcut | GitHubRESTAdapter ile dogrudan GitHub REST API v3 |
+| UC-005 | Trace test yazimi | ✅ Mevcut | GITHUB_TOKEN yoksa stub modda TRACE_EMPTY_CODEBASE |
+| UC-006 | Durum goruntuleme | ✅ Mevcut | 2s polling, dashboard entegrasyonu |
 | UC-007 | Retry | ✅ Mevcut | — |
 | UC-008 | Iptal | ✅ Mevcut | — |

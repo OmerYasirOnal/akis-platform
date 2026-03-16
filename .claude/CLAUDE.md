@@ -83,7 +83,7 @@ Her adimda → failed (retryable) | cancelled
 - temperature=0 tum agent prompt'lari icin
 - Model-agnostic prompt'lar — model-spesifik syntax yok
 - Tool'lar orchestrator tarafindan inject edilir — agent'lar DB/MCP client'larini kendileri olusturmaz
-- AKIS branding'i koru (renkler, logolar) — pipeline/docs/BRAND.md referans
+- AKIS branding'i koru (renkler, logolar) — docs/BRAND.md referans
 
 ### Bitirme Projesi Kapsami (4 Sac Ayagi)
 1. Knowledge Integrity Core — hallucination testi, citation-first mimari, conflict detection
@@ -113,37 +113,48 @@ Bu 4 sac ayagindan CIKILMAMALI.
 
 ```
 devagents/
-├── pipeline/                          YENi — tum pipeline gelistirmesi burada
-│   ├── backend/
-│   │   ├── agents/
-│   │   │   ├── scribe/               ScribeAgent.ts, prompts/, schemas/
-│   │   │   ├── proto/                ProtoAgent.ts, prompts/
-│   │   │   └── trace/                TraceAgent.ts, prompts/
-│   │   ├── core/
-│   │   │   ├── contracts/            PipelineTypes.ts, PipelineSchemas.ts, PipelineErrors.ts
-│   │   │   ├── orchestrator/         PipelineOrchestrator.ts
-│   │   │   └── pipeline-factory.ts
-│   │   ├── adapters/                  GitHubMCPAdapter.ts, GitHubRESTAdapter.ts
-│   │   ├── db/                       pipeline-schema.ts, migrations/
-│   │   └── api/                      pipeline.routes.ts, pipeline.plugin.ts
-│   ├── frontend/
-│   │   ├── components/               9 React component (PipelineProgress, ChatMessage, SpecPreviewCard, ...)
-│   │   ├── pages/                    PipelinePage.tsx
-│   │   └── types.ts                  Frontend type mirror'lari
-│   └── docs/                         PIPELINE_CONTRACT.md, BRAND.md
-├── frontend/                          React 19 + Vite 7 SPA (mevcut UI)
-├── backend/                           Fastify 4 + TypeScript (mevcut altyapi — reference + import only)
+├── backend/                           Fastify 4 + TypeScript (ana backend)
+│   └── src/
+│       ├── api/                       REST API route'lari
+│       │   ├── auth.ts               Auth + Profile/Password/Account endpoints
+│       │   ├── github.ts             GitHub PAT connect/disconnect/repos API
+│       │   └── ...                   Diger API dosyalari
+│       ├── pipeline/                  PIPELINE KODU (konsolide edildi)
+│       │   ├── agents/
+│       │   │   ├── scribe/           ScribeAgent.ts, prompts/, schemas/
+│       │   │   ├── proto/            ProtoAgent.ts, prompts/
+│       │   │   └── trace/            TraceAgent.ts, prompts/
+│       │   ├── core/
+│       │   │   ├── contracts/        PipelineTypes.ts, PipelineSchemas.ts, PipelineErrors.ts
+│       │   │   ├── orchestrator/     PipelineOrchestrator.ts
+│       │   │   └── pipeline-factory.ts
+│       │   ├── adapters/             GitHubMCPAdapter.ts, GitHubRESTAdapter.ts
+│       │   ├── db/                   pipeline-schema.ts
+│       │   └── api/                  pipeline.routes.ts, pipeline.plugin.ts
+│       ├── db/                       Drizzle ORM schema + client
+│       ├── config/                   env.ts (ortam degiskenleri)
+│       ├── services/                 AI, email, auth servisleri
+│       └── utils/                    auth.ts, crypto.ts, errorHandler.ts
+├── frontend/                          React 19 + Vite 7 SPA
+│   └── src/
+│       ├── pages/
+│       │   ├── dashboard/            6 sayfa (Overview, Workflows, WorkflowDetail, NewWorkflow, Agents, Settings)
+│       │   └── auth/                 Login, Signup, WelcomeBeta
+│       ├── services/api/             API client'lari (auth.ts, workflows.ts, github.ts, HttpClient.ts)
+│       ├── types/                    workflow.ts, pipeline.ts
+│       └── components/              Layout, UI bileşenleri
 ├── mcp-gateway/                       MCP adapter layer
 ├── scripts/                           Local dev helper'lari (DB, vb.)
 └── docs/                              Product + architecture referanslari
 ```
 
 ### Aktif Gelistirme
-Tum yeni pipeline gelistirmesi `pipeline/` dizininde yapilir.
-`backend/src/` ve `frontend/src/` dosyalari DOGRUDAN degistirilmez — mevcut utility'ler import edilir.
+Pipeline kodu `backend/src/pipeline/` altinda konsolide edilmistir.
+Eski `pipeline/` dizini (root level) KALDIRILDI — tum dosyalar `backend/src/pipeline/`'a tasinmistir.
 
 ## API Endpoint'leri
 
+### Pipeline API
 | Method | Path | Islem |
 |--------|------|-------|
 | POST | `/api/pipelines` | Pipeline baslat (kullanici fikri) |
@@ -156,11 +167,28 @@ Tum yeni pipeline gelistirmesi `pipeline/` dizininde yapilir.
 | POST | `/api/pipelines/:id/skip-trace` | Trace'i atla → completed_partial |
 | DELETE | `/api/pipelines/:id` | Pipeline'i iptal et |
 
+### GitHub API
+| Method | Path | Islem |
+|--------|------|-------|
+| GET | `/api/github/status` | GitHub baglanti durumu |
+| GET | `/api/github/repos` | Kullanicinin repo listesi |
+| POST | `/api/github/repos` | Yeni repo olustur |
+| POST | `/api/github/connect` | GitHub PAT ile baglan |
+| POST | `/api/github/disconnect` | GitHub baglantisini kes |
+
+### Auth / Account API
+| Method | Path | Islem |
+|--------|------|-------|
+| GET | `/auth/profile` | Kullanici profili (github bilgisi dahil) |
+| PUT | `/auth/profile` | Profil guncelle (name, email) |
+| PUT | `/auth/password` | Sifre degistir |
+| DELETE | `/auth/account` | Hesabi soft-delete et |
+
 ## Hata Yonetimi
 
 Tum hatalar `PipelineError` tipinde: code, message (Turkce), technicalDetail, retryable, recoveryAction.
 - Retry politikasi: Max 3 deneme, backoff: [5s, 15s, 30s]. Stage timeout: 5 dakika.
-- Hata kodlari: pipeline/backend/core/contracts/PipelineErrors.ts
+- Hata kodlari: backend/src/pipeline/core/contracts/PipelineErrors.ts
 
 ## Local Gelistirme Ortami
 
@@ -183,7 +211,8 @@ DATABASE_URL=postgresql://postgres:postgres@localhost:5433/akis_v2 \
 pnpm -C frontend dev
 ```
 - Vite dev server: http://localhost:5173
-- Pipeline UI: http://localhost:5173/pipeline
+- Dashboard: http://localhost:5173/dashboard
+- New Workflow: http://localhost:5173/dashboard/workflows/new
 - Vite proxy `/auth/*` ve `/api/*` isteklerini `localhost:3000`'a yonlendirir
 
 ## Canonical Commands
