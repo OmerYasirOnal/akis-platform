@@ -5,8 +5,8 @@ import {
   TraceAgent,
   type TraceAIDeps,
   type TraceGitHubDeps,
-} from '../../../pipeline/backend/agents/trace/TraceAgent.js';
-import type { TraceInput, StructuredSpec } from '../../../pipeline/backend/core/contracts/PipelineTypes.js';
+} from '../../src/pipeline/agents/trace/TraceAgent.js';
+import type { TraceInput, StructuredSpec } from '../../src/pipeline/core/contracts/PipelineTypes.js';
 
 // ─── Test Fixtures ────────────────────────────────
 

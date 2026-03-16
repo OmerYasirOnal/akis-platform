@@ -5,8 +5,8 @@ import {
   ProtoAgent,
   type ProtoAIDeps,
   type ProtoGitHubDeps,
-} from '../../../pipeline/backend/agents/proto/ProtoAgent.js';
-import type { ProtoInput, StructuredSpec } from '../../../pipeline/backend/core/contracts/PipelineTypes.js';
+} from '../../src/pipeline/agents/proto/ProtoAgent.js';
+import type { ProtoInput, StructuredSpec } from '../../src/pipeline/core/contracts/PipelineTypes.js';
 
 // ─── Test Fixtures ────────────────────────────────
 

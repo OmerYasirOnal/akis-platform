@@ -16,13 +16,13 @@ import {
   SendMessageRequestSchema,
   ApproveSpecRequestSchema,
   RejectSpecRequestSchema,
-} from '../../../pipeline/backend/core/contracts/PipelineSchemas.js';
+} from '../../src/pipeline/core/contracts/PipelineSchemas.js';
 
 import {
   PipelineErrorCode,
   createPipelineError,
   RETRY_CONFIG,
-} from '../../../pipeline/backend/core/contracts/PipelineErrors.js';
+} from '../../src/pipeline/core/contracts/PipelineErrors.js';
 
 // ─── Test Fixtures ────────────────────────────────
 
