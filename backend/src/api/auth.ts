@@ -1,4 +1,4 @@
-import type { FastifyInstance, FastifyReply } from 'fastify';
+import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import { eq } from 'drizzle-orm';
 import { db } from '../db/client.js';
@@ -12,6 +12,7 @@ import { registerMultiStepAuthRoutes } from './auth.multi-step.js';
 import { registerOAuthRoutes } from './auth.oauth.js';
 import { registerInviteRoutes } from './auth.invite.js';
 import { sendError } from '../utils/errorHandler.js';
+import { requireAuth } from '../utils/auth.js';
 
 type User = typeof users.$inferSelect;
 
@@ -196,5 +197,127 @@ export async function authRoutes(fastify: FastifyInstance) {
       clearSessionCookie(reply);
       return reply.code(401).send({ user: null });
     }
+  });
+
+  // ── Profile & Account Management endpoints ──
+
+  const authPreHandler = async (request: FastifyRequest) => {
+    if (process.env.DEV_MODE === 'true') {
+      const devUser = await db.query.users.findFirst({
+        where: eq(users.status, 'active'),
+      });
+      if (devUser) {
+        (request as unknown as Record<string, unknown>).__authUser = { id: devUser.id, email: devUser.email, name: devUser.name, role: 'member' };
+        return;
+      }
+    }
+    const user = await requireAuth(request);
+    (request as unknown as Record<string, unknown>).__authUser = user;
+  };
+
+  const getUser = (request: FastifyRequest) =>
+    (request as unknown as Record<string, unknown>).__authUser as { id: string; email: string; name: string; role: string };
+
+  // GET /auth/profile — full profile with github info
+  fastify.get('/profile', { preHandler: authPreHandler }, async (request) => {
+    const authUser = getUser(request);
+    const user = await db.query.users.findFirst({
+      where: eq(users.id, authUser.id),
+    });
+
+    if (!user) {
+      throw new Error('UNAUTHORIZED');
+    }
+
+    return {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: (user as { role?: string }).role || 'member',
+      emailVerified: user.emailVerified,
+      githubUsername: user.githubUsername || null,
+      githubAvatarUrl: user.githubAvatarUrl || null,
+      createdAt: user.createdAt,
+    };
+  });
+
+  const UpdateProfileSchema = z.object({
+    name: z.string().min(2).max(100).optional(),
+    email: z.string().email().optional(),
+  });
+
+  // PUT /auth/profile — update name/email
+  fastify.put('/profile', { preHandler: authPreHandler }, async (request, reply) => {
+    const authUser = getUser(request);
+    const body = UpdateProfileSchema.parse(request.body);
+
+    if (!body.name && !body.email) {
+      return reply.code(400).send({ error: { code: 'VALIDATION_ERROR', message: 'At least one field required' } });
+    }
+
+    // Check email uniqueness if changing
+    if (body.email) {
+      const existing = await db.query.users.findFirst({
+        where: eq(users.email, body.email.toLowerCase()),
+      });
+      if (existing && existing.id !== authUser.id) {
+        return sendError(reply, request, 'EMAIL_IN_USE', 'Email already in use');
+      }
+    }
+
+    const updates: Record<string, unknown> = { updatedAt: new Date() };
+    if (body.name) updates.name = body.name;
+    if (body.email) updates.email = body.email.toLowerCase();
+
+    await db.update(users).set(updates).where(eq(users.id, authUser.id));
+
+    const updated = await db.query.users.findFirst({ where: eq(users.id, authUser.id) });
+    return sanitizeUser(updated!);
+  });
+
+  const ChangePasswordSchema = z.object({
+    currentPassword: z.string().min(1),
+    newPassword: z.string().min(8),
+  });
+
+  // PUT /auth/password — change password
+  fastify.put('/password', { preHandler: authPreHandler }, async (request, reply) => {
+    const authUser = getUser(request);
+
+    const body = ChangePasswordSchema.parse(request.body);
+
+    const user = await db.query.users.findFirst({ where: eq(users.id, authUser.id) });
+    if (!user) throw new Error('UNAUTHORIZED');
+
+    const isValid = await verifyPassword(body.currentPassword, user.passwordHash);
+    if (!isValid) {
+      return sendError(reply, request, 'INVALID_CREDENTIALS', 'Current password is incorrect');
+    }
+
+    const newHash = await hashPassword(body.newPassword);
+    await db.update(users).set({ passwordHash: newHash, updatedAt: new Date() }).where(eq(users.id, authUser.id));
+
+    return { ok: true };
+  });
+
+  // DELETE /auth/account — soft-delete (set status to 'deleted')
+  fastify.route({
+    method: 'DELETE',
+    url: '/account',
+    preHandler: authPreHandler,
+    handler: async (request: FastifyRequest, reply: FastifyReply) => {
+      const authUser = getUser(request);
+
+      await db.update(users).set({
+        status: 'deleted',
+        githubToken: null,
+        githubUsername: null,
+        githubAvatarUrl: null,
+        updatedAt: new Date(),
+      }).where(eq(users.id, authUser.id));
+
+      clearSessionCookie(reply);
+      return { ok: true };
+    },
   });
 }

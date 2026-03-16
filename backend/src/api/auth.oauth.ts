@@ -310,8 +310,9 @@ export async function registerOAuthRoutes(fastify: FastifyInstance, emailService
     const state = generateState();
     oauthStateStore.set(state, { provider, createdAt: Date.now() });
     
-    // Build authorization URL
-    const redirectUri = `${config.BACKEND_URL}/auth/oauth/${provider}/callback`;
+    // Build authorization URL — use FRONTEND_URL so callback goes through Vite proxy in dev,
+    // keeping cookies on the same origin. Must match GitHub OAuth App's callback URL.
+    const redirectUri = `${config.FRONTEND_URL}/auth/oauth/${provider}/callback`;
     const authParams = new URLSearchParams({
       client_id: providerConfig.clientId,
       redirect_uri: redirectUri,
@@ -399,7 +400,19 @@ export async function registerOAuthRoutes(fastify: FastifyInstance, emailService
       console.warn(`[OAuth] Missing state for provider: ${provider}`);
       return redirect(reply, `${frontendUrl}/login?error=oauth_invalid_state`);
     }
-    
+
+    // Detect integration flow: if github_oauth_state cookie matches the state param,
+    // this callback was initiated by /api/integrations/github/oauth/start (not login).
+    // Forward to the integration callback handler which uses cookie-based state validation.
+    const integrationStateCookie = request.cookies?.github_oauth_state;
+    if (integrationStateCookie && integrationStateCookie === state) {
+      console.log(`[OAuth] Integration flow detected for ${provider}, forwarding to integration handler`);
+      const qs = new URLSearchParams();
+      if (code) qs.set('code', code);
+      qs.set('state', state);
+      return redirect(reply, `/api/integrations/github/oauth/callback?${qs.toString()}`);
+    }
+
     // Atomically consume the state: get data and delete in one logical operation
     // A second callback with the same state will get undefined and fail
     const stateData = oauthStateStore.get(state);
@@ -436,8 +449,8 @@ export async function registerOAuthRoutes(fastify: FastifyInstance, emailService
     }
     
     try {
-      // Exchange code for tokens
-      const redirectUri = `${config.BACKEND_URL}/auth/oauth/${provider}/callback`;
+      // Exchange code for tokens — redirect_uri must match the one sent in the auth request
+      const redirectUri = `${config.FRONTEND_URL}/auth/oauth/${provider}/callback`;
       const tokens = await exchangeCodeForToken(provider, code, redirectUri, providerConfig);
       
       // Fetch user profile

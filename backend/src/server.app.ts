@@ -34,9 +34,11 @@ import { marketplaceRoutes } from './api/marketplace.js';
 import { crewRoutes, initCrewRunManager } from './api/crew.js';
 import { ragRoutes } from './api/rag.js';
 import { adminRoutes } from './api/admin.js';
-import { pipelinePlugin } from '../../pipeline/backend/api/pipeline.plugin.js';
-import { createPipelineOrchestrator, type GitHubServiceLike } from '../../pipeline/backend/core/pipeline-factory.js';
-import { createGitHubRESTAdapter, getGitHubOwnerViaREST } from '../../pipeline/backend/adapters/GitHubRESTAdapter.js';
+import { githubRoutes } from './api/github.js';
+import { pipelinePlugin } from './pipeline/api/pipeline.plugin.js';
+import { pipelineStreamPlugin } from './pipeline/api/pipeline-stream.plugin.js';
+import { createPipelineOrchestrator, type GitHubServiceLike } from './pipeline/core/pipeline-factory.js';
+import { createGitHubRESTAdapter, getGitHubOwnerViaREST } from './pipeline/adapters/GitHubRESTAdapter.js';
 import { pushLog } from './lib/logBuffer.js';
 import { initPiriRAGService } from './services/rag/PiriRAGService.js';
 import { AgentOrchestrator } from './core/orchestrator/AgentOrchestrator.js';
@@ -262,6 +264,7 @@ export async function buildApp() {
   await app.register(crewRoutes);
   await app.register(ragRoutes);
   await app.register(adminRoutes);
+  await app.register(githubRoutes, { prefix: '/api/github' });
 
   // Pipeline routes (Scribe → Proto → Trace pipeline)
   // Priority: 1) REST API (GITHUB_TOKEN — no infra dependency), 2) Stub
@@ -320,6 +323,10 @@ export async function buildApp() {
   }
   await app.register(
     async (instance) => pipelinePlugin(instance, { orchestrator: pipelineOrchestrator, requireAuth, devUserId }),
+    { prefix: '/api/pipelines' },
+  );
+  await app.register(
+    async (instance) => pipelineStreamPlugin(instance, { requireAuth, devUserId }),
     { prefix: '/api/pipelines' },
   );
 

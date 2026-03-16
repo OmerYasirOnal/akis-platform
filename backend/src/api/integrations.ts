@@ -87,6 +87,9 @@ async function getGitHubToken(userId: string): Promise<string | null> {
 }
 
 export async function integrationsRoutes(fastify: FastifyInstance) {
+  // Resolve frontend URL for redirects (APP_PUBLIC_URL is optional, fallback to FRONTEND_URL)
+  const appPublicUrl = getEnv().APP_PUBLIC_URL || getEnv().FRONTEND_URL;
+
   // GET /api/integrations/github/oauth/start - Start OAuth flow
   fastify.get(
     '/api/integrations/github/oauth/start',
@@ -128,9 +131,12 @@ export async function integrationsRoutes(fastify: FastifyInstance) {
         });
 
         // Build GitHub authorize URL
+        // Use the unified auth OAuth callback URL (auth.oauth.ts detects integration flow
+        // via cookie and forwards to /api/integrations/github/oauth/callback)
+        const oauthCallbackUrl = `${config.FRONTEND_URL}/auth/oauth/github/callback`;
         const githubAuthUrl = new URL('https://github.com/login/oauth/authorize');
         githubAuthUrl.searchParams.set('client_id', config.GITHUB_OAUTH_CLIENT_ID);
-        githubAuthUrl.searchParams.set('redirect_uri', config.GITHUB_OAUTH_CALLBACK_URL);
+        githubAuthUrl.searchParams.set('redirect_uri', oauthCallbackUrl);
         githubAuthUrl.searchParams.set('scope', 'read:user user:email repo');
         githubAuthUrl.searchParams.set('state', state);
 
@@ -139,9 +145,9 @@ export async function integrationsRoutes(fastify: FastifyInstance) {
       } catch (err: unknown) {
         if (err instanceof Error && err.message === 'UNAUTHORIZED') {
           // User not logged in - redirect to login with returnTo
-          const config = getEnv();
-          const returnTo = encodeURIComponent('/dashboard/integrations');
-          return reply.code(302).header('Location', `${config.APP_PUBLIC_URL}/login?returnTo=${returnTo}`).send();
+          const _config = getEnv();
+          const returnTo = encodeURIComponent('/dashboard/settings?tab=github');
+          return reply.code(302).header('Location', `${appPublicUrl}/login?returnTo=${returnTo}`).send();
         }
         throw err;
       }
@@ -161,14 +167,14 @@ export async function integrationsRoutes(fastify: FastifyInstance) {
 
         // Validate code parameter
         if (!code) {
-          const errorUrl = `${config.APP_PUBLIC_URL}/dashboard/integrations?github=error&reason=missing_code`;
+          const errorUrl = `${appPublicUrl}/dashboard/settings?tab=github&github=error&reason=missing_code`;
           return reply.code(302).header('Location', errorUrl).send();
         }
 
         // Validate state (CSRF protection)
         const storedState = request.cookies?.github_oauth_state;
         if (!storedState || storedState !== receivedState) {
-          const errorUrl = `${config.APP_PUBLIC_URL}/dashboard/integrations?github=error&reason=state_mismatch`;
+          const errorUrl = `${appPublicUrl}/dashboard/settings?tab=github&github=error&reason=state_mismatch`;
           return reply.code(302).header('Location', errorUrl).send();
         }
 
@@ -176,23 +182,25 @@ export async function integrationsRoutes(fastify: FastifyInstance) {
         reply.clearCookie('github_oauth_state', { path: '/' });
 
         // Exchange code for access token (via gateway boundary)
+        // redirect_uri must match what was sent in the authorization request
+        const tokenExchangeRedirectUri = `${config.FRONTEND_URL}/auth/oauth/github/callback`;
         const tokenData = await mcpGateway.exchangeGitHubOAuthCode(
           {
             code,
             clientId: config.GITHUB_OAUTH_CLIENT_ID!,
             clientSecret: config.GITHUB_OAUTH_CLIENT_SECRET!,
-            redirectUri: config.GITHUB_OAUTH_CALLBACK_URL!,
+            redirectUri: tokenExchangeRedirectUri,
           },
           request.id
         ).catch(() => null);
 
         if (!tokenData) {
-          const errorUrl = `${config.APP_PUBLIC_URL}/dashboard/integrations?github=error&reason=token_exchange_failed`;
+          const errorUrl = `${appPublicUrl}/dashboard/settings?tab=github&github=error&reason=token_exchange_failed`;
           return reply.code(302).header('Location', errorUrl).send();
         }
         
         if (tokenData.error || !tokenData.access_token) {
-          const errorUrl = `${config.APP_PUBLIC_URL}/dashboard/integrations?github=error&reason=token_missing`;
+          const errorUrl = `${appPublicUrl}/dashboard/settings?tab=github&github=error&reason=token_missing`;
           return reply.code(302).header('Location', errorUrl).send();
         }
 
@@ -211,19 +219,19 @@ export async function integrationsRoutes(fastify: FastifyInstance) {
             error instanceof OAuthTokenCryptoError &&
             error.code === 'OAUTH_TOKEN_ENCRYPTION_KEY_MISSING'
           ) {
-            const errorUrl = `${config.APP_PUBLIC_URL}/dashboard/integrations?github=error&reason=encryption_key_missing`;
+            const errorUrl = `${appPublicUrl}/dashboard/settings?tab=github&github=error&reason=encryption_key_missing`;
             return reply.code(302).header('Location', errorUrl).send();
           }
 
           console.error('[integrations] Failed to encrypt GitHub OAuth token:', error);
-          const errorUrl = `${config.APP_PUBLIC_URL}/dashboard/integrations?github=error&reason=token_storage_failed`;
+          const errorUrl = `${appPublicUrl}/dashboard/settings?tab=github&github=error&reason=token_storage_failed`;
           return reply.code(302).header('Location', errorUrl).send();
         }
 
         // Fetch GitHub user info (via gateway boundary)
         const githubUser = await mcpGateway.fetchGitHubUser(accessToken, request.id).catch(() => null);
         if (!githubUser) {
-          const errorUrl = `${config.APP_PUBLIC_URL}/dashboard/integrations?github=error&reason=user_fetch_failed`;
+          const errorUrl = `${appPublicUrl}/dashboard/settings?tab=github&github=error&reason=user_fetch_failed`;
           return reply.code(302).header('Location', errorUrl).send();
         }
 
@@ -256,17 +264,17 @@ export async function integrationsRoutes(fastify: FastifyInstance) {
         }
 
         // Redirect back to integrations with success
-        const successUrl = `${config.APP_PUBLIC_URL}/dashboard/integrations?github=connected`;
+        const successUrl = `${appPublicUrl}/dashboard/settings?tab=github&github=connected`;
         return reply.code(302).header('Location', successUrl).send();
       } catch (err: unknown) {
         if (err instanceof Error && err.message === 'UNAUTHORIZED') {
           // Session lost during callback - redirect to login
-          const returnTo = encodeURIComponent('/dashboard/integrations');
-          return reply.code(302).header('Location', `${config.APP_PUBLIC_URL}/login?returnTo=${returnTo}`).send();
+          const returnTo = encodeURIComponent('/dashboard/settings?tab=github');
+          return reply.code(302).header('Location', `${appPublicUrl}/login?returnTo=${returnTo}`).send();
         }
         
         // Unexpected error
-        const errorUrl = `${config.APP_PUBLIC_URL}/dashboard/integrations?github=error&reason=internal_error`;
+        const errorUrl = `${appPublicUrl}/dashboard/settings?tab=github&github=error&reason=internal_error`;
         return reply.code(302).header('Location', errorUrl).send();
       }
     }
@@ -576,9 +584,9 @@ export async function integrationsRoutes(fastify: FastifyInstance) {
       } catch (err: unknown) {
         if (err instanceof Error && err.message === 'UNAUTHORIZED') {
           // User not logged in - redirect to login with returnTo
-          const config = getEnv();
-          const returnTo = encodeURIComponent('/dashboard/integrations');
-          return reply.code(302).header('Location', `${config.APP_PUBLIC_URL}/login?returnTo=${returnTo}`).send();
+          const _config = getEnv();
+          const returnTo = encodeURIComponent('/dashboard/settings?tab=github');
+          return reply.code(302).header('Location', `${appPublicUrl}/login?returnTo=${returnTo}`).send();
         }
         throw err;
       }
@@ -594,8 +602,8 @@ export async function integrationsRoutes(fastify: FastifyInstance) {
         state?: string;
         error?: string;
       };
-      const config = getEnv();
-      const frontendUrl = config.APP_PUBLIC_URL || config.FRONTEND_URL;
+      const _config = getEnv();
+      const frontendUrl = appPublicUrl;
 
       try {
         // Verify we have an AKIS session
@@ -603,20 +611,20 @@ export async function integrationsRoutes(fastify: FastifyInstance) {
 
         // Handle OAuth error from Atlassian
         if (oauthError) {
-          const errorUrl = `${frontendUrl}/dashboard/integrations?atlassian=error&reason=${encodeURIComponent(oauthError)}`;
+          const errorUrl = `${frontendUrl}/dashboard/settings?tab=github&atlassian=error&reason=${encodeURIComponent(oauthError)}`;
           return reply.code(302).header('Location', errorUrl).send();
         }
 
         // Validate code parameter
         if (!code) {
-          const errorUrl = `${frontendUrl}/dashboard/integrations?atlassian=error&reason=missing_code`;
+          const errorUrl = `${frontendUrl}/dashboard/settings?tab=github&atlassian=error&reason=missing_code`;
           return reply.code(302).header('Location', errorUrl).send();
         }
 
         // Validate state (CSRF protection)
         const storedState = request.cookies?.atlassian_oauth_state;
         if (!storedState || storedState !== receivedState) {
-          const errorUrl = `${frontendUrl}/dashboard/integrations?atlassian=error&reason=state_mismatch`;
+          const errorUrl = `${frontendUrl}/dashboard/settings?tab=github&atlassian=error&reason=state_mismatch`;
           return reply.code(302).header('Location', errorUrl).send();
         }
 
@@ -630,7 +638,7 @@ export async function integrationsRoutes(fastify: FastifyInstance) {
         const resources = await atlassianOAuthService.getAccessibleResources(tokens.access_token);
 
         if (resources.length === 0) {
-          const errorUrl = `${frontendUrl}/dashboard/integrations?atlassian=error&reason=no_accessible_resources`;
+          const errorUrl = `${frontendUrl}/dashboard/settings?tab=github&atlassian=error&reason=no_accessible_resources`;
           return reply.code(302).header('Location', errorUrl).send();
         }
 
@@ -641,19 +649,19 @@ export async function integrationsRoutes(fastify: FastifyInstance) {
         await atlassianOAuthService.storeTokens(user.id, tokens, primaryResource);
 
         // Redirect back to integrations with success
-        const successUrl = `${frontendUrl}/dashboard/integrations?atlassian=connected`;
+        const successUrl = `${frontendUrl}/dashboard/settings?tab=github&atlassian=connected`;
         return reply.code(302).header('Location', successUrl).send();
       } catch (err: unknown) {
         console.error('[integrations] Atlassian OAuth callback error:', err);
         
         if (err instanceof Error && err.message === 'UNAUTHORIZED') {
           // Session lost during callback - redirect to login
-          const returnTo = encodeURIComponent('/dashboard/integrations');
+          const returnTo = encodeURIComponent('/dashboard/settings?tab=github');
           return reply.code(302).header('Location', `${frontendUrl}/login?returnTo=${returnTo}`).send();
         }
 
         // Unexpected error
-        const errorUrl = `${frontendUrl}/dashboard/integrations?atlassian=error&reason=internal_error`;
+        const errorUrl = `${frontendUrl}/dashboard/settings?tab=github&atlassian=error&reason=internal_error`;
         return reply.code(302).header('Location', errorUrl).send();
       }
     }

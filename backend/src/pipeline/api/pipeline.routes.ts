@@ -1,0 +1,174 @@
+/**
+ * Pipeline API routes — Fastify plugin.
+ * Will be mounted to the Fastify server in Phase 7 (integration).
+ *
+ * Routes:
+ *   POST   /api/pipelines              → Start a new pipeline
+ *   GET    /api/pipelines              → List user's pipelines
+ *   GET    /api/pipelines/:id          → Get pipeline status
+ *   POST   /api/pipelines/:id/message  → Send message to Scribe
+ *   POST   /api/pipelines/:id/approve  → Approve spec, start Proto
+ *   POST   /api/pipelines/:id/reject   → Reject spec with feedback
+ *   POST   /api/pipelines/:id/retry    → Retry failed stage
+ *   POST   /api/pipelines/:id/skip-trace → Skip Trace, mark completed_partial
+ *   DELETE /api/pipelines/:id          → Cancel pipeline
+ */
+
+import {
+  StartPipelineRequestSchema,
+  SendMessageRequestSchema,
+  ApproveSpecRequestSchema,
+  RejectSpecRequestSchema,
+} from '../core/contracts/PipelineSchemas.js';
+import type { PipelineOrchestrator } from '../core/orchestrator/PipelineOrchestrator.js';
+
+export interface PipelineRoutesDeps {
+  orchestrator: PipelineOrchestrator;
+  getUserId: (request: unknown) => string;
+}
+
+export function createPipelineRoutes(deps: PipelineRoutesDeps) {
+  const { orchestrator, getUserId } = deps;
+
+  return {
+    async startPipeline(request: unknown, _reply: unknown) {
+      const userId = getUserId(request);
+      const body = StartPipelineRequestSchema.parse((request as { body: unknown }).body);
+      const pipeline = await orchestrator.startPipeline(userId, {
+        idea: body.idea,
+        context: body.context,
+        targetStack: body.targetStack,
+      }, body.model);
+      return { pipeline };
+    },
+
+    async listPipelines(request: unknown) {
+      const userId = getUserId(request);
+      const pipelines = await orchestrator.listPipelines(userId);
+      return { pipelines };
+    },
+
+    async getStatus(request: unknown) {
+      const { id } = (request as { params: { id: string } }).params;
+      const pipeline = await orchestrator.getStatus(id);
+      return { pipeline };
+    },
+
+    async sendMessage(request: unknown) {
+      const { id } = (request as { params: { id: string } }).params;
+      const body = SendMessageRequestSchema.parse((request as { body: unknown }).body);
+      const pipeline = await orchestrator.sendMessage(id, body.message);
+      return { pipeline };
+    },
+
+    async approveSpec(request: unknown) {
+      const { id } = (request as { params: { id: string } }).params;
+      const body = ApproveSpecRequestSchema.parse((request as { body: unknown }).body);
+      const pipeline = await orchestrator.approveSpec(id, body.repoName, body.repoVisibility, body.spec);
+      return { pipeline };
+    },
+
+    async rejectSpec(request: unknown) {
+      const { id } = (request as { params: { id: string } }).params;
+      const body = RejectSpecRequestSchema.parse((request as { body: unknown }).body);
+      const pipeline = await orchestrator.rejectSpec(id, body.feedback);
+      return { pipeline };
+    },
+
+    async retryStage(request: unknown) {
+      const { id } = (request as { params: { id: string } }).params;
+      const pipeline = await orchestrator.retryStage(id);
+      return { pipeline };
+    },
+
+    async skipTrace(request: unknown) {
+      const { id } = (request as { params: { id: string } }).params;
+      const pipeline = await orchestrator.skipTrace(id);
+      return { pipeline };
+    },
+
+    async cancelPipeline(request: unknown) {
+      const { id } = (request as { params: { id: string } }).params;
+      const pipeline = await orchestrator.cancelPipeline(id);
+      return { pipeline };
+    },
+
+    async getAllFiles(request: unknown) {
+      const { id } = (request as { params: { id: string } }).params;
+      const pipeline = await orchestrator.getStatus(id);
+
+      const files: Record<string, string> = {};
+
+      // Collect proto output files
+      if (pipeline.protoOutput?.files) {
+        for (const f of pipeline.protoOutput.files) {
+          if (f.content) {
+            files[f.filePath] = f.content;
+          }
+        }
+      }
+
+      // Collect trace output files
+      if (pipeline.traceOutput?.testFiles) {
+        for (const f of pipeline.traceOutput.testFiles) {
+          if (f.content) {
+            files[f.filePath] = f.content;
+          }
+        }
+      }
+
+      return {
+        files,
+        title: pipeline.title || 'AKIS Preview',
+      };
+    },
+
+    async getFileContent(request: unknown) {
+      const { id, '*': filePath } = (request as { params: { id: string; '*': string } }).params;
+      if (!filePath) throw new Error('File path is required');
+
+      const pipeline = await orchestrator.getStatus(id);
+
+      // Search in proto output files
+      const protoFile = pipeline.protoOutput?.files?.find(
+        (f) => f.filePath === filePath,
+      );
+      if (protoFile) {
+        return {
+          path: protoFile.filePath,
+          content: protoFile.content,
+          language: detectLanguage(protoFile.filePath),
+          lines: protoFile.linesOfCode,
+          agent: 'proto',
+        };
+      }
+
+      // Search in trace output files
+      const traceFile = pipeline.traceOutput?.testFiles?.find(
+        (f) => f.filePath === filePath,
+      );
+      if (traceFile) {
+        return {
+          path: traceFile.filePath,
+          content: traceFile.content,
+          language: detectLanguage(traceFile.filePath),
+          lines: traceFile.testCount,
+          agent: 'trace',
+        };
+      }
+
+      throw new Error(`File not found: ${filePath}`);
+    },
+  };
+}
+
+function detectLanguage(filePath: string): string {
+  const ext = filePath.split('.').pop()?.toLowerCase() || '';
+  const langMap: Record<string, string> = {
+    ts: 'typescript', tsx: 'typescript', js: 'javascript', jsx: 'javascript',
+    json: 'json', html: 'html', css: 'css', scss: 'scss',
+    md: 'markdown', yaml: 'yaml', yml: 'yaml', sh: 'shell',
+    py: 'python', sql: 'sql', toml: 'toml', xml: 'xml',
+  };
+  return langMap[ext] || 'text';
+}
