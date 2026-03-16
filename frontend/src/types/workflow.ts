@@ -77,6 +77,12 @@ export interface ConversationMessage {
   // Spec
   spec?: StructuredSpec;
   confidence?: number;
+  reviewNotes?: string | {
+    selfReviewPassed?: boolean;
+    revisionsApplied?: string[];
+    assumptionsMade?: string[];
+  };
+  assumptions?: string[];
   // Proto result
   protoResult?: {
     branch: string;
@@ -84,6 +90,11 @@ export interface ConversationMessage {
     files: FileTreeNode[];
     totalFiles: number;
     totalLines: number;
+    verificationReport?: {
+      specCoverage: string;
+      integrityIssues: string[];
+      confidenceScore: number;
+    };
   };
   // Trace result
   traceResult?: {
@@ -93,6 +104,12 @@ export interface ConversationMessage {
     coverage: string;
     duration: string;
     testFiles: FileTreeNode[];
+    traceability?: Array<{
+      criterionId: string;
+      testFile: string;
+      testName: string;
+      coverage: 'full' | 'partial' | 'none';
+    }>;
   };
 }
 

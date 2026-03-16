@@ -42,12 +42,19 @@ export interface StructuredSpec {
   outOfScope: string[];
 }
 
+export interface ReviewNotes {
+  selfReviewPassed?: boolean;
+  revisionsApplied?: string[];
+  assumptionsMade?: string[];
+}
+
 export interface ScribeOutput {
   spec: StructuredSpec;
   rawMarkdown: string;
   confidence: number;
   clarificationsAsked: number;
-  reviewNotes?: string;
+  reviewNotes?: string | ReviewNotes;
+  assumptions?: string[];
 }
 
 export type ScribeMessageType =

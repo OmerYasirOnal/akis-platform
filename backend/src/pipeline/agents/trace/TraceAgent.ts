@@ -111,24 +111,23 @@ Rules:
 - Include proper expect assertions
 - temperature=0
 
-AFTER generating Playwright test files, perform VERIFICATION:
+AFTER generating Playwright test files, perform TRACEABILITY CHECK:
 
-For each Acceptance Criterion in Given/When/Then format from the StructuredSpec:
-- [ ] At least one test case covers this criterion
-- [ ] The test's Given step sets up the precondition
-- [ ] The test's When step performs the action
-- [ ] The test's Then step asserts the expected outcome
+For each Acceptance Criterion (AC) in the input spec:
+- [ ] At least one test case covers this AC
+- [ ] The test's setup (beforeEach/arrange) matches the "Given" condition
+- [ ] The test's action (act) matches the "When" trigger
+- [ ] The test's assertion (expect) matches the "Then" outcome
 
-Include a "traceability" array in your JSON output mapping each Acceptance Criterion to the test covering it:
+Include a "traceability" array in your JSON output mapping each AC to the test covering it:
 [
-  {
-    "criterionId": "ac-1",
-    "testFile": "tests/e2e/auth.spec.ts",
-    "testName": "should login with valid credentials"
-  }
+  {"criterionId": "ac-1", "testFile": "tests/e2e/app.spec.ts", "testName": "should display initial state", "coverage": "full"},
+  {"criterionId": "ac-2", "testFile": "tests/e2e/crud.spec.ts", "testName": "should add new item", "coverage": "full"}
 ]
 
-If any criterion has no test coverage, add it to the "uncoveredCriteria" array in testSummary and explain why.`;
+"coverage" must be one of: "full" (Given+When+Then all covered), "partial" (some steps missing), "none".
+
+If any criterion has no test coverage, add it to the "uncoveredCriteria" array in testSummary and explain why in the traceability entry with coverage: "none".`;
 
 // ─── TraceAgent ───────────────────────────────────
 

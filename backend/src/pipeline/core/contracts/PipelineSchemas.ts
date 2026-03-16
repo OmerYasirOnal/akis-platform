@@ -59,12 +59,22 @@ export const StructuredSpecSchema = z.object({
   outOfScope: z.array(z.string()),
 });
 
+export const ReviewNotesSchema = z.union([
+  z.string(),
+  z.object({
+    selfReviewPassed: z.boolean().optional(),
+    revisionsApplied: z.array(z.string()).optional(),
+    assumptionsMade: z.array(z.string()).optional(),
+  }),
+]).optional();
+
 export const ScribeOutputSchema = z.object({
   spec: StructuredSpecSchema,
   rawMarkdown: z.string().min(1),
   confidence: z.number().min(0).max(1),
   clarificationsAsked: z.number().int().min(0).max(3),
-  reviewNotes: z.string().optional(),
+  reviewNotes: ReviewNotesSchema,
+  assumptions: z.array(z.string()).optional(),
 });
 
 export const ScribeMessageSchema = z.discriminatedUnion('type', [

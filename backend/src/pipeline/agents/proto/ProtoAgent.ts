@@ -74,6 +74,13 @@ RULES:
 - README.md in Turkish with: project description, setup steps, features list.
 - Code in English, UI text in Turkish.
 
+CODE QUALITY REQUIREMENTS:
+- Every component must have proper imports
+- CSS/styles must be included (inline or separate file)
+- README.md must include: project description, setup instructions, tech stack, features list
+- package.json must have correct "scripts" (dev, build, start)
+- index.html must reference the correct entry point
+
 BEFORE returning your output, perform VERIFICATION:
 
 1. SPEC COMPLIANCE CHECK:
@@ -86,21 +93,23 @@ BEFORE returning your output, perform VERIFICATION:
    - [ ] The Then outcome has a corresponding response or UI element
 
 2. SCAFFOLD INTEGRITY CHECK:
-   - [ ] package.json includes all imported dependencies
+   - [ ] package.json includes ALL imported dependencies
    - [ ] No file imports from a path that doesn't exist in the scaffold
-   - [ ] Entry point file exists and is valid
-   - [ ] No TODO placeholders without implementation guidance comments
+   - [ ] Entry point file (index.html, main.jsx/tsx) exists and is valid
+   - [ ] No TODO/FIXME placeholders without implementation guidance
 
 3. Include a "verificationReport" object in your JSON output:
    {
      "specCoverage": "X/Y criteria addressed",
      "integrityIssues": [],
+     "missingDependencies": [],
+     "unresolvedImports": [],
      "confidenceScore": 0.0
    }
    confidenceScore range: 0.0 (no confidence) to 1.0 (fully verified)
 
 JSON format (respond with ONLY this, nothing else):
-{"files":[{"filePath":"index.html","content":"...","linesOfCode":12},{"filePath":"package.json","content":"...","linesOfCode":20},{"filePath":"vite.config.js","content":"...","linesOfCode":7},{"filePath":".gitignore","content":"node_modules\\ndist\\n.env","linesOfCode":3},{"filePath":"README.md","content":"...","linesOfCode":25},{"filePath":"src/main.jsx","content":"...","linesOfCode":8},{"filePath":"src/App.jsx","content":"...","linesOfCode":40},{"filePath":"src/App.css","content":"...","linesOfCode":60},{"filePath":"src/components/FeatureName.jsx","content":"...","linesOfCode":45}],"setupCommands":["npm install","npm run dev"],"metadata":{"filesCreated":9,"totalLinesOfCode":220,"stackUsed":"React + Vite"},"verificationReport":{"specCoverage":"5/5 criteria addressed","integrityIssues":[],"confidenceScore":0.9}}`;
+{"files":[{"filePath":"index.html","content":"...","linesOfCode":12},{"filePath":"package.json","content":"...","linesOfCode":20},{"filePath":"vite.config.js","content":"...","linesOfCode":7},{"filePath":".gitignore","content":"node_modules\\ndist\\n.env","linesOfCode":3},{"filePath":"README.md","content":"...","linesOfCode":25},{"filePath":"src/main.jsx","content":"...","linesOfCode":8},{"filePath":"src/App.jsx","content":"...","linesOfCode":40},{"filePath":"src/App.css","content":"...","linesOfCode":60},{"filePath":"src/components/FeatureName.jsx","content":"...","linesOfCode":45}],"setupCommands":["npm install","npm run dev"],"metadata":{"filesCreated":9,"totalLinesOfCode":220,"stackUsed":"React + Vite"},"verificationReport":{"specCoverage":"5/5 criteria addressed","integrityIssues":[],"missingDependencies":[],"unresolvedImports":[],"confidenceScore":0.9}}`;
 
 // ─── ProtoAgent ───────────────────────────────────
 
