@@ -418,6 +418,9 @@ export default function WorkflowDetailPage() {
               onRetry={handleRetry}
               onOpenPreview={hasPreview ? () => setMainView('preview') : undefined}
               onOpenFiles={() => setRightPanel(prev => (prev === 'files' ? prev : 'files'))}
+              sseActivities={activities}
+              sseConnected={isConnected}
+              sseProgressByStage={progressByStage}
             />
           )}
 
