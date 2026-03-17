@@ -1,12 +1,32 @@
-import { Outlet, useLocation } from 'react-router-dom';
+import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useState, useEffect, useRef } from 'react';
 import { DashboardSidebar } from './DashboardSidebar';
+import { FloatingActivityToast } from '../pipeline/FloatingActivityToast';
+import { useActivePipeline } from '../../hooks/useActivePipeline';
+import { usePipelineStream } from '../../hooks/usePipelineStream';
 
 export function DashboardLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const userOverrideRef = useRef(false);
   const location = useLocation();
+  const navigate = useNavigate();
+
+  // Global floating toast — detect running pipeline across all pages
+  const activePipeline = useActivePipeline(5000);
+  const { currentStep, progressByStage } = usePipelineStream(
+    activePipeline?.id,
+    !!activePipeline,
+  );
+
+  const toastActivity = currentStep
+    ? {
+        stage: currentStep.stage,
+        message: currentStep.message,
+        progress: progressByStage[currentStep.stage] ?? currentStep.progress,
+        step: currentStep.step,
+      }
+    : null;
 
   // WorkflowDetailPage needs full-bleed (no padding, no maxWidth)
   const isFullBleed = /\/dashboard\/workflows\/[0-9a-f-]+$/i.test(location.pathname);
@@ -30,6 +50,18 @@ export function DashboardLayout() {
 
   return (
     <div className="flex h-screen overflow-hidden bg-ak-bg">
+      {/* Global floating activity toast — visible on ALL pages */}
+      <FloatingActivityToast
+        activity={toastActivity}
+        isActive={!!activePipeline}
+        pipelineStatus={activePipeline?.status}
+        onClickNavigate={
+          activePipeline
+            ? () => navigate(`/dashboard/workflows/${activePipeline.id}`)
+            : undefined
+        }
+      />
+
       {/* Mobile overlay */}
       {sidebarOpen && (
         <div
