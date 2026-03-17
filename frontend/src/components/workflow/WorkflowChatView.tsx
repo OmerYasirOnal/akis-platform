@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { Workflow, ConversationMessage, StructuredSpec } from '../../types/workflow';
+import type { PipelineActivity } from '../../hooks/usePipelineStream';
 import { SuggestionWizard } from './SuggestionWizard';
 import { formatConfidence } from '../../utils/format';
 import { TR } from '../../constants/tr';
@@ -28,6 +29,12 @@ interface WorkflowChatViewProps {
   onRetry?: () => void;
   onOpenPreview?: () => void;
   onOpenFiles?: () => void;
+  /** Real-time SSE activities from usePipelineStream */
+  sseActivities?: PipelineActivity[];
+  /** Whether SSE connection is active */
+  sseConnected?: boolean;
+  /** Progress percentage per stage from SSE */
+  sseProgressByStage?: Record<string, number>;
 }
 
 // ═══ Helpers ═══
@@ -709,11 +716,34 @@ function getAgentSteps(agentName: string, hasUserAnswered: boolean): AgentStep[]
 }
 
 // ═══ Thinking Indicator with Steps ═══
-function ThinkingIndicator({ agentName, hasUserAnswered }: { agentName: string; hasUserAnswered?: boolean }) {
+// Shows real-time SSE activities when available, falls back to static steps
+
+interface ThinkingIndicatorProps {
+  agentName: string;
+  hasUserAnswered?: boolean;
+  /** Real SSE activities for this pipeline */
+  sseActivities?: PipelineActivity[];
+  /** Whether SSE connection is active */
+  sseConnected?: boolean;
+  /** SSE progress for active stage */
+  sseProgress?: number;
+}
+
+function ThinkingIndicator({ agentName, hasUserAnswered, sseActivities, sseConnected, sseProgress }: ThinkingIndicatorProps) {
   const colors = AGENT_COLORS[agentName] || AGENT_COLORS.system;
   const [isOpen, setIsOpen] = useState(true);
-  const steps = getAgentSteps(agentName, !!hasUserAnswered);
-  const runningStep = steps.find(s => s.status === 'running');
+
+  // Filter SSE activities for this agent's stage
+  const stageActivities = sseActivities?.filter(a => a.stage === agentName) ?? [];
+  const hasSSE = sseConnected && stageActivities.length > 0;
+
+  // Determine current display label from SSE or static fallback
+  const staticSteps = getAgentSteps(agentName, !!hasUserAnswered);
+  const staticRunningStep = staticSteps.find(s => s.status === 'running');
+  const lastActivity = stageActivities.length > 0 ? stageActivities[stageActivities.length - 1] : null;
+  const headerLabel = hasSSE && lastActivity
+    ? lastActivity.message
+    : (staticRunningStep?.label || TR.processing);
 
   return (
     <div className="flex gap-2.5">
@@ -721,8 +751,27 @@ function ThinkingIndicator({ agentName, hasUserAnswered }: { agentName: string; 
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2 mb-1">
           <span className={`text-xs font-semibold capitalize ${colors.text}`}>{agentName}</span>
+          {hasSSE && (
+            <span className="flex items-center gap-1 text-[10px] text-emerald-400/70">
+              <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              canli
+            </span>
+          )}
         </div>
         <div className="rounded-lg border border-ak-border-subtle bg-ak-surface-2 overflow-hidden">
+          {/* Progress bar (SSE only) */}
+          {hasSSE && sseProgress !== undefined && sseProgress > 0 && (
+            <div className="h-0.5 w-full bg-ak-border-subtle">
+              <div
+                className="h-full rounded-full transition-all duration-500"
+                style={{
+                  width: `${sseProgress}%`,
+                  backgroundColor: `var(--ak-${agentName}, var(--ak-primary))`,
+                }}
+              />
+            </div>
+          )}
+
           {/* Toggle header */}
           <button
             onClick={() => setIsOpen(!isOpen)}
@@ -733,8 +782,8 @@ function ThinkingIndicator({ agentName, hasUserAnswered }: { agentName: string; 
               <span className="inline-block h-1.5 w-1.5 rounded-full bg-ak-text-tertiary animate-thinking" style={{ animationDelay: '0.2s' }} />
               <span className="inline-block h-1.5 w-1.5 rounded-full bg-ak-text-tertiary animate-thinking" style={{ animationDelay: '0.4s' }} />
             </span>
-            <span className="flex-1 text-sm text-ak-text-tertiary">
-              {runningStep?.label || TR.processing}
+            <span className="flex-1 text-sm text-ak-text-tertiary truncate">
+              {headerLabel}
             </span>
             <svg
               className={`h-3 w-3 flex-shrink-0 text-ak-text-tertiary transition-transform ${isOpen ? 'rotate-90' : ''}`}
@@ -744,29 +793,84 @@ function ThinkingIndicator({ agentName, hasUserAnswered }: { agentName: string; 
             </svg>
           </button>
 
-          {/* Steps list */}
+          {/* Steps/Activities list */}
           {isOpen && (
-            <div className="border-t border-ak-border-subtle px-3 py-2 space-y-1">
-              {steps.map((step, i) => (
-                <div key={i} className="flex items-center gap-2 text-sm">
-                  <span className="flex-shrink-0 w-4 text-center">
-                    {step.status === 'done' && (
-                      <svg className="inline h-3.5 w-3.5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-                      </svg>
-                    )}
-                    {step.status === 'running' && (
-                      <span className={`inline-block h-2 w-2 rounded-full ${colors.bg.replace('/10', '')} animate-pulse`} style={{ backgroundColor: `var(--ak-${agentName})` }} />
-                    )}
-                    {step.status === 'pending' && (
-                      <span className="inline-block h-2 w-2 rounded-full border border-ak-text-tertiary/40" />
-                    )}
-                  </span>
-                  <span className={step.status === 'pending' ? 'text-ak-text-tertiary' : step.status === 'running' ? 'text-ak-text-primary' : 'text-ak-text-secondary'}>
-                    {step.label}
-                  </span>
-                </div>
-              ))}
+            <div className="border-t border-ak-border-subtle px-3 py-2 space-y-1 max-h-48 overflow-y-auto">
+              {hasSSE ? (
+                /* ═══ Real SSE Activities ═══ */
+                <>
+                  {stageActivities.map((activity, i) => {
+                    const time = new Date(activity.timestamp).toLocaleTimeString('tr-TR', {
+                      hour: '2-digit',
+                      minute: '2-digit',
+                      second: '2-digit',
+                    });
+                    const isError = activity.step === 'error';
+                    const isComplete = activity.step === 'complete' || activity.step === 'pipeline_complete';
+                    const isAiCall = activity.step === 'ai_call';
+                    const isLast = i === stageActivities.length - 1;
+
+                    return (
+                      <div key={i} className="flex items-center gap-2 text-sm">
+                        <span className="flex-shrink-0 w-14 text-right font-mono text-[10px] text-ak-text-tertiary/50 tabular-nums">
+                          {time}
+                        </span>
+                        <span className="flex-shrink-0 w-4 text-center">
+                          {isError && (
+                            <svg className="inline h-3.5 w-3.5 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          )}
+                          {isComplete && (
+                            <svg className="inline h-3.5 w-3.5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                            </svg>
+                          )}
+                          {!isError && !isComplete && isLast && (
+                            <span className="inline-block h-2 w-2 rounded-full animate-pulse" style={{ backgroundColor: `var(--ak-${agentName}, var(--ak-primary))` }} />
+                          )}
+                          {!isError && !isComplete && !isLast && (
+                            <svg className="inline h-3.5 w-3.5 text-ak-text-secondary" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                            </svg>
+                          )}
+                        </span>
+                        <span className={
+                          isError ? 'text-red-400' :
+                          isComplete ? 'text-emerald-400' :
+                          isAiCall ? 'text-ak-text-primary' :
+                          isLast ? 'text-ak-text-primary' :
+                          'text-ak-text-secondary'
+                        }>
+                          {activity.message}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </>
+              ) : (
+                /* ═══ Static Fallback Steps ═══ */
+                staticSteps.map((step, i) => (
+                  <div key={i} className="flex items-center gap-2 text-sm">
+                    <span className="flex-shrink-0 w-4 text-center">
+                      {step.status === 'done' && (
+                        <svg className="inline h-3.5 w-3.5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                        </svg>
+                      )}
+                      {step.status === 'running' && (
+                        <span className="inline-block h-2 w-2 rounded-full animate-pulse" style={{ backgroundColor: `var(--ak-${agentName})` }} />
+                      )}
+                      {step.status === 'pending' && (
+                        <span className="inline-block h-2 w-2 rounded-full border border-ak-text-tertiary/40" />
+                      )}
+                    </span>
+                    <span className={step.status === 'pending' ? 'text-ak-text-tertiary' : step.status === 'running' ? 'text-ak-text-primary' : 'text-ak-text-secondary'}>
+                      {step.label}
+                    </span>
+                  </div>
+                ))
+              )}
             </div>
           )}
         </div>
@@ -996,7 +1100,7 @@ function ErrorRetryBlock({
   );
 }
 
-export function WorkflowChatView({ workflow, onSendMessage, onApprove, onReject, onRetry, onOpenPreview, onOpenFiles }: WorkflowChatViewProps) {
+export function WorkflowChatView({ workflow, onSendMessage, onApprove, onReject, onRetry, onOpenPreview, onOpenFiles, sseActivities, sseConnected, sseProgressByStage }: WorkflowChatViewProps) {
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
   const [isWaitingResponse, setIsWaitingResponse] = useState(false);
@@ -1009,10 +1113,11 @@ export function WorkflowChatView({ workflow, onSendMessage, onApprove, onReject,
     setIsWaitingResponse(false);
   }, [messages.length]);
 
-  // Auto-scroll on new messages or when waiting indicator appears
+  // Auto-scroll on new messages, waiting indicator, or new SSE activities
+  const sseActivityCount = sseActivities?.length ?? 0;
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages.length, isWaitingResponse]);
+  }, [messages.length, isWaitingResponse, sseActivityCount]);
 
   // Auto-resize textarea
   useEffect(() => {
@@ -1102,7 +1207,15 @@ export function WorkflowChatView({ workflow, onSendMessage, onApprove, onReject,
             wizardActive={!!showWizard && msg === lastClarification}
           />
         ))}
-        {showThinking && <ThinkingIndicator agentName={activeAgent || 'scribe'} hasUserAnswered={hasClarification && messages.some(m => m.role === 'user' && m.type === 'message')} />}
+        {showThinking && (
+          <ThinkingIndicator
+            agentName={activeAgent || 'scribe'}
+            hasUserAnswered={hasClarification && messages.some(m => m.role === 'user' && m.type === 'message')}
+            sseActivities={sseActivities}
+            sseConnected={sseConnected}
+            sseProgress={sseProgressByStage?.[activeAgent || 'scribe']}
+          />
+        )}
         {isCompleted && (
           <PipelineSummaryCard
             workflow={workflow}
