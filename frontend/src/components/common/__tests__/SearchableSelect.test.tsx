@@ -95,7 +95,7 @@ describe('SearchableSelect', () => {
     render(
       <SearchableSelect label="Model" options={options} value="" onChange={() => {}} loading={true} />
     );
-    expect(screen.getByText('Loading...')).toBeInTheDocument();
+    expect(screen.getByText('Yükleniyor...')).toBeInTheDocument();
   });
 
   it('shows error message', () => {

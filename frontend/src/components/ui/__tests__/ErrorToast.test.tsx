@@ -10,9 +10,9 @@ describe('ErrorToast', () => {
     expect(screen.getByText('Something went wrong')).toBeInTheDocument();
   });
 
-  it('renders "Error" heading', () => {
+  it('renders "Hata" heading', () => {
     render(<ErrorToast error={baseError} onClose={vi.fn()} />);
-    expect(screen.getByText('Error')).toBeInTheDocument();
+    expect(screen.getByText('Hata')).toBeInTheDocument();
   });
 
   it('renders error code when provided', () => {
@@ -40,12 +40,12 @@ describe('ErrorToast', () => {
   it('calls onClose when close button clicked', () => {
     const onClose = vi.fn();
     render(<ErrorToast error={baseError} onClose={onClose} />);
-    fireEvent.click(screen.getByLabelText('Close'));
+    fireEvent.click(screen.getByLabelText('Kapat'));
     expect(onClose).toHaveBeenCalledOnce();
   });
 
   it('has a close button with aria-label', () => {
     render(<ErrorToast error={baseError} onClose={vi.fn()} />);
-    expect(screen.getByLabelText('Close')).toBeInTheDocument();
+    expect(screen.getByLabelText('Kapat')).toBeInTheDocument();
   });
 });
