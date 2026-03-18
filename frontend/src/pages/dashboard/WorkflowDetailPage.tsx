@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useRef, lazy, Suspense } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { StatusBadge } from '../../components/workflow/StatusBadge';
+
 import { StageTimeline } from '../../components/workflow/StageTimeline';
 import { WorkflowChatView } from '../../components/workflow/WorkflowChatView';
 import { FileManager } from '../../components/workflow/FileManager';
@@ -10,22 +10,13 @@ import { MiniPipeline } from '../../components/workflow/MiniPipeline';
 import { GitFlowView } from '../../components/workflow/GitFlowView';
 import { workflowsApi } from '../../services/api/workflows';
 import { usePipelineStream } from '../../hooks/usePipelineStream';
-import { TR } from '../../constants/tr';
+
 import type { Workflow } from '../../types/workflow';
 
 const IDELayout = lazy(() =>
   import('../../components/ide/IDELayout').then((m) => ({ default: m.IDELayout })),
 );
 
-function timeAgo(dateStr: string): string {
-  const diff = Date.now() - new Date(dateStr).getTime();
-  const mins = Math.floor(diff / 60000);
-  if (mins < 1) return 'az önce';
-  if (mins < 60) return `${mins}dk önce`;
-  const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}sa önce`;
-  return `${Math.floor(hrs / 24)}g önce`;
-}
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -44,53 +35,6 @@ type MainView = 'chat' | 'stages' | 'preview';
 // Right panel: files/code only (preview removed)
 type RightPanelView = 'files' | 'code' | null;
 
-function GitContextBar({ owner, repo, branch }: { owner: string; repo: string; branch: string }) {
-  const [copied, setCopied] = useState(false);
-
-  const handleClone = async () => {
-    const cmd = `git clone https://github.com/${owner}/${repo}.git && cd ${repo} && git checkout ${branch}`;
-    try {
-      await navigator.clipboard.writeText(cmd);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2500);
-    } catch { /* noop */ }
-  };
-
-  const compareUrl = `https://github.com/${owner}/${repo}/compare/main...${branch}?expand=1`;
-
-  return (
-    <div className="mt-1.5 flex items-center gap-2 text-[11px]">
-      <code className="flex items-center gap-1 rounded bg-ak-surface-2 px-1.5 py-0.5 font-mono text-ak-text-secondary">
-        &lt;/&gt; {branch}
-      </code>
-      <button
-        onClick={handleClone}
-        className="flex items-center gap-1 rounded px-1.5 py-0.5 font-medium text-ak-text-tertiary transition-colors hover:bg-ak-hover hover:text-ak-text-secondary"
-      >
-        {copied ? `✓ ${TR.copiedLabel}` : `📋 ${TR.cloneRepo}`}
-      </button>
-      <a
-        href={`https://github.com/${owner}/${repo}/tree/${branch}`}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="flex items-center gap-1 rounded px-1.5 py-0.5 font-medium text-ak-text-tertiary transition-colors hover:bg-ak-hover hover:text-ak-text-secondary"
-      >
-        <svg className="h-3 w-3" viewBox="0 0 24 24" fill="currentColor">
-          <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z" />
-        </svg>
-        GitHub
-      </a>
-      <a
-        href={compareUrl}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="flex items-center gap-1 rounded px-1.5 py-0.5 font-medium text-ak-text-tertiary transition-colors hover:bg-ak-hover hover:text-ak-text-secondary"
-      >
-        {TR.createPR}
-      </a>
-    </div>
-  );
-}
 
 export default function WorkflowDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -282,92 +226,88 @@ export default function WorkflowDetailPage() {
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
-      {/* Header */}
-      <div className="flex-shrink-0 border-b border-ak-border bg-ak-surface px-4 py-3">
-        {/* Row 1: Back + Title + Status + Pipeline */}
+      {/* Header — minimal Claude.ai style */}
+      <div className="flex-shrink-0 border-b border-ak-border px-4 py-2.5">
         <div className="flex items-center gap-3">
+          {/* Back button */}
           <button
             onClick={() => navigate('/dashboard/workflows')}
-            className="flex items-center gap-1 text-sm text-ak-text-secondary transition-colors hover:text-ak-text-primary"
+            className="flex items-center justify-center rounded-lg p-1 text-ak-text-tertiary transition-colors hover:bg-ak-hover hover:text-ak-text-primary"
           >
             <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
             </svg>
           </button>
-          <h1 className="min-w-0 flex-1 truncate text-base font-bold text-ak-text-primary">{workflow.title}</h1>
-          <StatusBadge status={workflow.status} />
+
+          {/* Title */}
+          <h1 className="min-w-0 flex-1 truncate text-sm font-semibold text-ak-text-primary">{workflow.title}</h1>
+
+          {/* Mini pipeline progress */}
           <MiniPipeline stages={workflow.stages} />
-          <span className="text-xs text-ak-text-tertiary">{timeAgo(workflow.createdAt)}</span>
-        </div>
 
-        {/* Row 1.5: Repo Context Bar */}
-        {repoInfo && (
-          <GitContextBar owner={repoInfo.owner} repo={repoInfo.repo} branch={repoInfo.branch} />
-        )}
-
-        {/* Row 2: Main tabs (Chat / Aşamalar / Önizleme) + Files button */}
-        <div className="mt-2 flex items-center justify-between">
-          <div className="flex rounded-lg border border-ak-border bg-ak-surface-2 p-0.5">
+          {/* View tabs — compact */}
+          <div className="flex items-center gap-1">
             <button
               onClick={() => setMainView('chat')}
-              className={`rounded-md px-3 py-1 text-xs font-medium transition-colors ${
+              className={`rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
                 mainView === 'chat'
-                  ? 'bg-ak-primary/20 text-ak-primary'
-                  : 'text-ak-text-tertiary hover:text-ak-text-secondary'
+                  ? 'bg-ak-primary/15 text-ak-primary'
+                  : 'text-ak-text-tertiary hover:text-ak-text-secondary hover:bg-ak-hover'
               }`}
             >
-              Sohbet
+              &#128172;
             </button>
             <button
               onClick={() => setMainView('stages')}
-              className={`rounded-md px-3 py-1 text-xs font-medium transition-colors ${
+              className={`rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
                 mainView === 'stages'
-                  ? 'bg-ak-primary/20 text-ak-primary'
-                  : 'text-ak-text-tertiary hover:text-ak-text-secondary'
+                  ? 'bg-ak-primary/15 text-ak-primary'
+                  : 'text-ak-text-tertiary hover:text-ak-text-secondary hover:bg-ak-hover'
               }`}
             >
-              Aşamalar
+              &#128202;
             </button>
             {hasPreview && (
               <button
                 onClick={() => setMainView('preview')}
-                className={`rounded-md px-3 py-1 text-xs font-medium transition-colors ${
+                className={`rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
                   mainView === 'preview'
-                    ? 'bg-ak-primary/20 text-ak-primary'
-                    : 'text-ak-text-tertiary hover:text-ak-text-secondary'
+                    ? 'bg-ak-primary/15 text-ak-primary'
+                    : 'text-ak-text-tertiary hover:text-ak-text-secondary hover:bg-ak-hover'
                 }`}
               >
-                &#9654; Önizleme
+                &#9654;
               </button>
             )}
           </div>
 
-          <div className="flex items-center gap-2">
-            {!ideMode && (
-              <button
-                onClick={toggleFiles}
-                className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
-                  isFilesActive
-                    ? 'border-ak-primary/30 bg-ak-primary/10 text-ak-primary'
-                    : 'border-ak-border text-ak-text-tertiary hover:text-ak-text-secondary hover:border-ak-border-strong'
-                }`}
-              >
-                &#128193; Dosyalar
-              </button>
-            )}
-            {previewFiles && Object.keys(previewFiles).length > 0 && window.innerWidth >= 768 && (
-              <button
-                onClick={() => setIdeMode(!ideMode)}
-                className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
-                  ideMode
-                    ? 'border-ak-primary/30 bg-ak-primary/10 text-ak-primary'
-                    : 'border-ak-border text-ak-text-tertiary hover:text-ak-text-secondary hover:border-ak-border-strong'
-                }`}
-              >
-                {ideMode ? '\u229F Normal' : '\u229E IDE'}
-              </button>
-            )}
-          </div>
+          {/* Files toggle */}
+          {!ideMode && (
+            <button
+              onClick={toggleFiles}
+              className={`rounded-md p-1.5 text-xs transition-colors ${
+                isFilesActive
+                  ? 'bg-ak-primary/15 text-ak-primary'
+                  : 'text-ak-text-tertiary hover:text-ak-text-secondary hover:bg-ak-hover'
+              }`}
+              title="Dosyalar"
+            >
+              &#128193;
+            </button>
+          )}
+          {previewFiles && Object.keys(previewFiles).length > 0 && window.innerWidth >= 768 && (
+            <button
+              onClick={() => setIdeMode(!ideMode)}
+              className={`rounded-md p-1.5 text-xs transition-colors ${
+                ideMode
+                  ? 'bg-ak-primary/15 text-ak-primary'
+                  : 'text-ak-text-tertiary hover:text-ak-text-secondary hover:bg-ak-hover'
+              }`}
+              title={ideMode ? 'Normal görünüm' : 'IDE görünüm'}
+            >
+              {ideMode ? '\u229F' : '\u229E'}
+            </button>
+          )}
         </div>
       </div>
 
@@ -461,20 +401,20 @@ export default function WorkflowDetailPage() {
 
         {/* Right Panel: Files/Code only (no preview) */}
         <div
-          className="flex flex-shrink-0 flex-col overflow-hidden border-l border-ak-border"
+          className="flex flex-shrink-0 flex-col overflow-hidden border-l border-ak-border w-full sm:w-[clamp(320px,40vw,520px)]"
           style={{
-            width: 'clamp(320px, 40vw, 520px)',
             display: rightPanel ? 'flex' : 'none',
           }}
         >
-            {/* Panel header */}
-            <div className="flex flex-shrink-0 items-center gap-1 border-b border-ak-border bg-ak-surface px-3 py-2">
+            {/* Panel header — Claude.ai artifact style */}
+            <div className="flex flex-shrink-0 items-center gap-2 border-b border-ak-border px-3 py-2" style={{ backgroundColor: 'var(--ak-bg-input)' }}>
+              {/* Tab toggles */}
               <button
                 onClick={() => setRightPanel('files')}
-                className={`rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
+                className={`rounded-md px-2 py-1 text-xs font-medium transition-colors ${
                   rightPanel === 'files'
                     ? 'bg-ak-primary/15 text-ak-primary'
-                    : 'text-ak-text-tertiary hover:text-ak-text-secondary hover:bg-ak-hover'
+                    : 'text-ak-text-tertiary hover:text-ak-text-secondary'
                 }`}
               >
                 &#128193; Dosyalar
@@ -483,19 +423,23 @@ export default function WorkflowDetailPage() {
               {selectedFile && (
                 <button
                   onClick={() => setRightPanel('code')}
-                  className={`rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
+                  className={`rounded-md px-2 py-1 text-xs font-medium transition-colors ${
                     rightPanel === 'code'
                       ? 'bg-ak-primary/15 text-ak-primary'
-                      : 'text-ak-text-tertiary hover:text-ak-text-secondary hover:bg-ak-hover'
+                      : 'text-ak-text-tertiary hover:text-ak-text-secondary'
                   }`}
                 >
-                  &#128196; Kod
+                  &lt;/&gt; Kod
                 </button>
               )}
 
-              <div className="flex-1" />
+              {/* File name when code is showing */}
+              {rightPanel === 'code' && selectedFile && (
+                <span className="flex-1 truncate text-xs text-ak-text-secondary font-mono">{selectedFile.split('/').pop()}</span>
+              )}
+              {rightPanel !== 'code' && <div className="flex-1" />}
 
-              {/* Close panel */}
+              {/* Close button */}
               <button
                 onClick={closePanel}
                 className="rounded-md p-1 text-ak-text-tertiary transition-colors hover:bg-ak-hover hover:text-ak-text-primary"

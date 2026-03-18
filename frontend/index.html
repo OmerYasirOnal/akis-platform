@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="tr">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
@@ -12,7 +12,7 @@
     <meta name="apple-mobile-web-app-title" content="AKIS" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="description" content="AKIS Platform - AI Agent Workflow Engine for Software Development" />
-    <title>AKIS Platform</title>
+    <title>AKIS — AI Kod Üretim Platformu</title>
 
     <!-- Fonts: DM Sans + JetBrains Mono -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -40,31 +40,8 @@
     <meta name="twitter:description" content="Autonomous agents for docs, tests, and MVPs. Free beta access." />
     <meta name="twitter:image" content="/brand/twitter-card.png" />
     <script>
-      (function () {
-        const storageKey = "akis:theme";
-        const classNameDark = "dark";
-        const root = document.documentElement;
-
-        try {
-          const stored = window.localStorage.getItem(storageKey);
-          const systemPrefersDark = window.matchMedia &&
-            window.matchMedia("(prefers-color-scheme: dark)").matches;
-          const resolved =
-            stored === "dark" || stored === "light"
-              ? stored
-              : "light";
-
-          root.dataset.theme = resolved;
-          if (resolved === "dark") {
-            root.classList.add(classNameDark);
-          } else {
-            root.classList.remove(classNameDark);
-          }
-        } catch {
-          root.dataset.theme = "dark";
-          root.classList.add(classNameDark);
-        }
-      })();
+      /* Light theme only — no dark mode */
+      document.documentElement.dataset.theme = 'light';
     </script>
     <style>
       /* Prevent flash of unstyled content */
