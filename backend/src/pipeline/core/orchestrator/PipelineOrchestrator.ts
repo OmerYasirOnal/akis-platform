@@ -31,6 +31,7 @@ function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise
 }
 
 const STAGE_TIMEOUT = RETRY_CONFIG.stageTimeoutMs;
+const TRACE_TIMEOUT = RETRY_CONFIG.traceStageTimeoutMs;
 
 // ─── Store Interface ──────────────────────────────
 
@@ -525,7 +526,7 @@ export class PipelineOrchestrator {
         if (attempt > 1) traceEmit('retry', `Trace yeniden deneniyor (deneme ${attempt})...`, 30);
         return withTimeout(
           agents.trace.execute({ repoOwner: owner, repo, branch, spec, pipelineId }),
-          STAGE_TIMEOUT,
+          TRACE_TIMEOUT,
           'Trace',
         );
       },
