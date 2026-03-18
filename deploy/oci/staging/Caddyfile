@@ -52,6 +52,15 @@ staging.akisflow.com {
     }
 
     # =======================================================================
+    # SSE Pipeline Stream → Backend (disable buffering for real-time events)
+    # =======================================================================
+    handle /api/pipelines/*/stream {
+        reverse_proxy backend:3000 {
+            flush_interval -1
+        }
+    }
+
+    # =======================================================================
     # API routes → Backend
     # =======================================================================
     handle /api/* {
