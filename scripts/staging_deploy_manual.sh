@@ -220,7 +220,7 @@ REQUIRED_FILES=(
   "Dockerfile.backend"
   "backend/package.json"
   "backend/tsconfig.json"
-  "pipeline/backend/agents/scribe/ScribeAgent.ts"
+  "backend/src/pipeline/agents/scribe/ScribeAgent.ts"
 )
 
 for file in "${REQUIRED_FILES[@]}"; do
