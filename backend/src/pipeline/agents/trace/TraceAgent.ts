@@ -323,14 +323,16 @@ export class TraceAgent {
 
       let parsed: unknown;
       try {
-        parsed = JSON.parse(this.extractJson(responseText));
-      } catch {
+        const extracted = this.extractJson(responseText);
+        parsed = JSON.parse(extracted);
+      } catch (parseErr) {
+        console.warn(`[Trace] JSON parse failed (attempt ${attempt + 1}, responseLen=${responseText.length}): ${parseErr instanceof Error ? parseErr.message : String(parseErr)}`);
         if (attempt < RETRY_CONFIG.specValidationMaxRetries) continue;
         return {
           type: 'error',
           error: createPipelineError(
             PipelineErrorCode.TRACE_TEST_GENERATION_FAILED,
-            'Invalid JSON from test generation'
+            `Invalid JSON from test generation (len=${responseText.length})`
           ),
         };
       }
@@ -469,16 +471,65 @@ export class TraceAgent {
   }
 
   private extractJson(text: string): string {
+    // Strategy 1: fenced code block
     const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/);
-    if (fenced) return fenced[1].trim();
+    if (fenced) {
+      const candidate = fenced[1].trim();
+      try { JSON.parse(candidate); return candidate; } catch { /* try repair */ }
+      const repaired = this.repairJson(candidate);
+      try { JSON.parse(repaired); return repaired; } catch { /* fall through */ }
+    }
 
+    // Strategy 2: brace extraction
     const braceStart = text.indexOf('{');
     const braceEnd = text.lastIndexOf('}');
     if (braceStart !== -1 && braceEnd > braceStart) {
-      return text.slice(braceStart, braceEnd + 1);
+      const candidate = text.slice(braceStart, braceEnd + 1);
+      try { JSON.parse(candidate); return candidate; } catch { /* try repair */ }
+      const repaired = this.repairJson(candidate);
+      try { JSON.parse(repaired); return repaired; } catch { /* fall through */ }
+    }
+
+    // Strategy 3: find {"testFiles" specifically
+    const testFilesIdx = text.indexOf('{"testFiles"');
+    if (testFilesIdx !== -1) {
+      const fromTestFiles = text.slice(testFilesIdx);
+      const repaired = this.repairJson(fromTestFiles);
+      try { JSON.parse(repaired); return repaired; } catch { /* fall through */ }
     }
 
     return text.trim();
+  }
+
+  /** Attempt to repair truncated JSON by closing open brackets/braces */
+  private repairJson(text: string): string {
+    let s = text.trim();
+    // Remove trailing comma before repair
+    s = s.replace(/,\s*$/, '');
+
+    let openBraces = 0;
+    let openBrackets = 0;
+    let inString = false;
+    let escape = false;
+
+    for (const ch of s) {
+      if (escape) { escape = false; continue; }
+      if (ch === '\\') { escape = true; continue; }
+      if (ch === '"') { inString = !inString; continue; }
+      if (inString) continue;
+      if (ch === '{') openBraces++;
+      if (ch === '}') openBraces--;
+      if (ch === '[') openBrackets++;
+      if (ch === ']') openBrackets--;
+    }
+
+    // If we're inside a string, close it
+    if (inString) s += '"';
+    // Close open brackets then braces
+    while (openBrackets > 0) { s += ']'; openBrackets--; }
+    while (openBraces > 0) { s += '}'; openBraces--; }
+
+    return s;
   }
 
   private delay(ms: number): Promise<void> {

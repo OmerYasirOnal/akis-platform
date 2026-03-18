@@ -154,4 +154,6 @@ export const RETRY_CONFIG = {
   backoffDelays: [5_000, 15_000, 30_000],
   specValidationMaxRetries: 2,
   stageTimeoutMs: 5 * 60 * 1000,
+  /** Trace reads files from GitHub + generates many tests — needs more time */
+  traceStageTimeoutMs: 10 * 60 * 1000,
 } as const;

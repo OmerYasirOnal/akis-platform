@@ -163,7 +163,16 @@ Checklist:
 - [ ] Technical Constraints are specific (not "use modern framework" but "React 18 + Vite")
 
 If any check fails, revise the spec before returning it.
-Record all revisions in "reviewNotes.revisionsApplied".`;
+Record all revisions in "reviewNotes.revisionsApplied".
+
+CONFIDENCE CALCULATION RULES:
+- If the user answered ALL clarification questions: minimum confidence = 0.80
+- If the spec has all 5 sections (Problem Statement, User Stories, Acceptance Criteria, Technical Constraints, Out of Scope): +0.10 bonus
+- If every Acceptance Criterion follows Given/When/Then format: +0.05 bonus
+- Maximum deduction for minor style or formatting issues: -0.05
+- Target confidence range for typical well-defined projects: 0.80-0.95
+- Never output confidence below 0.70 unless there are CRITICAL missing sections
+- A simple but clearly defined project (like a calculator or todo app) should score at least 0.85`;
 
 // ─── AI Response Normalization ───────────────────
 
