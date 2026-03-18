@@ -416,15 +416,15 @@ if [ "$CONFIRM" = true ]; then
   # Create tarballs for efficient transfer
   echo "Creating tarballs..."
 
-  # Repo source tarball (backend + pipeline + Dockerfile.backend + root package.json)
+  # Repo source tarball (backend + Dockerfile.backend + root package.json)
   # deploy.sh on server uses /opt/akis/repo-src/ as Docker build context
-  # Dockerfile.backend needs: backend/ + pipeline/backend/ + root package.json ("type":"module" for ESM)
+  # Dockerfile.backend needs: backend/ + root package.json ("type":"module" for ESM)
+  # Pipeline code is now inside backend/src/pipeline/ (no separate pipeline/ dir)
   tar -czf /tmp/repo-src-$$.tar.gz \
     Dockerfile.backend \
     package.json \
     backend/package.json backend/pnpm-lock.yaml backend/tsconfig.json \
-    backend/drizzle.config.ts backend/src backend/migrations \
-    pipeline/backend
+    backend/drizzle.config.ts backend/src backend/migrations
 
   # Frontend dist tarball
   tar -czf /tmp/frontend-dist-$$.tar.gz -C frontend/dist .
@@ -485,12 +485,12 @@ if [ "$CONFIRM" = true ]; then
 
   echo "✅ Copied frontend dist"
 else
-  echo "[DRY-RUN] Would create tarball: repo-src.tar.gz (backend + pipeline + Dockerfile.backend + root package.json)"
+  echo "[DRY-RUN] Would create tarball: repo-src.tar.gz (backend + Dockerfile.backend + root package.json)"
   echo "[DRY-RUN] Would create tarball: frontend-dist.tar.gz"
   echo "[DRY-RUN] Would copy: deploy.sh → /opt/akis/deploy.sh"
   echo "[DRY-RUN] Would copy: docker-compose.yml → /opt/akis/docker-compose.yml"
   echo "[DRY-RUN] Would copy: Caddyfile → /opt/akis/Caddyfile"
-  echo "[DRY-RUN] Would copy: repo source → /opt/akis/repo-src/ (backend + pipeline)"
+  echo "[DRY-RUN] Would copy: repo source → /opt/akis/repo-src/ (backend)"
   echo "[DRY-RUN] Would copy: frontend dist → /opt/akis/frontend/"
 fi
 
