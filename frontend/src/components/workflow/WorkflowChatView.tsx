@@ -38,13 +38,6 @@ interface WorkflowChatViewProps {
 }
 
 // ═══ Helpers ═══
-function formatTime(timestamp: string): string {
-  try {
-    return new Date(timestamp).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
-  } catch {
-    return '';
-  }
-}
 
 // displayConfidence is now imported from utils/format as formatConfidence
 
@@ -198,11 +191,11 @@ function SpecBlock({
   };
 
   return (
-    <div className="mt-2 rounded-xl border border-ak-border bg-ak-surface">
+    <div className="mt-2 rounded-xl border border-ak-border bg-white">
       {/* Collapsed header — always visible */}
       <button
         onClick={() => setSpecExpanded(!specExpanded)}
-        className="flex w-full items-center justify-between gap-2 p-4 text-left transition-colors hover:bg-ak-hover/50"
+        className="flex w-full items-center justify-between gap-2 p-4 text-left transition-colors hover:bg-gray-50"
       >
         <div className="flex items-center gap-2">
           <svg
@@ -215,17 +208,17 @@ function SpecBlock({
             {TR.structuredSpec}
           </span>
           {confidence != null && (
-            <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-xs font-medium text-emerald-400">
+            <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-600">
               {formatConfidence(confidence)}
             </span>
           )}
           {typeof reviewNotes === 'object' && reviewNotes?.selfReviewPassed && (
-            <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-400">
+            <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-medium text-emerald-600">
               ✓ Self-review
             </span>
           )}
           {assumptions && assumptions.length > 0 && (
-            <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-medium text-amber-400">
+            <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-medium text-amber-600">
               ⚠ {assumptions.length} varsayım
             </span>
           )}
@@ -268,13 +261,13 @@ function SpecBlock({
             <div className="flex rounded-md border border-ak-border bg-ak-surface-2 p-0.5">
               <button
                 onClick={() => setSpecView('preview')}
-                className={`rounded px-2 py-0.5 text-[10px] font-medium transition-colors ${specView === 'preview' ? 'bg-ak-primary/15 text-ak-primary' : 'text-ak-text-tertiary hover:text-ak-text-secondary'}`}
+                className={`rounded px-2 py-0.5 text-[10px] font-medium transition-colors ${specView === 'preview' ? 'bg-emerald-50 text-ak-primary' : 'text-ak-text-tertiary hover:text-ak-text-secondary'}`}
               >
                 {TR.preview}
               </button>
               <button
                 onClick={() => setSpecView('markdown')}
-                className={`rounded px-2 py-0.5 text-[10px] font-medium transition-colors ${specView === 'markdown' ? 'bg-ak-primary/15 text-ak-primary' : 'text-ak-text-tertiary hover:text-ak-text-secondary'}`}
+                className={`rounded px-2 py-0.5 text-[10px] font-medium transition-colors ${specView === 'markdown' ? 'bg-emerald-50 text-ak-primary' : 'text-ak-text-tertiary hover:text-ak-text-secondary'}`}
               >
                 Markdown
               </button>
@@ -617,37 +610,38 @@ function ChatMessage({
     );
   }
 
-  // User messages — right-aligned
+  // User messages — right-aligned with bubble
   if (isUser) {
     return (
-      <div className="flex justify-end">
+      <div className="flex justify-end mb-1">
         <div
-          className="max-w-[80%] rounded-[10px_10px_2px_10px] border border-ak-border bg-ak-surface-2 px-4 py-2.5"
+          className="max-w-[85%] rounded-2xl px-4 py-2.5"
+          style={{ backgroundColor: 'var(--ak-bg-bubble-user)' }}
         >
-          <p className="text-sm text-ak-text-primary whitespace-pre-wrap">{message.content}</p>
-          <p className="mt-1 text-right text-[10px] text-ak-text-tertiary">{formatTime(message.timestamp)}</p>
+          <p className="text-sm text-ak-text-primary whitespace-pre-wrap leading-relaxed">{message.content}</p>
         </div>
       </div>
     );
   }
 
-  // Agent messages — left-aligned with avatar
+  // Agent messages — left-aligned, no bubble (Claude.ai style)
   const agentColors = AGENT_COLORS[message.role] || AGENT_COLORS.system;
 
   return (
-    <div className="flex gap-2.5">
-      <AgentAvatar role={message.role} />
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2 mb-1">
-          <span className={`text-xs font-semibold capitalize ${agentColors.text}`}>{message.role}</span>
-          <span className="text-[10px] text-ak-text-tertiary">{formatTime(message.timestamp)}</span>
-        </div>
-        <p className="text-sm text-ak-text-primary whitespace-pre-wrap">{message.content}</p>
+    <div className="mb-1">
+      {/* Agent header */}
+      <div className="flex items-center gap-2 mb-1.5">
+        <AgentAvatar role={message.role} />
+        <span className={`text-sm font-semibold capitalize ${agentColors.text}`}>{message.role}</span>
+      </div>
+      {/* Message content — plain text, no bubble, indented to match avatar */}
+      <div className="pl-9">
+        <p className="text-sm text-ak-text-primary whitespace-pre-wrap leading-relaxed">{message.content}</p>
 
         {message.type === 'clarification' && (
           wizardActive ? (
             <p className="mt-1.5 text-xs text-ak-text-tertiary">
-              Scribe {message.questions?.length || 0} soru sordu. Asagidan yanitlayin. ↓
+              Scribe {message.questions?.length || 0} soru sordu. Aşağıdan yanıtlayın. ↓
             </p>
           ) : (
             <ClarificationBlock message={message} />
@@ -746,19 +740,19 @@ function ThinkingIndicator({ agentName, hasUserAnswered, sseActivities, sseConne
     : (staticRunningStep?.label || TR.processing);
 
   return (
-    <div className="flex gap-2.5">
-      <AgentAvatar role={agentName} />
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2 mb-1">
-          <span className={`text-xs font-semibold capitalize ${colors.text}`}>{agentName}</span>
-          {hasSSE && (
-            <span className="flex items-center gap-1 text-[10px] text-emerald-400/70">
-              <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              canli
-            </span>
-          )}
-        </div>
-        <div className="rounded-lg border border-ak-border-subtle bg-ak-surface-2 overflow-hidden">
+    <div className="mb-1">
+      <div className="flex items-center gap-2 mb-1.5">
+        <AgentAvatar role={agentName} />
+        <span className={`text-sm font-semibold capitalize ${colors.text}`}>{agentName}</span>
+        {hasSSE && (
+          <span className="flex items-center gap-1 text-[10px] text-emerald-400/70">
+            <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            canli
+          </span>
+        )}
+      </div>
+      <div className="pl-9">
+        <div className="rounded-lg border border-gray-200 bg-gray-50 overflow-hidden">
           {/* Progress bar (SSE only) */}
           {hasSSE && sseProgress !== undefined && sseProgress > 0 && (
             <div className="h-0.5 w-full bg-ak-border-subtle">
@@ -775,7 +769,7 @@ function ThinkingIndicator({ agentName, hasUserAnswered, sseActivities, sseConne
           {/* Toggle header */}
           <button
             onClick={() => setIsOpen(!isOpen)}
-            className="flex w-full items-center gap-2 px-3 py-2 text-left transition-colors hover:bg-ak-hover"
+            className="flex w-full items-center gap-2 px-3 py-2 text-left transition-colors hover:bg-gray-100"
           >
             <span className="flex gap-1">
               <span className="inline-block h-1.5 w-1.5 rounded-full bg-ak-text-tertiary animate-thinking" />
@@ -944,7 +938,7 @@ function PipelineSummaryCard({
     : null;
 
   return (
-    <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-4 space-y-3">
+    <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 space-y-3">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <span className="text-lg">✅</span>
@@ -960,7 +954,7 @@ function PipelineSummaryCard({
 
       <div className="grid grid-cols-3 gap-3">
         {/* Scribe */}
-        <div className="rounded-lg bg-ak-surface p-2.5">
+        <div className="rounded-lg bg-white p-2.5">
           <div className="flex items-center gap-1.5 mb-1">
             <span className="text-xs font-bold text-ak-scribe">Scribe</span>
             {scribeDuration && <span className="text-[10px] text-ak-text-tertiary">⏱ {scribeDuration}</span>}
@@ -972,7 +966,7 @@ function PipelineSummaryCard({
         </div>
 
         {/* Proto */}
-        <div className="rounded-lg bg-ak-surface p-2.5">
+        <div className="rounded-lg bg-white p-2.5">
           <div className="flex items-center gap-1.5 mb-1">
             <span className="text-xs font-bold text-ak-proto">Proto</span>
             {protoDuration && <span className="text-[10px] text-ak-text-tertiary">⏱ {protoDuration}</span>}
@@ -983,7 +977,7 @@ function PipelineSummaryCard({
         </div>
 
         {/* Trace */}
-        <div className="rounded-lg bg-ak-surface p-2.5">
+        <div className="rounded-lg bg-white p-2.5">
           <div className="flex items-center gap-1.5 mb-1">
             <span className="text-xs font-bold text-ak-trace">Trace</span>
             {traceDuration && <span className="text-[10px] text-ak-text-tertiary">⏱ {traceDuration}</span>}
@@ -1076,10 +1070,10 @@ function ErrorRetryBlock({
   };
 
   return (
-    <div className="rounded-xl border border-red-500/20 bg-red-500/5 p-4 space-y-3">
+    <div className="rounded-xl border border-red-200 bg-red-50 p-4 space-y-3">
       <div className="flex items-center gap-2">
         <span className="text-lg">❌</span>
-        <span className="text-sm font-semibold text-red-400">{TR.pipelineFailed}</span>
+        <span className="text-sm font-semibold text-red-600">{TR.pipelineFailed}</span>
       </div>
       <p className="text-sm text-ak-text-secondary">{errorMsg}</p>
       <div className="flex gap-2">
@@ -1191,7 +1185,8 @@ export function WorkflowChatView({ workflow, onSendMessage, onApprove, onReject,
   return (
     <div className="flex h-full flex-col">
       {/* Messages area */}
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
+      <div className="flex-1 overflow-y-auto py-4">
+        <div style={{ maxWidth: 768, margin: '0 auto', padding: '0 24px', width: '100%' }} className="space-y-5">
         {messages.length === 0 && (
           <div className="flex h-full items-center justify-center">
             <p className="text-sm text-ak-text-tertiary">{TR.pipelineStarting}</p>
@@ -1226,6 +1221,7 @@ export function WorkflowChatView({ workflow, onSendMessage, onApprove, onReject,
         {workflow.status === 'failed' && onRetry && (
           <ErrorRetryBlock workflow={workflow} onRetry={onRetry} />
         )}
+        </div>
         <div ref={chatEndRef} />
       </div>
 
@@ -1242,43 +1238,62 @@ export function WorkflowChatView({ workflow, onSendMessage, onApprove, onReject,
           onCancel={() => {/* wizard dismissed, user can type freely */}}
         />
       ) : (
-        /* Input area */
-        <div className="flex-shrink-0 border-t border-ak-border bg-ak-surface px-4 py-3">
-          <div className="flex items-end gap-2">
-            <textarea
-              ref={textareaRef}
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder={placeholder}
-              disabled={inputDisabled || sending}
-              rows={1}
-              className="flex-1 resize-none rounded-lg border border-ak-border bg-ak-surface-2 px-3 py-2 text-sm text-ak-text-primary placeholder:text-ak-text-tertiary focus:border-ak-primary focus:outline-none disabled:opacity-50"
-              style={{ minHeight: '38px', maxHeight: '120px' }}
-            />
-            <button
-              onClick={() => handleSend()}
-              disabled={!input.trim() || inputDisabled || sending}
-              className="flex h-[38px] w-[38px] flex-shrink-0 items-center justify-center rounded-lg bg-ak-primary text-white transition-colors hover:bg-ak-primary/80 disabled:opacity-40 disabled:cursor-not-allowed"
+        /* Input area — Claude.ai style rounded input bar */
+        <div className="flex-shrink-0 px-4 py-3">
+          <div style={{ maxWidth: 768, margin: '0 auto' }}>
+            <div
+              className="rounded-2xl border border-ak-border overflow-hidden"
+              style={{ backgroundColor: 'var(--ak-bg-input)', boxShadow: 'var(--ak-shadow-sm)' }}
             >
-              {sending ? (
-                <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-              ) : (
-                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 10.5L12 3m0 0l7.5 7.5M12 3v18" />
-                </svg>
-              )}
-            </button>
+              {/* Textarea */}
+              <textarea
+                ref={textareaRef}
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder={placeholder}
+                disabled={inputDisabled || sending}
+                rows={1}
+                className="w-full resize-none border-none bg-transparent px-4 pt-3 pb-1 text-sm text-ak-text-primary placeholder:text-ak-text-tertiary focus:outline-none disabled:opacity-50"
+                style={{ minHeight: '24px', maxHeight: '160px' }}
+              />
+              {/* Git context bar — hidden on mobile */}
+              <div className="hidden sm:block">
+                {workflow.stages.proto.status === 'completed' && workflow.stages.proto.branch && (
+                  <GitContextBar
+                    branch={workflow.stages.proto.branch}
+                    repoUrl={messages.find(m => m.protoResult)?.protoResult?.repo}
+                  />
+                )}
+              </div>
+              {/* Bottom bar — model selector + send button */}
+              <div className="flex items-center justify-between px-3 pb-2 pt-1">
+                <div className="flex items-center gap-3">
+                  <select
+                    className="rounded-md bg-transparent px-1 py-0.5 text-xs text-ak-text-tertiary cursor-pointer focus:outline-none"
+                    defaultValue="sonnet"
+                  >
+                    <option value="sonnet">Sonnet 4.6</option>
+                    <option value="haiku">Haiku 4.5</option>
+                  </select>
+                </div>
+                <button
+                  onClick={() => handleSend()}
+                  disabled={!input.trim() || inputDisabled || sending}
+                  className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-ak-primary text-white transition-all hover:bg-ak-primary/80 disabled:opacity-30 disabled:cursor-not-allowed"
+                >
+                  {sending ? (
+                    <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                  ) : (
+                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 10.5L12 3m0 0l7.5 7.5M12 3v18" />
+                    </svg>
+                  )}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
-      )}
-
-      {/* Git context bar — shown when Proto has completed */}
-      {workflow.stages.proto.status === 'completed' && workflow.stages.proto.branch && (
-        <GitContextBar
-          branch={workflow.stages.proto.branch}
-          repoUrl={messages.find(m => m.protoResult)?.protoResult?.repo}
-        />
       )}
     </div>
   );
@@ -1304,7 +1319,7 @@ function GitContextBar({ branch, repoUrl }: { branch: string; repoUrl?: string }
   };
 
   return (
-    <div className="flex-shrink-0 flex items-center gap-2 border-t border-ak-border bg-ak-bg px-4 py-2 overflow-x-auto">
+    <div className="flex items-center gap-2 border-t border-ak-border-subtle px-4 py-2 overflow-x-auto">
       {/* Branch badge */}
       <div className="flex items-center gap-1.5 flex-shrink-0">
         <svg className="h-3.5 w-3.5 text-ak-proto" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>

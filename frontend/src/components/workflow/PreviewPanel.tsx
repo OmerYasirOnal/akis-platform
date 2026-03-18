@@ -105,7 +105,7 @@ export function PreviewPanel({ files, title, loading: externalLoading, branch }:
       } catch (err) {
         if (!cancelled) {
           console.error('Preview error:', err);
-          setError(err instanceof Error ? err.message : 'Preview yüklenemedi');
+          setError(err instanceof Error ? err.message : 'Önizleme yüklenemedi');
           setStatus('error');
         }
       }
@@ -126,7 +126,7 @@ export function PreviewPanel({ files, title, loading: externalLoading, branch }:
       {/* Header */}
       <div className="flex flex-shrink-0 items-center gap-2 border-b border-ak-border px-3 py-2">
         <span className="text-xs">🖥</span>
-        <span className="text-sm font-semibold text-ak-text-primary">Preview</span>
+        <span className="text-sm font-semibold text-ak-text-primary">Önizleme</span>
         <div className="flex-1" />
 
         {/* View toggle */}
@@ -163,7 +163,7 @@ export function PreviewPanel({ files, title, loading: externalLoading, branch }:
               <span className="absolute inset-0 flex items-center justify-center text-xs">⚡</span>
             </div>
             <p className="text-sm font-medium text-ak-text-secondary">
-              {externalLoading ? 'Dosyalar getiriliyor...' : 'Preview başlatılıyor...'}
+              {externalLoading ? 'Dosyalar getiriliyor...' : 'Önizleme başlatılıyor...'}
             </p>
             <p className="text-[10px] text-ak-text-tertiary">
               {externalLoading ? 'Proto dosyaları çekiliyor' : 'StackBlitz WebContainer yükleniyor'}
@@ -184,7 +184,7 @@ export function PreviewPanel({ files, title, loading: externalLoading, branch }:
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
               </svg>
             </div>
-            <p className="text-sm font-medium text-red-400">Preview yüklenemedi</p>
+            <p className="text-sm font-medium text-red-400">Önizleme yüklenemedi</p>
             <p className="text-xs text-ak-text-tertiary">{error}</p>
             <button
               onClick={() => setRetryKey(k => k + 1)}

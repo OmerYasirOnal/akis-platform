@@ -12,6 +12,10 @@ const STATUS_CONFIG: Record<string, { label: string; colorClass: string; dotClas
   cancelled: { label: 'İptal', colorClass: 'text-ak-text-tertiary bg-ak-text-tertiary/10 border-ak-text-tertiary/30' },
   idle: { label: 'Beklemede', colorClass: 'text-ak-text-tertiary bg-ak-text-tertiary/10 border-ak-text-tertiary/30' },
   pending: { label: 'Beklemede', colorClass: 'text-amber-400 bg-amber-400/10 border-amber-400/30' },
+  scribe_clarifying: { label: 'Çalışıyor', colorClass: 'text-amber-400 bg-amber-400/10 border-amber-400/30', dotClass: 'bg-amber-400' },
+  scribe_generating: { label: 'Çalışıyor', colorClass: 'text-amber-400 bg-amber-400/10 border-amber-400/30', dotClass: 'bg-amber-400' },
+  proto_building: { label: 'Çalışıyor', colorClass: 'text-amber-400 bg-amber-400/10 border-amber-400/30', dotClass: 'bg-amber-400' },
+  trace_testing: { label: 'Çalışıyor', colorClass: 'text-amber-400 bg-amber-400/10 border-amber-400/30', dotClass: 'bg-amber-400' },
 };
 
 interface StatusBadgeProps {
@@ -33,7 +37,7 @@ export function StatusBadge({ status, size = 'normal', className }: StatusBadgeP
         className,
       )}
     >
-      {status === 'running' && cfg.dotClass && (
+      {cfg.dotClass && (
         <span className={cn('h-1.5 w-1.5 rounded-full animate-pulse', cfg.dotClass)} />
       )}
       {status === 'completed' && <span>&#10003;</span>}

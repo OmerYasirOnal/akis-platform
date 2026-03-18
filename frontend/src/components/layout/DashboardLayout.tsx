@@ -89,7 +89,7 @@ export function DashboardLayout() {
         <div className="flex flex-shrink-0 items-center gap-3 border-b border-ak-border bg-ak-surface px-4 py-3 lg:hidden">
           <button
             onClick={() => setSidebarOpen(true)}
-            className="rounded-lg p-1.5 text-ak-text-secondary transition-colors hover:bg-white/[0.06] hover:text-ak-text-primary"
+            className="rounded-lg p-1.5 text-ak-text-secondary transition-colors hover:bg-black/[0.04] hover:text-ak-text-primary"
             aria-label="Open menu"
           >
             <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>

@@ -155,7 +155,7 @@ export default function NewWorkflowPage() {
                 className={`group relative flex flex-col items-start rounded-xl border p-3 text-left transition-all duration-150 ${
                   model === opt.value
                     ? 'border-ak-primary bg-ak-primary/5 ring-1 ring-ak-primary/30'
-                    : 'border-ak-border bg-ak-bg hover:border-ak-border-strong hover:bg-white/[0.02]'
+                    : 'border-ak-border bg-ak-bg hover:border-ak-border-strong hover:bg-black/[0.02]'
                 }`}
               >
                 <div className="flex w-full items-center justify-between">

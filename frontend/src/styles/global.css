@@ -1,51 +1,36 @@
-:root,
-[data-theme='dark'] {
-  color-scheme: dark;
-  --ak-bg: var(--ak-color-bg-dark);
-  --ak-surface: var(--ak-color-surface-dark);
-  --ak-surface-2: var(--ak-color-surface-2-dark);
-  --ak-surface-3: var(--ak-color-surface-3-dark);
-  --ak-text-primary: var(--ak-color-text-primary-dark);
-  --ak-text-secondary: var(--ak-color-text-secondary-dark);
-  --ak-border: var(--ak-color-border-dark);
-  --ak-primary: var(--ak-color-primary);
-  --ak-on-primary: #071a17;
-  --ak-primary-soft: var(--ak-color-primary-soft);
-  --ak-danger: var(--ak-color-danger);
-  --ak-text-tertiary: var(--ak-color-text-tertiary-dark);
-  --ak-border-subtle: rgba(255, 255, 255, 0.04);
-  --ak-border-default: rgba(255, 255, 255, 0.08);
-  --ak-border-strong: rgba(255, 255, 255, 0.14);
-  --ak-hover-surface: rgba(255, 255, 255, 0.03);
-  --ak-active-surface: rgba(255, 255, 255, 0.06);
-}
-
-[data-theme='light'] {
+:root {
   color-scheme: light;
-  --ak-bg: var(--ak-color-bg-light);
-  --ak-surface: var(--ak-color-surface-light);
-  --ak-surface-2: var(--ak-color-surface-2-light);
-  --ak-surface-3: var(--ak-color-surface-3-light);
-  --ak-text-primary: var(--ak-color-text-primary-light);
-  --ak-text-secondary: var(--ak-color-text-secondary-light);
-  --ak-border: var(--ak-color-border-light);
+  --ak-bg: #ffffff;
+  --ak-surface: #f8f9fa;
+  --ak-surface-2: #f1f3f5;
+  --ak-surface-3: #e9ecef;
+  --ak-text-primary: #1f2937;
+  --ak-text-secondary: #6b7280;
+  --ak-border: #e5e7eb;
   --ak-primary: var(--ak-color-primary);
   --ak-on-primary: #082019;
   --ak-primary-soft: rgba(7, 209, 175, 0.12);
   --ak-danger: var(--ak-color-danger);
-  --ak-text-tertiary: var(--ak-color-text-tertiary-light);
+  --ak-text-tertiary: #9ca3af;
   --ak-border-subtle: rgba(0, 0, 0, 0.04);
   --ak-border-default: rgba(0, 0, 0, 0.08);
   --ak-border-strong: rgba(0, 0, 0, 0.14);
   --ak-hover-surface: rgba(0, 0, 0, 0.02);
   --ak-active-surface: rgba(0, 0, 0, 0.04);
-  /* Softer elevations for light mode */
-  --ak-elevation-1: var(--ak-elevation-1-light);
-  --ak-elevation-2: var(--ak-elevation-2-light);
-  --ak-elevation-3: var(--ak-elevation-3-light);
-  /* Glow effects for light mode (subtler) */
+  /* Light mode elevations */
+  --ak-elevation-1: 0 1px 2px rgba(31, 35, 40, 0.04);
+  --ak-elevation-2: 0 1px 3px rgba(31, 35, 40, 0.06), 0 4px 12px rgba(31, 35, 40, 0.04);
+  --ak-elevation-3: 0 2px 6px rgba(31, 35, 40, 0.06), 0 8px 24px rgba(31, 35, 40, 0.06);
   --ak-glow-accent: 0 0 20px rgba(7, 209, 175, 0.15);
   --ak-glow-subtle: 0 0 12px rgba(7, 209, 175, 0.08);
+  /* Claude.ai layout tokens */
+  --ak-bg-sidebar: #f9fafb;
+  --ak-bg-chat: #ffffff;
+  --ak-bg-input: #f9fafb;
+  --ak-bg-bubble-user: #f3f4f6;
+  --ak-bg-panel: #ffffff;
+  --ak-shadow-sm: 0 1px 3px rgba(0,0,0,0.06);
+  --ak-shadow-md: 0 4px 16px rgba(0,0,0,0.08);
 }
 
 html,
@@ -66,12 +51,6 @@ body {
   transition: background-color var(--transition-base, 200ms), color var(--transition-base, 200ms);
 }
 
-/* Light mode subtle gradient adjustment (on #f6f8fa canvas) */
-[data-theme='light'] body {
-  background-image:
-    radial-gradient(ellipse 80% 50% at 50% -10%, rgba(7, 209, 175, 0.03), transparent 70%),
-    radial-gradient(ellipse 60% 40% at 100% 100%, rgba(7, 209, 175, 0.02), transparent 50%);
-}
 
 h1, h2, h3, h4, h5, h6 {
   font-family: var(--font-heading, var(--font-body));

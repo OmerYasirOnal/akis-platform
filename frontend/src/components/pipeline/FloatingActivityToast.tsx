@@ -67,8 +67,8 @@ export function FloatingActivityToast({
     activity?.step === 'complete' || activity?.step === 'pipeline_complete';
   const message =
     isComplete
-      ? 'Tamamlandi'
-      : activity?.message || (pipelineStatus === 'completed' ? 'Pipeline tamamlandi' : 'Calisiyor...');
+      ? 'Tamamlandı'
+      : activity?.message || (pipelineStatus === 'completed' ? 'Pipeline tamamlandı' : 'Çalışıyor...');
   const progress = activity?.progress || 0;
 
   const handleDismiss = (e: React.MouseEvent) => {
@@ -112,18 +112,18 @@ export function FloatingActivityToast({
         <div
           className="rounded-2xl border px-5 py-3 relative"
           style={{
-            background: 'rgba(15, 15, 15, 0.75)',
+            background: 'rgba(255, 255, 255, 0.88)',
             backdropFilter: 'blur(12px)',
             WebkitBackdropFilter: 'blur(12px)',
-            borderColor: 'rgba(255, 255, 255, 0.08)',
+            borderColor: 'rgba(0, 0, 0, 0.08)',
             boxShadow:
-              '0 8px 32px rgba(0, 0, 0, 0.25), 0 2px 8px rgba(0, 0, 0, 0.15), inset 0 1px 0 rgba(255,255,255,0.04)',
+              '0 8px 32px rgba(0, 0, 0, 0.08), 0 2px 8px rgba(0, 0, 0, 0.04)',
           }}
         >
           {/* Dismiss button */}
           <button
             onClick={handleDismiss}
-            className="absolute top-1.5 right-2.5 text-white/20 hover:text-white/50 transition-colors text-sm leading-none"
+            className="absolute top-1.5 right-2.5 text-gray-400 hover:text-gray-600 transition-colors text-sm leading-none"
             aria-label="Kapat"
           >
             &times;
@@ -153,10 +153,10 @@ export function FloatingActivityToast({
               {label}
             </span>
 
-            <span className="text-white/20 text-[13px]">&middot;</span>
+            <span className="text-gray-400 text-[13px]">&middot;</span>
 
             {/* Message */}
-            <span className="text-[13px] text-white/70 truncate flex-1">
+            <span className="text-[13px] text-gray-600 truncate flex-1">
               {message}
             </span>
           </div>
@@ -165,7 +165,7 @@ export function FloatingActivityToast({
           {progress > 0 && !isComplete && (
             <div
               className="mt-2 h-[3px] rounded-full overflow-hidden"
-              style={{ background: 'rgba(255, 255, 255, 0.06)' }}
+              style={{ background: 'rgba(0, 0, 0, 0.06)' }}
             >
               <div
                 className="h-full rounded-full transition-all duration-500 ease-out"

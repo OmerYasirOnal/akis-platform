@@ -1,8 +1,9 @@
-import { NavLink, useLocation, useNavigate } from 'react-router-dom';
+import { NavLink, Link, useLocation, useNavigate } from 'react-router-dom';
 import { cn } from '../../utils/cn';
 import { useEffect, useState } from 'react';
 import { workflowsApi } from '../../services/api/workflows';
 import { AuthAPI } from '../../services/api/auth';
+import type { Workflow, WorkflowStatus } from '../../types/workflow';
 
 const HomeIcon = () => (
   <svg className="h-[18px] w-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
@@ -35,6 +36,25 @@ const LogoutIcon = () => (
   </svg>
 );
 
+const PlusIcon = () => (
+  <svg className="h-[18px] w-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+  </svg>
+);
+
+function statusDotColor(status: WorkflowStatus): string {
+  switch (status) {
+    case 'completed':
+    case 'completed_partial':
+      return 'bg-emerald-400';
+    case 'failed':
+    case 'cancelled':
+      return 'bg-red-400';
+    default:
+      return 'bg-amber-400';
+  }
+}
+
 interface NavItem {
   to: string;
   label: string;
@@ -53,6 +73,7 @@ export function DashboardSidebar({ onClose, collapsed: controlledCollapsed, onTo
   const location = useLocation();
   const navigate = useNavigate();
   const [workflowCount, setWorkflowCount] = useState(0);
+  const [recentWorkflows, setRecentWorkflows] = useState<Workflow[]>([]);
   const [loggingOut, setLoggingOut] = useState(false);
   const [internalCollapsed, setInternalCollapsed] = useState(false);
 
@@ -62,7 +83,13 @@ export function DashboardSidebar({ onClose, collapsed: controlledCollapsed, onTo
 
   useEffect(() => {
     workflowsApi.list()
-      .then(wfs => setWorkflowCount(wfs.length))
+      .then(wfs => {
+        setWorkflowCount(wfs.length);
+        const sorted = [...wfs].sort((a, b) =>
+          new Date(b.updatedAt ?? b.createdAt).getTime() - new Date(a.updatedAt ?? a.createdAt).getTime()
+        );
+        setRecentWorkflows(sorted.slice(0, 5));
+      })
       .catch(() => {});
   }, []);
 
@@ -92,15 +119,15 @@ export function DashboardSidebar({ onClose, collapsed: controlledCollapsed, onTo
             'flex items-center rounded-lg text-[13px] font-medium transition-all duration-150',
             collapsed ? 'justify-center px-0 py-2' : 'gap-2.5 px-3 py-2',
             isActive
-              ? 'bg-white/[0.06] text-ak-text-primary'
-              : 'text-ak-text-secondary hover:bg-white/[0.03] hover:text-ak-text-primary'
+              ? 'bg-gray-100 font-semibold text-ak-text-primary'
+              : 'text-ak-text-secondary hover:bg-gray-100 hover:text-ak-text-primary'
           )
         }
       >
         <span className="flex-shrink-0">{item.icon}</span>
         {!collapsed && <span className="flex-1 truncate">{item.label}</span>}
         {!collapsed && item.badge !== undefined && item.badge > 0 && (
-          <span className="rounded-md bg-white/[0.08] px-1.5 py-0.5 text-[10px] font-medium text-ak-text-secondary">
+          <span className="rounded-md bg-gray-100 px-1.5 py-0.5 text-[10px] font-medium text-ak-text-secondary">
             {item.badge}
           </span>
         )}
@@ -110,7 +137,7 @@ export function DashboardSidebar({ onClose, collapsed: controlledCollapsed, onTo
 
   return (
     <div
-      className="flex h-full flex-col border-r border-ak-border bg-ak-surface overflow-y-auto overflow-x-hidden transition-[width] duration-200 ease-out"
+      className="flex h-full flex-col border-r border-ak-border bg-[var(--ak-bg-sidebar)] overflow-y-auto overflow-x-hidden transition-[width] duration-200 ease-out"
       style={{ width: collapsed ? 64 : 230 }}
     >
       {/* Logo + close button */}
@@ -130,7 +157,7 @@ export function DashboardSidebar({ onClose, collapsed: controlledCollapsed, onTo
         {!collapsed && onClose && (
           <button
             onClick={onClose}
-            className="rounded-lg p-1 text-ak-text-tertiary transition-colors hover:bg-white/[0.06] hover:text-ak-text-primary lg:hidden"
+            className="rounded-lg p-1 text-ak-text-tertiary transition-colors hover:bg-gray-100 hover:text-ak-text-primary lg:hidden"
             aria-label="Menüyü kapat"
           >
             <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
@@ -138,6 +165,21 @@ export function DashboardSidebar({ onClose, collapsed: controlledCollapsed, onTo
             </svg>
           </button>
         )}
+      </div>
+
+      {/* New Workflow button */}
+      <div className="px-3 pb-2">
+        <Link
+          to="/dashboard/workflows/new"
+          title={collapsed ? 'Yeni İş Akışı' : undefined}
+          className={cn(
+            'flex items-center rounded-lg border border-dashed border-gray-300 text-[13px] font-medium text-ak-text-secondary transition-all duration-150 hover:border-emerald-400 hover:text-ak-primary hover:bg-gray-50',
+            collapsed ? 'justify-center px-0 py-2' : 'gap-2 px-3 py-2'
+          )}
+        >
+          <PlusIcon />
+          {!collapsed && <span>Yeni İş Akışı</span>}
+        </Link>
       </div>
 
       {/* Main Navigation */}
@@ -152,6 +194,29 @@ export function DashboardSidebar({ onClose, collapsed: controlledCollapsed, onTo
         <ul className="space-y-0.5">
           {bottomNav.map(renderNavItem)}
         </ul>
+
+        {/* Recent Workflows */}
+        {!collapsed && recentWorkflows.length > 0 && (
+          <>
+            <div className="mx-3 my-3 border-t border-ak-border-subtle" />
+            <p className="px-3 pb-1.5 text-[10px] font-semibold uppercase tracking-widest text-ak-text-tertiary">
+              Son İş Akışları
+            </p>
+            <ul className="space-y-0.5">
+              {recentWorkflows.map(wf => (
+                <li key={wf.id}>
+                  <Link
+                    to={`/dashboard/workflows/${wf.id}`}
+                    className="flex items-center gap-2 rounded-lg px-3 py-1.5 text-[12px] text-ak-text-secondary transition-colors hover:bg-gray-50 hover:text-ak-text-primary"
+                  >
+                    <span className={cn('h-1.5 w-1.5 flex-shrink-0 rounded-full', statusDotColor(wf.status))} />
+                    <span className="truncate">{wf.title || 'Adsız İş Akışı'}</span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
       </nav>
 
       {/* Footer */}
@@ -180,7 +245,7 @@ export function DashboardSidebar({ onClose, collapsed: controlledCollapsed, onTo
         <button
           onClick={toggleCollapse}
           className={cn(
-            'hidden lg:flex w-full items-center rounded-lg text-[13px] font-medium text-ak-text-tertiary transition-all duration-150 hover:bg-white/[0.03] hover:text-ak-text-secondary',
+            'hidden lg:flex w-full items-center rounded-lg text-[13px] font-medium text-ak-text-tertiary transition-all duration-150 hover:bg-gray-100 hover:text-ak-text-secondary',
             collapsed ? 'justify-center py-2 px-0' : 'gap-2.5 px-3 py-2'
           )}
           title={collapsed ? 'Kenar çubuğunu genişlet' : 'Kenar çubuğunu daralt'}
