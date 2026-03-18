@@ -18,7 +18,7 @@ export function ErrorToast({ error, onClose }: ErrorToastProps) {
       <div className="flex items-start justify-between">
         <div className="flex-1">
           <h3 className="text-xs font-semibold uppercase tracking-[0.2em] text-ak-text-secondary/80">
-            Error
+            Hata
           </h3>
           <p className="mt-2 text-sm text-ak-text-primary">{error.message}</p>
           {error.code ? (
@@ -33,7 +33,7 @@ export function ErrorToast({ error, onClose }: ErrorToastProps) {
         <button
           onClick={onClose}
           className="ml-4 text-ak-text-secondary transition-colors hover:text-ak-text-primary"
-          aria-label="Close"
+          aria-label="Kapat"
         >
           ×
         </button>
