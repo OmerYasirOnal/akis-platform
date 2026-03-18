@@ -1,5 +1,5 @@
 # AKIS Backend Dockerfile — Staging/Production
-# Multi-stage build that includes pipeline/ agent code
+# Pipeline code lives at backend/src/pipeline/ (consolidated)
 # Build context: REPO ROOT (not backend/)
 #
 # Usage:
@@ -14,7 +14,7 @@ RUN apk add --no-cache python3 make g++ wget
 RUN npm install -g pnpm@9
 
 # Recreate repo structure for TypeScript compilation
-# tsconfig rootDir=".." and includes "../pipeline/backend/**/*"
+# tsconfig rootDir=".." preserves dist/backend/src/ output path
 WORKDIR /build/backend
 
 # Copy package files first (for layer caching)
@@ -27,23 +27,14 @@ RUN pnpm install --frozen-lockfile
 COPY backend/tsconfig.json ./
 COPY backend/drizzle.config.ts ./
 
-# Copy backend source
+# Copy backend source (includes pipeline code at src/pipeline/)
 COPY backend/src ./src
 
-# Copy pipeline backend source (agents, orchestrator, adapters)
-COPY pipeline/backend /build/pipeline/backend
-
-# Copy root package.json for "type": "module" — ensures tsc compiles
-# pipeline/backend/ as ESM (not CJS). Without this, NodeNext module
-# resolution falls back to CJS for files outside backend/.
+# Copy root package.json for "type": "module" — rootDir=".." needs this
+# at /build/package.json so Node.js ESM resolution works correctly.
 COPY package.json /build/package.json
 
-# Node module resolution: pipeline code imports from 'zod' etc.
-# Since node_modules is at /build/backend/node_modules, create a symlink
-# at /build/node_modules so resolution walks up from /build/pipeline/ and finds it.
-RUN ln -s /build/backend/node_modules /build/node_modules
-
-# Build TypeScript — output goes to dist/backend/src/ and dist/pipeline/backend/
+# Build TypeScript — output goes to dist/backend/src/
 RUN pnpm run build
 
 # Remove devDependencies
@@ -74,7 +65,7 @@ RUN addgroup -g 1001 -S akis && \
 WORKDIR /app
 
 # Copy built files from builder
-# dist/ contains: backend/src/ (compiled backend) + pipeline/backend/ (compiled pipeline)
+# dist/ contains: backend/src/ (compiled backend + pipeline)
 COPY --from=builder --chown=akis:akis /build/backend/dist ./dist
 COPY --from=builder --chown=akis:akis /build/backend/node_modules ./node_modules
 COPY --from=builder --chown=akis:akis /build/backend/package.json ./
