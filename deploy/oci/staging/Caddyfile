@@ -95,7 +95,7 @@ staging.akisflow.com {
     }
 
     # GET-only backend API endpoints under /auth/
-    @auth_get_api path /auth/me /auth/health
+    @auth_get_api path /auth/me /auth/health /auth/profile /auth/invite/*
     handle @auth_get_api {
         reverse_proxy backend:3000
     }
