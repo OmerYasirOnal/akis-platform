@@ -1,0 +1,136 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.app-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2rem;
+}
+
+.app-header {
+  text-align: center;
+  color: #ffffff;
+}
+
+.app-title {
+  font-size: 2.5rem;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-shadow: 0 2px 8px rgba(0,0,0,0.2);
+}
+
+.app-subtitle {
+  font-size: 1rem;
+  opacity: 0.85;
+  margin-top: 0.4rem;
+}
+
+.app-main {
+  display: flex;
+  justify-content: center;
+}
+
+.counter-card {
+  background: #ffffff;
+  border-radius: 24px;
+  padding: 3rem 4rem;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.25);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2rem;
+}
+
+.counter-display {
+  font-size: 6rem;
+  font-weight: 800;
+  color: #4a3f8f;
+  min-width: 160px;
+  text-align: center;
+  line-height: 1;
+  transition: transform 0.1s ease;
+}
+
+.counter-display.bump {
+  transform: scale(1.15);
+}
+
+.counter-label {
+  font-size: 0.9rem;
+  color: #999;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  margin-top: -1.5rem;
+}
+
+.counter-buttons {
+  display: flex;
+  gap: 1.5rem;
+}
+
+.btn {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  border: none;
+  font-size: 2rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  outline: none;
+}
+
+.btn:active {
+  transform: scale(0.92);
+}
+
+.btn-increment {
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: #ffffff;
+  box-shadow: 0 6px 20px rgba(102,126,234,0.5);
+}
+
+.btn-increment:hover {
+  box-shadow: 0 8px 28px rgba(102,126,234,0.7);
+  transform: translateY(-2px);
+}
+
+.btn-decrement {
+  background: linear-gradient(135deg, #f093fb, #f5576c);
+  color: #ffffff;
+  box-shadow: 0 6px 20px rgba(245,87,108,0.4);
+}
+
+.btn-decrement:hover {
+  box-shadow: 0 8px 28px rgba(245,87,108,0.6);
+  transform: translateY(-2px);
+}
+
+.counter-reset {
+  background: none;
+  border: 2px solid #ddd;
+  color: #aaa;
+  padding: 0.4rem 1.2rem;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: border-color 0.2s, color 0.2s;
+}
+
+.counter-reset:hover {
+  border-color: #999;
+  color: #666;
+}
