@@ -37,6 +37,7 @@ import { adminRoutes } from './api/admin.js';
 import { githubRoutes } from './api/github.js';
 import { pipelinePlugin } from './pipeline/api/pipeline.plugin.js';
 import { pipelineStreamPlugin } from './pipeline/api/pipeline-stream.plugin.js';
+import { devSessionPlugin } from './pipeline/api/dev-session.plugin.js';
 import { createPipelineOrchestrator, type GitHubServiceLike } from './pipeline/core/pipeline-factory.js';
 import { createGitHubRESTAdapter, getGitHubOwnerViaREST } from './pipeline/adapters/GitHubRESTAdapter.js';
 import { pushLog } from './lib/logBuffer.js';
@@ -327,6 +328,16 @@ export async function buildApp() {
   );
   await app.register(
     async (instance) => pipelineStreamPlugin(instance, { requireAuth, devUserId }),
+    { prefix: '/api/pipelines' },
+  );
+  await app.register(
+    async (instance) => devSessionPlugin(instance, {
+      aiService,
+      githubToken: hasRealGitHubToken ? env.GITHUB_TOKEN! : null,
+      orchestrator: pipelineOrchestrator,
+      requireAuth,
+      devUserId,
+    }),
     { prefix: '/api/pipelines' },
   );
 

@@ -1651,3 +1651,58 @@ export const pipelines = pgTable('pipelines', {
 
 export type Pipeline = typeof pipelines.$inferSelect;
 export type NewPipeline = typeof pipelines.$inferInsert;
+
+// ============================================================================
+// Dev Mode (Post-Pipeline Development Chat)
+// ============================================================================
+
+export const devSessionStatusEnum = pgEnum('dev_session_status', [
+  'active', 'paused', 'closed',
+]);
+
+export const devChangeStatusEnum = pgEnum('dev_change_status', [
+  'pending', 'approved', 'pushed', 'rejected',
+]);
+
+export const devSessions = pgTable('dev_sessions', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  pipelineId: uuid('pipeline_id').notNull(), // references pipelines in orchestrator's in-memory store
+
+  // Pipeline'dan miras alınan context
+  repoOwner: text('repo_owner').notNull(),
+  repoName: text('repo_name').notNull(),
+  branch: text('branch').notNull(),
+  specSnapshot: jsonb('spec_snapshot'),
+  initialFileTree: jsonb('initial_file_tree'),
+
+  // Session durumu
+  status: devSessionStatusEnum('status').notNull().default('active'),
+  totalCommits: integer('total_commits').notNull().default(0),
+
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  pipelineIdx: index('idx_dev_sessions_pipeline').on(table.pipelineId),
+}));
+
+export const devMessages = pgTable('dev_messages', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  sessionId: uuid('session_id').notNull().references(() => devSessions.id, { onDelete: 'cascade' }),
+
+  role: text('role').notNull(), // 'user' | 'assistant'
+  content: text('content').notNull(),
+
+  // Agent'ın ürettiği dosya değişiklikleri (sadece assistant mesajlarında)
+  fileChanges: jsonb('file_changes'),
+  changeStatus: devChangeStatusEnum('change_status'),
+  commitSha: text('commit_sha'),
+
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  sessionIdx: index('idx_dev_messages_session').on(table.sessionId),
+}));
+
+export type DevSession = typeof devSessions.$inferSelect;
+export type NewDevSession = typeof devSessions.$inferInsert;
+export type DevMessage = typeof devMessages.$inferSelect;
+export type NewDevMessage = typeof devMessages.$inferInsert;

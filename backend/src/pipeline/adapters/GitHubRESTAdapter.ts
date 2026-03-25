@@ -164,3 +164,121 @@ export async function getGitHubOwnerViaREST(token: string): Promise<string> {
   const user = await ghFetch<{ login: string }>(token, 'GET', '/user');
   return user.login;
 }
+
+// ─── Dev Mode Extensions ──────────────────────────
+
+import type { FileChange, FileTreeNode } from '../../types/dev-session.js';
+
+/**
+ * Fetch full file tree as structured FileTreeNode[] (for DevAgent context).
+ */
+export async function getFileTreeViaREST(
+  token: string,
+  owner: string,
+  repo: string,
+  branch: string,
+): Promise<FileTreeNode[]> {
+  const tree = await ghFetch<{
+    tree: Array<{ path: string; type: string; size?: number }>;
+    truncated: boolean;
+  }>(token, 'GET', `/repos/${owner}/${repo}/git/trees/${branch}?recursive=1`);
+
+  const flatFiles: Array<{ path: string; size?: number }> = tree.tree
+    .filter((item) => item.type === 'blob')
+    .filter((item) => !item.path.includes('node_modules/') && !item.path.includes('.git/') && !item.path.includes('dist/'))
+    .map((item) => ({ path: item.path, size: item.size }));
+
+  return buildTreeStructure(flatFiles);
+}
+
+function buildTreeStructure(flatFiles: Array<{ path: string; size?: number }>): FileTreeNode[] {
+  const root: FileTreeNode[] = [];
+  const dirs = new Map<string, FileTreeNode>();
+
+  for (const file of flatFiles) {
+    const parts = file.path.split('/');
+
+    if (parts.length === 1) {
+      root.push({ path: file.path, type: 'file', size: file.size });
+    } else {
+      let currentPath = '';
+      let currentLevel = root;
+
+      for (let i = 0; i < parts.length - 1; i++) {
+        currentPath = currentPath ? `${currentPath}/${parts[i]}` : parts[i];
+
+        if (!dirs.has(currentPath)) {
+          const dir: FileTreeNode = { path: parts[i], type: 'dir', children: [] };
+          dirs.set(currentPath, dir);
+          currentLevel.push(dir);
+        }
+
+        currentLevel = dirs.get(currentPath)!.children!;
+      }
+
+      currentLevel.push({ path: parts[parts.length - 1], type: 'file', size: file.size });
+    }
+  }
+
+  return root;
+}
+
+/**
+ * Push multiple file changes as a single commit (tree API).
+ * Used by DevAgent push flow.
+ */
+export async function pushChangesViaREST(
+  token: string,
+  owner: string,
+  repo: string,
+  branch: string,
+  changes: FileChange[],
+  commitMessage: string,
+): Promise<string> {
+  // 1. Get latest commit SHA on branch
+  const refData = await ghFetch<{ object: { sha: string } }>(
+    token, 'GET', `/repos/${owner}/${repo}/git/ref/heads/${branch}`,
+  );
+  const latestCommitSha = refData.object.sha;
+
+  // 2. Get the tree SHA from that commit
+  const commitData = await ghFetch<{ tree: { sha: string } }>(
+    token, 'GET', `/repos/${owner}/${repo}/git/commits/${latestCommitSha}`,
+  );
+  const baseTreeSha = commitData.tree.sha;
+
+  // 3. Create blobs for create/modify, collect tree items
+  const treeItems: Array<{ path: string; mode: string; type: string; sha: string | null }> = [];
+
+  for (const change of changes) {
+    if (change.action === 'delete') {
+      treeItems.push({ path: change.path, mode: '100644', type: 'blob', sha: null });
+    } else {
+      const blob = await ghFetch<{ sha: string }>(
+        token, 'POST', `/repos/${owner}/${repo}/git/blobs`,
+        { content: change.content || '', encoding: 'utf-8' },
+      );
+      treeItems.push({ path: change.path, mode: '100644', type: 'blob', sha: blob.sha });
+    }
+  }
+
+  // 4. Create new tree
+  const newTree = await ghFetch<{ sha: string }>(
+    token, 'POST', `/repos/${owner}/${repo}/git/trees`,
+    { base_tree: baseTreeSha, tree: treeItems },
+  );
+
+  // 5. Create commit
+  const newCommit = await ghFetch<{ sha: string }>(
+    token, 'POST', `/repos/${owner}/${repo}/git/commits`,
+    { message: commitMessage, tree: newTree.sha, parents: [latestCommitSha] },
+  );
+
+  // 6. Update branch ref
+  await ghFetch(
+    token, 'PATCH', `/repos/${owner}/${repo}/git/refs/heads/${branch}`,
+    { sha: newCommit.sha },
+  );
+
+  return newCommit.sha;
+}
