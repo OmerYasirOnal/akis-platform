@@ -8,6 +8,7 @@ import { CodeViewer } from '../../components/workflow/CodeViewer';
 import { PreviewPanel } from '../../components/workflow/PreviewPanel';
 import { MiniPipeline } from '../../components/workflow/MiniPipeline';
 import { GitFlowView } from '../../components/workflow/GitFlowView';
+import { DevChatPanel } from '../../components/dev/DevChatPanel';
 import { workflowsApi } from '../../services/api/workflows';
 import { usePipelineStream } from '../../hooks/usePipelineStream';
 
@@ -30,8 +31,8 @@ function getRepoInfo(workflow: Workflow): { owner: string; repo: string; branch:
   return { owner: 'OmerYasirOnal', repo, branch };
 }
 
-// Main area: chat | stages | preview (preview is now a tab, NOT a right panel)
-type MainView = 'chat' | 'stages' | 'preview';
+// Main area: chat | stages | preview | dev
+type MainView = 'chat' | 'stages' | 'preview' | 'dev';
 // Right panel: files/code only (preview removed)
 type RightPanelView = 'files' | 'code' | null;
 
@@ -222,6 +223,7 @@ export default function WorkflowDetailPage() {
 
   const repoInfo = getRepoInfo(workflow);
   const hasPreview = workflow.stages.proto.status === 'completed' && !!repoInfo;
+  const isPipelineCompleted = workflow.status === 'completed' || workflow.status === 'completed_partial';
   const isFilesActive = rightPanel === 'files' || rightPanel === 'code';
 
   return (
@@ -277,6 +279,19 @@ export default function WorkflowDetailPage() {
                 }`}
               >
                 &#9654;
+              </button>
+            )}
+            {isPipelineCompleted && (
+              <button
+                onClick={() => setMainView('dev')}
+                className={`rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
+                  mainView === 'dev'
+                    ? 'bg-ak-primary/15 text-ak-primary'
+                    : 'text-ak-text-tertiary hover:text-ak-text-secondary hover:bg-ak-hover'
+                }`}
+                title="Dev Mode"
+              >
+                &#9889;
               </button>
             )}
           </div>
@@ -397,6 +412,14 @@ export default function WorkflowDetailPage() {
               branch={repoInfo?.branch}
             />
           </div>
+
+          {/* Dev Mode Chat */}
+          {mainView === 'dev' && (
+            <DevChatPanel
+              pipelineId={workflow.id}
+              isCompleted={isPipelineCompleted}
+            />
+          )}
         </div>
 
         {/* Right Panel: Files/Code only (no preview) */}
