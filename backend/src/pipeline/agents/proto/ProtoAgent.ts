@@ -367,11 +367,9 @@ export class ProtoAgent {
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
 
-      if (msg.includes('already exists') || msg.includes('name already exists')) {
-        return {
-          type: 'error',
-          error: createPipelineError(PipelineErrorCode.GITHUB_REPO_EXISTS, msg),
-        };
+      if (msg.includes('already exists') || msg.includes('name already exists') || msg.includes('422')) {
+        // Repo already exists — this is fine, proceed to branch creation
+        return { type: 'output' };
       }
       if (msg.includes('permission') || msg.includes('forbidden') || msg.includes('403')) {
         return {
