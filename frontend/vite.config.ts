@@ -55,7 +55,7 @@ export default defineConfig({
   define: {
     __BUILD_TIME__: JSON.stringify(new Date().toISOString()),
     __GIT_SHA__: JSON.stringify(getGitSha()),
-    __APP_VERSION__: JSON.stringify('0.1.0'),
+    __APP_VERSION__: JSON.stringify('0.2.0'),
   },
   build: {
     rollupOptions: {

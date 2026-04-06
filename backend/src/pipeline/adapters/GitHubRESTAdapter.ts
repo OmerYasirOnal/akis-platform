@@ -53,11 +53,29 @@ async function ghFetch<T>(
   return (await res.json()) as T;
 }
 
+// ─── AKIS Platform Repo Guard ────────────────────
+const BLOCKED_PLATFORM_REPOS = [
+  'akis-platform-devolopment',
+  'akis-platform-development',
+];
+
+function validateTargetRepo(repoFullName: string): void {
+  const repoName = repoFullName.split('/').pop()?.toLowerCase() || '';
+  if (BLOCKED_PLATFORM_REPOS.some((pattern) => repoName.includes(pattern))) {
+    throw new Error(
+      `Target repository "${repoFullName}" is the AKIS platform repo. ` +
+      `Pipeline outputs must be pushed to a separate repository. ` +
+      `Please specify a different target repository.`,
+    );
+  }
+}
+
 export function createGitHubRESTAdapter(opts: GitHubRESTAdapterOptions): GitHubServiceLike {
   const { token } = opts;
 
   return {
     async createRepository(_owner: string, name: string, isPrivate: boolean): Promise<{ url: string }> {
+      validateTargetRepo(name);
       const result = await ghFetch<{ html_url: string }>(token, 'POST', '/user/repos', {
         name,
         description: `AKIS Pipeline scaffold — ${name}`,
@@ -235,6 +253,8 @@ export async function pushChangesViaREST(
   changes: FileChange[],
   commitMessage: string,
 ): Promise<string> {
+  validateTargetRepo(`${owner}/${repo}`);
+
   // 1. Get latest commit SHA on branch
   const refData = await ghFetch<{ object: { sha: string } }>(
     token, 'GET', `/repos/${owner}/${repo}/git/ref/heads/${branch}`,

@@ -18,6 +18,17 @@ const MODEL_OPTIONS = [
 
 type RepoMode = 'select' | 'manual' | 'create';
 
+const BLOCKED_REPOS = [
+  'omeryasironal/akis-platform-devolopment',
+  'omeryasironal/akis-platform-development',
+];
+
+function isBlockedRepo(repo: string): boolean {
+  return BLOCKED_REPOS.some(
+    (blocked) => repo.trim().toLowerCase() === blocked.toLowerCase(),
+  );
+}
+
 export default function NewWorkflowPage() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -42,9 +53,11 @@ export default function NewWorkflowPage() {
     githubApi
       .listRepos()
       .then((data) => {
-        setRepos(data.repos || []);
-        if (data.repos?.length > 0) {
-          setTargetRepo(data.repos[0].fullName);
+        const allRepos = data.repos || [];
+        const safeRepos = allRepos.filter((r) => !isBlockedRepo(r.fullName));
+        setRepos(safeRepos);
+        if (safeRepos.length > 0) {
+          setTargetRepo(safeRepos[0].fullName);
         } else {
           setRepoMode('manual');
         }
@@ -250,7 +263,7 @@ export default function NewWorkflowPage() {
               type="text"
               value={targetRepo}
               onChange={(e) => setTargetRepo(e.target.value)}
-              placeholder="owner/repo-name"
+              placeholder="kullaniciadi/proje-adi (AKIS reposu kullanılamaz)"
               className="w-full rounded-xl border border-ak-border bg-ak-bg px-4 py-2.5 font-mono text-body text-ak-text-primary placeholder-ak-text-tertiary transition-all duration-150 focus:border-ak-primary focus:outline-none focus:ring-2 focus:ring-ak-primary/20"
             />
           ) : (
@@ -276,6 +289,11 @@ export default function NewWorkflowPage() {
               {' '}sayfasından GitHub bağlantınızı yapın.
             </p>
           )}
+          {isBlockedRepo(targetRepo) && (
+            <p className="mt-1.5 text-micro text-red-400">
+              AKIS platform reposuna push yapılamaz. Lütfen farklı bir repo belirtin.
+            </p>
+          )}
         </div>
 
         {error && (
@@ -294,7 +312,7 @@ export default function NewWorkflowPage() {
           </button>
           <button
             type="submit"
-            disabled={submitting || !idea.trim()}
+            disabled={submitting || !idea.trim() || isBlockedRepo(targetRepo)}
             className="rounded-lg bg-ak-primary px-5 py-2.5 text-body font-semibold text-[#0a1215] shadow-ak-glow-sm transition-all duration-150 hover:shadow-ak-glow hover:-translate-y-px disabled:opacity-50 disabled:shadow-none disabled:hover:translate-y-0"
           >
             {submitting ? 'Başlatılıyor...' : TR.startWorkflow}

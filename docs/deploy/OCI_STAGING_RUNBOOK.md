@@ -558,7 +558,7 @@ docker build \
   --no-cache \
   --build-arg BUILD_COMMIT="${COMMIT_SHA}" \
   --build-arg BUILD_TIME="${BUILD_TIME}" \
-  --build-arg APP_VERSION="0.1.0" \
+  --build-arg APP_VERSION="0.2.0" \
   -t ghcr.io/.../akis-backend:${COMMIT_SHA} \
   -t ghcr.io/.../akis-backend:staging \
   .

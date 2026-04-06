@@ -110,7 +110,7 @@ if [ "$PULL_SUCCESS" = "false" ]; then
         -f "$DOCKERFILE" \
         --build-arg BUILD_COMMIT="${BACKEND_VERSION}" \
         --build-arg BUILD_TIME="${BUILD_TIME}" \
-        --build-arg APP_VERSION="0.1.0" \
+        --build-arg APP_VERSION="0.2.0" \
         -t "${BACKEND_IMAGE}:${BACKEND_VERSION}" \
         -t "${BACKEND_IMAGE}:staging" \
         . 2>&1; then

@@ -8,7 +8,7 @@ import { checkMcpHealth } from '../services/mcp/health.js';
 
 // Build info - set at Docker build time via ARG/ENV
 const BUILD_INFO = {
-  version: process.env.npm_package_version || process.env.APP_VERSION || '0.1.0',
+  version: process.env.npm_package_version || process.env.APP_VERSION || '0.2.0',
   commit: process.env.BUILD_COMMIT || process.env.GIT_COMMIT || 'unknown',
   buildTime: process.env.BUILD_TIME || 'unknown',
   environment: process.env.NODE_ENV || 'development',
@@ -248,7 +248,7 @@ export async function healthRoutes(fastify: FastifyInstance) {
           200: {
             type: 'object',
             properties: {
-              version: { type: 'string', example: '0.1.0' },
+              version: { type: 'string', example: '0.2.0' },
               name: { type: 'string', example: 'akis-backend' },
               commit: { type: 'string', example: 'abc1234' },
               buildTime: { type: 'string', example: '2026-01-09T12:00:00.000Z' },
