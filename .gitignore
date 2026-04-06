@@ -204,3 +204,5 @@ demo-screenshots/
 .github/ISSUE_TEMPLATE/
 .github/PULL_REQUEST_TEMPLATE.md
 .github/workflows/trace-agent.yml
+frontend/public/brand/TEMP_NOTES.md
+frontend/package-lock.json
