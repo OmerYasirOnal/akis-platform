@@ -177,3 +177,18 @@ scripts/generate_planning_spreadsheet.py
 scripts/test-*.sh
 scripts/akis-pr-autoflow.sh
 scripts/public-repo/
+
+# ─── Staging/Deploy (yerel kalır, GitHub'da olmaz) ───
+deploy/
+Caddyfile
+docker-compose.dev.yml
+docker-compose.fullstack.yml
+.env.docker.example
+*.Dockerfile.dev
+backend/Dockerfile.dev
+frontend/Dockerfile.dev
+docs/deploy/
+docs/ENV_PRODUCTION.md
+.github/workflows/oci-staging-deploy.yml
+.github/workflows/deploy-prod.yml
+.github/workflows/nightly-smoke.yml
