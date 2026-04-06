@@ -55,7 +55,7 @@ async function ghFetch<T>(
 
 // ─── AKIS Platform Repo Guard ────────────────────
 const BLOCKED_PLATFORM_REPOS = [
-  'akis-platform-devolopment',
+  'akis-platform',
   'akis-platform-development',
 ];
 

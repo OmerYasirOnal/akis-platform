@@ -211,8 +211,8 @@ devagents/
 
 ```bash
 # Klonla
-git clone https://github.com/OmerYasirOnal/akis-platform-devolopment.git
-cd akis-platform-devolopment
+git clone https://github.com/OmerYasirOnal/akis-platform.git
+cd akis-platform
 
 # Veritabanını başlat
 ./scripts/db-up.sh

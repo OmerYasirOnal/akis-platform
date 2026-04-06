@@ -7,9 +7,9 @@ import { createGitHubMCPAdapter } from '../../src/pipeline/adapters/GitHubMCPAda
 describe('AKIS Platform Repo Guard — REST Adapter', () => {
   const adapter = createGitHubRESTAdapter({ token: 'fake-token' });
 
-  it('should throw for akis-platform-devolopment repo', async () => {
+  it('should throw for akis-platform repo', async () => {
     await assert.rejects(
-      () => adapter.createRepository('OmerYasirOnal', 'akis-platform-devolopment', true),
+      () => adapter.createRepository('OmerYasirOnal', 'akis-platform', true),
       (err: Error) => {
         assert.ok(err.message.includes('AKIS platform repo'));
         return true;
@@ -55,9 +55,9 @@ describe('AKIS Platform Repo Guard — MCP Adapter', () => {
   };
   const adapter = createGitHubMCPAdapter(mockMcp);
 
-  it('should throw for akis-platform-devolopment repo', async () => {
+  it('should throw for akis-platform repo', async () => {
     await assert.rejects(
-      () => adapter.createRepository('OmerYasirOnal', 'akis-platform-devolopment', true),
+      () => adapter.createRepository('OmerYasirOnal', 'akis-platform', true),
       (err: Error) => {
         assert.ok(err.message.includes('AKIS platform repo'));
         return true;

@@ -19,7 +19,7 @@ const MODEL_OPTIONS = [
 type RepoMode = 'select' | 'manual' | 'create';
 
 const BLOCKED_REPOS = [
-  'omeryasironal/akis-platform-devolopment',
+  'omeryasironal/akis-platform',
   'omeryasironal/akis-platform-development',
 ];
 
