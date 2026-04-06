@@ -128,3 +128,24 @@ staging-screenshots/
 piri/
 /ide/
 carreer_assistant/
+
+# ─── Kaldırılan dizinler (tekrar eklenmemeli) ───
+mcp-gateway/
+scripts/hand-cursor/
+scripts/voice-cursor/
+demo-videos/
+docs/academic/
+docs/_archive/
+.cursor/
+.codex/
+e2e-demo/
+devops/
+
+# ─── Tez/planlama dokümanları ───
+*.docx
+AKIS_*_FOR_CLAUDE_CODE.md
+
+# ─── MCP eski dosyalar ───
+env.mcp.local.example
+docker-compose.mcp.yml
+playwright.demo.config.ts
