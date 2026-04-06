@@ -26,7 +26,7 @@ describe('Health route contracts', () => {
     test('version response has all required fields', () => {
       // Simulate BUILD_INFO + startTime
       const response = {
-        version: process.env.npm_package_version || process.env.APP_VERSION || '0.1.0',
+        version: process.env.npm_package_version || process.env.APP_VERSION || '0.2.0',
         commit: process.env.BUILD_COMMIT || process.env.GIT_COMMIT || 'unknown',
         buildTime: process.env.BUILD_TIME || 'unknown',
         environment: process.env.NODE_ENV || 'development',
@@ -42,8 +42,8 @@ describe('Health route contracts', () => {
       assert.ok(!isNaN(Date.parse(response.startTime)));
     });
 
-    test('version defaults to 0.1.0 when env is not set', () => {
-      const version = process.env.npm_package_version || process.env.APP_VERSION || '0.1.0';
+    test('version defaults to 0.2.0 when env is not set', () => {
+      const version = process.env.npm_package_version || process.env.APP_VERSION || '0.2.0';
       assert.ok(typeof version === 'string');
       assert.ok(version.length > 0);
     });

@@ -259,7 +259,7 @@ export function DashboardSidebar({ onClose, collapsed: controlledCollapsed, onTo
         {/* Version + status */}
         {!collapsed && (
           <div className="flex items-center justify-between px-3">
-            <span className="text-micro text-ak-text-tertiary">AKIS v0.1.0</span>
+            <span className="text-micro text-ak-text-tertiary">AKIS v0.2.0</span>
             <div className="flex items-center gap-1" title="Tüm ajanlar aktif">
               <span className="h-1.5 w-1.5 rounded-full bg-ak-scribe" />
               <span className="h-1.5 w-1.5 rounded-full bg-ak-proto" />

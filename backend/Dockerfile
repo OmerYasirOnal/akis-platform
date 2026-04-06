@@ -40,7 +40,7 @@ FROM node:20-alpine AS production
 # Build arguments for version info
 ARG BUILD_COMMIT=unknown
 ARG BUILD_TIME=unknown
-ARG APP_VERSION=0.1.0
+ARG APP_VERSION=0.2.0
 
 # Set environment variables for build info
 ENV BUILD_COMMIT=${BUILD_COMMIT}

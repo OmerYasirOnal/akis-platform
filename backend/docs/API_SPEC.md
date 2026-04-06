@@ -6,7 +6,7 @@
 > kapsar. Ajan işleri, kullanıcı yönetimi, OAuth akışları, webhook'lar ve dashboard metrikleri
 > dahildir. Tüm teknik detaylar aşağıdaki İngilizce içerikte yer almaktadır.
 
-**Version**: 0.1.0  
+**Version**: 0.2.0  
 **Base URL**: `http://localhost:3000`
 
 ## Table of Contents
@@ -59,7 +59,7 @@ Returns application version from package.json.
 **Response**:
 ```json
 {
-  "version": "0.1.0"
+  "version": "0.2.0"
 }
 ```
 

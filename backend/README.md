@@ -150,7 +150,7 @@ See [GitHub MCP Setup Guide](../docs/GITHUB_MCP_SETUP.md) for details.
 ### Health Checks
 - `GET /health` → `{ "status": "ok" }`
 - `GET /ready` → `{ "ready": true }` (checks DB)
-- `GET /version` → `{ "version": "0.1.0" }`
+- `GET /version` → `{ "version": "0.2.0" }`
 
 ### Agent Jobs
 ```bash

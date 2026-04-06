@@ -8,6 +8,23 @@ export interface GitHubMCPAdapterDeps {
   callToolRaw<T>(toolName: string, args: Record<string, unknown>): Promise<T>;
 }
 
+// ─── AKIS Platform Repo Guard ────────────────────
+const BLOCKED_PLATFORM_REPOS = [
+  'akis-platform-devolopment',
+  'akis-platform-development',
+];
+
+function validateTargetRepo(repoFullName: string): void {
+  const repoName = repoFullName.split('/').pop()?.toLowerCase() || '';
+  if (BLOCKED_PLATFORM_REPOS.some((pattern) => repoName.includes(pattern))) {
+    throw new Error(
+      `Target repository "${repoFullName}" is the AKIS platform repo. ` +
+      `Pipeline outputs must be pushed to a separate repository. ` +
+      `Please specify a different target repository.`,
+    );
+  }
+}
+
 /**
  * Adapter that wraps a GitHubMCPService (or anything with callToolRaw) into
  * the GitHubServiceLike interface used by the pipeline factory.
@@ -15,6 +32,7 @@ export interface GitHubMCPAdapterDeps {
 export function createGitHubMCPAdapter(mcp: GitHubMCPAdapterDeps): GitHubServiceLike {
   return {
     async createRepository(owner: string, name: string, isPrivate: boolean): Promise<{ url: string }> {
+      validateTargetRepo(name);
       const result = await mcp.callToolRaw<{ html_url?: string; clone_url?: string }>('create_repository', {
         name,
         description: `AKIS Pipeline scaffold — ${name}`,

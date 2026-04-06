@@ -220,7 +220,7 @@ export async function buildApp() {
       info: {
         title: 'AKIS Platform API',
         description: 'AI Agent Workflow Engine API',
-        version: '0.1.0',
+        version: '0.2.0',
       },
       servers: [
         {

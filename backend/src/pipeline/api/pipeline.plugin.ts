@@ -7,6 +7,17 @@ import { createPipelineRoutes } from './pipeline.routes.js';
 import type { PipelineOrchestrator } from '../core/orchestrator/PipelineOrchestrator.js';
 import { ZodError } from 'zod';
 
+// ─── AKIS Platform Repo Guard ────────────────────
+const BLOCKED_PLATFORM_REPOS = [
+  'akis-platform-devolopment',
+  'akis-platform-development',
+];
+
+function isBlockedPlatformRepo(repoName: string): boolean {
+  const name = repoName.trim().toLowerCase();
+  return BLOCKED_PLATFORM_REPOS.some((blocked) => name.includes(blocked));
+}
+
 export interface PipelinePluginOptions {
   orchestrator: PipelineOrchestrator;
   requireAuth: (request: FastifyRequest) => Promise<{ id: string }>;
@@ -93,7 +104,18 @@ export async function pipelinePlugin(
   });
 
   // POST /api/pipelines/:id/approve — approve spec
-  fastify.post('/:id/approve', { preHandler: authPreHandler }, async (request: FastifyRequest) => {
+  fastify.post('/:id/approve', { preHandler: authPreHandler }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const body = (request as unknown as { body: Record<string, unknown> }).body;
+    const repoName = typeof body?.repoName === 'string' ? body.repoName : '';
+    if (isBlockedPlatformRepo(repoName)) {
+      return reply.code(400).send({
+        error: {
+          code: 'BLOCKED_TARGET_REPO',
+          message: 'AKIS platform reposuna pipeline çıktısı gönderilemez. Farklı bir hedef repo belirtin.',
+        },
+        requestId: request.id,
+      });
+    }
     return routes.approveSpec(request);
   });
 

@@ -12,8 +12,9 @@ import { z } from 'zod';
 // Get backend directory (where .env files are located)
 const backendDir = resolve(import.meta.dirname, '../../');
 
-// Load .env first (base defaults)
-loadEnv({ path: resolve(backendDir, '.env') });
+// Load .env first — override: true ensures .env values take precedence
+// over inherited shell environment (e.g., Claude Desktop sets NODE_ENV=production)
+loadEnv({ path: resolve(backendDir, '.env'), override: true });
 
 // Load .env.local second (local overrides) - this WILL override .env values
 loadEnv({ path: resolve(backendDir, '.env.local'), override: true });
