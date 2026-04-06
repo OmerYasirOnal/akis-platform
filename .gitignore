@@ -192,3 +192,12 @@ docs/ENV_PRODUCTION.md
 .github/workflows/oci-staging-deploy.yml
 .github/workflows/deploy-prod.yml
 .github/workflows/nightly-smoke.yml
+
+# ─── İç geliştirme dosyaları (GitHub'da olmaz) ───
+.claude/
+CLAUDE.md
+Makefile
+.cursorignore
+.editorconfig
+.dockerignore
+demo-screenshots/
