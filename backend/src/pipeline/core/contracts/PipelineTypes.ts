@@ -48,8 +48,19 @@ export interface ReviewNotes {
   assumptionsMade?: string[];
 }
 
+export interface UserFriendlyPlan {
+  projectName: string;
+  summary: string;
+  features: Array<{ name: string; description: string }>;
+  techChoices: string[];
+  estimatedFiles: number;
+  requiresTests: boolean;
+  testRationale?: string;
+}
+
 export interface ScribeOutput {
   spec: StructuredSpec;
+  plan: UserFriendlyPlan;
   rawMarkdown: string;
   confidence: number;
   clarificationsAsked: number;
@@ -134,6 +145,7 @@ export type PipelineStage =
   | 'awaiting_approval'
   | 'proto_building'
   | 'trace_testing'
+  | 'ci_running'
   | 'completed'
   | 'completed_partial'
   | 'failed'
@@ -171,6 +183,7 @@ export interface PipelineState {
   approvedSpec?: StructuredSpec;
   protoOutput?: ProtoOutput;
   traceOutput?: TraceOutput;
+  ciResult?: { ok: boolean; runId: number; status: string; conclusion: string | null; htmlUrl: string };
   protoConfig?: { repoName: string; repoVisibility: 'public' | 'private' };
 
   metrics: PipelineMetrics;

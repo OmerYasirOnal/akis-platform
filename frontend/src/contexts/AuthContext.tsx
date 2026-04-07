@@ -4,6 +4,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from 'react';
@@ -30,7 +31,7 @@ const AuthContext = createContext<AuthContextValue>({
   setUser: () => {},
 });
 
-const AUTH_REQUIRED_PREFIXES = ['/dashboard', '/agents', '/pipeline'];
+const AUTH_REQUIRED_PREFIXES = ['/dashboard', '/agents', '/pipeline', '/chat', '/settings'];
 
 function requiresAuthResolve(pathname: string): boolean {
   return AUTH_REQUIRED_PREFIXES.some((prefix) => pathname.startsWith(prefix));
@@ -48,7 +49,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
+  // Auth check — only on initial load or when navigating to a protected route
+  // for the first time. Once authenticated, don't re-check on every pathname change.
+  const resolvedRef = useRef(false);
+
   useEffect(() => {
+    // Already resolved — skip re-check on route changes
+    if (resolvedRef.current) {
+      setLoading(false);
+      return;
+    }
+
     if (!requiresAuthResolve(location.pathname)) {
       setLoading(false);
       return;
@@ -61,11 +72,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .then((currentUser) => {
         if (active) {
           setUser(mapUser(currentUser));
+          resolvedRef.current = true;
         }
       })
       .catch(() => {
         if (active) {
           setUser(null);
+          resolvedRef.current = true;
         }
       })
       .finally(() => {
@@ -77,6 +90,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => {
       active = false;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.pathname, mapUser]);
 
   const login = useCallback(
@@ -98,6 +112,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = useCallback(async () => {
     await AuthAPI.logout();
     setUser(null);
+    resolvedRef.current = false;
   }, []);
 
   const setUserWrapped = useCallback((nextUser: AuthUser | null) => {

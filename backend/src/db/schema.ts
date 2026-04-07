@@ -1623,7 +1623,7 @@ export type NewFeedback = typeof feedback.$inferInsert;
 
 export const pipelineStageEnum = pgEnum('pipeline_stage', [
   'scribe_clarifying', 'scribe_generating', 'awaiting_approval',
-  'proto_building', 'trace_testing',
+  'proto_building', 'trace_testing', 'ci_running',
   'completed', 'completed_partial', 'failed', 'cancelled',
 ]);
 

@@ -22,13 +22,16 @@ const InviteAccept = lazy(() => import('./pages/auth/InviteAccept'));
 const LegalTermsPage = lazy(() => import('./pages/legal/LegalTermsPage'));
 const LegalPrivacyPage = lazy(() => import('./pages/legal/LegalPrivacyPage'));
 
-// Dashboard pages — lazy
+// Chat — primary page
+const ChatPage = lazy(() => import('./pages/chat/ChatPage'));
+
+// Dashboard pages — kept for backward compatibility
 const OverviewPage = lazy(() => import('./pages/dashboard/OverviewPage'));
 const WorkflowsPage = lazy(() => import('./pages/dashboard/WorkflowsPage'));
 const WorkflowDetailPage = lazy(() => import('./pages/dashboard/WorkflowDetailPage'));
 const NewWorkflowPage = lazy(() => import('./pages/dashboard/NewWorkflowPage'));
-const AgentsPage = lazy(() => import('./pages/dashboard/AgentsPage'));
-const SettingsPage = lazy(() => import('./pages/dashboard/SettingsPage'));
+const AgentsPage = lazy(() => import('./pages/agents/AgentsPage'));
+const SettingsPage = lazy(() => import('./pages/settings/SettingsPage'));
 
 const PageLoader = () => (
   <div className="flex min-h-[200px] items-center justify-center">
@@ -47,8 +50,8 @@ function App() {
     <BrowserRouter>
       <AuthProvider>
         <Routes>
-          {/* Root redirects to dashboard */}
-          <Route index element={<Navigate to="/dashboard" replace />} />
+          {/* Root redirects to chat */}
+          <Route index element={<Navigate to="/chat" replace />} />
 
           {/* Public Routes */}
           <Route element={<AppShell />}>
@@ -72,7 +75,35 @@ function App() {
             </Route>
           </Route>
 
-          {/* Dashboard Routes */}
+          {/* Chat Route — single mount, no remount on chat switch */}
+          <Route
+            path="/chat/*"
+            element={
+              <ProtectedRoute>
+                <Suspense fallback={<PageLoader />}><ChatPage /></Suspense>
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Agents & Settings — standalone protected pages */}
+          <Route
+            path="/agents"
+            element={
+              <ProtectedRoute>
+                <Suspense fallback={<PageLoader />}><AgentsPage /></Suspense>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/settings"
+            element={
+              <ProtectedRoute>
+                <Suspense fallback={<PageLoader />}><SettingsPage /></Suspense>
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Legacy Dashboard Routes — kept for backward compatibility */}
           <Route
             path="/dashboard"
             element={
@@ -89,8 +120,8 @@ function App() {
             <Route path="settings" element={<Suspense fallback={<PageLoader />}><SettingsPage /></Suspense>} />
           </Route>
 
-          {/* Catch-all → dashboard */}
-          <Route path="*" element={<Navigate to="/dashboard" replace />} />
+          {/* Catch-all → chat */}
+          <Route path="*" element={<Navigate to="/chat" replace />} />
         </Routes>
         <ToastContainer />
         <PWAInstallPrompt />

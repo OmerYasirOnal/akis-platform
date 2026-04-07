@@ -119,6 +119,7 @@ export interface GitHubServiceLike {
   createRepository(owner: string, name: string, isPrivate: boolean): Promise<{ url: string }>;
   createBranch(owner: string, repo: string, branch: string, fromBranch?: string): Promise<void>;
   commitFile(owner: string, repo: string, branch: string, filePath: string, content: string, message: string): Promise<void>;
+  pushFiles?(owner: string, repo: string, branch: string, files: Array<{ path: string; content: string }>, message: string): Promise<void>;
   createPR(owner: string, repo: string, title: string, body: string, head: string, base: string): Promise<{ url: string }>;
   listFiles(owner: string, repo: string, branch: string): Promise<string[]>;
   getFileContent(owner: string, repo: string, branch: string, filePath: string): Promise<string>;
@@ -130,6 +131,9 @@ function createProtoGitHubDeps(github: GitHubServiceLike): ProtoGitHubDeps {
     createBranch: (owner, repo, branch, fromBranch) => github.createBranch(owner, repo, branch, fromBranch),
     commitFile: (owner, repo, branch, filePath, content, message) =>
       github.commitFile(owner, repo, branch, filePath, content, message),
+    pushFiles: github.pushFiles
+      ? (owner, repo, branch, files, message) => github.pushFiles!(owner, repo, branch, files, message)
+      : undefined,
     createPR: (owner, repo, title, body, head, base) =>
       github.createPR(owner, repo, title, body, head, base),
   };

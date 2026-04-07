@@ -268,13 +268,33 @@ export async function buildApp() {
   await app.register(githubRoutes, { prefix: '/api/github' });
 
   // Pipeline routes (Scribe → Proto → Trace pipeline)
-  // Priority: 1) REST API (GITHUB_TOKEN — no infra dependency), 2) Stub
+  // Priority: 1) MCP Gateway (if available), 2) REST API, 3) Stub
   let pipelineGitHubService: GitHubServiceLike;
   let pipelineGetGitHubOwner: (userId: string) => Promise<string>;
 
   const hasRealGitHubToken = env.GITHUB_TOKEN && !env.GITHUB_TOKEN.startsWith('<') && env.GITHUB_TOKEN.length > 10;
-  if (hasRealGitHubToken) {
-    // Direct REST API — works without MCP Gateway
+  const hasMCPGateway = !!(env.GITHUB_MCP_BASE_URL && hasRealGitHubToken);
+
+  if (hasMCPGateway) {
+    // MCP Gateway — standardized tool protocol
+    const mcpService = new GitHubMCPService({
+      baseUrl: env.GITHUB_MCP_BASE_URL!,
+      token: env.GITHUB_TOKEN!,
+      correlationId: 'pipeline',
+    });
+    const { createGitHubMCPAdapter } = await import('./pipeline/adapters/GitHubMCPAdapter.js');
+    pipelineGitHubService = createGitHubMCPAdapter(mcpService);
+    const ghToken = env.GITHUB_TOKEN!;
+    pipelineGetGitHubOwner = async () => {
+      try {
+        return await getGitHubOwnerViaREST(ghToken);
+      } catch {
+        return 'unknown';
+      }
+    };
+    console.log(`[buildApp] Pipeline GitHub: MCP Gateway (${env.GITHUB_MCP_BASE_URL})`);
+  } else if (hasRealGitHubToken) {
+    // Fallback: Direct REST API — works without MCP Gateway
     pipelineGitHubService = createGitHubRESTAdapter({ token: env.GITHUB_TOKEN! });
     const ghToken = env.GITHUB_TOKEN!;
     pipelineGetGitHubOwner = async () => {
@@ -284,7 +304,7 @@ export async function buildApp() {
         return 'unknown';
       }
     };
-    console.log('[buildApp] Pipeline GitHub: REAL (REST API)');
+    console.log('[buildApp] Pipeline GitHub: REST API (set GITHUB_MCP_BASE_URL for MCP)');
   } else {
     // Option 3: No token — stub mode
     pipelineGitHubService = {
@@ -299,10 +319,16 @@ export async function buildApp() {
     console.log('[buildApp] Pipeline GitHub: STUB (set GITHUB_TOKEN for real push)');
   }
 
+  // PostgreSQL pipeline store (replaces InMemoryPipelineStore)
+  const { DrizzlePipelineStore } = await import('./pipeline/db/DrizzlePipelineStore.js');
+  const { db: drizzleDb } = await import('./db/client.js');
+  const pipelineStore = new DrizzlePipelineStore(drizzleDb);
+
   const pipelineOrchestrator = createPipelineOrchestrator({
     aiService,
     githubService: pipelineGitHubService,
     getGitHubOwner: pipelineGetGitHubOwner,
+    store: pipelineStore,
   });
   // Resolve dev user for DEV_MODE auth bypass
   let devUserId: string | undefined;

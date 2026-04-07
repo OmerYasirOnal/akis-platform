@@ -28,6 +28,13 @@ export interface ProtoGitHubDeps {
     content: string,
     message: string
   ): Promise<void>;
+  pushFiles?(
+    owner: string,
+    repo: string,
+    branch: string,
+    files: Array<{ path: string; content: string }>,
+    message: string
+  ): Promise<void>;
   createPR(
     owner: string,
     repo: string,
@@ -399,15 +406,24 @@ export class ProtoAgent {
   ): Promise<{ type: 'output' } | { type: 'error'; error: PipelineError }> {
     for (let attempt = 0; attempt <= RETRY_CONFIG.maxRetries; attempt++) {
       try {
-        for (const file of files) {
-          await this.github.commitFile(
+        if (this.github.pushFiles) {
+          // Batch push — single atomic commit via Git Tree API
+          await this.github.pushFiles(
             owner,
             repo,
             branch,
-            file.filePath,
-            file.content,
-            `feat: add ${file.filePath}`
+            files.map((f) => ({ path: f.filePath, content: f.content })),
+            `feat: initial scaffold (${files.length} files)`,
           );
+        } else {
+          // Fallback: per-file commits (legacy adapters)
+          for (const file of files) {
+            await this.github.commitFile(
+              owner, repo, branch,
+              file.filePath, file.content,
+              `feat: add ${file.filePath}`,
+            );
+          }
         }
         return { type: 'output' };
       } catch (err) {

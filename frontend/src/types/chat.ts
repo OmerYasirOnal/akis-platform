@@ -1,0 +1,76 @@
+import type { StructuredSpec } from './workflow';
+import type { UserFriendlyPlan } from './plan';
+
+/* ─── UI State Machine ──────────────────────────── */
+
+export type ConversationUIState =
+  | 'idle'
+  | 'scribe_running'
+  | 'awaiting_approval'
+  | 'scribe_revise'
+  | 'proto_running'
+  | 'trace_running'
+  | 'ci_running';
+
+/* ─── Chat Messages ─────────────────────────────── */
+
+export type AgentName = 'scribe' | 'proto' | 'trace';
+
+export type ChatMessage =
+  | { type: 'user'; content: string; timestamp: string }
+  | {
+      type: 'agent';
+      agent: AgentName;
+      content: string;
+      timestamp: string;
+      activityEntryId?: string;
+    }
+  | {
+      type: 'plan';
+      plan: UserFriendlyPlan;
+      version: number;
+      status: 'active' | 'edited' | 'approved' | 'rejected' | 'cancelled';
+      spec?: StructuredSpec;
+      timestamp: string;
+    }
+  | { type: 'file_created'; path: string; repo: string; timestamp: string }
+  | { type: 'pr_opened'; url: string; number: number; title: string; branch: string; filesChanged: number; linesChanged: number; timestamp: string }
+  | { type: 'test_result'; passed: number; failed: number; total: number; coverage: string; failures?: TestFailure[]; timestamp: string }
+  | { type: 'error'; agent: string; message: string; retryable: boolean; timestamp: string }
+  | { type: 'info'; content: string; timestamp: string };
+
+export interface TestFailure {
+  file: string;
+  line: number;
+  message: string;
+}
+
+/* ─── Conversation List Item ────────────────────── */
+
+export type ConversationStatus = 'idle' | 'running' | 'awaiting_approval' | 'error';
+
+export interface ConversationListItem {
+  id: string;
+  title: string;
+  repoFullName: string;
+  repoShortName: string;
+  status: ConversationStatus;
+  fileCount: number;
+  lastActivity: string;
+  branch?: string;
+  prUrl?: string;
+  prNumber?: number;
+}
+
+/* ─── Agent Audit ───────────────────────────────── */
+
+export interface AgentAuditMetrics {
+  confidence?: number;
+  assumptions?: string[];
+  tokenUsage: { inputTokens: number; outputTokens: number };
+  responseTime: number;
+  filesGenerated?: number;
+  testsPassed?: number;
+  testsFailed?: number;
+  specCompliance?: number;
+}

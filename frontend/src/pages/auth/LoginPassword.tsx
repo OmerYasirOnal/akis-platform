@@ -97,7 +97,7 @@ export default function LoginPassword() {
             Geri
           </button>
 
-          <Logo size="sm" linkToHome={false} />
+          <Logo size="nav" linkToHome={false} className="h-12" />
         </div>
 
         <h1 className="text-h2 mb-2">Şifrenizi girin</h1>

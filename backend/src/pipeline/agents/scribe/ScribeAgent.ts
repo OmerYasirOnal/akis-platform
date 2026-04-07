@@ -127,6 +127,18 @@ Respond ONLY with valid JSON matching this EXACT structure:
     },
     "outOfScope": ["Admin paneli", "Ödeme sistemi", "Mobil uygulama"]
   },
+  "plan": {
+    "projectName": "Proje Başlığı",
+    "summary": "Bu projenin kullanıcı dostu özeti (1-2 cümle)",
+    "features": [
+      {"name": "Kullanıcı Girişi", "description": "Email ve şifre ile kimlik doğrulama"},
+      {"name": "Dashboard", "description": "Ana sayfa istatistikleri ve hızlı erişim"}
+    ],
+    "techChoices": ["React", "Node.js", "PostgreSQL"],
+    "estimatedFiles": 12,
+    "requiresTests": true,
+    "testRationale": "Yeni proje, iş mantığı içeren özellikler var"
+  },
   "rawMarkdown": "# Proje Başlığı\\n\\n## Problem\\n...\\n\\n## User Stories\\n...\\n\\n## Kabul Kriterleri\\n...",
   "confidence": 0.85,
   "clarificationsAsked": 0,
@@ -137,6 +149,15 @@ Respond ONLY with valid JSON matching this EXACT structure:
   },
   "assumptions": ["Web tarayıcısı hedef platform olarak varsayıldı", "Kullanıcı girişi gerekmediği varsayıldı"]
 }
+
+PLAN FIELD RULES:
+- "plan" is the human-friendly summary shown to the user for approval
+- "plan.projectName" = same as "spec.title"
+- "plan.features" = summarized from "spec.userStories" (grouped, user-friendly names)
+- "plan.techChoices" = extracted from "spec.technicalConstraints.stack" (split by + or , into array)
+- "plan.estimatedFiles" = estimate based on features count (typically features * 2 + 4 base files)
+- "plan.requiresTests" = true if the project has business logic or UI interactions; false for docs-only, config, or styling changes
+- "plan.testRationale" = brief explanation of why tests are or aren't needed (in Turkish)
 
 IMPORTANT RULES:
 - "userStories" MUST be a JSON ARRAY of objects with "persona", "action", "benefit" keys
@@ -233,6 +254,29 @@ function normalizeSpecResponse(raw: Record<string, unknown>): Record<string, unk
 
   if (raw.spec) {
     raw.spec = spec;
+  }
+
+  // plan: auto-generate from spec if AI didn't produce it
+  if (!raw.plan && spec) {
+    const techStack = typeof spec.stack === 'string' ? spec.stack : '';
+    const tc = spec.technicalConstraints as Record<string, unknown> | undefined;
+    const stackStr = (tc?.stack as string) ?? techStack;
+    const features = Array.isArray(spec.userStories)
+      ? (spec.userStories as Array<Record<string, string>>).map((us, i) => ({
+          name: `Özellik ${i + 1}`,
+          description: us.action ?? us.benefit ?? '',
+        }))
+      : [{ name: 'Ana özellik', description: String(spec.title ?? '') }];
+
+    raw.plan = {
+      projectName: String(spec.title ?? 'Proje'),
+      summary: String(spec.problemStatement ?? ''),
+      features,
+      techChoices: stackStr ? stackStr.split(/[+,]/).map((s: string) => s.trim()).filter(Boolean) : [],
+      estimatedFiles: Math.max(features.length * 2 + 4, 6),
+      requiresTests: true,
+      testRationale: 'Yeni proje — iş mantığı testleri gerekli',
+    };
   }
 
   return raw;
