@@ -515,7 +515,7 @@ export const userStatusEnum = pgEnum('user_status', [
 /**
  * AI Provider enum for user settings
  */
-export const aiProviderEnum = pgEnum('ai_provider', ['openai', 'openrouter']);
+export const aiProviderEnum = pgEnum('ai_provider', ['anthropic', 'openai', 'openrouter']);
 export const userRoleEnum = pgEnum('user_role', ['admin', 'member']);
 
 /**
@@ -1623,7 +1623,7 @@ export type NewFeedback = typeof feedback.$inferInsert;
 
 export const pipelineStageEnum = pgEnum('pipeline_stage', [
   'scribe_clarifying', 'scribe_generating', 'awaiting_approval',
-  'proto_building', 'trace_testing',
+  'proto_building', 'trace_testing', 'ci_running',
   'completed', 'completed_partial', 'failed', 'cancelled',
 ]);
 

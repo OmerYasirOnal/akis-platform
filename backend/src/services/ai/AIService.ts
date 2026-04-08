@@ -1012,8 +1012,44 @@ class MockAIService implements AIService {
       model: 'mock-model',
       success: true,
     });
+
+    // Pipeline-aware mock responses based on system prompt keywords
+    const sys = (input.systemPrompt ?? '').toLowerCase();
+    let content: string;
+
+    if (sys.includes('structuredspec') || sys.includes('structured spec') || sys.includes('spec')) {
+      content = JSON.stringify({
+        projectName: 'Mock Project',
+        description: 'A mock project generated for testing',
+        userStories: [
+          { id: 'US-1', title: 'Basic UI', description: 'User can view the main page', acceptanceCriteria: ['Page loads', 'Title visible'] },
+          { id: 'US-2', title: 'Data Display', description: 'User can see data list', acceptanceCriteria: ['List renders', 'Items clickable'] },
+        ],
+        acceptanceCriteria: ['App loads without errors', 'Navigation works', 'Data displays correctly'],
+        technicalConstraints: { stack: 'React + Vite + TypeScript' },
+        outOfScope: ['Authentication', 'Payment processing'],
+        confidence: 0.9,
+      });
+    } else if (sys.includes('clarification') || sys.includes('soru')) {
+      content = JSON.stringify({ ready: true });
+    } else if (sys.includes('proto') || sys.includes('scaffold') || sys.includes('code generation')) {
+      content = JSON.stringify([
+        { filePath: 'src/App.tsx', content: 'export default function App() { return <div>Hello AKIS</div>; }' },
+        { filePath: 'src/main.tsx', content: 'import App from "./App"; import { createRoot } from "react-dom/client"; createRoot(document.getElementById("root")!).render(<App />);' },
+        { filePath: 'package.json', content: '{"name":"mock-project","version":"0.1.0","scripts":{"dev":"vite"}}' },
+        { filePath: 'index.html', content: '<!DOCTYPE html><html><body><div id="root"></div><script type="module" src="/src/main.tsx"></script></body></html>' },
+      ]);
+    } else if (sys.includes('trace') || sys.includes('playwright') || sys.includes('test')) {
+      content = JSON.stringify([
+        { filePath: 'tests/app.spec.ts', content: 'import { test, expect } from "@playwright/test"; test("app loads", async ({ page }) => { await page.goto("/"); await expect(page.locator("div")).toBeVisible(); });' },
+        { filePath: 'playwright.config.ts', content: 'import { defineConfig } from "@playwright/test"; export default defineConfig({ testDir: "./tests" });' },
+      ]);
+    } else {
+      content = `Mock generated content for task: ${input.task}`;
+    }
+
     return {
-      content: `Mock generated content for task: ${input.task}`,
+      content,
       metadata: {
         model: 'mock-model',
         task: input.task,

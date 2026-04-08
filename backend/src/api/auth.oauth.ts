@@ -576,48 +576,69 @@ export async function registerOAuthRoutes(fastify: FastifyInstance, emailService
         ),
       });
 
-      const encryptedAccessToken = oauthTokenCrypto.encryptForStorage({
-        userId: user.id,
-        provider,
-        token: tokens.accessToken,
-        kind: 'access',
-      });
-      const encryptedRefreshToken = tokens.refreshToken
-        ? oauthTokenCrypto.encryptForStorage({
-            userId: user.id,
-            provider,
-            token: tokens.refreshToken,
-            kind: 'refresh',
-          })
-        : null;
-      
-      if (!existingOAuthAccount) {
-        // Create new OAuth account link
-        await db.insert(oauthAccounts).values({
+      // Encrypt and store OAuth tokens (non-fatal: login succeeds even if encryption key is missing)
+      let _tokenStored = false;
+      try {
+        const encryptedAccessToken = oauthTokenCrypto.encryptForStorage({
           userId: user.id,
-          provider: provider as 'github' | 'google',
-          providerAccountId: profile.id,
-          accessToken: encryptedAccessToken,
-          refreshToken: encryptedRefreshToken,
-          tokenExpiresAt: tokens.expiresIn 
-            ? new Date(Date.now() + tokens.expiresIn * 1000)
-            : undefined,
+          provider,
+          token: tokens.accessToken,
+          kind: 'access',
         });
-        
-        console.log(`[OAuth] Account linked for user ${user.id} with provider ${provider}`);
-      } else {
-        // Update existing OAuth account tokens
-        await db
-          .update(oauthAccounts)
-          .set({
+        const encryptedRefreshToken = tokens.refreshToken
+          ? oauthTokenCrypto.encryptForStorage({
+              userId: user.id,
+              provider,
+              token: tokens.refreshToken,
+              kind: 'refresh',
+            })
+          : null;
+
+        if (!existingOAuthAccount) {
+          await db.insert(oauthAccounts).values({
+            userId: user.id,
+            provider: provider as 'github' | 'google',
+            providerAccountId: profile.id,
             accessToken: encryptedAccessToken,
-            refreshToken: encryptedRefreshToken ?? existingOAuthAccount.refreshToken,
-            tokenExpiresAt: tokens.expiresIn 
+            refreshToken: encryptedRefreshToken,
+            tokenExpiresAt: tokens.expiresIn
               ? new Date(Date.now() + tokens.expiresIn * 1000)
-              : existingOAuthAccount.tokenExpiresAt,
-            updatedAt: new Date(),
-          })
-          .where(eq(oauthAccounts.id, existingOAuthAccount.id));
+              : undefined,
+          });
+          console.log(`[OAuth] Account linked for user ${user.id} with provider ${provider}`);
+        } else {
+          await db
+            .update(oauthAccounts)
+            .set({
+              accessToken: encryptedAccessToken,
+              refreshToken: encryptedRefreshToken ?? existingOAuthAccount.refreshToken,
+              tokenExpiresAt: tokens.expiresIn
+                ? new Date(Date.now() + tokens.expiresIn * 1000)
+                : existingOAuthAccount.tokenExpiresAt,
+              updatedAt: new Date(),
+            })
+            .where(eq(oauthAccounts.id, existingOAuthAccount.id));
+        }
+        _tokenStored = true;
+      } catch (_tokenErr) {
+        // Token encryption failed (AI_KEY_ENCRYPTION_KEY not set) — login still succeeds
+        console.warn(`[OAuth] Token storage skipped (encryption key missing). Login will proceed without stored OAuth token.`);
+
+        // Still link the OAuth account if it doesn't exist (without tokens)
+        if (!existingOAuthAccount) {
+          try {
+            await db.insert(oauthAccounts).values({
+              userId: user.id,
+              provider: provider as 'github' | 'google',
+              providerAccountId: profile.id,
+              accessToken: null,
+              refreshToken: null,
+            });
+            console.log(`[OAuth] Account linked (no token) for user ${user.id} with provider ${provider}`);
+          } catch (linkErr) {
+            console.warn(`[OAuth] Could not link account: ${linkErr instanceof Error ? linkErr.message : linkErr}`);
+          }
+        }
       }
       
       // Generate JWT and set session cookie (same as normal login)
@@ -630,7 +651,7 @@ export async function registerOAuthRoutes(fastify: FastifyInstance, emailService
       reply.setCookie(env.AUTH_COOKIE_NAME, jwt, cookieOpts);
       
       // Determine redirect based on onboarding gates (same as normal login)
-      let redirectPath = '/dashboard';
+      let redirectPath = '/chat';
       
       if (user.dataSharingConsent === null) {
         redirectPath = '/auth/privacy-consent';

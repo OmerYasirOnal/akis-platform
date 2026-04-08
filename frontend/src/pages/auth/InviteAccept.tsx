@@ -107,7 +107,7 @@ export default function InviteAccept() {
       <main className="min-h-screen bg-ak-bg text-ak-text-primary flex items-center justify-center px-4">
         <div className="w-full max-w-md bg-ak-surface-2 border border-ak-border rounded-2xl p-8 shadow-ak-md text-center">
           <div className="mb-6 flex justify-center">
-            <Logo size="sm" linkToHome={false} />
+            <Logo size="nav" linkToHome={false} className="h-12" />
           </div>
           <div className="h-8 w-8 mx-auto animate-spin rounded-full border-2 border-ak-primary border-t-transparent" />
           <p className="mt-4 text-ak-text-secondary">
@@ -124,7 +124,7 @@ export default function InviteAccept() {
       <main className="min-h-screen bg-ak-bg text-ak-text-primary flex items-center justify-center px-4">
         <div className="w-full max-w-md bg-ak-surface-2 border border-ak-border rounded-2xl p-8 shadow-ak-md text-center">
           <div className="mb-6 flex justify-center">
-            <Logo size="sm" linkToHome={false} />
+            <Logo size="nav" linkToHome={false} className="h-12" />
           </div>
           <div className="text-4xl mb-4">&#128683;</div>
           <h1 className="text-h2 mb-2">
@@ -148,7 +148,7 @@ export default function InviteAccept() {
       <main className="min-h-screen bg-ak-bg text-ak-text-primary flex items-center justify-center px-4">
         <div className="w-full max-w-md bg-ak-surface-2 border border-ak-border rounded-2xl p-8 shadow-ak-md text-center">
           <div className="mb-6 flex justify-center">
-            <Logo size="sm" linkToHome={false} />
+            <Logo size="nav" linkToHome={false} className="h-12" />
           </div>
           <h1 className="text-h2 mb-2">
             {locale === 'tr' ? 'Zaten Hesabınız Var' : 'You Already Have an Account'}
@@ -174,7 +174,7 @@ export default function InviteAccept() {
     <main className="min-h-screen bg-ak-bg text-ak-text-primary flex items-center justify-center px-4">
       <div className="w-full max-w-md bg-ak-surface-2 border border-ak-border rounded-2xl p-8 shadow-ak-md">
         <div className="mb-6 flex justify-center">
-          <Logo size="sm" linkToHome={false} />
+          <Logo size="nav" linkToHome={false} className="h-12" />
         </div>
 
         <h1 className="text-h2 mb-2">

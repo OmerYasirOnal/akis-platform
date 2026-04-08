@@ -324,11 +324,28 @@ export class PipelineOrchestrator {
       return;
     }
 
+    const protoCompletedMetrics = { ...metrics, approvedAt: metrics.approvedAt ?? new Date(), protoCompletedAt: new Date() };
+
+    // Check if Scribe marked this as not requiring tests
+    const pipeline = await this.getPipeline(pipelineId);
+    const requiresTests = pipeline.scribeOutput?.plan?.requiresTests ?? true;
+
+    if (!requiresTests) {
+      // Skip Trace — mark as completed directly
+      await this.store.update(pipelineId, {
+        protoOutput: protoResult.data,
+        stage: 'completed',
+        metrics: { ...protoCompletedMetrics, traceCompletedAt: new Date(), totalDurationMs: Date.now() - protoCompletedMetrics.startedAt.getTime() },
+      });
+      this.emitEvent(pipelineId, 'stage_change', 'completed');
+      return;
+    }
+
     // Proto succeeded → transition to trace_testing
     await this.store.update(pipelineId, {
       protoOutput: protoResult.data,
       stage: 'trace_testing',
-      metrics: { ...metrics, approvedAt: metrics.approvedAt ?? new Date(), protoCompletedAt: new Date() },
+      metrics: protoCompletedMetrics,
     });
     this.emitEvent(pipelineId, 'stage_change', 'trace_testing');
 
@@ -417,10 +434,9 @@ export class PipelineOrchestrator {
 
   async cancelPipeline(pipelineId: string): Promise<PipelineState> {
     const pipeline = await this.getPipeline(pipelineId);
-    const terminal: PipelineStage[] = ['completed', 'completed_partial', 'cancelled'];
-    if (terminal.includes(pipeline.stage)) {
-      throw new Error(`Cannot cancel pipeline in stage: ${pipeline.stage}`);
-    }
+    // Already cancelled — return as-is
+    if (pipeline.stage === 'cancelled') return pipeline;
+    // Any stage can be cancelled (including completed — acts as "delete from view")
     const updated = await this.store.update(pipelineId, { stage: 'cancelled' });
     this.emitEvent(pipelineId, 'stage_change', 'cancelled');
     return updated;

@@ -9,6 +9,7 @@ export type PipelineStage =
   | 'awaiting_approval'
   | 'proto_building'
   | 'trace_testing'
+  | 'ci_running'
   | 'completed'
   | 'completed_partial'
   | 'failed'

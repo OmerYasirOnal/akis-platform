@@ -1,2 +1,1 @@
-export { DashboardLayout } from './DashboardLayout';
-export { DashboardSidebar } from './DashboardSidebar';
+// Layout components — dashboard layout removed in FAZ 1

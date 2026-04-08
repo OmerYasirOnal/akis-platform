@@ -172,6 +172,56 @@ export function createGitHubRESTAdapter(opts: GitHubRESTAdapterOptions): GitHubS
 
       return result.content || '';
     },
+
+    async pushFiles(
+      owner: string,
+      repo: string,
+      branch: string,
+      files: Array<{ path: string; content: string }>,
+      message: string,
+    ): Promise<void> {
+      validateTargetRepo(`${owner}/${repo}`);
+
+      // 1. Get latest commit SHA on branch
+      const ref = await ghFetch<{ object: { sha: string } }>(
+        token, 'GET', `/repos/${owner}/${repo}/git/ref/heads/${branch}`,
+      );
+      const latestCommitSha = ref.object.sha;
+
+      // 2. Get the tree SHA of that commit
+      const commit = await ghFetch<{ tree: { sha: string } }>(
+        token, 'GET', `/repos/${owner}/${repo}/git/commits/${latestCommitSha}`,
+      );
+      const baseTreeSha = commit.tree.sha;
+
+      // 3. Create blobs for each file
+      const tree: Array<{ path: string; mode: string; type: string; sha: string }> = [];
+      for (const file of files) {
+        const blob = await ghFetch<{ sha: string }>(
+          token, 'POST', `/repos/${owner}/${repo}/git/blobs`,
+          { content: file.content, encoding: 'utf-8' },
+        );
+        tree.push({ path: file.path, mode: '100644', type: 'blob', sha: blob.sha });
+      }
+
+      // 4. Create tree
+      const newTree = await ghFetch<{ sha: string }>(
+        token, 'POST', `/repos/${owner}/${repo}/git/trees`,
+        { base_tree: baseTreeSha, tree },
+      );
+
+      // 5. Create commit
+      const newCommit = await ghFetch<{ sha: string }>(
+        token, 'POST', `/repos/${owner}/${repo}/git/commits`,
+        { message, tree: newTree.sha, parents: [latestCommitSha] },
+      );
+
+      // 6. Update branch ref
+      await ghFetch(
+        token, 'PATCH', `/repos/${owner}/${repo}/git/refs/heads/${branch}`,
+        { sha: newCommit.sha },
+      );
+    },
   };
 }
 

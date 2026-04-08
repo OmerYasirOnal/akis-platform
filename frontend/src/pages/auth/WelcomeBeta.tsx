@@ -35,7 +35,7 @@ export default function WelcomeBeta() {
       <div className="w-full max-w-2xl bg-ak-surface-2 border border-ak-border rounded-2xl p-12 shadow-ak-md text-center">
         <div className="mb-6">
           <div className="mb-4 flex justify-center">
-            <Logo size="sm" linkToHome={false} />
+            <Logo size="nav" linkToHome={false} className="h-12" />
           </div>
           <div className="text-6xl mb-4">🎉</div>
           <h1 className="text-3xl font-bold mb-2">AKIS'e Hoş Geldiniz!</h1>

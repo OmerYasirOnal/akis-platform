@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import Button from '../../components/common/Button';
-import Logo from '../../components/branding/Logo';
+import { LOGO_MARK_SVG } from '../../theme/brand';
 import { useI18n } from '../../i18n/useI18n';
 import type { MessageKey } from '../../i18n/i18n.types';
 import { getAuthBaseUrl } from '../../services/api/config';
@@ -121,7 +121,7 @@ export default function LoginEmail() {
       <div className="relative w-full max-w-md animate-fade-in">
         <div className="rounded-2xl border border-ak-border bg-ak-surface/80 backdrop-blur-lg p-8 shadow-ak-lg">
           <div className="mb-6 flex justify-center">
-            <Logo size="sm" linkToHome={false} />
+            <img src={LOGO_MARK_SVG} alt="AKIS" className="h-14 w-auto" />
           </div>
 
           <h1 className="text-heading text-center font-semibold text-ak-text-primary mb-1">

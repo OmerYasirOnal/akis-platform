@@ -68,8 +68,22 @@ export const ReviewNotesSchema = z.union([
   }),
 ]).optional();
 
+export const UserFriendlyPlanSchema = z.object({
+  projectName: z.string().min(1),
+  summary: z.string().min(1),
+  features: z.array(z.object({
+    name: z.string().min(1),
+    description: z.string().min(1),
+  })).min(1),
+  techChoices: z.array(z.string()),
+  estimatedFiles: z.number().int().min(1),
+  requiresTests: z.boolean(),
+  testRationale: z.string().optional(),
+});
+
 export const ScribeOutputSchema = z.object({
   spec: StructuredSpecSchema,
+  plan: UserFriendlyPlanSchema,
   rawMarkdown: z.string().min(1),
   confidence: z.number().min(0).max(1),
   clarificationsAsked: z.number().int().min(0).max(3),
@@ -164,6 +178,7 @@ export const PipelineStageSchema = z.enum([
   'awaiting_approval',
   'proto_building',
   'trace_testing',
+  'ci_running',
   'completed',
   'completed_partial',
   'failed',
