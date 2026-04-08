@@ -7,12 +7,21 @@ import { db } from '../../db/client.js';
 import { pipelines } from '../../db/schema.js';
 import { eq, desc, sql } from 'drizzle-orm';
 import { requireAuth } from '../../utils/auth.js';
+import { sendError } from '../../utils/errorHandler.js';
 
 export async function pipelineStatsRoutes(fastify: FastifyInstance) {
   fastify.get(
     '/pipeline-stats',
     async (request: FastifyRequest, reply: FastifyReply) => {
-      const user = await requireAuth(request);
+      let user;
+      try {
+        user = await requireAuth(request);
+      } catch (err: unknown) {
+        if (err instanceof Error && err.message === 'UNAUTHORIZED') {
+          return sendError(reply, request, 'UNAUTHORIZED', 'Authentication required');
+        }
+        throw err;
+      }
 
       // Aggregate stats — tek sorgu
       const [agg] = await db
