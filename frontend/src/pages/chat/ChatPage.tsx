@@ -7,6 +7,9 @@ import { EmptyState } from '../../components/chat/EmptyState';
 // NewConversationModal removed — "Yeni Sohbet" opens empty chat directly
 import { useConversationState } from '../../hooks/useConversationState';
 import { usePipelineStream } from '../../hooks/usePipelineStream';
+import { useProfileCompleteness } from '../../hooks/useProfileCompleteness';
+import { ProfileSetupBanner } from '../../components/onboarding/ProfileSetupBanner';
+import { ProfileSetupWizard } from '../../components/onboarding/ProfileSetupWizard';
 import type { ConversationListItem, ChatMessage, ConversationStatus } from '../../types/chat';
 import type { Workflow, WorkflowStatus, ConversationMessage } from '../../types/workflow';
 import type { PipelineStage } from '../../types/pipeline';
@@ -92,6 +95,8 @@ export default function ChatPage() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(isTablet);
   // Pending new conversation — created locally, pipeline not yet started on backend
   const [pendingConv, setPendingConv] = useState<{ displayName: string } | null>(null);
+  const [showProfileWizard, setShowProfileWizard] = useState(false);
+  const { missingSteps, loading: profileLoading } = useProfileCompleteness();
 
   // Auto-collapse sidebar on tablet resize
   useEffect(() => {
@@ -357,8 +362,21 @@ export default function ChatPage() {
         <span className="text-[15px] font-extrabold tracking-tight text-ak-primary">AKIS</span>
       </div>
 
+      {/* Profile setup wizard modal */}
+      {showProfileWizard && (
+        <ProfileSetupWizard onClose={() => setShowProfileWizard(false)} />
+      )}
+
       {/* Main content — top padding only on mobile for the top bar */}
       <div className={cn('flex min-w-0 flex-1 flex-col', 'pt-[52px] md:pt-0')}>
+        {/* Profile completeness banner */}
+        {!profileLoading && missingSteps.length > 0 && !conversationId && !pendingConv && (
+          <ProfileSetupBanner
+            missingSteps={missingSteps}
+            onSetup={() => setShowProfileWizard(true)}
+          />
+        )}
+
         {conversationId || pendingConv ? (
           <ChatPanel
             conversationId={conversationId ?? 'pending'}
