@@ -4,6 +4,7 @@ import { cn } from '../../utils/cn';
 import { LOGO_MARK_SVG } from '../../theme/brand';
 import type { ConversationListItem } from '../../types/chat';
 import { ConversationItem } from './ConversationItem';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface ConversationSidebarProps {
   conversations: ConversationListItem[];
@@ -26,6 +27,7 @@ export function ConversationSidebar({
 }: ConversationSidebarProps) {
   const navigate = useNavigate();
   const location = useLocation();
+  const { user, logout } = useAuth();
   const [search, setSearch] = useState('');
 
   const filtered = useMemo(() => {
@@ -36,7 +38,31 @@ export function ConversationSidebar({
     );
   }, [conversations, search]);
 
-  const isAgentsActive = location.pathname === '/agents';
+  // Date-grouped conversations (Bugün, Dün, Bu Hafta, Daha Eski)
+  const grouped = useMemo(() => {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const yesterday = new Date(today.getTime() - 86400000);
+    const weekAgo = new Date(today.getTime() - 7 * 86400000);
+
+    const groups: { label: string; items: typeof filtered }[] = [
+      { label: 'Bugün', items: [] },
+      { label: 'Dün', items: [] },
+      { label: 'Bu Hafta', items: [] },
+      { label: 'Daha Eski', items: [] },
+    ];
+
+    for (const c of filtered) {
+      const d = new Date(c.lastActivity);
+      if (d >= today) groups[0].items.push(c);
+      else if (d >= yesterday) groups[1].items.push(c);
+      else if (d >= weekAgo) groups[2].items.push(c);
+      else groups[3].items.push(c);
+    }
+
+    return groups.filter((g) => g.items.length > 0);
+  }, [filtered]);
+
   const isSettingsActive = location.pathname === '/settings';
 
   return (
@@ -112,24 +138,47 @@ export function ConversationSidebar({
       {/* Divider */}
       <div className="mx-3 border-t border-ak-border-subtle" />
 
-      {/* Conversation list */}
-      <div className={cn('flex-1 overflow-y-auto', collapsed ? 'px-2 py-2 space-y-1' : 'px-2 py-2 space-y-0.5')}>
+      {/* Conversation list — date grouped */}
+      <div className={cn('flex-1 overflow-y-auto', collapsed ? 'px-2 py-2 space-y-1' : 'px-2 py-2')}>
         {filtered.length === 0 && !collapsed && (
           <p className="px-3 py-4 text-center text-[11px] text-ak-text-tertiary">
             {search ? 'Sonuç bulunamadı.' : 'Henüz sohbet yok.'}
           </p>
         )}
-        {filtered.map((conv) => (
-          <ConversationItem
-            key={conv.id}
-            {...conv}
-            isActive={conv.id === activeId}
-            collapsed={collapsed}
-            onClick={() => navigate(`/chat/${conv.id}`)}
-            onRename={onRename ? (newTitle) => onRename(conv.id, newTitle) : undefined}
-            onDelete={onDelete ? () => onDelete(conv.id) : undefined}
-          />
-        ))}
+        {!collapsed ? (
+          grouped.map((group) => (
+            <div key={group.label} className="mb-1">
+              <div className="px-3 pb-1 pt-3 text-[10px] font-semibold uppercase tracking-wider text-ak-text-tertiary">
+                {group.label}
+              </div>
+              <div className="space-y-0.5">
+                {group.items.map((conv) => (
+                  <ConversationItem
+                    key={conv.id}
+                    {...conv}
+                    isActive={conv.id === activeId}
+                    collapsed={collapsed}
+                    onClick={() => navigate(`/chat/${conv.id}`)}
+                    onRename={onRename ? (newTitle) => onRename(conv.id, newTitle) : undefined}
+                    onDelete={onDelete ? () => onDelete(conv.id) : undefined}
+                  />
+                ))}
+              </div>
+            </div>
+          ))
+        ) : (
+          filtered.map((conv) => (
+            <ConversationItem
+              key={conv.id}
+              {...conv}
+              isActive={conv.id === activeId}
+              collapsed={collapsed}
+              onClick={() => navigate(`/chat/${conv.id}`)}
+              onRename={onRename ? (newTitle) => onRename(conv.id, newTitle) : undefined}
+              onDelete={onDelete ? () => onDelete(conv.id) : undefined}
+            />
+          ))
+        )}
       </div>
 
       {/* Divider */}
@@ -137,21 +186,6 @@ export function ConversationSidebar({
 
       {/* Bottom nav */}
       <div className={cn('space-y-0.5 px-2 py-2', collapsed && 'flex flex-col items-center')}>
-        <button
-          onClick={() => navigate('/agents')}
-          className={cn(
-            'flex items-center gap-2.5 rounded-lg text-[13px] font-medium transition-colors',
-            collapsed ? 'h-9 w-9 justify-center' : 'w-full px-3 py-2',
-            isAgentsActive ? 'bg-ak-surface-2 text-ak-text-primary' : 'text-ak-text-secondary hover:bg-ak-surface-2/50 hover:text-ak-text-primary',
-          )}
-          aria-label="Agents"
-        >
-          <svg className="h-4 w-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M9.75 3.104v5.714a2.25 2.25 0 01-.659 1.591L5 14.5M9.75 3.104c-.251.023-.501.05-.75.082m.75-.082a24.301 24.301 0 014.5 0m0 0v5.714c0 .597.237 1.17.659 1.591L19.8 15.3M14.25 3.104c.251.023.501.05.75.082M19.8 15.3l-1.57.393A9.065 9.065 0 0112 15a9.065 9.065 0 00-6.23.693L5 14.5m14.8.8l1.402 1.402c1.232 1.232.65 3.318-1.067 3.611A48.309 48.309 0 0112 21c-2.773 0-5.491-.235-8.135-.687-1.718-.293-2.3-2.379-1.067-3.61L5 14.5" />
-          </svg>
-          {!collapsed && 'Agents'}
-        </button>
-
         <button
           onClick={() => navigate('/settings')}
           className={cn(
@@ -168,6 +202,30 @@ export function ConversationSidebar({
           {!collapsed && 'Ayarlar'}
         </button>
       </div>
+
+      {/* User info */}
+      {user && !collapsed && (
+        <div className="border-t border-ak-border-subtle px-3 py-2">
+          <div className="flex items-center gap-2">
+            <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-ak-primary/20 text-xs font-semibold text-ak-primary">
+              {user.name?.[0]?.toUpperCase() ?? user.email?.[0]?.toUpperCase() ?? '?'}
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-xs font-medium text-ak-text-primary">{user.name ?? user.email}</p>
+            </div>
+            <button
+              onClick={() => { logout(); navigate('/login'); }}
+              aria-label="Çıkış"
+              className="flex-shrink-0 rounded p-1 text-ak-text-tertiary hover:text-red-400 transition-colors"
+              title="Çıkış Yap"
+            >
+              <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Version */}
       <div className={cn('border-t border-ak-border-subtle px-3 py-2', collapsed && 'px-0 text-center')}>

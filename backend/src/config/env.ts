@@ -469,7 +469,7 @@ export function getAIConfig(env: Env): AIConfig {
 
   // Step 2: Determine provider with validation
   let provider: 'openrouter' | 'openai' | 'anthropic' | 'mock' = env.AI_PROVIDER;
-  
+
   // Auto-detect provider if set to mock but we have a real key
   if (provider === 'mock' && apiKey) {
     const keyProvider = detectProviderFromKey(apiKey);

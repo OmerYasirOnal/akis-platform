@@ -1,6 +1,5 @@
 import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
-import { VitePWA } from 'vite-plugin-pwa';
 import { execSync } from 'child_process';
 import path from 'path';
 
@@ -17,33 +16,6 @@ const getGitSha = () => {
 export default defineConfig({
   plugins: [
     react(),
-    VitePWA({
-      registerType: 'autoUpdate',
-      includeAssets: ['icon.svg'],
-      manifest: false,
-      workbox: {
-        runtimeCaching: [
-          {
-            urlPattern: /^https?:\/\/.*\/api\//,
-            handler: 'NetworkFirst',
-            options: {
-              cacheName: 'api-cache',
-              networkTimeoutSeconds: 10,
-              cacheableResponse: { statuses: [0, 200] },
-            },
-          },
-          {
-            urlPattern: /\.(?:js|css|woff2|png|svg|ico)$/,
-            handler: 'CacheFirst',
-            options: {
-              cacheName: 'static-cache',
-              expiration: { maxEntries: 100, maxAgeSeconds: 60 * 60 * 24 * 30 },
-            },
-          },
-        ],
-        navigateFallbackDenylist: [/\/api\//, /\/auth\//],
-      },
-    }),
   ],
   resolve: {
     alias: {

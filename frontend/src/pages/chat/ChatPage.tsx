@@ -4,7 +4,7 @@ import { cn } from '../../utils/cn';
 import { ConversationSidebar } from '../../components/chat/ConversationSidebar';
 import { ChatPanel } from '../../components/chat/ChatPanel';
 import { EmptyState } from '../../components/chat/EmptyState';
-import { NewConversationModal } from '../../components/chat/NewConversationModal';
+// NewConversationModal removed — "Yeni Sohbet" opens empty chat directly
 import { useConversationState } from '../../hooks/useConversationState';
 import { usePipelineStream } from '../../hooks/usePipelineStream';
 import type { ConversationListItem, ChatMessage, ConversationStatus } from '../../types/chat';
@@ -85,14 +85,13 @@ export default function ChatPage() {
   const [conversations, setConversations] = useState<ConversationListItem[]>([]);
   const [activeWorkflow, setActiveWorkflow] = useState<Workflow | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [showNewModal, setShowNewModal] = useState(false);
   const [creating, setCreating] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   // Tablet (md-lg): auto-collapse sidebar; Desktop (lg+): expanded
   const isTablet = typeof window !== 'undefined' && window.innerWidth >= 768 && window.innerWidth < 1024;
   const [sidebarCollapsed, setSidebarCollapsed] = useState(isTablet);
   // Pending new conversation — created locally, pipeline not yet started on backend
-  const [pendingConv, setPendingConv] = useState<{ repoName: string; displayName: string; visibility: 'public' | 'private' } | null>(null);
+  const [pendingConv, setPendingConv] = useState<{ displayName: string } | null>(null);
 
   // Auto-collapse sidebar on tablet resize
   useEffect(() => {
@@ -171,8 +170,8 @@ export default function ChatPage() {
       list.unshift({
         id: 'pending',
         title: pendingConv.displayName,
-        repoFullName: pendingConv.repoName,
-        repoShortName: pendingConv.repoName,
+        repoFullName: '',
+        repoShortName: pendingConv.displayName,
         status: 'idle' as ConversationStatus,
         fileCount: 0,
         lastActivity: new Date().toISOString(),
@@ -217,12 +216,12 @@ export default function ChatPage() {
     );
   }, [conversationId, syncFromStage]);
 
-  const handleNewConversation = useCallback((repoName: string, displayName: string, visibility: 'public' | 'private') => {
-    setPendingConv({ repoName, displayName, visibility });
-    setShowNewModal(false);
+  // "Yeni Sohbet" — no modal, open empty chat directly
+  const handleNewConversation = useCallback(() => {
+    setPendingConv({ displayName: '' });
     setMessages([]);
     setActiveWorkflow(null);
-    // Navigate to /chat (no id) — show empty state with input ready
+    loadedIdRef.current = undefined;
     navigate('/chat');
   }, [navigate]);
 
@@ -232,12 +231,21 @@ export default function ChatPage() {
 
     // If pending new conversation — create pipeline with first message as idea
     if (pendingConv && !conversationId) {
+      // Client-side validation: idea must be at least 10 chars
+      if (content.trim().length < 10) {
+        setMessages((prev) => [...prev, {
+          type: 'error',
+          agent: 'system',
+          message: 'Fikrinizi en az 10 karakter ile açıklayın. Örn: "React ile basit bir todo uygulaması"',
+          retryable: false,
+          timestamp: new Date().toISOString(),
+        }]);
+        return;
+      }
+
       try {
         setCreating(true);
-        const w = await workflowsApi.create({
-          idea: content,
-          targetRepo: pendingConv.repoName,
-        });
+        const w = await workflowsApi.create({ idea: content });
         setPendingConv(null);
         loadedIdRef.current = w.id;
         setActiveWorkflow(w);
@@ -247,10 +255,11 @@ export default function ChatPage() {
         navigate(`/chat/${w.id}`, { replace: true });
       } catch (e) {
         console.error('Failed to create pipeline:', e);
+        const errorMsg = e instanceof Error ? e.message : 'Pipeline oluşturulamadı.';
         setMessages((prev) => [...prev, {
           type: 'error',
           agent: 'system',
-          message: 'Pipeline oluşturulamadı. Lütfen tekrar deneyin.',
+          message: errorMsg,
           retryable: true,
           timestamp: new Date().toISOString(),
         }]);
@@ -325,7 +334,7 @@ export default function ChatPage() {
         <ConversationSidebar
           conversations={sidebarConversations}
           activeId={conversationId ?? (pendingConv ? 'pending' : undefined)}
-          onNewConversation={() => setShowNewModal(true)}
+          onNewConversation={handleNewConversation}
           onRename={handleRename}
           onDelete={handleDelete}
           collapsed={sidebarCollapsed}
@@ -354,7 +363,7 @@ export default function ChatPage() {
           <ChatPanel
             conversationId={conversationId ?? 'pending'}
             repoShortName={activeWorkflow?.title ?? pendingConv?.displayName ?? ''}
-            repoFullName={activeWorkflow?.stages?.proto?.branch ?? pendingConv?.repoName ?? ''}
+            repoFullName={activeWorkflow?.stages?.proto?.branch ?? ''}
             branch={activeWorkflow?.stages?.proto?.branch}
             messages={messages}
             uiState={uiState}
@@ -371,16 +380,10 @@ export default function ChatPage() {
             showBackButton
           />
         ) : (
-          <EmptyState variant="no-conversation" onNewConversation={() => setShowNewModal(true)} />
+          <EmptyState variant="no-conversation" onNewConversation={handleNewConversation} />
         )}
       </div>
 
-      <NewConversationModal
-        open={showNewModal}
-        onClose={() => setShowNewModal(false)}
-        onCreate={handleNewConversation}
-        loading={creating}
-      />
     </div>
   );
 }

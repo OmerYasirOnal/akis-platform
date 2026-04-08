@@ -3,7 +3,7 @@ import { db } from '../../db/client.js';
 import { userAiKeys, users, type UserAiKey } from '../../db/schema.js';
 import { decryptSecret, encryptSecret } from '../../utils/crypto.js';
 
-export type AIKeyProvider = 'openai' | 'openrouter';
+export type AIKeyProvider = 'anthropic' | 'openai' | 'openrouter';
 
 export type AIKeyStatus = {
   provider: AIKeyProvider;
@@ -16,6 +16,7 @@ export type MultiProviderStatus = {
   /** User's explicitly set active provider, or null if never set */
   activeProvider: AIKeyProvider | null;
   providers: {
+    anthropic: Omit<AIKeyStatus, 'provider'>;
     openai: Omit<AIKeyStatus, 'provider'>;
     openrouter: Omit<AIKeyStatus, 'provider'>;
   };
@@ -161,8 +162,9 @@ export async function getMultiProviderStatus(userId: string): Promise<MultiProvi
   // Do NOT apply hard default here - let orchestrator handle fallback logic
   const activeProvider: AIKeyProvider | null = (user?.activeAiProvider as AIKeyProvider) || null;
 
-  // Get status for both providers
-  const [openaiStatus, openrouterStatus] = await Promise.all([
+  // Get status for all providers
+  const [anthropicStatus, openaiStatus, openrouterStatus] = await Promise.all([
+    getUserAiKeyStatus(userId, 'anthropic'),
     getUserAiKeyStatus(userId, 'openai'),
     getUserAiKeyStatus(userId, 'openrouter'),
   ]);
@@ -170,6 +172,11 @@ export async function getMultiProviderStatus(userId: string): Promise<MultiProvi
   return {
     activeProvider,
     providers: {
+      anthropic: {
+        configured: anthropicStatus.configured,
+        last4: anthropicStatus.last4,
+        updatedAt: anthropicStatus.updatedAt,
+      },
       openai: {
         configured: openaiStatus.configured,
         last4: openaiStatus.last4,

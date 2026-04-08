@@ -10,6 +10,7 @@
 
 export interface EffortScore {
   score: number;
+  /** Suggested model — advisory only, user/config model takes priority */
   model: string;
   reasoning: string;
 }

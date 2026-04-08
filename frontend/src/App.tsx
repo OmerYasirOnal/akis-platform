@@ -1,12 +1,10 @@
 import { useEffect, lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import AppShell from './components/AppShell';
-import { DashboardLayout } from './components/layout';
 import { ProtectedRoute } from './app/RouteGuards';
 import { AuthProvider } from './contexts/AuthContext';
 import { useI18n } from './i18n/useI18n';
 import { ToastContainer } from './components/ui/Toast';
-import { PWAInstallPrompt } from './components/PWAInstallPrompt';
 
 // Auth pages — lazy
 const LoginEmail = lazy(() => import('./pages/auth/LoginEmail'));
@@ -25,12 +23,11 @@ const LegalPrivacyPage = lazy(() => import('./pages/legal/LegalPrivacyPage'));
 // Chat — primary page
 const ChatPage = lazy(() => import('./pages/chat/ChatPage'));
 
-// Dashboard pages — kept for backward compatibility
-const OverviewPage = lazy(() => import('./pages/dashboard/OverviewPage'));
-const WorkflowsPage = lazy(() => import('./pages/dashboard/WorkflowsPage'));
-const WorkflowDetailPage = lazy(() => import('./pages/dashboard/WorkflowDetailPage'));
-const NewWorkflowPage = lazy(() => import('./pages/dashboard/NewWorkflowPage'));
-const AgentsPage = lazy(() => import('./pages/agents/AgentsPage'));
+// Landing & Docs — public pages (FAZ 7 placeholders)
+const LandingPage = lazy(() => import('./pages/LandingPage'));
+const DocsPage = lazy(() => import('./pages/DocsPage'));
+
+// Protected pages
 const SettingsPage = lazy(() => import('./pages/settings/SettingsPage'));
 
 const PageLoader = () => (
@@ -50,8 +47,8 @@ function App() {
     <BrowserRouter>
       <AuthProvider>
         <Routes>
-          {/* Root redirects to chat */}
-          <Route index element={<Navigate to="/chat" replace />} />
+          {/* Landing page — public */}
+          <Route index element={<Suspense fallback={<PageLoader />}><LandingPage /></Suspense>} />
 
           {/* Public Routes */}
           <Route element={<AppShell />}>
@@ -75,6 +72,9 @@ function App() {
             </Route>
           </Route>
 
+          {/* Docs — public */}
+          <Route path="/docs" element={<Suspense fallback={<PageLoader />}><DocsPage /></Suspense>} />
+
           {/* Chat Route — single mount, no remount on chat switch */}
           <Route
             path="/chat/*"
@@ -85,15 +85,7 @@ function App() {
             }
           />
 
-          {/* Agents & Settings — standalone protected pages */}
-          <Route
-            path="/agents"
-            element={
-              <ProtectedRoute>
-                <Suspense fallback={<PageLoader />}><AgentsPage /></Suspense>
-              </ProtectedRoute>
-            }
-          />
+          {/* Settings — standalone protected page */}
           <Route
             path="/settings"
             element={
@@ -103,28 +95,10 @@ function App() {
             }
           />
 
-          {/* Legacy Dashboard Routes — kept for backward compatibility */}
-          <Route
-            path="/dashboard"
-            element={
-              <ProtectedRoute>
-                <DashboardLayout />
-              </ProtectedRoute>
-            }
-          >
-            <Route index element={<Suspense fallback={<PageLoader />}><OverviewPage /></Suspense>} />
-            <Route path="workflows" element={<Suspense fallback={<PageLoader />}><WorkflowsPage /></Suspense>} />
-            <Route path="workflows/new" element={<Suspense fallback={<PageLoader />}><NewWorkflowPage /></Suspense>} />
-            <Route path="workflows/:id" element={<Suspense fallback={<PageLoader />}><WorkflowDetailPage /></Suspense>} />
-            <Route path="agents" element={<Suspense fallback={<PageLoader />}><AgentsPage /></Suspense>} />
-            <Route path="settings" element={<Suspense fallback={<PageLoader />}><SettingsPage /></Suspense>} />
-          </Route>
-
-          {/* Catch-all → chat */}
-          <Route path="*" element={<Navigate to="/chat" replace />} />
+          {/* Catch-all → landing */}
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
         <ToastContainer />
-        <PWAInstallPrompt />
       </AuthProvider>
     </BrowserRouter>
   );

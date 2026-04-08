@@ -1201,6 +1201,7 @@ export class AgentOrchestrator {
     // CREATE AI SERVICE WITH PROVIDER-CONSISTENT CONFIG
     // ========================================================================
     const PROVIDER_BASE_URLS: Record<AIKeyProvider, string> = {
+      anthropic: 'https://api.anthropic.com/v1',
       openai: 'https://api.openai.com/v1',
       openrouter: 'https://openrouter.ai/api/v1',
     };

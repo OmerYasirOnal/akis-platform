@@ -515,7 +515,7 @@ export const userStatusEnum = pgEnum('user_status', [
 /**
  * AI Provider enum for user settings
  */
-export const aiProviderEnum = pgEnum('ai_provider', ['openai', 'openrouter']);
+export const aiProviderEnum = pgEnum('ai_provider', ['anthropic', 'openai', 'openrouter']);
 export const userRoleEnum = pgEnum('user_role', ['admin', 'member']);
 
 /**

@@ -7,55 +7,8 @@ import { ScribeAgent } from '../agents/scribe/ScribeAgent.js';
 import { ProtoAgent, type ProtoAIDeps, type ProtoGitHubDeps } from '../agents/proto/ProtoAgent.js';
 import { TraceAgent, type TraceAIDeps, type TraceGitHubDeps } from '../agents/trace/TraceAgent.js';
 import type { ScribeAIDeps } from '../agents/scribe/ScribeAgent.js';
-import type { PipelineState } from './contracts/PipelineTypes.js';
-
-// ─── In-Memory Store ─────────────────────────────
-// TODO: Replace with PostgreSQL-backed store using pipeline-schema.ts
-
-export class InMemoryPipelineStore implements PipelineStore {
-  private pipelines = new Map<string, PipelineState>();
-
-  async create(userId: string): Promise<PipelineState> {
-    const id = crypto.randomUUID();
-    const now = new Date();
-    const pipeline: PipelineState = {
-      id,
-      userId,
-      stage: 'scribe_generating',
-      scribeConversation: [],
-      metrics: {
-        startedAt: now,
-        clarificationRounds: 0,
-        retryCount: 0,
-      },
-      attemptCount: 0,
-      createdAt: now,
-      updatedAt: now,
-    };
-    this.pipelines.set(id, pipeline);
-    return structuredClone(pipeline);
-  }
-
-  async getById(id: string): Promise<PipelineState | null> {
-    const p = this.pipelines.get(id);
-    return p ? structuredClone(p) : null;
-  }
-
-  async listByUser(userId: string): Promise<PipelineState[]> {
-    return [...this.pipelines.values()]
-      .filter((p) => p.userId === userId)
-      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
-      .map((p) => structuredClone(p));
-  }
-
-  async update(id: string, data: Partial<PipelineState>): Promise<PipelineState> {
-    const existing = this.pipelines.get(id);
-    if (!existing) throw new Error(`Pipeline ${id} not found`);
-    const updated = { ...existing, ...data, updatedAt: new Date() };
-    this.pipelines.set(id, updated);
-    return structuredClone(updated);
-  }
-}
+import { DrizzlePipelineStore } from '../db/DrizzlePipelineStore.js';
+import { db } from '../../db/client.js';
 
 // ─── AI Adapter ──────────────────────────────────
 // Bridges the existing AIService to agent AI deps interfaces.
@@ -145,6 +98,9 @@ function createTraceGitHubDeps(github: GitHubServiceLike): TraceGitHubDeps {
     getFileContent: (owner, repo, branch, filePath) => github.getFileContent(owner, repo, branch, filePath),
     commitFile: (owner, repo, branch, filePath, content, message) =>
       github.commitFile(owner, repo, branch, filePath, content, message),
+    pushFiles: github.pushFiles
+      ? (owner, repo, branch, files, message) => github.pushFiles!(owner, repo, branch, files, message)
+      : undefined,
     createBranch: (owner, repo, branch, fromBranch) => github.createBranch(owner, repo, branch, fromBranch),
     createPR: (owner, repo, title, body, head, base) =>
       github.createPR(owner, repo, title, body, head, base),
@@ -179,7 +135,7 @@ export function createAgentsForModel(
 }
 
 export function createPipelineOrchestrator(opts: CreatePipelineOrchestratorOptions): PipelineOrchestrator {
-  const store = opts.store ?? new InMemoryPipelineStore();
+  const store = opts.store ?? new DrizzlePipelineStore(db);
 
   const defaultAgents = createAgentsForModel(opts.aiService, opts.githubService);
 

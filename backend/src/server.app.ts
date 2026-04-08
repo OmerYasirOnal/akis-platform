@@ -267,6 +267,10 @@ export async function buildApp() {
   await app.register(adminRoutes);
   await app.register(githubRoutes, { prefix: '/api/github' });
 
+  // Agent activities stub (returns empty until full wiring)
+  app.get('/api/agent-activities', async () => ({ activities: [] }));
+  app.get('/api/agent-activities/:id', async () => ({ activities: [] }));
+
   // Pipeline routes (Scribe → Proto → Trace pipeline)
   // Priority: 1) MCP Gateway (if available), 2) REST API, 3) Stub
   let pipelineGitHubService: GitHubServiceLike;

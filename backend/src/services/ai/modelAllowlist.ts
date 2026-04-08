@@ -16,6 +16,7 @@ export const DEFAULT_OPENROUTER_MODELS = [
 ];
 
 export const RECOMMENDED_MODELS: Record<AIKeyProvider, string> = {
+  anthropic: 'claude-sonnet-4-6',
   openai: 'gpt-4o-mini',
   openrouter: 'anthropic/claude-sonnet-4',
 };
