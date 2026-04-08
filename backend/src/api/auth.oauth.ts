@@ -577,7 +577,7 @@ export async function registerOAuthRoutes(fastify: FastifyInstance, emailService
       });
 
       // Encrypt and store OAuth tokens (non-fatal: login succeeds even if encryption key is missing)
-      let tokenStored = false;
+      let _tokenStored = false;
       try {
         const encryptedAccessToken = oauthTokenCrypto.encryptForStorage({
           userId: user.id,
@@ -619,8 +619,8 @@ export async function registerOAuthRoutes(fastify: FastifyInstance, emailService
             })
             .where(eq(oauthAccounts.id, existingOAuthAccount.id));
         }
-        tokenStored = true;
-      } catch (tokenErr) {
+        _tokenStored = true;
+      } catch (_tokenErr) {
         // Token encryption failed (AI_KEY_ENCRYPTION_KEY not set) — login still succeeds
         console.warn(`[OAuth] Token storage skipped (encryption key missing). Login will proceed without stored OAuth token.`);
 
