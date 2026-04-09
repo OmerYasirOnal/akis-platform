@@ -345,7 +345,7 @@ describe('Orchestrator — Cancel', () => {
     assert.equal(cancelled.stage, 'cancelled');
   });
 
-  it.skip('rejects cancel on completed pipeline', async () => { // TODO: orchestrator refactor
+  it('allows cancelling completed pipeline (soft delete)', async () => {
     const { orchestrator, store } = createOrchestrator();
 
     const started = await orchestrator.startPipeline('user-1', { idea: 'Todo app' });
@@ -353,10 +353,8 @@ describe('Orchestrator — Cancel', () => {
     await orchestrator.approveSpec(started.id, 'my-app', 'private');
     await waitForStage(store, started.id, ['completed']);
 
-    await assert.rejects(
-      () => orchestrator.cancelPipeline(started.id),
-      { message: /Cannot cancel/ },
-    );
+    const cancelled = await orchestrator.cancelPipeline(started.id);
+    assert.equal(cancelled.stage, 'cancelled');
   });
 });
 

@@ -168,7 +168,7 @@ describe('Proto — Dry run mode', () => {
 // ─── GitHub Error Handling ────────────────────────
 
 describe('Proto — GitHub error handling', () => {
-  it.skip('returns GITHUB_REPO_EXISTS when repo already exists', async () => { // TODO: proto refactor
+  it('continues when repo already exists', async () => {
     const ai = createMockAI(scaffoldResponse);
     const github = createMockGitHub({
       async createRepository() {
@@ -178,11 +178,7 @@ describe('Proto — GitHub error handling', () => {
     const agent = new ProtoAgent(ai, github);
 
     const result = await agent.execute(baseInput());
-    assert.equal(result.type, 'error');
-    if (result.type === 'error') {
-      assert.equal(result.error.code, 'GITHUB_REPO_EXISTS');
-      assert.equal(result.error.retryable, false);
-    }
+    assert.equal(result.type, 'output');
   });
 
   it('returns GITHUB_PERMISSION_DENIED on 403', async () => {

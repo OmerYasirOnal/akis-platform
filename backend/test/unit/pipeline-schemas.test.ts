@@ -172,12 +172,27 @@ describe('Pipeline Schemas — StructuredSpec', () => {
 // ─── ScribeOutput ─────────────────────────────────
 
 describe('Pipeline Schemas — ScribeOutput', () => {
-  it.skip('accepts valid scribe output', () => { // TODO: schema updated, test fixture needs update
+  it('accepts valid scribe output', () => {
     const result = ScribeOutputSchema.safeParse({
       spec: validSpec,
+      plan: {
+        projectName: 'todo-app',
+        summary: 'A simple todo application with Google Auth login.',
+        features: [
+          { name: 'Task Management', description: 'Create, edit, and delete tasks' },
+        ],
+        techChoices: ['React', 'Vite', 'TypeScript', 'Google OAuth'],
+        estimatedFiles: 8,
+        requiresTests: true,
+      },
       rawMarkdown: '# Todo App\n\nA simple todo application.',
       confidence: 0.85,
       clarificationsAsked: 2,
+      reviewNotes: {
+        selfReviewPassed: true,
+        revisionsApplied: [],
+        assumptionsMade: [],
+      },
     });
     assert.equal(result.success, true);
   });
