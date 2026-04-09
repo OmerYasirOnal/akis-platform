@@ -34,6 +34,8 @@ export default defineConfig({
       output: {
         manualChunks: {
           'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+          'vendor-editor': ['@codemirror/state', '@codemirror/view', '@codemirror/commands'],
+          'vendor-dockview': ['dockview'],
         },
       },
     },
