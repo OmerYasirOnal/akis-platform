@@ -1,4 +1,14 @@
 {
+	"name": "akis-platform",
+	"version": "0.2.0",
+	"description": "AKIS — Adaptive Knowledge Integrity System: AI Agent Workflows Engine for automated software development",
+	"author": "Ömer Yasir Önal <omeryasironal@gmail.com>",
+	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/OmerYasirOnal/akis-platform-devolopment"
+	},
+	"keywords": ["ai-agents", "workflow-engine", "code-generation", "playwright", "typescript", "knowledge-integrity"],
 	"type": "module",
 	"devDependencies": {
 		"@playwright/test": "^1.58.2",

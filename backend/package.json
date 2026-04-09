@@ -1,7 +1,13 @@
 {
   "name": "akis-backend",
   "version": "0.2.0",
-  "description": "AKIS Platform Backend - AI Agent Workflow Engine",
+  "description": "AKIS Platform Backend — AI Agent Workflow Engine (Fastify + TypeScript + Drizzle ORM)",
+  "author": "Ömer Yasir Önal <omeryasironal@gmail.com>",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/OmerYasirOnal/akis-platform-devolopment",
+    "directory": "devagents/backend"
+  },
   "type": "module",
   "main": "dist/server.js",
   "scripts": {

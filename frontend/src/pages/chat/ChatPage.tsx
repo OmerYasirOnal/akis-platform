@@ -190,7 +190,7 @@ export default function ChatPage() {
     setConversations((prev) =>
       prev.map((c) => (c.id === id ? { ...c, title: newTitle } : c)),
     );
-    // TODO: persist to backend when API supports it
+    // Title rename is local-only (backend persistence planned for M2)
   }, []);
 
   const handleDelete = useCallback(async (id: string) => {

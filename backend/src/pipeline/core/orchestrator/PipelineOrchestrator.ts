@@ -112,7 +112,7 @@ export class PipelineOrchestrator {
     // Run Scribe in background (non-blocking)
     this.runScribeAnalysis(pipeline.id, pipeline.metrics, input, conversation, model).catch((err) => {
       console.error(`[Pipeline] Background Scribe failed for ${pipeline.id}:`, err);
-      this.failPipeline(pipeline.id, 'Scribe', err).catch(() => {});
+      this.failPipeline(pipeline.id, 'Scribe', err).catch((e) => console.error('[Pipeline] failPipeline also failed:', e));
     });
 
     return updated;
@@ -186,7 +186,7 @@ export class PipelineOrchestrator {
     // Run Scribe continuation in background
     this.runScribeContinuation(pipelineId, pipeline.metrics, scribeState, conversation, pipeline.model).catch((err) => {
       console.error(`[Pipeline] Background Scribe continuation failed for ${pipelineId}:`, err);
-      this.failPipeline(pipelineId, 'Scribe', err).catch(() => {});
+      this.failPipeline(pipelineId, 'Scribe', err).catch((e) => console.error('[Pipeline] failPipeline also failed:', e));
     });
 
     return updated;
@@ -272,7 +272,7 @@ export class PipelineOrchestrator {
     // Run Proto + Trace in background (non-blocking)
     this.runProtoAndTrace(pipelineId, pipeline.metrics, spec, repoName, repoVisibility, owner, pipeline.model).catch((err) => {
       console.error(`[Pipeline] Background Proto+Trace failed for ${pipelineId}:`, err);
-      this.failPipeline(pipelineId, 'Proto/Trace', err).catch(() => {});
+      this.failPipeline(pipelineId, 'Proto/Trace', err).catch((e) => console.error('[Pipeline] failPipeline also failed:', e));
     });
 
     return updated;

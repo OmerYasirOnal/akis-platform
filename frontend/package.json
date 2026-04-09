@@ -1,7 +1,14 @@
 {
-  "name": "frontend",
+  "name": "akis-frontend",
   "private": true,
   "version": "0.2.0",
+  "description": "AKIS Platform Frontend — React 19 SPA with chat-centric AI agent interface",
+  "author": "Ömer Yasir Önal <omeryasironal@gmail.com>",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/OmerYasirOnal/akis-platform-devolopment",
+    "directory": "devagents/frontend"
+  },
   "type": "module",
   "engines": {
     "node": ">=22.12.0 || >=20.19.0"

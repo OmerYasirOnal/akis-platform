@@ -90,7 +90,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => {
       active = false;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.pathname, mapUser]);
 
   const login = useCallback(
