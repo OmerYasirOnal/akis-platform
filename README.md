@@ -38,6 +38,25 @@ Each stage produces verified output — Scribe's spec is approved by humans, Pro
 
 ---
 
+## Screenshots
+
+<p align="center">
+  <img src="docs/screenshots/01-landing.png" alt="Landing Page" width="720" /><br/>
+  <em>Landing Page — "Fikirden Koda, Dakikalar İçinde"</em>
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/02-chat-pipeline.png" alt="Chat & Pipeline" width="720" /><br/>
+  <em>Chat Interface — Scribe clarification, spec review, real-time progress</em>
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/03-pipeline-result.png" alt="Pipeline Result" width="720" /><br/>
+  <em>Pipeline Result — Generated files, test coverage, GitHub integration</em>
+</p>
+
+---
+
 ## Key Features
 
 | Feature | Description |
@@ -119,7 +138,7 @@ Every stage → failed (3 retries, backoff) | cancelled
 | **AI** | Anthropic Claude API (claude-sonnet-4-6), OpenAI, OpenRouter |
 | **Integration** | GitHub REST API (OAuth + PAT) |
 | **Auth** | JWT sessions, bcrypt, AES-256-GCM encryption, OAuth 2.0 |
-| **Testing** | Vitest (unit), Playwright (E2E) |
+| **Testing** | Vitest (1576 unit tests), Playwright (E2E by Trace) |
 | **Deploy** | Docker Compose, Caddy (auto-SSL), OCI ARM64 |
 
 ---
