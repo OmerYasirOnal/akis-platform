@@ -234,7 +234,7 @@ export const StartPipelineRequestSchema = z.object({
   idea: z.string().min(10, 'Fikir en az 10 karakter olmalı'),
   context: z.string().max(5000).optional(),
   targetStack: z.string().max(200).optional(),
-  model: z.enum(['claude-sonnet-4-6', 'claude-haiku-4-5']).optional().default('claude-sonnet-4-6'),
+  model: z.enum(['claude-sonnet-4-6', 'claude-haiku-4-5']).optional().default('claude-haiku-4-5'),
 });
 
 export const SendMessageRequestSchema = z.object({
