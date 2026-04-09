@@ -1175,6 +1175,9 @@ export function WorkflowChatView({ workflow, onSendMessage, onApprove, onReject,
     workflow.status !== 'failed' &&
     workflow.status !== 'cancelled';
 
+  // Hide thinking indicator when wizard is active (Scribe is waiting, not working)
+  const effectiveShowThinking = showThinking && !showWizard;
+
   let placeholder: string = TR.writeMessage;
   if (isScribeActive && hasClarification) placeholder = TR.answerQuestions;
   else if (isAwaitingApproval) placeholder = TR.specFeedback;
@@ -1202,7 +1205,7 @@ export function WorkflowChatView({ workflow, onSendMessage, onApprove, onReject,
             wizardActive={!!showWizard && msg === lastClarification}
           />
         ))}
-        {showThinking && (
+        {effectiveShowThinking && (
           <ThinkingIndicator
             agentName={activeAgent || 'scribe'}
             hasUserAnswered={hasClarification && messages.some(m => m.role === 'user' && m.type === 'message')}

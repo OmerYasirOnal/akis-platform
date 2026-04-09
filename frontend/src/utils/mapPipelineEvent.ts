@@ -7,6 +7,7 @@ import type { ChatMessage, ConversationUIState, ConversationListItem, Conversati
 export function mapStageToUIState(stage: PipelineStage): ConversationUIState {
   switch (stage) {
     case 'scribe_clarifying':
+      return 'idle'; // Scribe finished — waiting for user answers (wizard visible)
     case 'scribe_generating':
       return 'scribe_running';
     case 'awaiting_approval':
@@ -83,11 +84,15 @@ export function mapPipelineToChatMessages(pipeline: Pipeline): ChatMessage[] {
         messages.push({ type: 'user', content: msg.content as string, timestamp: now });
         break;
       case 'clarification': {
-        const clar = msg.content as { message?: string; questions?: unknown[] };
+        const clar = msg.content as {
+          message?: string;
+          questions?: Array<{ id: string; question: string; reason: string; suggestions?: string[] }>;
+        };
         messages.push({
-          type: 'agent',
-          agent: 'scribe',
-          content: clar.message ?? 'Birkaç sorum var:',
+          type: 'clarification',
+          role: 'scribe' as const,
+          content: clar.message ?? 'Fikrini daha iyi anlayabilmem için birkaç sorum var:',
+          questions: clar.questions ?? [],
           timestamp: now,
         });
         break;

@@ -26,6 +26,13 @@ export type ChatMessage =
       activityEntryId?: string;
     }
   | {
+      type: 'clarification';
+      role: AgentName;
+      content: string;
+      questions: Array<{ id: string; question: string; reason: string; suggestions?: string[] }>;
+      timestamp: string;
+    }
+  | {
       type: 'plan';
       plan: UserFriendlyPlan;
       version: number;
