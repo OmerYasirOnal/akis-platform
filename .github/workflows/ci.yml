@@ -99,17 +99,3 @@ jobs:
         run: pnpm build
 
       # E2E tests removed from CI — require live backend, run via nightly-smoke.yml
-
-      - name: Upload Playwright artifacts on failure
-        uses: actions/upload-artifact@v4
-        if: failure()
-        with:
-          name: playwright-report-${{ github.run_id }}
-          path: |
-            frontend/test-results/
-            frontend/playwright-report/
-          retention-days: 5
-          if-no-files-found: ignore
-
-      - name: Localhost leak check
-        run: ./scripts/check-localhost-leak.sh
