@@ -12,6 +12,20 @@
 import { getEnv, getAIConfig, type AIConfig } from '../../config/env.js';
 import { AIRateLimitedError, AIProviderError } from '../../core/errors.js';
 import { z } from 'zod';
+
+/**
+ * Map user-facing model names to actual Anthropic API model IDs.
+ * Pipeline/UI uses short names; the API needs dated model IDs.
+ */
+const ANTHROPIC_MODEL_MAP: Record<string, string> = {
+  'claude-haiku-4-5':           'claude-3-haiku-20240307',
+  'claude-haiku-4-5-20251001':  'claude-3-haiku-20240307',
+  'claude-sonnet-4-6':          'claude-sonnet-4-20250514',
+};
+
+function resolveAnthropicModel(model: string): string {
+  return ANTHROPIC_MODEL_MAP[model] ?? model;
+}
 import { estimateCostUsd } from './pricing.js';
 import {
   DETERMINISTIC_TEMPERATURES,
@@ -383,8 +397,10 @@ class RealAIService implements AIService {
       'anthropic-version': '2023-06-01',
     };
 
+    const resolvedModel = resolveAnthropicModel(model);
+
     const body: Record<string, unknown> = {
-      model,
+      model: resolvedModel,
       max_tokens: options.maxTokens ?? 4096,
       messages: nonSystemMessages.map((m) => ({ role: m.role, content: m.content })),
       ...(options.temperature !== undefined && { temperature: options.temperature }),
