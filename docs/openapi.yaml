@@ -1,0 +1,873 @@
+openapi: 3.1.0
+info:
+  title: AKIS Platform API
+  description: |
+    Adaptive Knowledge Integrity System — AI Agent Workflows Engine.
+    Scribe → Proto → Trace pipeline ile fikir → kod → test otomasyonu.
+  version: 0.2.0
+  contact:
+    name: Ömer Yasir Önal
+    url: https://akisflow.com
+
+servers:
+  - url: https://akisflow.com
+    description: Production
+  - url: http://localhost:3000
+    description: Local development
+
+tags:
+  - name: Health
+    description: Liveness & readiness checks
+  - name: Auth
+    description: Multi-step signup/login, OAuth, session management
+  - name: Pipeline
+    description: AI Agent Pipeline — Scribe → Proto → Trace
+  - name: Settings
+    description: Profile, workspace, AI key management
+  - name: GitHub
+    description: GitHub integration (PAT-based)
+  - name: Conversations
+    description: Threaded conversations with agents
+  - name: Agents
+    description: Agent configuration and execution
+  - name: Integrations
+    description: Third-party integrations (GitHub OAuth, Atlassian)
+  - name: Usage
+    description: Token usage and billing
+
+# ─── HEALTH ─────────────────────────────────────
+paths:
+  /health:
+    get:
+      tags: [Health]
+      summary: Liveness check
+      security: []
+      responses:
+        "200":
+          description: Server is alive
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, example: "ok" }
+                  timestamp: { type: string, format: date-time }
+
+  /ready:
+    get:
+      tags: [Health]
+      summary: Readiness check (DB, config, services)
+      security: []
+      responses:
+        "200":
+          description: All subsystems ready
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ready: { type: boolean }
+                  database: { type: boolean }
+                  migrations: { type: boolean }
+                  encryption: { type: boolean }
+
+  /version:
+    get:
+      tags: [Health]
+      summary: Build info
+      security: []
+      responses:
+        "200":
+          description: Version and build metadata
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  version: { type: string, example: "0.2.0" }
+                  name: { type: string, example: "akis-backend" }
+                  commit: { type: string }
+                  environment: { type: string }
+
+  # ─── AUTH — Multi-Step ──────────────────────────
+  /auth/signup/start:
+    post:
+      tags: [Auth]
+      summary: "Signup step 1: Email + name"
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [firstName, lastName, email]
+              properties:
+                firstName: { type: string }
+                lastName: { type: string }
+                email: { type: string, format: email }
+      responses:
+        "200":
+          description: Verification code sent
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  userId: { type: string, format: uuid }
+                  email: { type: string }
+                  message: { type: string }
+
+  /auth/signup/password:
+    post:
+      tags: [Auth]
+      summary: "Signup step 2: Set password"
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [userId, password]
+              properties:
+                userId: { type: string, format: uuid }
+                password: { type: string, minLength: 8 }
+      responses:
+        "200":
+          description: Password set
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  needsDataSharingConsent: { type: boolean }
+
+  /auth/verify-email:
+    post:
+      tags: [Auth]
+      summary: "Signup step 3: Verify email code"
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [userId, code]
+              properties:
+                userId: { type: string, format: uuid }
+                code: { type: string, pattern: "^[0-9]{6}$" }
+      responses:
+        "200":
+          description: Email verified, session created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user: { $ref: "#/components/schemas/User" }
+
+  /auth/login/start:
+    post:
+      tags: [Auth]
+      summary: "Login step 1: Check email"
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email: { type: string, format: email }
+      responses:
+        "200":
+          description: User found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  userId: { type: string, format: uuid }
+                  requiresPassword: { type: boolean }
+
+  /auth/login/complete:
+    post:
+      tags: [Auth]
+      summary: "Login step 2: Verify password"
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [userId, password]
+              properties:
+                userId: { type: string, format: uuid }
+                password: { type: string }
+      responses:
+        "200":
+          description: Session created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user: { $ref: "#/components/schemas/User" }
+
+  /auth/logout:
+    post:
+      tags: [Auth]
+      summary: Clear session cookie
+      responses:
+        "200":
+          description: Logged out
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+
+  /auth/me:
+    get:
+      tags: [Auth]
+      summary: Get current session user
+      responses:
+        "200":
+          description: Current user or null
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user:
+                    oneOf:
+                      - $ref: "#/components/schemas/User"
+                      - type: "null"
+
+  /auth/oauth/{provider}:
+    get:
+      tags: [Auth]
+      summary: Initiate OAuth flow
+      security: []
+      parameters:
+        - name: provider
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [github, google]
+      responses:
+        "302":
+          description: Redirect to provider auth URL
+
+  /auth/profile:
+    get:
+      tags: [Auth]
+      summary: Get user profile with GitHub info
+      responses:
+        "200":
+          description: Full profile
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id: { type: string, format: uuid }
+                  name: { type: string }
+                  email: { type: string }
+                  githubUsername: { type: string }
+                  githubAvatarUrl: { type: string }
+    put:
+      tags: [Auth]
+      summary: Update profile
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string }
+                email: { type: string, format: email }
+      responses:
+        "200":
+          description: Updated profile
+
+  /auth/password:
+    put:
+      tags: [Auth]
+      summary: Change password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [currentPassword, newPassword]
+              properties:
+                currentPassword: { type: string }
+                newPassword: { type: string, minLength: 8 }
+      responses:
+        "200":
+          description: Password changed
+
+  # ─── PIPELINE ───────────────────────────────────
+  /api/pipelines:
+    post:
+      tags: [Pipeline]
+      summary: Start a new pipeline
+      description: Kullanıcı fikrinden pipeline başlatır → Scribe clarification döngüsü başlar
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [idea]
+              properties:
+                idea: { type: string, minLength: 10, description: "Kullanıcı fikri (serbest metin)" }
+                context: { type: string, maxLength: 5000 }
+                targetStack: { type: string, maxLength: 200 }
+                model:
+                  type: string
+                  enum: [claude-sonnet-4-6, claude-haiku-4-5]
+                  default: claude-sonnet-4-6
+      responses:
+        "200":
+          description: Pipeline started
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  pipeline: { $ref: "#/components/schemas/PipelineState" }
+    get:
+      tags: [Pipeline]
+      summary: List user's pipelines
+      responses:
+        "200":
+          description: Pipeline list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  pipelines:
+                    type: array
+                    items: { $ref: "#/components/schemas/PipelineState" }
+
+  /api/pipelines/{id}:
+    get:
+      tags: [Pipeline]
+      summary: Get pipeline status
+      parameters:
+        - $ref: "#/components/parameters/PipelineId"
+      responses:
+        "200":
+          description: Pipeline state
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  pipeline: { $ref: "#/components/schemas/PipelineState" }
+    delete:
+      tags: [Pipeline]
+      summary: Cancel pipeline
+      parameters:
+        - $ref: "#/components/parameters/PipelineId"
+      responses:
+        "200":
+          description: Pipeline cancelled
+
+  /api/pipelines/{id}/message:
+    post:
+      tags: [Pipeline]
+      summary: Send message to Scribe (clarification yanıtı)
+      parameters:
+        - $ref: "#/components/parameters/PipelineId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [message]
+              properties:
+                message: { type: string, minLength: 1, maxLength: 5000 }
+      responses:
+        "200":
+          description: Message processed
+
+  /api/pipelines/{id}/approve:
+    post:
+      tags: [Pipeline]
+      summary: Approve spec → Proto starts
+      description: |
+        Kullanıcı spec'i onaylar, repo bilgilerini girer.
+        Proto arka planda başlar (non-blocking).
+      parameters:
+        - $ref: "#/components/parameters/PipelineId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [repoName]
+              properties:
+                repoName:
+                  type: string
+                  minLength: 1
+                  maxLength: 100
+                  pattern: "^[a-zA-Z0-9._-]+$"
+                repoVisibility:
+                  type: string
+                  enum: [public, private]
+                  default: private
+                spec:
+                  $ref: "#/components/schemas/StructuredSpec"
+                  description: Düzenlenmiş spec (opsiyonel)
+      responses:
+        "200":
+          description: Spec approved, Proto starting
+
+  /api/pipelines/{id}/reject:
+    post:
+      tags: [Pipeline]
+      summary: Reject spec → Scribe revises
+      parameters:
+        - $ref: "#/components/parameters/PipelineId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [feedback]
+              properties:
+                feedback: { type: string, minLength: 1, maxLength: 2000 }
+      responses:
+        "200":
+          description: Spec rejected, Scribe re-analyzing
+
+  /api/pipelines/{id}/retry:
+    post:
+      tags: [Pipeline]
+      summary: Retry failed stage
+      description: Başarısız aşamayı otomatik tespit edip tekrar dener (max 3 retry)
+      parameters:
+        - $ref: "#/components/parameters/PipelineId"
+      responses:
+        "200":
+          description: Retry initiated
+
+  /api/pipelines/{id}/skip-trace:
+    post:
+      tags: [Pipeline]
+      summary: Skip Trace → completed_partial
+      description: Trace aşamasını atlar. Sadece trace_testing veya trace-failure durumunda çalışır.
+      parameters:
+        - $ref: "#/components/parameters/PipelineId"
+      responses:
+        "200":
+          description: Trace skipped
+
+  /api/pipelines/{id}/files-all:
+    get:
+      tags: [Pipeline]
+      summary: Get all generated files (Proto + Trace)
+      parameters:
+        - $ref: "#/components/parameters/PipelineId"
+      responses:
+        "200":
+          description: File map
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  files:
+                    type: object
+                    additionalProperties: { type: string }
+                  title: { type: string }
+
+  # ─── SETTINGS ───────────────────────────────────
+  /api/settings/ai-keys/status:
+    get:
+      tags: [Settings]
+      summary: Get AI provider key status
+      responses:
+        "200":
+          description: Provider status map
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  activeProvider: { type: string }
+                  providers:
+                    type: object
+                    properties:
+                      anthropic: { $ref: "#/components/schemas/ProviderStatus" }
+                      openai: { $ref: "#/components/schemas/ProviderStatus" }
+                      openrouter: { $ref: "#/components/schemas/ProviderStatus" }
+
+  /api/settings/ai-keys:
+    put:
+      tags: [Settings]
+      summary: Save/update AI API key
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [provider, apiKey]
+              properties:
+                provider: { type: string, enum: [anthropic, openai, openrouter] }
+                apiKey: { type: string }
+      responses:
+        "200":
+          description: Key saved (AES-256-GCM encrypted)
+    delete:
+      tags: [Settings]
+      summary: Delete AI API key
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [provider]
+              properties:
+                provider: { type: string, enum: [anthropic, openai, openrouter] }
+      responses:
+        "200":
+          description: Key deleted
+
+  # ─── GITHUB ─────────────────────────────────────
+  /api/github/status:
+    get:
+      tags: [GitHub]
+      summary: GitHub connection status
+      responses:
+        "200":
+          description: Connection info
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  connected: { type: boolean }
+                  username: { type: string }
+                  avatarUrl: { type: string }
+
+  /api/github/repos:
+    get:
+      tags: [GitHub]
+      summary: List user's GitHub repos
+      responses:
+        "200":
+          description: Repo list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  repos:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        name: { type: string }
+                        fullName: { type: string }
+                        private: { type: boolean }
+                        url: { type: string, format: uri }
+
+  /api/github/connect:
+    post:
+      tags: [GitHub]
+      summary: Connect GitHub via PAT
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token]
+              properties:
+                token: { type: string }
+      responses:
+        "200":
+          description: GitHub connected
+
+  /api/github/disconnect:
+    post:
+      tags: [GitHub]
+      summary: Disconnect GitHub
+      responses:
+        "200":
+          description: GitHub disconnected
+
+  # ─── USAGE ──────────────────────────────────────
+  /api/usage/current-month:
+    get:
+      tags: [Usage]
+      summary: Monthly token usage and cost
+      responses:
+        "200":
+          description: Usage summary
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  period:
+                    type: object
+                    properties:
+                      start: { type: string, format: date }
+                      end: { type: string, format: date }
+                  usage:
+                    type: object
+                    properties:
+                      inputTokens: { type: integer }
+                      outputTokens: { type: integer }
+                      totalTokens: { type: integer }
+                      estimatedCostUsd: { type: number }
+                      jobCount: { type: integer }
+
+# ─── COMPONENTS ─────────────────────────────────
+components:
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: akis_session
+
+  parameters:
+    PipelineId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+  schemas:
+    User:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        email: { type: string, format: email }
+        role: { type: string, enum: [user, admin] }
+        emailVerified: { type: boolean }
+
+    StructuredSpec:
+      type: object
+      required: [title, problemStatement, userStories, acceptanceCriteria, technicalConstraints, outOfScope]
+      properties:
+        title: { type: string, minLength: 3 }
+        problemStatement: { type: string, minLength: 10 }
+        userStories:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            required: [persona, action, benefit]
+            properties:
+              persona: { type: string }
+              action: { type: string }
+              benefit: { type: string }
+        acceptanceCriteria:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            required: [id, given, when, then]
+            properties:
+              id: { type: string }
+              given: { type: string }
+              when: { type: string }
+              then: { type: string }
+        technicalConstraints:
+          type: object
+          properties:
+            stack: { type: string }
+            integrations: { type: array, items: { type: string } }
+            nonFunctional: { type: array, items: { type: string } }
+        outOfScope:
+          type: array
+          items: { type: string }
+
+    PipelineState:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        userId: { type: string, format: uuid }
+        stage:
+          type: string
+          enum:
+            - scribe_clarifying
+            - scribe_generating
+            - awaiting_approval
+            - proto_building
+            - trace_testing
+            - completed
+            - completed_partial
+            - failed
+            - cancelled
+        title: { type: string }
+        model: { type: string }
+        scribeConversation: { type: array, items: { $ref: "#/components/schemas/ScribeMessage" } }
+        scribeOutput: { $ref: "#/components/schemas/ScribeOutput" }
+        approvedSpec: { $ref: "#/components/schemas/StructuredSpec" }
+        protoOutput: { $ref: "#/components/schemas/ProtoOutput" }
+        traceOutput: { $ref: "#/components/schemas/TraceOutput" }
+        metrics: { $ref: "#/components/schemas/PipelineMetrics" }
+        error: { $ref: "#/components/schemas/PipelineError" }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    ScribeMessage:
+      type: object
+      required: [type, content]
+      properties:
+        type:
+          type: string
+          enum: [user_idea, clarification, user_answer, spec_draft, spec_approved, spec_rejected]
+        content: {}
+
+    ScribeOutput:
+      type: object
+      properties:
+        spec: { $ref: "#/components/schemas/StructuredSpec" }
+        plan: { $ref: "#/components/schemas/UserFriendlyPlan" }
+        rawMarkdown: { type: string }
+        confidence: { type: number, minimum: 0, maximum: 1 }
+        clarificationsAsked: { type: integer, minimum: 0, maximum: 3 }
+
+    UserFriendlyPlan:
+      type: object
+      properties:
+        projectName: { type: string }
+        summary: { type: string }
+        features:
+          type: array
+          items:
+            type: object
+            properties:
+              name: { type: string }
+              description: { type: string }
+        techChoices: { type: array, items: { type: string } }
+        estimatedFiles: { type: integer }
+        requiresTests: { type: boolean }
+
+    ProtoOutput:
+      type: object
+      properties:
+        ok: { type: boolean }
+        branch: { type: string }
+        repo: { type: string }
+        repoUrl: { type: string, format: uri }
+        files:
+          type: array
+          items:
+            type: object
+            properties:
+              filePath: { type: string }
+              content: { type: string }
+              linesOfCode: { type: integer }
+        setupCommands: { type: array, items: { type: string } }
+        metadata:
+          type: object
+          properties:
+            filesCreated: { type: integer }
+            totalLinesOfCode: { type: integer }
+            stackUsed: { type: string }
+            committed: { type: boolean }
+
+    TraceOutput:
+      type: object
+      properties:
+        ok: { type: boolean }
+        testFiles:
+          type: array
+          items:
+            type: object
+            properties:
+              filePath: { type: string }
+              content: { type: string }
+              testCount: { type: integer }
+        coverageMatrix:
+          type: object
+          additionalProperties:
+            type: array
+            items: { type: string }
+        testSummary:
+          type: object
+          properties:
+            totalTests: { type: integer }
+            coveragePercentage: { type: number }
+            coveredCriteria: { type: array, items: { type: string } }
+            uncoveredCriteria: { type: array, items: { type: string } }
+
+    PipelineMetrics:
+      type: object
+      properties:
+        startedAt: { type: string, format: date-time }
+        scribeCompletedAt: { type: string, format: date-time }
+        approvedAt: { type: string, format: date-time }
+        protoCompletedAt: { type: string, format: date-time }
+        traceCompletedAt: { type: string, format: date-time }
+        totalDurationMs: { type: integer }
+        clarificationRounds: { type: integer }
+        retryCount: { type: integer }
+
+    PipelineError:
+      type: object
+      required: [code, message, retryable]
+      properties:
+        code:
+          type: string
+          enum:
+            - AI_RATE_LIMITED
+            - AI_PROVIDER_ERROR
+            - AI_INVALID_RESPONSE
+            - SCRIBE_EMPTY_IDEA
+            - SCRIBE_SPEC_VALIDATION_FAILED
+            - GITHUB_NOT_CONNECTED
+            - GITHUB_REPO_EXISTS
+            - GITHUB_PERMISSION_DENIED
+            - GITHUB_API_ERROR
+            - PROTO_SCAFFOLD_GENERATION_FAILED
+            - PROTO_PUSH_FAILED
+            - TRACE_CODE_READ_FAILED
+            - TRACE_EMPTY_CODEBASE
+            - TRACE_TEST_GENERATION_FAILED
+            - AI_KEY_MISSING
+            - PIPELINE_TIMEOUT
+            - PIPELINE_CANCELLED
+            - NETWORK_ERROR
+        message: { type: string }
+        technicalDetail: { type: string }
+        retryable: { type: boolean }
+        recoveryAction:
+          type: string
+          enum: [retry, edit_spec, reconnect_github, start_over]
+
+    ProviderStatus:
+      type: object
+      properties:
+        configured: { type: boolean }
+        last4: { type: string }
+        updatedAt: { type: string, format: date-time }
+
+security:
+  - cookieAuth: []

@@ -238,6 +238,9 @@ export class PipelineOrchestrator {
     const pipeline = await this.getPipeline(pipelineId);
     this.assertStage(pipeline, 'awaiting_approval');
 
+    if (!editedSpec && !pipeline.scribeOutput?.spec) {
+      throw new Error('Cannot approve: no spec available (scribeOutput is missing)');
+    }
     const spec = editedSpec ?? pipeline.scribeOutput!.spec;
 
     let owner: string;
@@ -446,7 +449,10 @@ export class PipelineOrchestrator {
 
   async skipTrace(pipelineId: string): Promise<PipelineState> {
     const pipeline = await this.getPipeline(pipelineId);
-    if (pipeline.stage !== 'trace_testing' && pipeline.stage !== 'failed') {
+
+    // Allow skip from trace_testing OR failed — but only if Proto already succeeded
+    const isTraceFailure = pipeline.stage === 'failed' && pipeline.protoOutput != null;
+    if (pipeline.stage !== 'trace_testing' && !isTraceFailure) {
       throw new Error(`Cannot skip trace in stage: ${pipeline.stage}`);
     }
     const updated = await this.store.update(pipelineId, {
@@ -638,7 +644,10 @@ export class PipelineOrchestrator {
       this.emitEvent(pipelineId, 'error', 'failed', error);
       return failed;
     }
-    const repoName = pipeline.protoConfig?.repoName ?? this.deriveRepoName(pipeline.approvedSpec!.title);
+    if (!pipeline.approvedSpec) {
+      throw new Error('Cannot retry Proto: approvedSpec is missing');
+    }
+    const repoName = pipeline.protoConfig?.repoName ?? this.deriveRepoName(pipeline.approvedSpec.title);
     const repoVisibility = pipeline.protoConfig?.repoVisibility ?? 'private';
 
     await this.store.update(pipelineId, { stage: 'proto_building' });
@@ -647,7 +656,7 @@ export class PipelineOrchestrator {
     const agents = this.getAgents(pipeline.model);
     const result = await withTimeout(
       agents.proto.execute({
-        spec: pipeline.approvedSpec!,
+        spec: pipeline.approvedSpec,
         repoName,
         repoVisibility,
         owner,

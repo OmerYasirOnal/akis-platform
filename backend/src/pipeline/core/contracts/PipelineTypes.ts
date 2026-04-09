@@ -145,7 +145,7 @@ export type PipelineStage =
   | 'awaiting_approval'
   | 'proto_building'
   | 'trace_testing'
-  | 'ci_running'
+  | 'ci_running' // reserved — future CI/CD integration
   | 'completed'
   | 'completed_partial'
   | 'failed'
@@ -183,6 +183,7 @@ export interface PipelineState {
   approvedSpec?: StructuredSpec;
   protoOutput?: ProtoOutput;
   traceOutput?: TraceOutput;
+  /** Reserved for future CI/CD integration (GitHub Actions run result) */
   ciResult?: { ok: boolean; runId: number; status: string; conclusion: string | null; htmlUrl: string };
   protoConfig?: { repoName: string; repoVisibility: 'public' | 'private' };
 

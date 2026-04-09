@@ -65,6 +65,11 @@ Her adımdan → failed (retryable) | cancelled
 - Stage timeout: 5 dakika
 - Tüm hatalar `PipelineError` tipinde (code, message, retryable, recoveryAction)
 
+## Diyagramlar
+
+Detaylı sequence diagram, doğrulama zinciri ve FSM state diagram için bkz:
+[`docs/diagrams/pipeline-sequence.md`](diagrams/pipeline-sequence.md)
+
 ## SSE Activity Stream
 
 Her aşama gerçek zamanlı progress event'leri yayınlar:
