@@ -1,326 +1,255 @@
 <p align="center">
-  <img src="akis-logo.png" alt="AKIS Logo" width="120" />
+  <img src="frontend/src/assets/branding/akis-mark-512.png" alt="AKIS Logo" width="100" />
 </p>
 
 <h1 align="center">AKIS Platform</h1>
 
 <p align="center">
-  <strong>Adaptive Knowledge Integrity System</strong><br/>
-  Yapay Zeka Destekli Çok Ajanlı Yazılım Geliştirme Platformu
+  <strong>AI Agent Workflows Engine for Software Development</strong><br/>
+  Fikrinizi anlatın — spec, kod ve testler otomatik oluşturulsun.
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/sürüm-0.2.0-blue" alt="Sürüm" />
-  <img src="https://img.shields.io/badge/TypeScript-5.0-3178C6?logo=typescript&logoColor=white" alt="TypeScript" />
+  <a href="https://akisflow.com"><img src="https://img.shields.io/badge/demo-akisflow.com-07D1AF?style=for-the-badge" alt="Demo" /></a>
+  <img src="https://img.shields.io/badge/version-0.2.0-blue?style=for-the-badge" alt="Version" />
+  <img src="https://img.shields.io/github/actions/workflow/status/OmerYasirOnal/akis-platform/ci.yml?style=for-the-badge&label=CI" alt="CI" />
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/TypeScript-5.9-3178C6?logo=typescript&logoColor=white" alt="TypeScript" />
   <img src="https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=white" alt="React" />
   <img src="https://img.shields.io/badge/Fastify-4-black?logo=fastify" alt="Fastify" />
-  <img src="https://img.shields.io/badge/Claude_API-Sonnet_4.6-D97757?logo=anthropic" alt="Claude" />
-  <img src="https://img.shields.io/badge/lisans-MIT-green" alt="Lisans" />
+  <img src="https://img.shields.io/badge/PostgreSQL-16-4169E1?logo=postgresql&logoColor=white" alt="PostgreSQL" />
+  <img src="https://img.shields.io/badge/Claude-Sonnet_4.6-D97757?logo=anthropic" alt="Claude" />
+  <img src="https://img.shields.io/badge/license-MIT-green" alt="License" />
 </p>
 
 ---
 
-## Nedir?
+## What is AKIS?
 
-AKIS, doğal dilde anlatılan bir yazılım fikrini üç özelleştirilmiş yapay zeka ajanı aracılığıyla **çalışır durumda bir projeye** dönüştüren açık kaynaklı bir platformdur. Her aşamada bilgi bütünlüğü (Knowledge Integrity) doğrulama mekanizmaları ile çıktı kalitesi garanti altına alınır.
+AKIS is an open-source AI agent orchestration platform that transforms natural language ideas into working software projects through a verified, multi-agent pipeline.
 
 ```
-Kullanıcı Fikri → [Scribe] → Spec → [İnsan Onayı] → [Proto] → Kod → [Trace] → Testler → ✓ Proje
+Your Idea  →  Scribe (spec)  →  Human Approval  →  Proto (code)  →  Trace (tests)  →  Working Project
 ```
+
+Each stage produces verified output — Scribe's spec is approved by humans, Proto's code is verified by Trace, and Trace's tests run automatically. This **Knowledge Integrity** chain ensures quality at every step.
 
 ---
 
-## Mimari
+## Key Features
 
-AKIS, **modüler monolit** mimari üzerine kurulmuş bir yapay zeka ajan orkestrasyon sistemidir. Sistem üç ana katmandan oluşur: kullanıcı arayüzü, iş mantığı ve altyapı servisleri. Tüm ajan iletişimi merkezi `PipelineOrchestrator` üzerinden yönetilir — ajanlar birbirini doğrudan çağırmaz.
-
-### Sistem Katmanları
-
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                         SUNUM KATMANI                                       │
-│                                                                             │
-│  React 19 SPA (Vite 7 + Tailwind CSS 4 + React Router 7)                    │
-│                                                                             │
-│  ┌────────────┐ ┌──────────────┐ ┌─────────────┐ ┌──────────────────────┐   │
-│  │  Dashboard │ │ Workflow Chat│ │ Kod Görüntü │ │ StackBlitz Önizleme  │   │
-│  │  & Ajanlar │ │ & Spec Onay  │ │   leyici    │ │ (WebContainer SDK)   │   │
-│  └──────┬─────┘ └──────┬───────┘ └──────┬──────┘ └──────────┬───────────┘   │
-│         │              │                │                    │              │
-│         └──────────────┴────────────────┴────────────────────┘              │
-│                        │ REST + SSE (EventSource)                           │
-├────────────────────────┼────────────────────────────────────────────────────┤
-│                        ▼                                                    │
-│                    İŞ MANTIĞI KATMANI                                       │
-│                                                                             │
-│  Fastify 4 Plugin Mimarisi + TypeScript                                     │
-│                                                                             │
-│  ┌─────────────────────────────────────────────────────────────────────┐    │
-│  │                     REST API Katmanı                                │    │
-│  │  /api/pipelines/* · /auth/* · /api/github/* · /health               │    │
-│  └──────────────────────────────┬──────────────────────────────────────┘    │
-│                                 │                                           │
-│  ┌──────────────┐  ┌────────────┴────────────┐  ┌───────────────────────┐   │
-│  │ Auth Service │  │  Pipeline Orchestrator  │  │   GitHub Service      │   │
-│  │              │  │                         │  │                       │   │
-│  │ JWT Session  │  │  Sonlu Durum Makinesi   │  │  REST API Adapter     │   │
-│  │ OAuth Flow   │  │  Ajan Yaşam Döngüsü     │  │  Repo/Branch/PR/      │   │
-│  │ (GitHub,     │  │  SSE Event Yayını       │  │  Commit İşlemleri     │   │
-│  │  Google)     │  │  Hata Yönetimi + Retry  │  │                       │   │
-│  └──────────────┘  └──┬───────┬────────┬────┘   └───────────────────────┘   │
-│                       │       │        │                                    │
-│                 ┌─────┴──┐ ┌──┴─────┐ ┌┴──────┐                             │
-│                 │ SCRIBE │ │ PROTO  │ │ TRACE │                             │
-│                 │        │ │        │ │       │                             │
-│                 │ Fikir→ │ │ Spec→  │ │ Kod→  │                             │
-│                 │ Spec   │ │ Kod    │ │ Test  │                             │
-│                 └────────┘ └────────┘ └───────┘                             │
-│                                                                             │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                      ALTYAPI KATMANI                                        │
-│                                                                             │
-│  ┌──────────────────┐  ┌────────────────┐  ┌────────────────────────────┐   │
-│  │  PostgreSQL 16   │  │ Claude API     │  │  GitHub REST API           │   │
-│  │  (Drizzle ORM)   │  │ (Sonnet 4.6)   │  │  (OAuth + PAT)             │   │
-│  │                  │  │                │  │                            │   │
-│  │  users, pipelines│  │ temperature=0  │  │  Repo oluşturma            │   │
-│  │  ai_usage        │  │ JSON çıktı     │  │  Branch, commit, push      │   │
-│  │                  │  │ Güven skoru    │  │  Pull Request              │   │
-│  └──────────────────┘  └────────────────┘  └────────────────────────────┘   │
-└─────────────────────────────────────────────────────────────────────────────┘
-```
-
-### Pipeline Akışı
-
-```
-                    ┌──────────────────┐
-                    │   Kullanıcı      │
-                    │   "Kişisel finans│
-                    │    uygulaması"   │
-                    └────────┬─────────┘
-                             │
-                             ▼
-              ┌──────────────────────────────┐
-              │         1. SCRIBE            │
-              │                              │
-              │  Clarification (3-5 soru)    │
-              │         ▼                    │
-              │  Spec Üretimi                │
-              │  • Problem Tanımı            │
-              │  • Kullanıcı Hikayeleri      │
-              │  • Kabul Kriterleri          │
-              │  • Güven Skoru: %88-95       │
-              └──────────────┬───────────────┘
-                             │
-                             ▼
-              ┌──────────────────────────────┐
-              │      2. İNSAN KAPISI         │
-              │                              │
-              │  Kullanıcı spec'i inceler    │
-              │  ┌────────┐  ┌────────────┐  │
-              │  │ Onayla │  │  Reddet +  │  │
-              │  │   ✓    │  │ Düzenle    │  │
-              │  └────┬───┘  └──────┬─────┘  │
-              └───────┼─────────────┼────────┘
-                      │             │ ↺ Scribe'a geri
-                      ▼
-              ┌──────────────────────────────┐
-              │         3. PROTO             │
-              │                              │
-              │  Dosya yapısı planla          │
-              │  Kaynak kod üret (AI)        │
-              │  GitHub branch aç            │
-              │  Dosyaları commit + push     │
-              │  Pull Request oluştur        │
-              │  Bütünlük doğrulaması        │
-              └──────────────┬───────────────┘
-                             │
-                             ▼
-              ┌──────────────────────────────┐
-              │         4. TRACE             │
-              │                              │
-              │  GitHub'dan gerçek kodu oku  │
-              │  Route/endpoint analizi      │
-              │  AC başına Playwright testi  │
-              │  İzlenebilirlik matrisi      │
-              │  (AC ↔ Test eşlemesi)        │
-              └──────────────┬───────────────┘
-                             │
-                             ▼
-              ┌──────────────────────────────┐
-              │        ✓ TAMAMLANDI          │
-              │                              │
-              │  Çalışır proje + testler     │
-              │  GitHub PR + canlı önizleme  │
-              └──────────────────────────────┘
-```
-
-### Durum Makinesi (FSM)
-
-Pipeline deterministik bir sonlu durum makinesi olarak çalışır:
-
-```
-scribe_clarifying ──→ scribe_generating ──→ awaiting_approval
-                                                   │
-                                     ┌─────────────┤
-                                     │ Onayla       │ Reddet
-                                     ▼              ▼
-                              proto_building    (düzenle → yeniden onayla)
-                                     │
-                                     ▼
-                              trace_testing
-                                     │
-                              ┌──────┴──────┐
-                              ▼              ▼
-                          completed    completed_partial
-
-Her aşamadan → failed (max 3 retry, backoff: 5s / 15s / 30s) | cancelled
-Aşama timeout'ları: Scribe 5dk, Proto 5dk, Trace 10dk
-```
-
-### Ajan Arası Sözleşme
-
-Ajanlar arasındaki veri akışı tiplenmiş TypeScript arayüzleri ile tanımlanır:
-
-```typescript
-// Scribe çıktısı → İnsan onayı → Proto girdisi
-ScribeOutput {
-  spec: StructuredSpec       // Problem, User Stories, AC, Tech Constraints
-  confidence: number         // 0-100 güven skoru
-  clarificationsAsked: number
-  rawMarkdown: string
-}
-
-// Proto çıktısı → Trace girdisi
-ProtoOutput {
-  branch: string             // proto/scaffold-{timestamp}
-  repo: string               // hedef repo adı
-  files: FileInfo[]           // üretilen dosya listesi
-  prUrl: string              // GitHub PR bağlantısı
-  verificationReport: Report // bütünlük kontrolü sonucu
-}
-
-// Trace çıktısı → Sonuç
-TraceOutput {
-  testFiles: TestFile[]              // Playwright test dosyaları
-  coverageMatrix: CoverageMatrix     // AC ↔ Test eşleme matrisi
-  traceability: Traceability[]       // izlenebilirlik kaydı
-}
-```
-
-### Doğrulama Zinciri (Knowledge Integrity)
-
-AKIS'in temel tasarım ilkesi: yapay zeka çıktısı her katmanda bağımsız bir doğrulayıcı tarafından kontrol edilir.
-
-```
- Scribe üretir ──→  İNSAN doğrular   (spec onayı / reddi)
-                         │
- Proto üretir  ──→  TRACE doğrular   (kodu okuyup test yazar)
-                         │
- Trace üretir  ──→  OTOMATİK doğrular (testler çalıştırılır)
-```
-
-| Aşama | Üretici | Doğrulayıcı | Yöntem |
-|-------|---------|-------------|--------|
-| Spec | Scribe | **İnsan** | UI'da incele, onayla veya reddet |
-| Kod | Proto | **Trace** | GitHub'dan gerçek kodu oku, test yaz |
-| Test | Trace | **Otomatik** | Playwright testlerini çalıştır |
+| Feature | Description |
+|---------|-------------|
+| **Sequential Agent Pipeline** | Scribe → Human Gate → Proto → Trace |
+| **Real-time Streaming** | SSE-powered live agent activity feed |
+| **GitHub Integration** | Auto repo creation, branch, commit, PR |
+| **Welcome Wizard** | Animated 3-step onboarding for new users |
+| **Profile Setup** | 4-step wizard: profile, GitHub, AI key, preferences |
+| **Pipeline Stats** | Dashboard with success rate, agent durations, history |
+| **Multi-provider AI** | Anthropic, OpenAI, OpenRouter support |
+| **OAuth Login** | GitHub + Google authentication |
+| **Turkish + English** | Fully localized UI |
 
 ---
 
-## Teknoloji Yığını
-
-| Katman | Teknoloji | Detay |
-|--------|-----------|-------|
-| **Frontend** | React 19, Vite 7, Tailwind CSS 4 | SPA, SSE ile gerçek zamanlı akış, StackBlitz canlı önizleme |
-| **Backend** | Fastify 4, TypeScript | Plugin mimarisi, provider-agnostic AI servisi |
-| **Veritabanı** | PostgreSQL 16, Drizzle ORM | Tip güvenli şema, migration desteği |
-| **AI** | Anthropic Claude API (Sonnet 4.6) | temperature=0, JSON çıktı, güven skorlaması |
-| **Entegrasyon** | GitHub REST API | Repo oluşturma, branch, commit, PR — OAuth ile kimlik doğrulama |
-| **Test** | Vitest, Playwright | Birim testler + AI tarafından üretilen E2E testler |
-| **Altyapı** | Docker, Caddy | SSE desteği, container tabanlı dağıtım |
-
----
-
-## Özellikler
-
-- **Sıralı Çok Ajan Pipeline** — Scribe → İnsan Kapısı → Proto → Trace
-- **Gerçek Zamanlı İzleme** — SSE ile canlı ajan aktivite akışı
-- **Canlı Önizleme** — StackBlitz WebContainer ile tarayıcıda çalışan uygulama
-- **Kod Görüntüleyici** — Syntax highlighted dosya inceleme
-- **GitHub Entegrasyonu** — Otomatik repo, branch, commit, PR
-- **Dev Modu** — Pipeline sonrası chat tabanlı iteratif geliştirme (DevAgent)
-- **Ajan Metrikleri** — Performans, güven skoru, başarı oranı takibi
-- **OAuth** — GitHub ve Google ile oturum açma
-- **Türkçe Arayüz** — Tamamen Türkçeleştirilmiş kullanıcı deneyimi
-
----
-
-## Proje Yapısı
+## Architecture
 
 ```
+┌─────────────────────────────────────────────────────────┐
+│  FRONTEND — React 19 + Vite 7 + Tailwind 4             │
+│  Chat UI · Pipeline Viz · Settings · Onboarding         │
+├─────────────────────────────────────────────────────────┤
+│  BACKEND — Fastify 4 + TypeScript                       │
+│                                                         │
+│  ┌─────────────────────────────────────────────────┐    │
+│  │          Pipeline Orchestrator (FSM)             │    │
+│  │                                                  │    │
+│  │  ┌────────┐    ┌────────┐    ┌───────┐          │    │
+│  │  │ SCRIBE │ →  │ PROTO  │ →  │ TRACE │          │    │
+│  │  │ idea→  │    │ spec→  │    │ code→ │          │    │
+│  │  │ spec   │    │ code   │    │ tests │          │    │
+│  │  └────────┘    └────────┘    └───────┘          │    │
+│  └─────────────────────────────────────────────────┘    │
+│                                                         │
+│  Auth · GitHub API · AI Service · Pipeline Stats        │
+├─────────────────────────────────────────────────────────┤
+│  INFRA — PostgreSQL 16 · Drizzle ORM · Docker · Caddy   │
+└─────────────────────────────────────────────────────────┘
+```
+
+### Pipeline FSM
+
+```
+scribe_clarifying → scribe_generating → awaiting_approval
+                                              │
+                                    ┌─────────┤
+                                    │ approve  │ reject
+                                    ▼          ↺
+                             proto_building
+                                    │
+                                    ▼
+                             trace_testing
+                                    │
+                              ┌─────┴──────┐
+                              ▼            ▼
+                          completed   completed_partial
+
+Every stage → failed (3 retries, backoff) | cancelled
+```
+
+### Verification Chain
+
+| Stage | Producer | Verifier | Method |
+|-------|----------|----------|--------|
+| Spec | Scribe | **Human** | Review & approve/reject in UI |
+| Code | Proto | **Trace** | Reads real code from GitHub, writes tests |
+| Tests | Trace | **Automated** | Playwright tests execute automatically |
+
+---
+
+## Tech Stack
+
+| Layer | Technology |
+|-------|-----------|
+| **Frontend** | React 19, Vite 7, Tailwind CSS 4, React Router 7 |
+| **Backend** | Fastify 4, TypeScript 5.9 |
+| **Database** | PostgreSQL 16, Drizzle ORM |
+| **AI** | Anthropic Claude API (claude-sonnet-4-6), OpenAI, OpenRouter |
+| **Integration** | GitHub REST API (OAuth + PAT) |
+| **Auth** | JWT sessions, bcrypt, AES-256-GCM encryption, OAuth 2.0 |
+| **Testing** | Vitest (unit), Playwright (E2E) |
+| **Deploy** | Docker Compose, Caddy (auto-SSL), OCI ARM64 |
+
+---
+
+## Project Structure
+
+```
+devagents/
 ├── backend/                    Fastify 4 + TypeScript
 │   └── src/
-│       ├── pipeline/           Pipeline motoru
-│       │   ├── agents/         Scribe, Proto, Trace ajanları
-│       │   │   ├── scribe/     ScribeAgent.ts, prompts/, schemas/
-│       │   │   ├── proto/      ProtoAgent.ts, prompts/
-│       │   │   └── trace/      TraceAgent.ts, prompts/
+│       ├── pipeline/           Pipeline engine
+│       │   ├── agents/         scribe/, proto/, trace/
 │       │   ├── core/           PipelineOrchestrator, FSM, contracts
 │       │   ├── adapters/       GitHubRESTAdapter
-│       │   └── api/            pipeline.routes.ts
-│       ├── api/                REST API (auth, github, health)
-│       ├── db/                 Drizzle ORM şema + migration
-│       └── services/           AI, auth, email servisleri
+│       │   └── api/            pipeline.routes.ts, pipeline.plugin.ts
+│       ├── api/                REST API (auth, github, settings, health)
+│       ├── db/                 Drizzle ORM schema + migrations
+│       └── services/           AI, auth, email services
 ├── frontend/                   React 19 + Vite 7 SPA
 │   └── src/
-│       ├── pages/dashboard/    Overview, Workflows, Agents, Settings
-│       ├── components/         Chat, Preview, StatusBadge, Pipeline
-│       └── services/api/       HTTP client'lar
-├── docs/                       Mimari ve API dokümantasyonu
-└── scripts/                    Veritabanı ve yardımcı betikler
+│       ├── pages/              chat/, settings/, auth/, LandingPage, DocsPage
+│       ├── components/         chat/, onboarding/, ui/, pipeline/
+│       ├── hooks/              usePipelineStream, useProfileCompleteness
+│       └── services/api/       HttpClient, workflows, auth
+├── deploy/                     Docker Compose, Caddy, deploy scripts
+└── docs/                       Architecture & API documentation
 ```
 
 ---
 
-## Kurulum
+## Getting Started
 
-### Gereksinimler
+### Prerequisites
 
-- Node.js 20+ ve pnpm 9+
+- Node.js 22+ and pnpm 9+
 - Docker & Docker Compose
-- Anthropic API anahtarı
-- GitHub OAuth uygulaması (opsiyonel)
+- Anthropic API key (or OpenAI/OpenRouter)
 
-### Hızlı Başlangıç
+### Quick Start
 
 ```bash
 git clone https://github.com/OmerYasirOnal/akis-platform.git
-cd akis-platform
+cd akis-platform/devagents
 
-# Veritabanını başlat
+# Start database
 ./scripts/db-up.sh
 
 # Backend
 cd backend
-cp .env.example .env       # API anahtarlarını düzenle
+cp .env.example .env       # Configure API keys
 pnpm install && pnpm dev   # → http://localhost:3000
 
-# Frontend (ayrı terminal)
+# Frontend (separate terminal)
 cd frontend
 pnpm install && pnpm dev   # → http://localhost:5173
 ```
 
-Tarayıcıda `http://localhost:5173/dashboard` adresine git.
+Open `http://localhost:5173` in your browser.
 
-Ortam değişkenleri hakkında detaylı bilgi: [`docs/ENV_SETUP.md`](docs/ENV_SETUP.md)
+### Environment Variables
+
+See [`backend/.env.example`](backend/.env.example) for the full list. Key variables:
+
+| Variable | Purpose |
+|----------|---------|
+| `ANTHROPIC_API_KEY` | AI agent API calls |
+| `DATABASE_URL` | PostgreSQL connection |
+| `AUTH_JWT_SECRET` | Session token signing (min 32 chars) |
+| `GITHUB_OAUTH_CLIENT_ID/SECRET` | GitHub login |
+| `GOOGLE_OAUTH_CLIENT_ID/SECRET` | Google login |
 
 ---
 
-## Katkıda Bulunma
+## Development
 
-Katkıda bulunmak için [`CONTRIBUTING.md`](CONTRIBUTING.md) dosyasını oku.
+```bash
+# Quality gate (run before committing)
+pnpm -C backend typecheck && pnpm -C backend lint && pnpm -C backend test:unit && pnpm -C backend build
+pnpm -C frontend typecheck && pnpm -C frontend lint && pnpm -C frontend test && pnpm -C frontend build
+```
 
-## Lisans
+### Commit Convention
 
-MIT — detaylar için [`LICENSE`](LICENSE) dosyasına bak.
+```
+feat(scope): description    # New feature
+fix(scope): description     # Bug fix
+chore(scope): description   # Maintenance
+docs(scope): description    # Documentation
+```
+
+---
+
+## Security
+
+- **Authentication**: JWT sessions with httpOnly secure cookies
+- **Password**: bcrypt with 10 salt rounds
+- **Encryption**: AES-256-GCM for API keys and OAuth tokens
+- **Rate Limiting**: 120 req/min global
+- **CORS**: Whitelist-based origin validation
+- **Headers**: Helmet (CSP, HSTS, X-Frame-Options, nosniff)
+- **SQL**: Parameterized queries via Drizzle ORM (no raw SQL)
+- **Errors**: Sanitized responses, no stack trace leakage
+
+---
+
+## Deployment
+
+AKIS runs on a single OCI ARM64 VM with Docker Compose + Caddy (auto-SSL).
+
+**Live**: [https://akisflow.com](https://akisflow.com)
+
+```bash
+# Manual deploy
+./scripts/staging_deploy_manual.sh \
+  --host 141.147.25.123 --user ubuntu --key ~/.ssh/id_ed25519 --confirm
+```
+
+---
+
+## Academic Context
+
+AKIS is developed as a senior thesis project at Fatih Sultan Mehmet Vakif University (FSMVU).
+
+- **Student**: Omer Yasir Onal (2221221562)
+- **Advisor**: Dr. Nazli Dogan
+- **Thesis**: Knowledge Integrity & Agent Verification in AI-Assisted Software Development
+- **Deadline**: May 1, 2026
+
+---
+
+## License
+
+MIT — see [`LICENSE`](LICENSE) for details.
