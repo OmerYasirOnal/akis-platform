@@ -78,6 +78,14 @@ export async function pipelinePlugin(
       });
     }
 
+    // Auth errors — 401 Unauthorized
+    if (error.message === 'UNAUTHORIZED') {
+      return reply.code(401).send({
+        error: { code: 'UNAUTHORIZED', message: 'Authentication required' },
+        requestId: request.id,
+      });
+    }
+
     // Delegate to parent (global) error handler
     throw error;
   });
