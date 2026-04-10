@@ -8,6 +8,7 @@ import { ProtoAgent, type ProtoAIDeps, type ProtoGitHubDeps } from '../agents/pr
 import { TraceAgent, type TraceAIDeps, type TraceGitHubDeps } from '../agents/trace/TraceAgent.js';
 import type { ScribeAIDeps } from '../agents/scribe/ScribeAgent.js';
 import { DrizzlePipelineStore } from '../db/DrizzlePipelineStore.js';
+import { PipelineReconciler } from './PipelineReconciler.js';
 import { db } from '../../db/client.js';
 
 // ─── AI Adapter ──────────────────────────────────
@@ -139,7 +140,16 @@ export function createAgentsForModel(
   };
 }
 
+export interface PipelineSystem {
+  orchestrator: PipelineOrchestrator;
+  reconciler: PipelineReconciler;
+}
+
 export function createPipelineOrchestrator(opts: CreatePipelineOrchestratorOptions): PipelineOrchestrator {
+  return createPipelineSystem(opts).orchestrator;
+}
+
+export function createPipelineSystem(opts: CreatePipelineOrchestratorOptions): PipelineSystem {
   const store = opts.store ?? new DrizzlePipelineStore(db);
 
   // Default agents use fallback (platform token) service — used for Scribe (no GitHub needed)
@@ -147,7 +157,7 @@ export function createPipelineOrchestrator(opts: CreatePipelineOrchestratorOptio
   const fallbackGH = opts.fallbackGitHubService ?? opts.createGitHubService('');
   const defaultAgents = createAgentsForModel(opts.aiService, fallbackGH);
 
-  return new PipelineOrchestrator(
+  const orchestrator = new PipelineOrchestrator(
     store,
     defaultAgents.scribe,
     defaultAgents.proto,
@@ -158,4 +168,7 @@ export function createPipelineOrchestrator(opts: CreatePipelineOrchestratorOptio
     undefined, // emit
     (model, githubService?) => createAgentsForModel(opts.aiService, githubService ?? fallbackGH, model),
   );
+
+  const reconciler = new PipelineReconciler(store);
+  return { orchestrator, reconciler };
 }

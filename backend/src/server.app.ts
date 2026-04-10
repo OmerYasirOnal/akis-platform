@@ -38,7 +38,7 @@ import { githubRoutes, getGitHubToken } from './api/github.js';
 import { pipelinePlugin } from './pipeline/api/pipeline.plugin.js';
 import { pipelineStreamPlugin } from './pipeline/api/pipeline-stream.plugin.js';
 import { devSessionPlugin } from './pipeline/api/dev-session.plugin.js';
-import { createPipelineOrchestrator, type GitHubServiceLike } from './pipeline/core/pipeline-factory.js';
+import { createPipelineSystem, type GitHubServiceLike } from './pipeline/core/pipeline-factory.js';
 import { createGitHubRESTAdapter, getGitHubOwnerViaREST } from './pipeline/adapters/GitHubRESTAdapter.js';
 import { pushLog } from './lib/logBuffer.js';
 import { initPiriRAGService } from './services/rag/PiriRAGService.js';
@@ -328,7 +328,7 @@ export async function buildApp() {
   const { db: drizzleDb } = await import('./db/client.js');
   const pipelineStore = new DrizzlePipelineStore(drizzleDb);
 
-  const pipelineOrchestrator = createPipelineOrchestrator({
+  const { orchestrator: pipelineOrchestrator, reconciler: pipelineReconciler } = createPipelineSystem({
     aiService,
     createGitHubService: (token: string) => createGitHubRESTAdapter({ token }),
     fallbackGitHubService: pipelineGitHubService,
@@ -350,6 +350,9 @@ export async function buildApp() {
     },
     store: pipelineStore,
   });
+  // Start reconciler to recover stuck pipelines (clean shutdown via onClose)
+  pipelineReconciler.start();
+  app.addHook('onClose', () => pipelineReconciler.stop());
   // Resolve dev user for DEV_MODE auth bypass
   let devUserId: string | undefined;
   if (process.env.DEV_MODE === 'true') {
