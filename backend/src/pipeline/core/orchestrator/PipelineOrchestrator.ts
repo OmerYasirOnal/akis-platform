@@ -33,6 +33,12 @@ function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise
 const STAGE_TIMEOUT = RETRY_CONFIG.stageTimeoutMs;
 const TRACE_TIMEOUT = RETRY_CONFIG.traceStageTimeoutMs;
 
+/** Safely get epoch ms from a Date or ISO string (JSONB stores dates as strings). */
+function toEpoch(d: Date | string | undefined): number {
+  if (!d) return Date.now();
+  return typeof d === 'string' ? new Date(d).getTime() : d.getTime();
+}
+
 // ─── Store Interface ──────────────────────────────
 
 export interface PipelineStore {
@@ -395,7 +401,7 @@ export class PipelineOrchestrator {
       await this.store.update(pipelineId, {
         protoOutput: protoResult.data,
         stage: 'completed',
-        metrics: { ...protoCompletedMetrics, traceCompletedAt: new Date(), totalDurationMs: Date.now() - protoCompletedMetrics.startedAt.getTime() },
+        metrics: { ...protoCompletedMetrics, traceCompletedAt: new Date(), totalDurationMs: Date.now() - toEpoch(protoCompletedMetrics.startedAt) },
       });
       this.emitEvent(pipelineId, 'stage_change', 'completed');
       return;
@@ -531,7 +537,7 @@ export class PipelineOrchestrator {
       stage: 'completed_partial',
       metrics: {
         ...pipeline.metrics,
-        totalDurationMs: Date.now() - pipeline.metrics.startedAt.getTime(),
+        totalDurationMs: Date.now() - toEpoch(pipeline.metrics.startedAt),
       },
     }, { expectedStageVersion: pipeline.stageVersion });
     this.emitEvent(pipelineId, 'completed', 'completed_partial');
@@ -639,7 +645,7 @@ export class PipelineOrchestrator {
         metrics: {
           ...metrics,
           protoCompletedAt: metrics.protoCompletedAt ?? new Date(),
-          totalDurationMs: Date.now() - metrics.startedAt.getTime(),
+          totalDurationMs: Date.now() - toEpoch(metrics.startedAt),
         },
       });
       this.emitEvent(pipelineId, 'completed', 'completed_partial');
@@ -653,7 +659,7 @@ export class PipelineOrchestrator {
         ...metrics,
         protoCompletedAt: metrics.protoCompletedAt ?? new Date(),
         traceCompletedAt: new Date(),
-        totalDurationMs: Date.now() - metrics.startedAt.getTime(),
+        totalDurationMs: Date.now() - toEpoch(metrics.startedAt),
       },
     });
     this.emitEvent(pipelineId, 'completed', 'completed');
