@@ -16,9 +16,9 @@ export const DEFAULT_OPENROUTER_MODELS = [
 ];
 
 export const RECOMMENDED_MODELS: Record<AIKeyProvider, string> = {
-  anthropic: 'claude-sonnet-4-6',
+  anthropic: 'claude-haiku-4-5-20251001',
   openai: 'gpt-4o-mini',
-  openrouter: 'anthropic/claude-sonnet-4',
+  openrouter: 'anthropic/claude-3.5-haiku',
 };
 
 /** @deprecated Use getScribeModelAllowlistByProvider instead */

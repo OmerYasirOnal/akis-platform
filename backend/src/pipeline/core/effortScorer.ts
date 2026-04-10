@@ -93,10 +93,9 @@ export function scoreTraceEffort(protoResult: {
   };
 }
 
-function selectModel(score: number): string {
-  if (score <= 3) return 'claude-haiku-4-5-20251001';
-  if (score <= 7) return 'claude-sonnet-4-6';
-  return 'claude-opus-4-6';
+function selectModel(_score: number): string {
+  // Cost optimization: always use Haiku
+  return 'claude-haiku-4-5-20251001';
 }
 
 function clamp(score: number): number {

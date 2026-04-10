@@ -456,12 +456,12 @@ export function getAIConfig(env: Env): AIConfig {
 
   const OPENROUTER_DEFAULTS = {
     baseUrl: 'https://openrouter.ai/api/v1',
-    model: 'anthropic/claude-sonnet-4',
+    model: 'anthropic/claude-3.5-haiku',
   };
 
   const ANTHROPIC_DEFAULTS = {
     baseUrl: 'https://api.anthropic.com',
-    model: 'claude-sonnet-4-6',
+    model: 'claude-haiku-4-5-20251001',
   };
 
   // Step 1: Resolve API key (needed for provider detection)
