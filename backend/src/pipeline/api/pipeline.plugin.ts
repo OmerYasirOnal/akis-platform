@@ -50,6 +50,17 @@ export async function pipelinePlugin(
     (request as unknown as Record<string, unknown>).__pipelineUserId = user.id;
   };
 
+  // Ownership preHandler — verify user owns the pipeline (prevents IDOR)
+  const ownershipPreHandler = async (request: FastifyRequest) => {
+    const userId = (request as unknown as Record<string, unknown>).__pipelineUserId as string;
+    const { id } = request.params as { id: string };
+    if (!id || !userId) return;
+    const pipeline = await orchestrator.getStatus(id);
+    if (pipeline.userId !== userId) {
+      throw new Error('UNAUTHORIZED');
+    }
+  };
+
   // Pipeline-scoped error handler: catches ZodError from pipeline's own zod module
   // (backend global handler uses a different zod instance due to pnpm hoisting)
   // Also catches orchestrator domain errors (invalid stage, not found) as 4xx
@@ -124,17 +135,17 @@ export async function pipelinePlugin(
   });
 
   // GET /api/pipelines/:id — get pipeline status
-  fastify.get('/:id', { preHandler: authPreHandler }, async (request: FastifyRequest) => {
+  fastify.get('/:id', { preHandler: [authPreHandler, ownershipPreHandler] }, async (request: FastifyRequest) => {
     return routes.getStatus(request);
   });
 
   // POST /api/pipelines/:id/message — send message to Scribe
-  fastify.post('/:id/message', { preHandler: authPreHandler }, async (request: FastifyRequest) => {
+  fastify.post('/:id/message', { preHandler: [authPreHandler, ownershipPreHandler] }, async (request: FastifyRequest) => {
     return routes.sendMessage(request);
   });
 
   // POST /api/pipelines/:id/approve — approve spec
-  fastify.post('/:id/approve', { preHandler: authPreHandler }, async (request: FastifyRequest, reply: FastifyReply) => {
+  fastify.post('/:id/approve', { preHandler: [authPreHandler, ownershipPreHandler] }, async (request: FastifyRequest, reply: FastifyReply) => {
     const body = (request as unknown as { body: Record<string, unknown> }).body;
     const repoName = typeof body?.repoName === 'string' ? body.repoName : '';
     if (isBlockedPlatformRepo(repoName)) {
@@ -150,17 +161,17 @@ export async function pipelinePlugin(
   });
 
   // POST /api/pipelines/:id/reject — reject spec
-  fastify.post('/:id/reject', { preHandler: authPreHandler }, async (request: FastifyRequest) => {
+  fastify.post('/:id/reject', { preHandler: [authPreHandler, ownershipPreHandler] }, async (request: FastifyRequest) => {
     return routes.rejectSpec(request);
   });
 
   // POST /api/pipelines/:id/retry — retry failed stage
-  fastify.post('/:id/retry', { preHandler: authPreHandler }, async (request: FastifyRequest) => {
+  fastify.post('/:id/retry', { preHandler: [authPreHandler, ownershipPreHandler] }, async (request: FastifyRequest) => {
     return routes.retryStage(request);
   });
 
   // POST /api/pipelines/:id/skip-trace — skip trace
-  fastify.post('/:id/skip-trace', { preHandler: authPreHandler }, async (request: FastifyRequest) => {
+  fastify.post('/:id/skip-trace', { preHandler: [authPreHandler, ownershipPreHandler] }, async (request: FastifyRequest) => {
     return routes.skipTrace(request);
   });
 
@@ -168,7 +179,7 @@ export async function pipelinePlugin(
   fastify.route({
     method: 'DELETE',
     url: '/:id',
-    preHandler: authPreHandler,
+    preHandler: [authPreHandler, ownershipPreHandler],
     handler: async (request: FastifyRequest) => {
       return routes.cancelPipeline(request);
     },
