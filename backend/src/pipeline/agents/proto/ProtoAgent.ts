@@ -398,12 +398,25 @@ export class ProtoAgent {
     }
   }
 
+  /** Reject paths that attempt directory traversal or absolute paths. */
+  private sanitizeFiles(files: ProtoOutput['files']): ProtoOutput['files'] {
+    return files.filter((f) => {
+      const p = f.filePath;
+      if (p.includes('..') || p.startsWith('/') || p.startsWith('\\')) {
+        console.warn(`[Proto] Rejected unsafe file path: ${p}`);
+        return false;
+      }
+      return true;
+    });
+  }
+
   private async pushFiles(
     owner: string,
     repo: string,
     branch: string,
     files: ProtoOutput['files']
   ): Promise<{ type: 'output' } | { type: 'error'; error: PipelineError }> {
+    files = this.sanitizeFiles(files);
     for (let attempt = 0; attempt <= RETRY_CONFIG.maxRetries; attempt++) {
       try {
         if (this.github.pushFiles) {

@@ -19,6 +19,8 @@ interface GitHubRESTAdapterOptions {
   token: string;
 }
 
+const MAX_RATE_LIMIT_RETRIES = 2;
+
 async function ghFetch<T>(
   token: string,
   method: string,
@@ -26,31 +28,50 @@ async function ghFetch<T>(
   body?: unknown,
 ): Promise<T> {
   const url = `${GITHUB_API}${path}`;
-  const res = await fetch(url, {
-    method,
-    headers: {
-      Authorization: `Bearer ${token}`,
-      Accept: 'application/vnd.github+json',
-      'X-GitHub-Api-Version': '2022-11-28',
-      ...(body ? { 'Content-Type': 'application/json' } : {}),
-    },
-    body: body ? JSON.stringify(body) : undefined,
-  });
 
-  if (!res.ok) {
-    const text = await res.text().catch(() => '');
-    let detail = '';
-    try {
-      const json = JSON.parse(text);
-      detail = json.message || text;
-    } catch {
-      detail = text;
+  for (let attempt = 0; attempt <= MAX_RATE_LIMIT_RETRIES; attempt++) {
+    const res = await fetch(url, {
+      method,
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: 'application/vnd.github+json',
+        'X-GitHub-Api-Version': '2022-11-28',
+        ...(body ? { 'Content-Type': 'application/json' } : {}),
+      },
+      body: body ? JSON.stringify(body) : undefined,
+    });
+
+    // Rate limit: back off and retry
+    if (res.status === 429 || res.status === 403) {
+      const retryAfter = res.headers.get('retry-after');
+      const remaining = res.headers.get('x-ratelimit-remaining');
+      if (res.status === 429 || remaining === '0') {
+        if (attempt < MAX_RATE_LIMIT_RETRIES) {
+          const waitSec = retryAfter ? Math.min(parseInt(retryAfter, 10), 60) : 10 * (attempt + 1);
+          console.warn(`[GitHub] Rate limited on ${method} ${path}, waiting ${waitSec}s (attempt ${attempt + 1})`);
+          await new Promise((r) => setTimeout(r, waitSec * 1000));
+          continue;
+        }
+      }
     }
-    throw new Error(`GitHub API ${method} ${path} → ${res.status}: ${detail}`);
+
+    if (!res.ok) {
+      const text = await res.text().catch(() => '');
+      let detail = '';
+      try {
+        const json = JSON.parse(text);
+        detail = json.message || text;
+      } catch {
+        detail = text;
+      }
+      throw new Error(`GitHub API ${method} ${path} → ${res.status}: ${detail}`);
+    }
+
+    if (res.status === 204) return {} as T;
+    return (await res.json()) as T;
   }
 
-  if (res.status === 204) return {} as T;
-  return (await res.json()) as T;
+  throw new Error(`GitHub API ${method} ${path} → rate limited after ${MAX_RATE_LIMIT_RETRIES + 1} attempts`);
 }
 
 // ─── AKIS Platform Repo Guard ────────────────────
