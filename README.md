@@ -70,7 +70,7 @@ Each agent's output is verified by the next stage. This **verification chain** i
 
 - **Sequential Agent Pipeline** — Scribe (spec) -> Human Gate -> Proto (code) -> Trace (tests)
 - **Real-time Streaming** — SSE-powered live agent activity during pipeline execution
-- **GitHub Integration** — Automatic repo creation, branch management, commits, and pull requests
+- **GitHub via MCP** — Model Context Protocol adapter for repo creation, branch management, commits, and PRs
 - **Multi-provider AI** — Anthropic Claude, OpenAI, and OpenRouter with user-configurable API keys
 - **OAuth Authentication** — GitHub and Google login alongside email/password
 - **Pipeline Statistics** — Success rates, agent durations, execution history
@@ -98,7 +98,7 @@ Each agent's output is verified by the next stage. This **verification chain** i
 │  │  └────────┘    └────────┘    └───────┘          │    │
 │  └─────────────────────────────────────────────────┘    │
 │                                                         │
-│  Auth · GitHub API · AI Service · Pipeline Stats        │
+│  Auth · GitHub MCP Adapter · AI Service · Pipeline Stats │
 ├─────────────────────────────────────────────────────────┤
 │  INFRA — PostgreSQL 16 · Drizzle ORM · Docker · Caddy   │
 └─────────────────────────────────────────────────────────┘
@@ -119,6 +119,12 @@ Each agent's output is verified by the next stage. This **verification chain** i
 | Spec | Scribe | **Human** | Review & approve/reject in UI |
 | Code | Proto | **Trace** | Reads real code from GitHub, writes tests |
 | Tests | Trace | **Automated** | Tests execute automatically |
+
+### MCP Integration
+
+AKIS uses the **Model Context Protocol (MCP)** to interface with GitHub. The pipeline's `GitHubMCPAdapter` wraps a `callToolRaw` bridge, allowing agents (Proto and Trace) to perform GitHub operations — creating repos, pushing branches, opening PRs — through a standardized tool-calling interface rather than direct API calls. A parallel `GitHubRESTAdapter` provides a fallback path when MCP is unavailable.
+
+This architecture decouples agent logic from the GitHub transport layer and aligns with emerging standards for AI-tool interoperability.
 
 ### Pipeline State Machine
 
@@ -150,7 +156,7 @@ Every stage → failed (3 retries, exponential backoff) | cancelled
 | **Backend** | Fastify 4, TypeScript 5.9 |
 | **Database** | PostgreSQL 16, Drizzle ORM |
 | **AI** | Anthropic Claude (claude-sonnet-4-6), OpenAI, OpenRouter |
-| **Integration** | GitHub REST API (OAuth + PAT) |
+| **Integration** | GitHub REST API + MCP (Model Context Protocol) adapter |
 | **Auth** | JWT sessions, bcrypt, AES-256-GCM encryption, OAuth 2.0 |
 | **Testing** | Vitest (unit), Playwright (E2E via Trace agent) |
 | **Deploy** | Docker Compose, Caddy (auto-SSL), OCI ARM64 |
@@ -166,7 +172,7 @@ devagents/
 │       ├── pipeline/           Pipeline engine
 │       │   ├── agents/         scribe/, proto/, trace/
 │       │   ├── core/           PipelineOrchestrator, FSM, contracts
-│       │   ├── adapters/       GitHubRESTAdapter
+│       │   ├── adapters/       GitHubRESTAdapter, GitHubMCPAdapter
 │       │   └── api/            pipeline.routes.ts
 │       ├── api/                REST API routes (auth, github, settings)
 │       ├── db/                 Drizzle ORM schema + migrations
