@@ -34,7 +34,7 @@ import { marketplaceRoutes } from './api/marketplace.js';
 import { crewRoutes, initCrewRunManager } from './api/crew.js';
 import { ragRoutes } from './api/rag.js';
 import { adminRoutes } from './api/admin.js';
-import { githubRoutes } from './api/github.js';
+import { githubRoutes, getGitHubToken } from './api/github.js';
 import { pipelinePlugin } from './pipeline/api/pipeline.plugin.js';
 import { pipelineStreamPlugin } from './pipeline/api/pipeline-stream.plugin.js';
 import { devSessionPlugin } from './pipeline/api/dev-session.plugin.js';
@@ -330,8 +330,24 @@ export async function buildApp() {
 
   const pipelineOrchestrator = createPipelineOrchestrator({
     aiService,
-    githubService: pipelineGitHubService,
-    getGitHubOwner: pipelineGetGitHubOwner,
+    createGitHubService: (token: string) => createGitHubRESTAdapter({ token }),
+    fallbackGitHubService: pipelineGitHubService,
+    getGitHubOwner: async (userId: string) => {
+      // Per-user token first, then platform fallback
+      const userToken = await getGitHubToken(userId);
+      const token = userToken ?? env.GITHUB_TOKEN;
+      if (!token || token.startsWith('<')) return 'unknown';
+      try { return await getGitHubOwnerViaREST(token); } catch { return 'unknown'; }
+    },
+    getGitHubToken: async (userId: string) => {
+      const userToken = await getGitHubToken(userId);
+      if (userToken) return userToken;
+      // Fallback to platform token
+      if (env.GITHUB_TOKEN && !env.GITHUB_TOKEN.startsWith('<') && env.GITHUB_TOKEN.length > 10) {
+        return env.GITHUB_TOKEN;
+      }
+      return null;
+    },
     store: pipelineStore,
   });
   // Resolve dev user for DEV_MODE auth bypass

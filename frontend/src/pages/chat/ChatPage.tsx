@@ -11,23 +11,36 @@ import { useProfileCompleteness } from '../../hooks/useProfileCompleteness';
 import { ProfileSetupBanner } from '../../components/onboarding/ProfileSetupBanner';
 import { ProfileSetupWizard } from '../../components/onboarding/ProfileSetupWizard';
 import type { ConversationListItem, ChatMessage, ConversationStatus } from '../../types/chat';
-import type { Workflow, WorkflowStatus, ConversationMessage } from '../../types/workflow';
+import type { Workflow, WorkflowStatus, ConversationMessage, StructuredSpec } from '../../types/workflow';
+import type { UserFriendlyPlan } from '../../types/plan';
 import type { PipelineStage } from '../../types/pipeline';
 import { workflowsApi } from '../../services/api/workflows';
 import { LOGO_MARK_SVG } from '../../theme/brand';
 
 /* ── helpers ──────────────────────────────────────── */
 
-function workflowStatusToStage(s: WorkflowStatus): PipelineStage {
-  switch (s) {
-    case 'running':       return 'scribe_generating';
-    case 'awaiting_approval': return 'awaiting_approval';
-    case 'completed':     return 'completed';
-    case 'completed_partial': return 'completed_partial';
-    case 'failed':        return 'failed';
-    case 'cancelled':     return 'cancelled';
-    default:              return 'scribe_generating';
-  }
+const POLLING_STAGES: PipelineStage[] = [
+  'scribe_generating', 'proto_building', 'trace_testing', 'ci_running',
+];
+
+function isRunningStage(stage?: PipelineStage): boolean {
+  return !!stage && POLLING_STAGES.includes(stage);
+}
+
+/** Converts a human-readable title to a valid GitHub repo name */
+function sanitizeRepoName(title: string): string {
+  const TR_MAP: Record<string, string> = {
+    ç: 'c', Ç: 'C', ğ: 'g', Ğ: 'G', ı: 'i', İ: 'I',
+    ö: 'o', Ö: 'O', ş: 's', Ş: 'S', ü: 'u', Ü: 'U',
+  };
+  return title
+    .replace(/[çÇğĞıİöÖşŞüÜ]/g, (c) => TR_MAP[c] || c)
+    .toLowerCase()
+    .replace(/\s+/g, '-')
+    .replace(/[^a-z0-9-]/g, '')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '')
+    .slice(0, 60) || 'project';
 }
 
 function workflowToListItem(w: Workflow): ConversationListItem {
@@ -53,8 +66,33 @@ function workflowToListItem(w: Workflow): ConversationListItem {
   };
 }
 
-function conversationToChatMessages(conv: ConversationMessage[]): ChatMessage[] {
+function specToUserFriendlyPlan(spec: StructuredSpec): UserFriendlyPlan {
+  const tc = spec.technicalConstraints;
+  let techChoices: string[] = [];
+  if (Array.isArray(tc)) {
+    techChoices = tc;
+  } else if (tc && typeof tc === 'object') {
+    if (tc.stack) techChoices.push(tc.stack);
+    if (tc.integrations) techChoices.push(...tc.integrations);
+  }
+
+  return {
+    projectName: spec.title ?? 'Proje',
+    summary: spec.problemStatement,
+    features: spec.userStories.map((s) => ({
+      name: s.persona || s.as || 'Kullanici',
+      description: s.action || s.iWant || s.benefit || '',
+    })),
+    techChoices,
+    estimatedFiles: Math.max((spec.userStories?.length ?? 1) * 3, 5),
+    requiresTests: true,
+  };
+}
+
+function conversationToChatMessages(conv: ConversationMessage[], currentStage?: PipelineStage): ChatMessage[] {
   const msgs: ChatMessage[] = [];
+  let specSeen = false;
+
   for (const m of conv) {
     const ts = m.timestamp ?? new Date().toISOString();
     switch (m.role) {
@@ -64,9 +102,38 @@ function conversationToChatMessages(conv: ConversationMessage[]): ChatMessage[] 
       case 'scribe':
       case 'proto':
       case 'trace':
-        msgs.push({ type: 'agent', agent: m.role, content: m.content, timestamp: ts });
+        if (m.type === 'clarification' && m.questions?.length) {
+          msgs.push({ type: 'clarification', role: m.role, content: m.content, questions: m.questions, timestamp: ts });
+        } else if (m.type === 'spec' && m.spec) {
+          specSeen = true;
+          const plan = specToUserFriendlyPlan(m.spec);
+          // Determine plan status from pipeline stage
+          let planStatus: 'active' | 'approved' | 'rejected' = 'active';
+          if (currentStage && currentStage !== 'awaiting_approval' && currentStage !== 'scribe_clarifying' && currentStage !== 'scribe_generating') {
+            planStatus = 'approved';
+          }
+          msgs.push({
+            type: 'plan',
+            plan,
+            version: 1,
+            status: planStatus,
+            spec: m.spec,
+            timestamp: ts,
+          });
+        } else {
+          msgs.push({ type: 'agent', agent: m.role, content: m.content, timestamp: ts });
+        }
         break;
       case 'system':
+        // Check if system message indicates approval/rejection and update last plan
+        if (specSeen && (m.content.includes('onaylandı') || m.content.includes('reddedildi'))) {
+          for (let j = msgs.length - 1; j >= 0; j--) {
+            if (msgs[j].type === 'plan') {
+              (msgs[j] as { status: string }).status = m.content.includes('onaylandı') ? 'approved' : 'rejected';
+              break;
+            }
+          }
+        }
         msgs.push({ type: 'info', content: m.content, timestamp: ts });
         break;
     }
@@ -74,7 +141,7 @@ function conversationToChatMessages(conv: ConversationMessage[]): ChatMessage[] 
   return msgs;
 }
 
-const RUNNING_STATUSES: WorkflowStatus[] = ['running', 'pending'];
+// Removed RUNNING_STATUSES — polling now uses isRunningStage(currentStage)
 
 /* ── component ────────────────────────────────────── */
 
@@ -109,13 +176,13 @@ export default function ChatPage() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  const stage = activeWorkflow ? workflowStatusToStage(activeWorkflow.status) : undefined;
+  const stage = activeWorkflow?.currentStage;
   const { uiState, isInputEnabled, showCancelButton, inputPlaceholder, syncFromStage } =
     useConversationState(stage);
 
   const loadedIdRef = useRef<string | undefined>(undefined);
 
-  const isRunning = activeWorkflow ? RUNNING_STATUSES.includes(activeWorkflow.status) : false;
+  const isRunning = activeWorkflow ? isRunningStage(activeWorkflow.currentStage) : false;
   usePipelineStream(conversationId ?? '', isRunning);
 
   // Load conversation list — only on mount and after mutations, NOT on every chat switch
@@ -147,26 +214,32 @@ export default function ChatPage() {
     workflowsApi.get(conversationId).then((w) => {
       loadedIdRef.current = conversationId;
       setActiveWorkflow(w);
-      setMessages(conversationToChatMessages(w.conversation ?? []));
-      syncFromStage(workflowStatusToStage(w.status));
+      setMessages(conversationToChatMessages(w.conversation ?? [], w.currentStage));
+      syncFromStage(w.currentStage ?? 'completed');
     }).catch(() => {
       navigate('/chat', { replace: true });
     });
   }, [conversationId, navigate, syncFromStage]);
 
   // Polling for updates — only when agent is running
+  const prevConvLenRef = useRef(0);
   useEffect(() => {
     if (!conversationId || !isRunning) return;
     const interval = setInterval(async () => {
       try {
         const w = await workflowsApi.get(conversationId);
+        const convLen = w.conversation?.length ?? 0;
+        const stageChanged = w.currentStage !== activeWorkflow?.currentStage;
+        // Skip state updates when nothing changed (avoids re-renders)
+        if (convLen === prevConvLenRef.current && !stageChanged) return;
+        prevConvLenRef.current = convLen;
         setActiveWorkflow(w);
-        setMessages(conversationToChatMessages(w.conversation ?? []));
-        syncFromStage(workflowStatusToStage(w.status));
+        setMessages(conversationToChatMessages(w.conversation ?? [], w.currentStage));
+        syncFromStage(w.currentStage ?? 'completed');
       } catch { /* ignore */ }
     }, 3000);
     return () => clearInterval(interval);
-  }, [conversationId, isRunning, syncFromStage]);
+  }, [conversationId, isRunning, syncFromStage, activeWorkflow?.currentStage]);
 
   // Sidebar conversations: real + pending
   const sidebarConversations = useMemo(() => {
@@ -212,8 +285,8 @@ export default function ChatPage() {
     const w = await workflowsApi.get(conversationId);
     loadedIdRef.current = conversationId;
     setActiveWorkflow(w);
-    setMessages(conversationToChatMessages(w.conversation ?? []));
-    syncFromStage(workflowStatusToStage(w.status));
+    setMessages(conversationToChatMessages(w.conversation ?? [], w.currentStage));
+    syncFromStage(w.currentStage ?? 'completed');
     // Update sidebar item in-place (no full list refetch)
     const item = workflowToListItem(w);
     setConversations((prev) =>
@@ -254,8 +327,8 @@ export default function ChatPage() {
         setPendingConv(null);
         loadedIdRef.current = w.id;
         setActiveWorkflow(w);
-        setMessages(conversationToChatMessages(w.conversation ?? []));
-        syncFromStage(workflowStatusToStage(w.status));
+        setMessages(conversationToChatMessages(w.conversation ?? [], w.currentStage));
+        syncFromStage(w.currentStage ?? 'completed');
         refreshList();
         navigate(`/chat/${w.id}`, { replace: true });
       } catch (e) {
@@ -286,7 +359,7 @@ export default function ChatPage() {
   const handleApprove = useCallback(async () => {
     if (!conversationId || !activeWorkflow) return;
     try {
-      await workflowsApi.approve(conversationId, activeWorkflow.title ?? 'project', 'private');
+      await workflowsApi.approve(conversationId, sanitizeRepoName(activeWorkflow.title ?? 'project'), 'private');
       await refreshWorkflow();
     } catch (e) { console.error('Failed to approve:', e); }
   }, [conversationId, activeWorkflow, refreshWorkflow]);

@@ -18,9 +18,9 @@ const variantClasses: Record<ButtonVariant, string> = {
   primary:
     'bg-ak-primary text-[color:var(--ak-on-primary)] font-semibold shadow-ak-elevation-1 hover:brightness-110 hover:shadow-ak-elevation-2 hover:scale-[1.02] motion-reduce:hover:scale-100 active:brightness-95 active:scale-[0.98] motion-reduce:active:scale-100',
   secondary:
-    'bg-ak-surface-2 text-ak-text-primary hover:bg-ak-surface',
+    'bg-ak-surface-2 text-ak-text-primary hover:bg-ak-surface hover:scale-[1.01] active:scale-[0.99] motion-reduce:hover:scale-100 motion-reduce:active:scale-100',
   outline:
-    'bg-ak-bg border border-ak-border text-ak-text-primary hover:border-ak-primary hover:text-ak-primary hover:bg-ak-surface',
+    'bg-ak-bg border border-ak-border text-ak-text-primary hover:border-ak-primary hover:text-ak-primary hover:bg-ak-surface hover:scale-[1.01] active:scale-[0.99] motion-reduce:hover:scale-100 motion-reduce:active:scale-100',
   ghost:
     'bg-ak-bg text-ak-text-secondary hover:text-ak-text-primary hover:bg-ak-surface',
 };

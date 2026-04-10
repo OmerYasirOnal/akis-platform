@@ -1,10 +1,11 @@
-import { useRef, useEffect, useState } from 'react';
+import { useRef, useEffect, useState, useCallback } from 'react';
 import { cn } from '../../utils/cn';
 import type { ChatMessage as ChatMessageType, ConversationUIState } from '../../types/chat';
 import { ChatMessage } from './ChatMessage';
 import { ChatInput } from './ChatInput';
 import { ChatHeader } from './ChatHeader';
 import { EmptyState } from './EmptyState';
+import { ChatSkeleton } from './ChatSkeleton';
 
 interface ChatPanelProps {
   conversationId?: string;
@@ -51,19 +52,34 @@ export function ChatPanel({
 }: ChatPanelProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const isAtBottomRef = useRef(true);
+  const prevMessageCountRef = useRef(0);
   const [showScrollDown, setShowScrollDown] = useState(false);
 
-  // Auto-scroll on new messages
+  // Auto-scroll only when user is at bottom or sent a new message
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages.length]);
+    const newCount = messages.length;
+    const prevCount = prevMessageCountRef.current;
+    prevMessageCountRef.current = newCount;
 
-  // Show "new messages" button when scrolled up
+    if (newCount <= prevCount) return;
+
+    // Check if the newest message is from the user (they just sent it)
+    const lastMsg = messages[newCount - 1];
+    const isUserMessage = lastMsg?.type === 'user';
+
+    if (isAtBottomRef.current || isUserMessage) {
+      bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [messages.length, messages]);
+
+  // Track scroll position and show "new messages" button
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
     const handleScroll = () => {
       const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 100;
+      isAtBottomRef.current = atBottom;
       setShowScrollDown(!atBottom && messages.length > 0);
     };
     el.addEventListener('scroll', handleScroll);
@@ -74,8 +90,18 @@ export function ChatPanel({
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
+  // Suggestion badge click → append to input (don't send immediately)
+  const [pendingSuggestion, setPendingSuggestion] = useState('');
+  const handleSuggestionClick = useCallback((text: string) => {
+    setPendingSuggestion(text);
+  }, []);
+  const handleSuggestionConsumed = useCallback(() => {
+    setPendingSuggestion('');
+  }, []);
+
   const isPending = conversationId === 'pending';
   const isEmpty = !conversationId || (isPending && messages.length === 0);
+  const isInitialLoad = !!conversationId && !isPending && messages.length === 0;
 
   return (
     <div className="flex min-w-0 flex-1 flex-col">
@@ -95,6 +121,10 @@ export function ChatPanel({
       {/* Messages */}
       {isEmpty ? (
         <EmptyState variant={conversationId ? 'new-conversation' : 'no-conversation'} />
+      ) : isInitialLoad ? (
+        <div className="flex-1 overflow-y-auto">
+          <ChatSkeleton />
+        </div>
       ) : (
         <div ref={scrollRef} className="relative flex-1 overflow-y-auto">
           <div className="mx-auto max-w-[720px] space-y-4 px-4 py-4">
@@ -106,14 +136,15 @@ export function ChatPanel({
                 onReject={onReject}
                 onRetry={onRetry}
                 onSkip={onSkip}
+                onSuggestionClick={handleSuggestionClick}
               />
             ))}
 
             {/* Typing indicator for running agents */}
             {(uiState === 'scribe_running' || uiState === 'scribe_revise' || uiState === 'proto_running' || uiState === 'trace_running' || uiState === 'ci_running') && (
-              <div className="flex gap-2.5 animate-in fade-in duration-150">
+              <div key={uiState} className="flex gap-2.5 animate-in fade-in duration-200">
                 <div className={cn(
-                  'flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg border',
+                  'flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg border transition-colors duration-300',
                   uiState.includes('scribe') ? 'border-ak-scribe/30 bg-ak-scribe/10' :
                   uiState === 'proto_running' ? 'border-ak-proto/30 bg-ak-proto/10' :
                   uiState === 'ci_running' ? 'border-yellow-400/30 bg-yellow-400/10' :
@@ -151,6 +182,8 @@ export function ChatPanel({
           disabled={!isInputEnabled}
           showCancel={showCancelButton}
           placeholder={inputPlaceholder}
+          appendText={pendingSuggestion}
+          onAppendTextConsumed={handleSuggestionConsumed}
         />
       )}
     </div>

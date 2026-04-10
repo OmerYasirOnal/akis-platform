@@ -7,11 +7,24 @@ interface ChatInputProps {
   disabled?: boolean;
   showCancel?: boolean;
   placeholder?: string;
+  /** When set, appends text to the input (for suggestion badge clicks) */
+  appendText?: string;
+  /** Called after appendText is consumed */
+  onAppendTextConsumed?: () => void;
 }
 
-export function ChatInput({ onSend, onCancel, disabled, showCancel, placeholder }: ChatInputProps) {
+export function ChatInput({ onSend, onCancel, disabled, showCancel, placeholder, appendText, onAppendTextConsumed }: ChatInputProps) {
   const [value, setValue] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Append suggestion text when prop changes
+  useEffect(() => {
+    if (!appendText) return;
+    setValue((prev) => (prev ? `${prev}\n${appendText}` : appendText));
+    onAppendTextConsumed?.();
+    // Focus input after appending
+    textareaRef.current?.focus();
+  }, [appendText, onAppendTextConsumed]);
 
   // Auto-resize textarea (1-5 lines)
   useEffect(() => {
@@ -44,8 +57,13 @@ export function ChatInput({ onSend, onCancel, disabled, showCancel, placeholder 
   );
 
   return (
-    <div className="border-t border-ak-border bg-ak-surface px-4 py-3">
-      <div className="mx-auto flex max-w-[720px] items-end gap-2">
+    <div className="px-4 pb-4 pt-2">
+      <div className={cn(
+        'mx-auto flex max-w-[720px] items-end gap-2 rounded-2xl border p-2',
+        'backdrop-blur-xl bg-ak-surface/80 border-ak-border/50 shadow-lg',
+        'transition-all duration-200',
+        'focus-within:border-ak-primary/40 focus-within:shadow-[0_0_15px_rgba(7,209,175,0.08)]',
+      )}>
         <textarea
           ref={textareaRef}
           value={value}
@@ -56,11 +74,11 @@ export function ChatInput({ onSend, onCancel, disabled, showCancel, placeholder 
           rows={1}
           aria-label="Mesaj yaz"
           className={cn(
-            'flex-1 resize-none rounded-xl border border-ak-border bg-ak-surface-2 px-4 py-2.5 text-sm text-ak-text-primary',
+            'flex-1 resize-none rounded-xl bg-transparent px-3 py-2 text-sm text-ak-text-primary',
             'placeholder:text-ak-text-tertiary',
-            'focus:border-ak-primary focus:outline-none focus:ring-1 focus:ring-ak-primary/30',
+            'focus:outline-none',
             'transition-colors duration-150',
-            disabled && 'cursor-not-allowed opacity-50',
+            disabled && 'cursor-not-allowed opacity-70 saturate-50',
           )}
         />
         {showCancel ? (
@@ -68,9 +86,9 @@ export function ChatInput({ onSend, onCancel, disabled, showCancel, placeholder 
             onClick={onCancel}
             aria-label="İptal et"
             className={cn(
-              'flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl',
-              'bg-red-500/10 text-red-400 hover:bg-red-500/20',
-              'transition-colors duration-150',
+              'flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl',
+              'bg-red-500/10 text-red-400 hover:bg-red-500/20 hover:scale-105 active:scale-95',
+              'transition-all duration-150',
             )}
           >
             <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -83,9 +101,9 @@ export function ChatInput({ onSend, onCancel, disabled, showCancel, placeholder 
             disabled={disabled || !value.trim()}
             aria-label="Gönder"
             className={cn(
-              'flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl',
+              'flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl',
               'bg-ak-primary text-[color:var(--ak-on-primary)]',
-              'hover:brightness-110 active:brightness-95',
+              'hover:brightness-110 hover:scale-105 active:brightness-95 active:scale-95',
               'transition-all duration-150',
               (disabled || !value.trim()) && 'cursor-not-allowed opacity-40',
             )}

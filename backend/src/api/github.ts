@@ -42,7 +42,7 @@ async function ghFetch<T>(token: string, method: string, path: string, body?: un
   return (await res.json()) as T;
 }
 
-async function getGitHubToken(userId: string): Promise<string | null> {
+export async function getGitHubToken(userId: string): Promise<string | null> {
   const user = await db.query.users.findFirst({
     where: eq(users.id, userId),
     columns: { githubToken: true },

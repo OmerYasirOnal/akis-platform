@@ -82,8 +82,10 @@ export class PipelineOrchestrator {
     private proto: ProtoAgent,
     private trace: TraceAgent,
     private getGitHubOwner: (userId: string) => Promise<string>,
+    private getGitHubToken: (userId: string) => Promise<string | null>,
+    private createGitHubService: (token: string) => import('../pipeline-factory.js').GitHubServiceLike,
     private emit?: (event: PipelineEvent) => void,
-    private createAgentsForModel?: (model: string) => AgentSet,
+    private createAgentsForModel?: (model: string, githubService?: import('../pipeline-factory.js').GitHubServiceLike) => AgentSet,
   ) {}
 
   private getAgents(model?: string): AgentSet {
@@ -243,8 +245,14 @@ export class PipelineOrchestrator {
     }
     const spec = editedSpec ?? pipeline.scribeOutput!.spec;
 
+    // Resolve per-user GitHub token and owner
     let owner: string;
+    let userGitHubToken: string | null;
     try {
+      userGitHubToken = await this.getGitHubToken(pipeline.userId);
+      if (!userGitHubToken) {
+        throw new Error('GitHub bağlantısı bulunamadı. Ayarlar sayfasından GitHub hesabınızı bağlayın.');
+      }
       owner = await this.getGitHubOwner(pipeline.userId);
     } catch (err) {
       const error = createPipelineError(
@@ -272,8 +280,9 @@ export class PipelineOrchestrator {
     });
     this.emitEvent(pipelineId, 'stage_change', 'proto_building');
 
-    // Run Proto + Trace in background (non-blocking)
-    this.runProtoAndTrace(pipelineId, pipeline.metrics, spec, repoName, repoVisibility, owner, pipeline.model).catch((err) => {
+    // Create per-user GitHub adapter and run Proto + Trace in background
+    const userGithubService = this.createGitHubService(userGitHubToken);
+    this.runProtoAndTrace(pipelineId, pipeline.metrics, spec, repoName, repoVisibility, owner, pipeline.model, userGithubService).catch((err) => {
       console.error(`[Pipeline] Background Proto+Trace failed for ${pipelineId}:`, err);
       this.failPipeline(pipelineId, 'Proto/Trace', err).catch((e) => console.error('[Pipeline] failPipeline also failed:', e));
     });
@@ -291,6 +300,7 @@ export class PipelineOrchestrator {
     repoVisibility: 'public' | 'private',
     owner: string,
     model?: string,
+    userGithubService?: import('../pipeline-factory.js').GitHubServiceLike,
   ): Promise<void> {
     const protoEmit = createActivityEmitter(pipelineId, 'proto');
     protoEmit('start', 'Onaylanan spec okunuyor...', 5);
@@ -300,7 +310,10 @@ export class PipelineOrchestrator {
     const protoModel = model ?? protoEffort.model;
     console.log(`[Proto] Effort: ${protoEffort.score}/10 → Model: ${protoModel} (${protoEffort.reasoning})`);
 
-    const agents = this.getAgents(protoModel);
+    // Use per-user GitHub adapter if available, otherwise default agents
+    const agents = userGithubService
+      ? (this.createAgentsForModel?.(protoModel, userGithubService) ?? this.getAgents(protoModel))
+      : this.getAgents(protoModel);
     await this.writeCheckpoint(pipelineId, 'proto', spec.title);
     const protoResult = await withRetry(
       (attempt) => {
@@ -604,6 +617,8 @@ export class PipelineOrchestrator {
   private async retryTrace(pipelineId: string, pipeline: PipelineState): Promise<PipelineState> {
     let owner: string;
     try {
+      const userToken = await this.getGitHubToken(pipeline.userId);
+      if (!userToken) throw new Error('GitHub bağlantısı bulunamadı.');
       owner = await this.getGitHubOwner(pipeline.userId);
     } catch (err) {
       const error = createPipelineError(
@@ -633,7 +648,12 @@ export class PipelineOrchestrator {
 
   private async retryProto(pipelineId: string, pipeline: PipelineState): Promise<PipelineState> {
     let owner: string;
+    let userGitHubToken: string | null;
     try {
+      userGitHubToken = await this.getGitHubToken(pipeline.userId);
+      if (!userGitHubToken) {
+        throw new Error('GitHub bağlantısı bulunamadı. Ayarlar sayfasından GitHub hesabınızı bağlayın.');
+      }
       owner = await this.getGitHubOwner(pipeline.userId);
     } catch (err) {
       const error = createPipelineError(
@@ -653,7 +673,9 @@ export class PipelineOrchestrator {
     await this.store.update(pipelineId, { stage: 'proto_building' });
     this.emitEvent(pipelineId, 'stage_change', 'proto_building');
 
-    const agents = this.getAgents(pipeline.model);
+    // Per-user GitHub adapter for retry
+    const userGithubService = this.createGitHubService(userGitHubToken);
+    const agents = this.createAgentsForModel?.(pipeline.model ?? '', userGithubService) ?? this.getAgents(pipeline.model);
     const result = await withTimeout(
       agents.proto.execute({
         spec: pipeline.approvedSpec,

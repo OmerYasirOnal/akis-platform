@@ -186,6 +186,16 @@ function createOrchestrator(overrides?: {
       overrides?.proto ?? createMockProto(),
       overrides?.trace ?? createMockTrace(),
       overrides?.getGitHubOwner ?? (async () => 'testuser'),
+      async () => 'ghp_mock_token_for_tests',
+      () => ({
+        createRepository: async (_o: string, name: string) => ({ url: `https://github.com/test/${name}` }),
+        createBranch: async () => {},
+        commitFile: async () => {},
+        pushFiles: async () => {},
+        createPR: async () => ({ url: '' }),
+        listFiles: async () => [] as string[],
+        getFileContent: async () => '',
+      }),
       overrides?.emit,
     ),
   };

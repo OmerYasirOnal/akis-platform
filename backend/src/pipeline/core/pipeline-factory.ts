@@ -111,8 +111,13 @@ function createTraceGitHubDeps(github: GitHubServiceLike): TraceGitHubDeps {
 
 export interface CreatePipelineOrchestratorOptions {
   aiService: AIServiceLike;
-  githubService: GitHubServiceLike;
+  /** Factory: creates a per-user GitHub adapter from a token */
+  createGitHubService: (token: string) => GitHubServiceLike;
+  /** Fallback GitHub service (platform token) for default agents */
+  fallbackGitHubService?: GitHubServiceLike;
   getGitHubOwner: (userId: string) => Promise<string>;
+  /** Retrieves a per-user GitHub token (returns null if user has no token) */
+  getGitHubToken: (userId: string) => Promise<string | null>;
   store?: PipelineStore;
 }
 
@@ -137,7 +142,10 @@ export function createAgentsForModel(
 export function createPipelineOrchestrator(opts: CreatePipelineOrchestratorOptions): PipelineOrchestrator {
   const store = opts.store ?? new DrizzlePipelineStore(db);
 
-  const defaultAgents = createAgentsForModel(opts.aiService, opts.githubService);
+  // Default agents use fallback (platform token) service — used for Scribe (no GitHub needed)
+  // Proto/Trace will get per-user adapters at runtime via orchestrator
+  const fallbackGH = opts.fallbackGitHubService ?? opts.createGitHubService('');
+  const defaultAgents = createAgentsForModel(opts.aiService, fallbackGH);
 
   return new PipelineOrchestrator(
     store,
@@ -145,7 +153,9 @@ export function createPipelineOrchestrator(opts: CreatePipelineOrchestratorOptio
     defaultAgents.proto,
     defaultAgents.trace,
     opts.getGitHubOwner,
+    opts.getGitHubToken,
+    opts.createGitHubService,
     undefined, // emit
-    (model) => createAgentsForModel(opts.aiService, opts.githubService, model),
+    (model, githubService?) => createAgentsForModel(opts.aiService, githubService ?? fallbackGH, model),
   );
 }

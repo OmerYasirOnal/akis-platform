@@ -116,6 +116,11 @@ export default {
           '0%': { width: '0%' },
           '100%': { width: '100%' },
         },
+        'shake-subtle': {
+          '0%, 100%': { transform: 'translateX(0)' },
+          '25%': { transform: 'translateX(-3px)' },
+          '75%': { transform: 'translateX(3px)' },
+        },
       },
       animation: {
         'blob-drift': 'blob-drift 20s ease-in-out infinite',
@@ -127,6 +132,7 @@ export default {
         'float-gentle': 'float-gentle 3s ease-in-out infinite',
         'slide-up': 'slide-up 300ms ease-out',
         'draw-line': 'draw-line 600ms ease-out forwards',
+        'shake-subtle': 'shake-subtle 300ms ease-in-out',
       },
     },
   },

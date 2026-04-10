@@ -8,6 +8,7 @@ interface ChatMessageProps {
   onReject?: () => void;
   onRetry?: () => void;
   onSkip?: () => void;
+  onSuggestionClick?: (text: string) => void;
 }
 
 const AGENT_COLORS: Record<AgentName, { bg: string; border: string; text: string; label: string }> = {
@@ -34,11 +35,11 @@ function formatTime(ts: string): string {
   }
 }
 
-export function ChatMessage({ message, onApprove, onReject, onRetry, onSkip }: ChatMessageProps) {
+export function ChatMessage({ message, onApprove, onReject, onRetry, onSkip, onSuggestionClick }: ChatMessageProps) {
   switch (message.type) {
     case 'user':
       return (
-        <div className="flex justify-end animate-in fade-in slide-in-from-bottom-1 duration-150">
+        <div className="flex justify-end animate-in fade-in slide-in-from-right-2 duration-200">
           <div className="max-w-[85%] rounded-2xl bg-ak-primary px-4 py-2.5 text-sm text-[color:var(--ak-on-primary,#fff)]">
             <p className="whitespace-pre-wrap">{message.content}</p>
             <span className="mt-1 block text-right text-[10px] text-[color:var(--ak-on-primary,#fff)] opacity-60">{formatTime(message.timestamp)}</span>
@@ -49,7 +50,7 @@ export function ChatMessage({ message, onApprove, onReject, onRetry, onSkip }: C
     case 'agent': {
       const c = AGENT_COLORS[message.agent];
       return (
-        <div className="flex gap-2.5 animate-in fade-in slide-in-from-bottom-1 duration-150">
+        <div className="flex gap-2.5 animate-in fade-in slide-in-from-left-2 duration-200">
           <AgentAvatar agent={message.agent} />
           <div className="min-w-0 flex-1">
             <div className="mb-0.5 flex items-center gap-2">
@@ -57,6 +58,48 @@ export function ChatMessage({ message, onApprove, onReject, onRetry, onSkip }: C
               <span className="text-[10px] text-ak-text-tertiary">{formatTime(message.timestamp)}</span>
             </div>
             <p className="whitespace-pre-wrap text-sm text-ak-text-secondary">{message.content}</p>
+          </div>
+        </div>
+      );
+    }
+
+    case 'clarification': {
+      const cc = AGENT_COLORS[message.role];
+      return (
+        <div className="flex gap-2.5 animate-in fade-in slide-in-from-left-2 duration-200">
+          <AgentAvatar agent={message.role} />
+          <div className="min-w-0 flex-1">
+            <div className="mb-0.5 flex items-center gap-2">
+              <span className={cn('text-xs font-semibold', cc.text)}>{AGENT_COLORS[message.role].label}</span>
+              <span className="text-[10px] text-ak-text-tertiary">{formatTime(message.timestamp)}</span>
+            </div>
+            <p className="mb-2 whitespace-pre-wrap text-sm text-ak-text-secondary">{message.content}</p>
+            <div className="space-y-2">
+              {message.questions.map((q, i) => (
+                <div key={q.id} className={cn('rounded-lg border p-3', cc.border, cc.bg)}>
+                  <p className="text-sm font-medium text-ak-text-primary">
+                    {i + 1}. {q.question}
+                  </p>
+                  {q.reason && (
+                    <p className="mt-1 text-xs text-ak-text-tertiary">{q.reason}</p>
+                  )}
+                  {q.suggestions && q.suggestions.length > 0 && (
+                    <div className="mt-1.5 flex flex-wrap gap-1">
+                      {q.suggestions.map((s, si) => (
+                        <button
+                          key={si}
+                          type="button"
+                          onClick={() => onSuggestionClick?.(s)}
+                          className="rounded-full bg-ak-surface-2 px-2 py-0.5 text-[11px] text-ak-text-secondary hover:bg-ak-primary/15 hover:text-ak-primary hover:scale-[1.03] active:scale-[0.97] cursor-pointer transition-all duration-150"
+                        >
+                          {s}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       );
@@ -78,7 +121,7 @@ export function ChatMessage({ message, onApprove, onReject, onRetry, onSkip }: C
 
     case 'file_created':
       return (
-        <div className="flex items-center gap-2 animate-in fade-in slide-in-from-left-2 duration-100">
+        <div className="flex items-center gap-2 animate-in fade-in slide-in-from-left-2 duration-200">
           <span className="text-green-400">✓</span>
           <span className="font-mono text-xs text-ak-text-secondary">{message.path}</span>
         </div>
@@ -86,7 +129,7 @@ export function ChatMessage({ message, onApprove, onReject, onRetry, onSkip }: C
 
     case 'pr_opened':
       return (
-        <div className="rounded-xl border border-ak-proto/20 bg-ak-surface p-4 animate-in fade-in slide-in-from-bottom-1 duration-150">
+        <div className="rounded-xl border border-ak-proto/20 bg-ak-surface p-4 animate-in fade-in slide-in-from-left-2 duration-200">
           <div className="mb-2 flex items-center gap-2">
             <span className="text-ak-proto">
               <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 16 16">
@@ -115,7 +158,7 @@ export function ChatMessage({ message, onApprove, onReject, onRetry, onSkip }: C
 
     case 'test_result':
       return (
-        <div className="rounded-xl border border-ak-trace/20 bg-ak-surface p-4 animate-in fade-in slide-in-from-bottom-1 duration-150">
+        <div className="rounded-xl border border-ak-trace/20 bg-ak-surface p-4 animate-in fade-in slide-in-from-left-2 duration-200">
           <div className="mb-2 flex items-center gap-2">
             <span className="text-ak-trace">🧪</span>
             <span className="text-sm font-semibold text-ak-text-primary">Test Sonuçları</span>
@@ -164,7 +207,7 @@ export function ChatMessage({ message, onApprove, onReject, onRetry, onSkip }: C
 
     case 'error':
       return (
-        <div className="rounded-xl border border-red-500/30 bg-red-500/5 p-4 animate-in fade-in slide-in-from-bottom-1 duration-150">
+        <div className="rounded-xl border border-red-500/30 bg-red-500/5 p-4 animate-in fade-in slide-in-from-left-2 duration-200 animate-shake-subtle">
           <div className="mb-1 flex items-center gap-2">
             <span className="text-red-400">⚠</span>
             <span className="text-sm font-semibold text-red-400">Hata</span>
@@ -189,7 +232,7 @@ export function ChatMessage({ message, onApprove, onReject, onRetry, onSkip }: C
 
     case 'info':
       return (
-        <div className="flex justify-center animate-in fade-in duration-150">
+        <div className="flex justify-center animate-in fade-in duration-200">
           <div className="rounded-full border border-ak-border-subtle bg-ak-surface-2 px-4 py-1.5 text-xs text-ak-text-tertiary">
             {message.content}
           </div>

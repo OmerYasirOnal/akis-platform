@@ -31,8 +31,8 @@ const DocsPage = lazy(() => import('./pages/DocsPage'));
 const SettingsPage = lazy(() => import('./pages/settings/SettingsPage'));
 
 const PageLoader = () => (
-  <div className="flex min-h-[200px] items-center justify-center">
-    <div className="h-8 w-8 animate-spin rounded-full border-2 border-[#2dd4a8] border-t-transparent" />
+  <div className="flex min-h-[200px] items-center justify-center animate-in fade-in duration-200">
+    <div className="h-8 w-8 animate-spin rounded-full border-2 border-ak-primary border-t-transparent" />
   </div>
 );
 
