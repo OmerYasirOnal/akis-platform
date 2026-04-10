@@ -18,8 +18,7 @@ import { z } from 'zod';
  * Pipeline/UI uses short names; the API needs dated model IDs.
  */
 const ANTHROPIC_MODEL_MAP: Record<string, string> = {
-  'claude-haiku-4-5':           'claude-3-haiku-20240307',
-  'claude-haiku-4-5-20251001':  'claude-3-haiku-20240307',
+  'claude-haiku-4-5':           'claude-haiku-4-5-20251001',
   'claude-sonnet-4-6':          'claude-sonnet-4-20250514',
 };
 
