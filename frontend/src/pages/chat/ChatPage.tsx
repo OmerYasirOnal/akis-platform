@@ -157,23 +157,29 @@ export default function ChatPage() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [creating, setCreating] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  // Tablet (md-lg): auto-collapse sidebar; Desktop (lg+): expanded
-  const isTablet = typeof window !== 'undefined' && window.innerWidth >= 768 && window.innerWidth < 1024;
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(isTablet);
+  // Sidebar collapse: tablet (md-lg) collapsed, desktop (lg+) expanded
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    const w = window.innerWidth;
+    return w >= 768 && w < 1024;
+  });
   // Pending new conversation — created locally, pipeline not yet started on backend
   const [pendingConv, setPendingConv] = useState<{ displayName: string } | null>(null);
   const [showProfileWizard, setShowProfileWizard] = useState(false);
   const { missingSteps, loading: profileLoading } = useProfileCompleteness();
 
-  // Auto-collapse sidebar on tablet resize
+  // Auto-collapse sidebar on tablet resize + re-sync on mount/navigation
   useEffect(() => {
-    const handleResize = () => {
+    const syncCollapse = () => {
       const w = window.innerWidth;
       if (w >= 768 && w < 1024) setSidebarCollapsed(true);
       else if (w >= 1024) setSidebarCollapsed(false);
+      // < 768: mobile uses sidebarOpen (overlay), not collapsed
     };
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    // Re-sync immediately on mount (handles navigation/refresh)
+    syncCollapse();
+    window.addEventListener('resize', syncCollapse);
+    return () => window.removeEventListener('resize', syncCollapse);
   }, []);
 
   const stage = activeWorkflow?.currentStage;
