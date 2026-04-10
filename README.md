@@ -1,18 +1,22 @@
 <p align="center">
-  <img src="frontend/src/assets/branding/akis-mark-512.png" alt="AKIS Logo" width="80" />
+  <img src="frontend/src/assets/branding/akis-mark-512.png" alt="AKIS Logo" width="96" />
 </p>
 
 <h1 align="center">AKIS Platform</h1>
 
 <p align="center">
   <strong>Adaptive Knowledge Integrity System</strong><br/>
-  AI destekli agent orkestrasyon motoru — fikirleri dogrulanmis yazilima donusturur.
+  <sub>AI destekli agent orkestrasyon motoru — fikirleri dogrulanmis yazilima donusturur.</sub>
 </p>
 
 <p align="center">
-  <a href="https://akisflow.com"><img src="https://img.shields.io/badge/live-akisflow.com-07D1AF?style=flat-square" alt="Live Demo" /></a>&nbsp;
+  <a href="https://akisflow.com"><img src="https://img.shields.io/badge/CANLI%20DEMO-akisflow.com-07D1AF?style=for-the-badge" alt="Live Demo" /></a>
+</p>
+
+<p align="center">
   <img src="https://img.shields.io/badge/version-0.2.0-blue?style=flat-square" alt="Version" />&nbsp;
-  <img src="https://img.shields.io/github/actions/workflow/status/OmerYasirOnal/akis-platform/ci.yml?style=flat-square&label=CI" alt="CI Status" />
+  <img src="https://img.shields.io/github/actions/workflow/status/OmerYasirOnal/akis-platform/ci.yml?style=flat-square&label=CI" alt="CI Status" />&nbsp;
+  <img src="https://img.shields.io/badge/license-MIT-green?style=flat-square" alt="License" />
 </p>
 
 <p align="center">
@@ -21,16 +25,32 @@
   <img src="https://img.shields.io/badge/Fastify-4-000?style=flat-square&logo=fastify" />
   <img src="https://img.shields.io/badge/PostgreSQL-16-4169E1?style=flat-square&logo=postgresql&logoColor=white" />
   <img src="https://img.shields.io/badge/Claude-Sonnet_4-D97757?style=flat-square&logo=anthropic" />
-  <img src="https://img.shields.io/badge/license-MIT-green?style=flat-square" />
+  <img src="https://img.shields.io/badge/Drizzle-ORM-C5F74F?style=flat-square&logo=drizzle&logoColor=black" />
 </p>
 
+<br/>
+
 <p align="center">
-  <a href="#turkce">Turkce</a> | <a href="#english">English</a>
+  <a href="#turkce"><kbd>&nbsp;&nbsp;Turkce&nbsp;&nbsp;</kbd></a>&nbsp;&nbsp;
+  <a href="#english"><kbd>&nbsp;&nbsp;English&nbsp;&nbsp;</kbd></a>
 </p>
+
+<br/>
 
 ---
 
 ## Turkce
+
+<details open>
+<summary><b>Icerik</b></summary>
+
+- [Genel Bakis](#genel-bakis) · [Ekran Goruntuleri](#ekran-goruntuleri) · [Ozellikler](#ozellikler)
+- [Mimari](#mimari) · [Teknoloji Yigini](#teknoloji-yigini) · [Proje Yapisi](#proje-yapisi)
+- [Nasil Kullanilir](#nasil-kullanilir) · [Gelistirme Ortami](#gelistirme-ortami)
+- [Katki Rehberi](#katki-rehberi) · [API Referansi](#api-referansi)
+- [Guvenlik](#guvenlik) · [Dagitim](#dagitim) · [Akademik Baglam](#akademik-baglam)
+
+</details>
 
 ### Genel Bakis
 
@@ -86,14 +106,64 @@ Her agent'in ciktisi bir sonraki asamada dogrulanir. Bu **dogrulama zinciri** pl
 
 ### Ozellikler
 
-- **Sirasal Agent Pipeline** — Scribe (spec) -> Insan Kapisi -> Proto (kod) -> Trace (test)
-- **Gercek Zamanli Akis** — SSE tabanli canli agent aktivitesi
-- **MCP ile GitHub** — Model Context Protocol adaptoru: repo olusturma, branch yonetimi, commit, PR
-- **Coklu AI Saglayici** — Anthropic Claude, OpenAI, OpenRouter; kullanici tarafindan ayarlanabilir API key'ler
-- **OAuth Kimlik Dogrulama** — GitHub ve Google ile giris + e-posta/sifre
-- **Pipeline Istatistikleri** — Basari oranlari, agent sureleri, calistirma gecmisi
-- **Onboarding** — Animasyonlu karsilama sihirbazi ve profil kurulum akisi
-- **Lokalizasyon** — Tam Turkce ve Ingilizce destek (i18n)
+<table>
+<tr>
+<td width="50%" valign="top">
+
+**Sirasal Agent Pipeline**<br/>
+<sub>Scribe (spec) → Insan Kapisi → Proto (kod) → Trace (test)</sub>
+
+</td>
+<td width="50%" valign="top">
+
+**Gercek Zamanli Akis**<br/>
+<sub>SSE tabanli canli agent aktivitesi izleme</sub>
+
+</td>
+</tr>
+<tr>
+<td width="50%" valign="top">
+
+**MCP ile GitHub Entegrasyonu**<br/>
+<sub>Model Context Protocol: repo, branch, commit, PR</sub>
+
+</td>
+<td width="50%" valign="top">
+
+**Coklu AI Saglayici**<br/>
+<sub>Anthropic Claude, OpenAI, OpenRouter — kullanici ayarli</sub>
+
+</td>
+</tr>
+<tr>
+<td width="50%" valign="top">
+
+**OAuth Kimlik Dogrulama**<br/>
+<sub>GitHub + Google ile giris, e-posta/sifre destegi</sub>
+
+</td>
+<td width="50%" valign="top">
+
+**Pipeline Istatistikleri**<br/>
+<sub>Basari orani, agent sureleri, calistirma gecmisi</sub>
+
+</td>
+</tr>
+<tr>
+<td width="50%" valign="top">
+
+**Onboarding Akisi**<br/>
+<sub>Animasyonlu karsilama sihirbazi ve profil kurulumu</sub>
+
+</td>
+<td width="50%" valign="top">
+
+**Tam Lokalizasyon**<br/>
+<sub>Turkce ve Ingilizce arayuz destegi (i18n)</sub>
+
+</td>
+</tr>
+</table>
 
 ---
 
@@ -135,11 +205,19 @@ graph TB
 
 #### Dogrulama Zinciri
 
-| Asama | Uretici | Dogrulayici | Yontem |
-|-------|---------|-------------|--------|
-| Spec | Scribe | **Insan** | UI'da incele ve onayla/reddet |
-| Kod | Proto | **Trace** | GitHub'dan gercek kodu okur, test yazar |
-| Test | Trace | **Otomatik** | Testler otomatik calisir |
+```mermaid
+graph LR
+    S["SCRIBE\nspec uretir"] -->|"insan dogrular"| H{"Insan\nOnay Kapisi"}
+    H -->|"onaylandi"| P["PROTO\nkod uretir"]
+    P -->|"trace dogrular"| T["TRACE\ntest yazar"]
+    T -->|"otomatik calisir"| R["Testler\nCalisir"]
+
+    style S fill:#0d3b66,stroke:#07D1AF,color:#fff
+    style H fill:#2a1a3e,stroke:#FF6B6B,color:#fff
+    style P fill:#0d3b66,stroke:#07D1AF,color:#fff
+    style T fill:#0d3b66,stroke:#07D1AF,color:#fff
+    style R fill:#0a3d2a,stroke:#07D1AF,color:#fff
+```
 
 #### MCP Entegrasyonu
 
@@ -170,20 +248,31 @@ stateDiagram-v2
 
 ### Teknoloji Yigini
 
-| Katman | Teknoloji |
-|--------|-----------|
-| **Frontend** | React 19, Vite 7, Tailwind CSS 4, React Router 7 |
-| **Backend** | Fastify 4, TypeScript 5.9 |
-| **Veritabani** | PostgreSQL 16, Drizzle ORM |
-| **AI** | Anthropic Claude (claude-sonnet-4-6), OpenAI, OpenRouter |
-| **Entegrasyon** | GitHub REST API + MCP adaptoru |
-| **Kimlik Dogrulama** | JWT, bcrypt, AES-256-GCM, OAuth 2.0 |
-| **Test** | Vitest (unit), Playwright (Trace agent ile E2E) |
-| **Dagitim** | Docker Compose, Caddy (oto-SSL), OCI ARM64 |
+<p align="center">
+  <img src="https://img.shields.io/badge/React-19-61DAFB?style=for-the-badge&logo=react&logoColor=white" />
+  <img src="https://img.shields.io/badge/Vite-7-646CFF?style=for-the-badge&logo=vite&logoColor=white" />
+  <img src="https://img.shields.io/badge/Tailwind-4-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=white" />
+  <img src="https://img.shields.io/badge/React_Router-7-CA4245?style=for-the-badge&logo=reactrouter&logoColor=white" />
+</p>
+<p align="center">
+  <img src="https://img.shields.io/badge/Fastify-4-000000?style=for-the-badge&logo=fastify&logoColor=white" />
+  <img src="https://img.shields.io/badge/TypeScript-5.9-3178C6?style=for-the-badge&logo=typescript&logoColor=white" />
+  <img src="https://img.shields.io/badge/PostgreSQL-16-4169E1?style=for-the-badge&logo=postgresql&logoColor=white" />
+  <img src="https://img.shields.io/badge/Drizzle-ORM-C5F74F?style=for-the-badge&logo=drizzle&logoColor=black" />
+</p>
+<p align="center">
+  <img src="https://img.shields.io/badge/Claude-Sonnet_4-D97757?style=for-the-badge&logo=anthropic&logoColor=white" />
+  <img src="https://img.shields.io/badge/Docker-Compose-2496ED?style=for-the-badge&logo=docker&logoColor=white" />
+  <img src="https://img.shields.io/badge/Caddy-Auto_SSL-1F88C0?style=for-the-badge&logo=caddy&logoColor=white" />
+  <img src="https://img.shields.io/badge/Vitest-Unit-6E9F18?style=for-the-badge&logo=vitest&logoColor=white" />
+</p>
 
 ---
 
 ### Proje Yapisi
+
+<details>
+<summary><b>Klasor agacini goster</b></summary>
 
 ```
 devagents/
@@ -207,11 +296,13 @@ devagents/
 └── docs/                       Mimari dokumanlari ve ekran goruntuleri
 ```
 
+</details>
+
 ---
 
 ### Nasil Kullanilir
 
-AKIS'i kullanmaya baslamak icin asagidaki adimlari izleyin. Canli surum: [akisflow.com](https://akisflow.com)
+AKIS'i kullanmaya baslamak icin asagidaki adimlari izleyin. Canli surum: **[akisflow.com](https://akisflow.com)**
 
 #### 1. Hesap Olusturma
 
@@ -227,9 +318,9 @@ Pipeline'in calisabilmesi icin bir AI saglayicisi API key'i gereklidir.
 2. **AI Saglayici** sekmesinde "Yeni Key Ekle" butonuna tiklayin.
 3. Saglayicinizi secin: **Anthropic** (onerilen), **OpenAI** veya **OpenRouter**.
 4. API key'inizi yapishtirin ve kaydedin.
-5. Key'ler AES-256-GCM ile sifrelenerek saklanir.
 
-> **Not:** Key olmadan pipeline baslatilamaz. Platform key'iniz yoksa mock modunda calisir.
+> [!IMPORTANT]
+> Key olmadan pipeline baslatilamaz. Platform key'iniz yoksa mock modunda calisir. Key'ler AES-256-GCM ile sifrelenerek saklanir.
 
 #### 3. GitHub Baglama
 
@@ -265,17 +356,16 @@ Spec onaylandiktan sonra Proto calismaya baslar:
 - Chat'te gercek zamanli ilerleme goruntusu gorursunuz (SSE stream).
 - Proto, onaylanan spec'e gore MVP scaffold uretir.
 - Tamamlandiginda kodlar GitHub'a push edilir (branch: `proto/scaffold-{timestamp}`).
-- Push edilen repo ve branch bilgisi chat'te gosterilir.
 
 #### 8. Trace Test Sonuclarini Goruntuleme
 
 Proto tamamlandiktan sonra Trace otomatik baslar:
 - Trace, Proto'nun push ettigi branch'teki **gercek kodu** GitHub'dan okur.
 - Bu koda ozel Playwright otomasyon testleri yazar.
-- Test dosyalari ve kapsam matrisi chat'te gosterilir.
-- Pipeline tamamlandiginda durum `completed` (tum testler basarili) veya `completed_partial` (Trace atlandi) olur.
+- Pipeline tamamlandiginda durum `completed` veya `completed_partial` olur.
 
-> **Ipucu:** Herhangi bir asamada hata olusursa "Tekrar Dene" butonu ile o asamayi yeniden baslatabilirsiniz (max 3 deneme).
+> [!TIP]
+> Herhangi bir asamada hata olusursa "Tekrar Dene" butonu ile o asamayi yeniden baslatabilirsiniz (max 3 deneme).
 
 ---
 
@@ -310,7 +400,8 @@ pnpm install
 pnpm dev                   # http://localhost:5173
 ```
 
-#### Temel Ortam Degiskenleri
+<details>
+<summary><b>Temel ortam degiskenleri</b></summary>
 
 | Degisken | Amac |
 |----------|------|
@@ -321,6 +412,8 @@ pnpm dev                   # http://localhost:5173
 | `GOOGLE_OAUTH_CLIENT_ID` / `SECRET` | Google OAuth girisi |
 
 Tam yapilandirma icin [`backend/.env.example`](backend/.env.example) dosyasina bakin.
+
+</details>
 
 #### Kalite Kapisi
 
@@ -350,7 +443,8 @@ Katki saglamak istiyorsaniz [`CONTRIBUTING.md`](CONTRIBUTING.md) dosyasina bakin
 
 ### API Referansi
 
-#### Pipeline
+<details>
+<summary><b>Pipeline API</b></summary>
 
 | Metot | Endpoint | Aciklama |
 |-------|----------|----------|
@@ -363,7 +457,10 @@ Katki saglamak istiyorsaniz [`CONTRIBUTING.md`](CONTRIBUTING.md) dosyasina bakin
 | `POST` | `/api/pipelines/:id/retry` | Basarisiz asamayi tekrar dene |
 | `DELETE` | `/api/pipelines/:id` | Pipeline'i iptal et |
 
-#### GitHub
+</details>
+
+<details>
+<summary><b>GitHub API</b></summary>
 
 | Metot | Endpoint | Aciklama |
 |-------|----------|----------|
@@ -372,7 +469,10 @@ Katki saglamak istiyorsaniz [`CONTRIBUTING.md`](CONTRIBUTING.md) dosyasina bakin
 | `POST` | `/api/github/repos` | Yeni repo olustur |
 | `POST` | `/api/github/connect` | PAT ile baglan |
 
-#### Kimlik Dogrulama
+</details>
+
+<details>
+<summary><b>Auth API</b></summary>
 
 | Metot | Endpoint | Aciklama |
 |-------|----------|----------|
@@ -381,9 +481,14 @@ Katki saglamak istiyorsaniz [`CONTRIBUTING.md`](CONTRIBUTING.md) dosyasina bakin
 | `GET` | `/auth/profile` | Kullanici profili |
 | `PUT` | `/auth/profile` | Profil guncelle |
 
+</details>
+
 ---
 
 ### Guvenlik
+
+<details>
+<summary><b>Guvenlik uygulamalarini goster</b></summary>
 
 | Alan | Uygulama |
 |------|----------|
@@ -396,6 +501,8 @@ Katki saglamak istiyorsaniz [`CONTRIBUTING.md`](CONTRIBUTING.md) dosyasina bakin
 | **SQL** | Parametrize sorgular (Drizzle ORM) |
 | **Hata Yonetimi** | Sanitize edilmis yanit, production'da stack trace yok |
 
+</details>
+
 ---
 
 ### Dagitim
@@ -403,11 +510,6 @@ Katki saglamak istiyorsaniz [`CONTRIBUTING.md`](CONTRIBUTING.md) dosyasina bakin
 AKIS, tek bir OCI ARM64 VM uzerinde Docker Compose ve otomatik TLS icin Caddy ile dagitilir.
 
 **Canli:** [https://akisflow.com](https://akisflow.com)
-
-```bash
-./scripts/staging_deploy_manual.sh \
-  --host <IP> --user ubuntu --key ~/.ssh/id_ed25519 --confirm
-```
 
 CI/CD, GitHub Actions uzerinde calisir — her push'ta tip kontrolu, lint, unit test ve build dogrulamasi yapilir.
 
@@ -436,6 +538,17 @@ MIT — detaylar icin [`LICENSE`](LICENSE) dosyasina bakin.
 
 <details>
 <summary><h2 id="english">English Version</h2></summary>
+
+<details open>
+<summary><b>Contents</b></summary>
+
+- [Overview](#overview) · [Screenshots](#screenshots) · [Features](#features-1)
+- [Architecture](#architecture) · [Tech Stack](#tech-stack) · [Project Structure](#project-structure)
+- [How to Use](#how-to-use) · [Development Setup](#development-setup)
+- [Contributing](#contributing) · [API Reference](#api-reference-1)
+- [Security](#security) · [Deployment](#deployment) · [Academic Context](#academic-context)
+
+</details>
 
 ### Overview
 
@@ -491,14 +604,64 @@ Each agent's output is verified by the next stage. This **verification chain** i
 
 ### Features
 
-- **Sequential Agent Pipeline** — Scribe (spec) -> Human Gate -> Proto (code) -> Trace (tests)
-- **Real-time Streaming** — SSE-powered live agent activity during pipeline execution
-- **GitHub via MCP** — Model Context Protocol adapter for repo creation, branch management, commits, and PRs
-- **Multi-provider AI** — Anthropic Claude, OpenAI, and OpenRouter with user-configurable API keys
-- **OAuth Authentication** — GitHub and Google login alongside email/password
-- **Pipeline Statistics** — Success rates, agent durations, execution history
-- **Onboarding** — Animated welcome wizard and profile setup flow
-- **Localization** — Full Turkish and English support (i18n)
+<table>
+<tr>
+<td width="50%" valign="top">
+
+**Sequential Agent Pipeline**<br/>
+<sub>Scribe (spec) → Human Gate → Proto (code) → Trace (tests)</sub>
+
+</td>
+<td width="50%" valign="top">
+
+**Real-time Streaming**<br/>
+<sub>SSE-powered live agent activity monitoring</sub>
+
+</td>
+</tr>
+<tr>
+<td width="50%" valign="top">
+
+**GitHub via MCP**<br/>
+<sub>Model Context Protocol: repos, branches, commits, PRs</sub>
+
+</td>
+<td width="50%" valign="top">
+
+**Multi-provider AI**<br/>
+<sub>Anthropic Claude, OpenAI, OpenRouter — user-configurable</sub>
+
+</td>
+</tr>
+<tr>
+<td width="50%" valign="top">
+
+**OAuth Authentication**<br/>
+<sub>GitHub + Google sign-in, email/password support</sub>
+
+</td>
+<td width="50%" valign="top">
+
+**Pipeline Statistics**<br/>
+<sub>Success rates, agent durations, execution history</sub>
+
+</td>
+</tr>
+<tr>
+<td width="50%" valign="top">
+
+**Onboarding Flow**<br/>
+<sub>Animated welcome wizard and profile setup</sub>
+
+</td>
+<td width="50%" valign="top">
+
+**Full Localization**<br/>
+<sub>Turkish and English UI support (i18n)</sub>
+
+</td>
+</tr>
+</table>
 
 ---
 
@@ -540,11 +703,19 @@ graph TB
 
 #### Verification Chain
 
-| Stage | Producer | Verifier | Method |
-|-------|----------|----------|--------|
-| Spec | Scribe | **Human** | Review & approve/reject in UI |
-| Code | Proto | **Trace** | Reads real code from GitHub, writes tests |
-| Tests | Trace | **Automated** | Tests execute automatically |
+```mermaid
+graph LR
+    S["SCRIBE\nproduces spec"] -->|"human verifies"| H{"Human\nApproval Gate"}
+    H -->|"approved"| P["PROTO\nproduces code"]
+    P -->|"trace verifies"| T["TRACE\nwrites tests"]
+    T -->|"runs automatically"| R["Tests\nExecute"]
+
+    style S fill:#0d3b66,stroke:#07D1AF,color:#fff
+    style H fill:#2a1a3e,stroke:#FF6B6B,color:#fff
+    style P fill:#0d3b66,stroke:#07D1AF,color:#fff
+    style T fill:#0d3b66,stroke:#07D1AF,color:#fff
+    style R fill:#0a3d2a,stroke:#07D1AF,color:#fff
+```
 
 #### MCP Integration
 
@@ -575,20 +746,31 @@ stateDiagram-v2
 
 ### Tech Stack
 
-| Layer | Technology |
-|-------|-----------|
-| **Frontend** | React 19, Vite 7, Tailwind CSS 4, React Router 7 |
-| **Backend** | Fastify 4, TypeScript 5.9 |
-| **Database** | PostgreSQL 16, Drizzle ORM |
-| **AI** | Anthropic Claude (claude-sonnet-4-6), OpenAI, OpenRouter |
-| **Integration** | GitHub REST API + MCP adapter |
-| **Auth** | JWT sessions, bcrypt, AES-256-GCM encryption, OAuth 2.0 |
-| **Testing** | Vitest (unit), Playwright (E2E via Trace agent) |
-| **Deploy** | Docker Compose, Caddy (auto-SSL), OCI ARM64 |
+<p align="center">
+  <img src="https://img.shields.io/badge/React-19-61DAFB?style=for-the-badge&logo=react&logoColor=white" />
+  <img src="https://img.shields.io/badge/Vite-7-646CFF?style=for-the-badge&logo=vite&logoColor=white" />
+  <img src="https://img.shields.io/badge/Tailwind-4-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=white" />
+  <img src="https://img.shields.io/badge/React_Router-7-CA4245?style=for-the-badge&logo=reactrouter&logoColor=white" />
+</p>
+<p align="center">
+  <img src="https://img.shields.io/badge/Fastify-4-000000?style=for-the-badge&logo=fastify&logoColor=white" />
+  <img src="https://img.shields.io/badge/TypeScript-5.9-3178C6?style=for-the-badge&logo=typescript&logoColor=white" />
+  <img src="https://img.shields.io/badge/PostgreSQL-16-4169E1?style=for-the-badge&logo=postgresql&logoColor=white" />
+  <img src="https://img.shields.io/badge/Drizzle-ORM-C5F74F?style=for-the-badge&logo=drizzle&logoColor=black" />
+</p>
+<p align="center">
+  <img src="https://img.shields.io/badge/Claude-Sonnet_4-D97757?style=for-the-badge&logo=anthropic&logoColor=white" />
+  <img src="https://img.shields.io/badge/Docker-Compose-2496ED?style=for-the-badge&logo=docker&logoColor=white" />
+  <img src="https://img.shields.io/badge/Caddy-Auto_SSL-1F88C0?style=for-the-badge&logo=caddy&logoColor=white" />
+  <img src="https://img.shields.io/badge/Vitest-Unit-6E9F18?style=for-the-badge&logo=vitest&logoColor=white" />
+</p>
 
 ---
 
 ### Project Structure
+
+<details>
+<summary><b>Show folder tree</b></summary>
 
 ```
 devagents/
@@ -612,11 +794,13 @@ devagents/
 └── docs/                       Architecture & screenshots
 ```
 
+</details>
+
 ---
 
 ### How to Use
 
-Follow these steps to get started with AKIS. Live version: [akisflow.com](https://akisflow.com)
+Follow these steps to get started with AKIS. Live version: **[akisflow.com](https://akisflow.com)**
 
 #### 1. Create an Account
 
@@ -632,9 +816,9 @@ An AI provider API key is required for the pipeline to function.
 2. Under the **AI Provider** tab, click "Add New Key".
 3. Select your provider: **Anthropic** (recommended), **OpenAI**, or **OpenRouter**.
 4. Paste your API key and save.
-5. Keys are stored encrypted with AES-256-GCM.
 
-> **Note:** The pipeline cannot start without an API key. Without a platform key, it falls back to mock mode.
+> [!IMPORTANT]
+> The pipeline cannot start without an API key. Without a platform key, it falls back to mock mode. Keys are stored encrypted with AES-256-GCM.
 
 #### 3. Connect GitHub
 
@@ -670,17 +854,16 @@ After spec approval, Proto begins working:
 - You'll see real-time progress in the chat (SSE stream).
 - Proto generates an MVP scaffold based on the approved spec.
 - On completion, code is pushed to GitHub (branch: `proto/scaffold-{timestamp}`).
-- The repo and branch information is displayed in the chat.
 
 #### 8. View Trace Test Results
 
 After Proto finishes, Trace starts automatically:
 - Trace reads the **actual code** from the GitHub branch Proto pushed.
 - It writes Playwright automation tests specific to that code.
-- Test files and coverage matrix are shown in the chat.
-- The pipeline completes as `completed` (all tests pass) or `completed_partial` (Trace skipped).
+- The pipeline completes as `completed` or `completed_partial`.
 
-> **Tip:** If an error occurs at any stage, use the "Retry" button to restart that stage (max 3 attempts).
+> [!TIP]
+> If an error occurs at any stage, use the "Retry" button to restart that stage (max 3 attempts).
 
 ---
 
@@ -715,7 +898,8 @@ pnpm install
 pnpm dev                   # http://localhost:5173
 ```
 
-#### Key Environment Variables
+<details>
+<summary><b>Key environment variables</b></summary>
 
 | Variable | Purpose |
 |----------|---------|
@@ -726,6 +910,8 @@ pnpm dev                   # http://localhost:5173
 | `GOOGLE_OAUTH_CLIENT_ID` / `SECRET` | Google OAuth login |
 
 See [`backend/.env.example`](backend/.env.example) for the full configuration reference.
+
+</details>
 
 #### Quality Gate
 
@@ -755,7 +941,8 @@ See [`CONTRIBUTING.md`](CONTRIBUTING.md) for the full guide. Summary:
 
 ### API Reference
 
-#### Pipeline
+<details>
+<summary><b>Pipeline API</b></summary>
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
@@ -768,7 +955,10 @@ See [`CONTRIBUTING.md`](CONTRIBUTING.md) for the full guide. Summary:
 | `POST` | `/api/pipelines/:id/retry` | Retry a failed stage |
 | `DELETE` | `/api/pipelines/:id` | Cancel pipeline |
 
-#### GitHub
+</details>
+
+<details>
+<summary><b>GitHub API</b></summary>
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
@@ -777,7 +967,10 @@ See [`CONTRIBUTING.md`](CONTRIBUTING.md) for the full guide. Summary:
 | `POST` | `/api/github/repos` | Create a new repo |
 | `POST` | `/api/github/connect` | Connect via PAT |
 
-#### Auth
+</details>
+
+<details>
+<summary><b>Auth API</b></summary>
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
@@ -786,9 +979,14 @@ See [`CONTRIBUTING.md`](CONTRIBUTING.md) for the full guide. Summary:
 | `GET` | `/auth/profile` | Current user profile |
 | `PUT` | `/auth/profile` | Update profile |
 
+</details>
+
 ---
 
 ### Security
+
+<details>
+<summary><b>Show security implementations</b></summary>
 
 | Area | Implementation |
 |------|---------------|
@@ -801,6 +999,8 @@ See [`CONTRIBUTING.md`](CONTRIBUTING.md) for the full guide. Summary:
 | **SQL** | Parameterized queries via Drizzle ORM |
 | **Error Handling** | Sanitized responses, no stack traces in production |
 
+</details>
+
 ---
 
 ### Deployment
@@ -808,11 +1008,6 @@ See [`CONTRIBUTING.md`](CONTRIBUTING.md) for the full guide. Summary:
 AKIS is deployed on a single OCI ARM64 VM using Docker Compose with Caddy for automatic TLS.
 
 **Production**: [https://akisflow.com](https://akisflow.com)
-
-```bash
-./scripts/staging_deploy_manual.sh \
-  --host <IP> --user ubuntu --key ~/.ssh/id_ed25519 --confirm
-```
 
 CI/CD runs on GitHub Actions — type-checking, linting, unit tests, and build verification on every push.
 
