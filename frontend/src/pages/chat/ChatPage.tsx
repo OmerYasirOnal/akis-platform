@@ -216,27 +216,38 @@ export default function ChatPage() {
     // Same chat — skip
     if (loadedIdRef.current === conversationId) return;
 
+    // Mark immediately to prevent double-fetch on rapid navigation
+    const targetId = conversationId;
+    loadedIdRef.current = targetId;
+
     // Different chat — load without clearing (keeps old content visible during fetch)
-    workflowsApi.get(conversationId).then((w) => {
-      loadedIdRef.current = conversationId;
+    workflowsApi.get(targetId).then((w) => {
+      // Stale response guard: skip if user navigated away during fetch
+      if (loadedIdRef.current !== targetId) return;
       setActiveWorkflow(w);
       setMessages(conversationToChatMessages(w.conversation ?? [], w.currentStage));
       syncFromStage(w.currentStage ?? 'completed');
     }).catch(() => {
+      if (loadedIdRef.current !== targetId) return;
       navigate('/chat', { replace: true });
     });
   }, [conversationId, navigate, syncFromStage]);
 
   // Polling for updates — only when agent is running
   const prevConvLenRef = useRef(0);
+  const activeStageRef = useRef(activeWorkflow?.currentStage);
+  activeStageRef.current = activeWorkflow?.currentStage;
+
   useEffect(() => {
     if (!conversationId || !isRunning) return;
+    const controller = new AbortController();
     const interval = setInterval(async () => {
+      if (controller.signal.aborted) return;
       try {
         const w = await workflowsApi.get(conversationId);
+        if (controller.signal.aborted) return; // stale response guard
         const convLen = w.conversation?.length ?? 0;
-        const stageChanged = w.currentStage !== activeWorkflow?.currentStage;
-        // Skip state updates when nothing changed (avoids re-renders)
+        const stageChanged = w.currentStage !== activeStageRef.current;
         if (convLen === prevConvLenRef.current && !stageChanged) return;
         prevConvLenRef.current = convLen;
         setActiveWorkflow(w);
@@ -244,8 +255,8 @@ export default function ChatPage() {
         syncFromStage(w.currentStage ?? 'completed');
       } catch { /* ignore */ }
     }, 3000);
-    return () => clearInterval(interval);
-  }, [conversationId, isRunning, syncFromStage, activeWorkflow?.currentStage]);
+    return () => { controller.abort(); clearInterval(interval); };
+  }, [conversationId, isRunning, syncFromStage]);
 
   // Sidebar conversations: real + pending
   const sidebarConversations = useMemo(() => {

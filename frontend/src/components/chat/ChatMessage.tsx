@@ -240,6 +240,9 @@ export function ChatMessage({ message, onApprove, onReject, onRetry, onSkip, onS
       );
 
     default:
+      if (import.meta.env.DEV) {
+        console.warn('[ChatMessage] Unknown message type:', (message as Record<string, unknown>).type);
+      }
       return null;
   }
 }
