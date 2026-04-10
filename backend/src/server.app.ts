@@ -274,7 +274,7 @@ export async function buildApp() {
   // Pipeline routes (Scribe → Proto → Trace pipeline)
   // Priority: 1) MCP Gateway (if available), 2) REST API, 3) Stub
   let pipelineGitHubService: GitHubServiceLike;
-  let pipelineGetGitHubOwner: (userId: string) => Promise<string>;
+  let _pipelineGetGitHubOwner: (userId: string) => Promise<string>;
 
   const hasRealGitHubToken = env.GITHUB_TOKEN && !env.GITHUB_TOKEN.startsWith('<') && env.GITHUB_TOKEN.length > 10;
   const hasMCPGateway = !!(env.GITHUB_MCP_BASE_URL && hasRealGitHubToken);
@@ -289,7 +289,7 @@ export async function buildApp() {
     const { createGitHubMCPAdapter } = await import('./pipeline/adapters/GitHubMCPAdapter.js');
     pipelineGitHubService = createGitHubMCPAdapter(mcpService);
     const ghToken = env.GITHUB_TOKEN!;
-    pipelineGetGitHubOwner = async () => {
+    _pipelineGetGitHubOwner = async () => {
       try {
         return await getGitHubOwnerViaREST(ghToken);
       } catch {
@@ -301,7 +301,7 @@ export async function buildApp() {
     // Fallback: Direct REST API — works without MCP Gateway
     pipelineGitHubService = createGitHubRESTAdapter({ token: env.GITHUB_TOKEN! });
     const ghToken = env.GITHUB_TOKEN!;
-    pipelineGetGitHubOwner = async () => {
+    _pipelineGetGitHubOwner = async () => {
       try {
         return await getGitHubOwnerViaREST(ghToken);
       } catch {
@@ -319,7 +319,7 @@ export async function buildApp() {
       async listFiles() { return [] as string[]; },
       async getFileContent() { return ''; },
     };
-    pipelineGetGitHubOwner = async () => 'stub-owner';
+    _pipelineGetGitHubOwner = async () => 'stub-owner';
     console.log('[buildApp] Pipeline GitHub: STUB (set GITHUB_TOKEN for real push)');
   }
 
