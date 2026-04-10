@@ -303,6 +303,7 @@ export function mapPipelineToWorkflow(pipeline: Pipeline): Workflow {
       ? (pipeline.title || (pipeline.scribeConversation[0] as { content: string }).content.slice(0, 60))
       : (pipeline.title || 'Untitled Workflow'),
     status: workflowStatus,
+    currentStage: pipeline.stage,
     createdAt: pipeline.createdAt,
     updatedAt: pipeline.updatedAt,
     stages,

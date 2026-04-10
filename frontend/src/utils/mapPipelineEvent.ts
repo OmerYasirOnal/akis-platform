@@ -7,7 +7,7 @@ import type { ChatMessage, ConversationUIState, ConversationListItem, Conversati
 export function mapStageToUIState(stage: PipelineStage): ConversationUIState {
   switch (stage) {
     case 'scribe_clarifying':
-      return 'idle'; // Scribe finished — waiting for user answers (wizard visible)
+      return 'scribe_clarifying'; // Scribe finished — waiting for user answers
     case 'scribe_generating':
       return 'scribe_running';
     case 'awaiting_approval':
