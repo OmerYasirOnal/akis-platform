@@ -3,7 +3,7 @@ import { z } from 'zod';
 // ─── SCRIBE SCHEMAS ───────────────────────────────
 
 export const ScribeInputSchema = z.object({
-  idea: z.string().min(10, 'Fikir en az 10 karakter olmalı'),
+  idea: z.string().min(10, 'Fikir en az 10 karakter olmalı').max(10000, 'Fikir en fazla 10.000 karakter olabilir'),
   context: z.string().max(5000).optional(),
   targetStack: z.string().max(200).optional(),
   existingRepo: z
@@ -231,7 +231,7 @@ export const PipelineStateSchema = z.object({
 // ─── PIPELINE API REQUEST SCHEMAS ─────────────────
 
 export const StartPipelineRequestSchema = z.object({
-  idea: z.string().min(10, 'Fikir en az 10 karakter olmalı'),
+  idea: z.string().min(10, 'Fikir en az 10 karakter olmalı').max(10000, 'Fikir en fazla 10.000 karakter olabilir'),
   context: z.string().max(5000).optional(),
   targetStack: z.string().max(200).optional(),
   model: z.enum(['claude-sonnet-4-6', 'claude-haiku-4-5']).optional().default('claude-haiku-4-5'),

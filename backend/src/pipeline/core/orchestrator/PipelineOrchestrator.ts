@@ -10,8 +10,8 @@ import type {
   ProtoOutput,
   TraceOutput,
 } from '../contracts/PipelineTypes.js';
-import { RETRY_CONFIG, createPipelineError, PipelineErrorCode } from '../contracts/PipelineErrors.js';
-import { createActivityEmitter, emitActivity } from '../activityEmitter.js';
+import { RETRY_CONFIG, createPipelineError, PipelineErrorCode, PipelineNotFoundError, InvalidStageError } from '../contracts/PipelineErrors.js';
+import { createActivityEmitter, emitActivity, cleanupPipelineListeners } from '../activityEmitter.js';
 import { withRetry } from '../retryWrapper.js';
 import { scoreScribeEffort, scoreProtoEffort, scoreTraceEffort } from '../effortScorer.js';
 import type { ScribeAgent, ScribeState, ScribeResult } from '../../agents/scribe/ScribeAgent.js';
@@ -193,6 +193,17 @@ export class PipelineOrchestrator {
     const pipeline = await this.getPipeline(pipelineId);
     this.assertStage(pipeline, 'scribe_clarifying');
 
+    // Guard: prevent unbounded conversation growth (max 20 entries ≈ 10 rounds)
+    if (pipeline.scribeConversation.length >= 20) {
+      const error = createPipelineError(
+        PipelineErrorCode.AI_PROVIDER_ERROR,
+        'Maksimum konuşma limiti aşıldı (20 mesaj). Lütfen yeni bir pipeline başlatın.',
+      );
+      const failed = await this.store.update(pipelineId, { stage: 'failed', error });
+      this.emitEvent(pipelineId, 'error', 'failed', error);
+      return failed;
+    }
+
     const agents = this.getAgents(pipeline.model);
     const scribeState = this.reconstructScribeState(pipeline);
     agents.scribe.processUserAnswer(scribeState, message);
@@ -279,22 +290,11 @@ export class PipelineOrchestrator {
 
     // Resolve per-user GitHub token and owner, validate token is still valid
     let owner: string;
-    let userGitHubToken: string | null;
+    let userGitHubToken: string;
     try {
-      userGitHubToken = await this.getGitHubToken(pipeline.userId);
-      if (!userGitHubToken) {
-        throw new Error('GitHub bağlantısı bulunamadı. Ayarlar sayfasından GitHub hesabınızı bağlayın.');
-      }
-      // Pre-validate token before starting long-running agent work (skip in test/mock mode)
-      if (!userGitHubToken.startsWith('ghp_mock')) {
-        const ghRes = await fetch('https://api.github.com/user', {
-          headers: { Authorization: `Bearer ${userGitHubToken}`, Accept: 'application/vnd.github+json' },
-        }).catch(() => null);
-        if (ghRes && !ghRes.ok) {
-          throw new Error(`GitHub token geçersiz (HTTP ${ghRes.status}). Ayarlar → GitHub bölümünden yeniden bağlayın.`);
-        }
-      }
-      owner = await this.getGitHubOwner(pipeline.userId);
+      const gh = await this.validateGitHubAccess(pipeline.userId);
+      userGitHubToken = gh.token;
+      owner = gh.owner;
     } catch (err) {
       const error = createPipelineError(
         PipelineErrorCode.GITHUB_NOT_CONNECTED,
@@ -676,9 +676,8 @@ export class PipelineOrchestrator {
   private async retryTrace(pipelineId: string, pipeline: PipelineState): Promise<PipelineState> {
     let owner: string;
     try {
-      const userToken = await this.getGitHubToken(pipeline.userId);
-      if (!userToken) throw new Error('GitHub bağlantısı bulunamadı.');
-      owner = await this.getGitHubOwner(pipeline.userId);
+      const gh = await this.validateGitHubAccess(pipeline.userId);
+      owner = gh.owner;
     } catch (err) {
       const error = createPipelineError(
         PipelineErrorCode.GITHUB_NOT_CONNECTED,
@@ -708,13 +707,11 @@ export class PipelineOrchestrator {
 
   private async retryProto(pipelineId: string, pipeline: PipelineState): Promise<PipelineState> {
     let owner: string;
-    let userGitHubToken: string | null;
+    let userGitHubToken: string;
     try {
-      userGitHubToken = await this.getGitHubToken(pipeline.userId);
-      if (!userGitHubToken) {
-        throw new Error('GitHub bağlantısı bulunamadı. Ayarlar sayfasından GitHub hesabınızı bağlayın.');
-      }
-      owner = await this.getGitHubOwner(pipeline.userId);
+      const gh = await this.validateGitHubAccess(pipeline.userId);
+      userGitHubToken = gh.token;
+      owner = gh.owner;
     } catch (err) {
       const error = createPipelineError(
         PipelineErrorCode.GITHUB_NOT_CONNECTED,
@@ -783,15 +780,34 @@ export class PipelineOrchestrator {
 
   // ─── Private: Utilities ──────────────────────
 
+  /** Validate GitHub token + resolve owner. Reusable by approveSpec and retry methods. */
+  private async validateGitHubAccess(userId: string): Promise<{ token: string; owner: string }> {
+    const token = await this.getGitHubToken(userId);
+    if (!token) {
+      throw new Error('GitHub bağlantısı bulunamadı. Ayarlar sayfasından GitHub hesabınızı bağlayın.');
+    }
+    // Pre-validate token (skip in test/mock mode)
+    if (!token.startsWith('ghp_mock')) {
+      const ghRes = await fetch('https://api.github.com/user', {
+        headers: { Authorization: `Bearer ${token}`, Accept: 'application/vnd.github+json' },
+      }).catch(() => null);
+      if (ghRes && !ghRes.ok) {
+        throw new Error(`GitHub token geçersiz (HTTP ${ghRes.status}). Ayarlar → GitHub bölümünden yeniden bağlayın.`);
+      }
+    }
+    const owner = await this.getGitHubOwner(userId);
+    return { token, owner };
+  }
+
   private async getPipeline(id: string): Promise<PipelineState> {
     const pipeline = await this.store.getById(id);
-    if (!pipeline) throw new Error(`Pipeline not found: ${id}`);
+    if (!pipeline) throw new PipelineNotFoundError(id);
     return pipeline;
   }
 
   private assertStage(pipeline: PipelineState, expected: PipelineStage): void {
     if (pipeline.stage !== expected) {
-      throw new Error(`Invalid stage: expected ${expected}, got ${pipeline.stage}`);
+      throw new InvalidStageError(expected, pipeline.stage);
     }
   }
 
@@ -859,6 +875,10 @@ export class PipelineOrchestrator {
     data?: unknown,
   ): void {
     this.emit?.({ pipelineId, type, stage, data });
+    // Clean up event listeners when pipeline reaches a terminal state
+    if (stage === 'completed' || stage === 'completed_partial' || stage === 'failed' || stage === 'cancelled') {
+      cleanupPipelineListeners(pipelineId);
+    }
   }
 
   private async writeCheckpoint(

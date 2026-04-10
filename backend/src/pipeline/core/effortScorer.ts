@@ -93,8 +93,11 @@ export function scoreTraceEffort(protoResult: {
   };
 }
 
-function selectModel(_score: number): string {
-  // Cost optimization: always use Haiku
+function selectModel(score: number): string {
+  // Tiered model selection based on complexity:
+  // Low complexity (1-4): Haiku — fast, cost-effective
+  // Medium-high complexity (5+): Sonnet — better quality for complex specs
+  if (score >= 5) return 'claude-sonnet-4-6';
   return 'claude-haiku-4-5-20251001';
 }
 
