@@ -78,27 +78,26 @@ export function mapPipelineToChatMessages(pipeline: Pipeline): ChatMessage[] {
   for (const msg of pipeline.scribeConversation ?? []) {
     switch (msg.type) {
       case 'user_idea':
-        messages.push({ type: 'user', content: msg.content as string, timestamp: now });
-        break;
       case 'user_answer':
-        messages.push({ type: 'user', content: msg.content as string, timestamp: now });
+        messages.push({
+          type: 'user',
+          content: typeof msg.content === 'string' ? msg.content : String(msg.content ?? ''),
+          timestamp: now,
+        });
         break;
       case 'clarification': {
-        const clar = msg.content as {
-          message?: string;
-          questions?: Array<{ id: string; question: string; reason: string; suggestions?: string[] }>;
-        };
+        const clar = (msg.content ?? {}) as unknown as Record<string, unknown>;
         messages.push({
           type: 'clarification',
           role: 'scribe' as const,
-          content: clar.message ?? 'Fikrini daha iyi anlayabilmem için birkaç sorum var:',
-          questions: clar.questions ?? [],
+          content: typeof clar.message === 'string' ? clar.message : 'Fikrini daha iyi anlayabilmem için birkaç sorum var:',
+          questions: Array.isArray(clar.questions) ? clar.questions : [],
           timestamp: now,
         });
         break;
       }
       case 'spec_draft': {
-        const draft = msg.content as { spec?: unknown; confidence?: number };
+        const draft = (msg.content ?? {}) as unknown as Record<string, unknown>;
         if (draft.spec) {
           messages.push({
             type: 'agent',
@@ -150,9 +149,9 @@ export function mapPipelineToChatMessages(pipeline: Pipeline): ChatMessage[] {
   if (pipeline.error) {
     messages.push({
       type: 'error',
-      agent: pipeline.stage.split('_')[0],
+      agent: pipeline.stage?.split('_')[0] ?? 'pipeline',
       message: pipeline.error.message,
-      retryable: pipeline.error.retryable,
+      retryable: pipeline.error.retryable ?? false,
       timestamp: now,
     });
   }

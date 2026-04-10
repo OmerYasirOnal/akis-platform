@@ -26,6 +26,10 @@ export function usePipelineStream(
   const esRef = useRef<EventSource | null>(null);
 
   useEffect(() => {
+    // Clear activities synchronously before establishing new connection
+    // (prevents race condition where old activities leak into new pipeline)
+    setActivities([]);
+
     if (!pipelineId || !isActive) {
       if (esRef.current) {
         esRef.current.close();
@@ -57,11 +61,6 @@ export function usePipelineStream(
       setIsConnected(false);
     };
   }, [pipelineId, isActive]);
-
-  // Reset activities when pipeline changes
-  useEffect(() => {
-    setActivities([]);
-  }, [pipelineId]);
 
   const currentStep =
     activities.length > 0 ? activities[activities.length - 1] : null;
