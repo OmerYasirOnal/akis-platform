@@ -698,14 +698,17 @@ export class PipelineOrchestrator {
     await this.store.update(pipelineId, { stage: 'trace_testing' }, { expectedStageVersion: p.stageVersion });
     this.emitEvent(pipelineId, 'stage_change', 'trace_testing');
 
-    const repo = pipeline.protoConfig?.repoName ?? pipeline.protoOutput!.repo.split('/')[1];
+    if (!pipeline.protoOutput) {
+      throw new Error('Cannot retry Trace: protoOutput is missing');
+    }
+    const repo = pipeline.protoConfig?.repoName ?? pipeline.protoOutput.repo.split('/')[1];
 
     return this.runTrace(
       pipelineId,
       pipeline.metrics,
       owner,
       repo,
-      pipeline.protoOutput!.branch,
+      pipeline.protoOutput.branch,
       pipeline.approvedSpec,
       pipeline.model,
     );
