@@ -5,10 +5,12 @@
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import type { IncomingMessage, ServerResponse } from 'http';
 import { pipelineBus, type PipelineActivity } from '../core/activityEmitter.js';
+import type { PipelineOrchestrator } from '../core/orchestrator/PipelineOrchestrator.js';
 
 export interface PipelineStreamPluginOptions {
   requireAuth: (request: FastifyRequest) => Promise<{ id: string }>;
   devUserId?: string;
+  orchestrator?: PipelineOrchestrator;
 }
 
 export async function pipelineStreamPlugin(
@@ -28,6 +30,19 @@ export async function pipelineStreamPlugin(
   // GET /api/pipelines/:id/stream — SSE endpoint
   fastify.get('/:id/stream', { preHandler: authPreHandler }, async (request, reply) => {
     const { id } = request.params as { id: string };
+    const userId = (request as unknown as Record<string, unknown>).__pipelineUserId as string;
+
+    // Ownership check — prevent IDOR on SSE streams
+    if (opts.orchestrator && userId) {
+      try {
+        const p = await opts.orchestrator.getStatus(id);
+        if (p.userId !== userId) {
+          return reply.code(403).send({ error: 'Forbidden' });
+        }
+      } catch {
+        return reply.code(404).send({ error: 'Not found' });
+      }
+    }
 
     const raw = reply as unknown as { raw: ServerResponse };
     const reqRaw = request as unknown as { raw: IncomingMessage };

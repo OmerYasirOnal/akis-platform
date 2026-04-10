@@ -376,7 +376,7 @@ export async function buildApp() {
     { prefix: '/api/pipelines' },
   );
   await app.register(
-    async (instance) => pipelineStreamPlugin(instance, { requireAuth, devUserId }),
+    async (instance) => pipelineStreamPlugin(instance, { requireAuth, devUserId, orchestrator: pipelineOrchestrator }),
     { prefix: '/api/pipelines' },
   );
   await app.register(
