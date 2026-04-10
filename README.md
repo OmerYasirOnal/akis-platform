@@ -172,18 +172,25 @@ Her agent'in ciktisi bir sonraki asamada dogrulanir. Bu **dogrulama zinciri** pl
 ```mermaid
 graph TB
     subgraph Frontend["FRONTEND — React 19 + Vite 7 + Tailwind 4"]
+        direction LR
         F1["Chat UI"] ~~~ F2["Pipeline Viz"] ~~~ F3["Ayarlar"] ~~~ F4["Onboarding"]
     end
 
     subgraph Backend["BACKEND — Fastify 4 + TypeScript"]
         subgraph Pipeline["Pipeline Orchestrator — FSM"]
+            direction LR
             S["SCRIBE\nfikir → spec"] --> P["PROTO\nspec → kod"] --> T["TRACE\nkod → test"]
         end
-        B1["Auth"] ~~~ B2["GitHub MCP"] ~~~ B3["AI Servisi"] ~~~ B4["Pipeline Stats"]
+        subgraph Services[" "]
+            direction LR
+            B1["Auth"] ~~~ B2["GitHub MCP"] ~~~ B3["AI Servisi"] ~~~ B4["Pipeline Stats"]
+        end
+        Pipeline ~~~ Services
     end
 
     subgraph Infra["ALTYAPI — PostgreSQL 16 · Drizzle ORM · Docker · Caddy"]
-        I1[" "]
+        direction LR
+        I1["PostgreSQL"] ~~~ I2["Drizzle ORM"] ~~~ I3["Docker"] ~~~ I4["Caddy"]
     end
 
     Frontend --> Backend --> Infra
@@ -191,8 +198,8 @@ graph TB
     style Frontend fill:#0d3b66,stroke:#07D1AF,color:#fff
     style Backend fill:#1a2332,stroke:#07D1AF,color:#fff
     style Pipeline fill:#2a1a3e,stroke:#FF6B6B,color:#fff
+    style Services fill:transparent,stroke:transparent
     style Infra fill:#1a3a2a,stroke:#07D1AF,color:#fff
-    style I1 fill:transparent,stroke:transparent
 ```
 
 #### Agent'lar
@@ -670,18 +677,25 @@ Each agent's output is verified by the next stage. This **verification chain** i
 ```mermaid
 graph TB
     subgraph Frontend["FRONTEND — React 19 + Vite 7 + Tailwind 4"]
+        direction LR
         F1["Chat UI"] ~~~ F2["Pipeline Viz"] ~~~ F3["Settings"] ~~~ F4["Onboarding"]
     end
 
     subgraph Backend["BACKEND — Fastify 4 + TypeScript"]
         subgraph Pipeline["Pipeline Orchestrator — FSM"]
+            direction LR
             S["SCRIBE\nidea → spec"] --> P["PROTO\nspec → code"] --> T["TRACE\ncode → tests"]
         end
-        B1["Auth"] ~~~ B2["GitHub MCP"] ~~~ B3["AI Service"] ~~~ B4["Pipeline Stats"]
+        subgraph Services[" "]
+            direction LR
+            B1["Auth"] ~~~ B2["GitHub MCP"] ~~~ B3["AI Service"] ~~~ B4["Pipeline Stats"]
+        end
+        Pipeline ~~~ Services
     end
 
     subgraph Infra["INFRA — PostgreSQL 16 · Drizzle ORM · Docker · Caddy"]
-        I1[" "]
+        direction LR
+        I1["PostgreSQL"] ~~~ I2["Drizzle ORM"] ~~~ I3["Docker"] ~~~ I4["Caddy"]
     end
 
     Frontend --> Backend --> Infra
@@ -689,8 +703,8 @@ graph TB
     style Frontend fill:#0d3b66,stroke:#07D1AF,color:#fff
     style Backend fill:#1a2332,stroke:#07D1AF,color:#fff
     style Pipeline fill:#2a1a3e,stroke:#FF6B6B,color:#fff
+    style Services fill:transparent,stroke:transparent
     style Infra fill:#1a3a2a,stroke:#07D1AF,color:#fff
-    style I1 fill:transparent,stroke:transparent
 ```
 
 #### Agents
