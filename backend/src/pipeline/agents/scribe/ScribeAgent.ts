@@ -234,21 +234,34 @@ function normalizeSpecResponse(raw: Record<string, unknown>): Record<string, unk
       const parsed = JSON.parse(spec.outOfScope as string);
       spec.outOfScope = Array.isArray(parsed) ? parsed : [String(parsed)];
     } catch {
-      spec.outOfScope = [(spec.outOfScope as string)];
+      // Split comma-separated values into individual items
+      spec.outOfScope = (spec.outOfScope as string)
+        .split(/[,;]/)
+        .map((s: string) => s.trim())
+        .filter(Boolean);
+      if ((spec.outOfScope as string[]).length === 0) {
+        spec.outOfScope = [(spec.outOfScope as string)];
+      }
     }
   }
   if (!Array.isArray(spec.outOfScope)) {
     spec.outOfScope = [];
   }
 
-  // technicalConstraints nested arrays
+  // technicalConstraints nested arrays — split comma/space-separated values
   if (spec.technicalConstraints && typeof spec.technicalConstraints === 'object') {
     const tc = spec.technicalConstraints as Record<string, unknown>;
     if (typeof tc.integrations === 'string') {
-      tc.integrations = [tc.integrations];
+      tc.integrations = (tc.integrations as string)
+        .split(/[,;]/)
+        .map((s: string) => s.trim())
+        .filter(Boolean);
     }
     if (typeof tc.nonFunctional === 'string') {
-      tc.nonFunctional = [tc.nonFunctional];
+      tc.nonFunctional = (tc.nonFunctional as string)
+        .split(/[,;]/)
+        .map((s: string) => s.trim())
+        .filter(Boolean);
     }
   }
 

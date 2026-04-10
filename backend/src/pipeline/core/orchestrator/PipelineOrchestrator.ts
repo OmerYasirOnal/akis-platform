@@ -245,13 +245,22 @@ export class PipelineOrchestrator {
     }
     const spec = editedSpec ?? pipeline.scribeOutput!.spec;
 
-    // Resolve per-user GitHub token and owner
+    // Resolve per-user GitHub token and owner, validate token is still valid
     let owner: string;
     let userGitHubToken: string | null;
     try {
       userGitHubToken = await this.getGitHubToken(pipeline.userId);
       if (!userGitHubToken) {
         throw new Error('GitHub bağlantısı bulunamadı. Ayarlar sayfasından GitHub hesabınızı bağlayın.');
+      }
+      // Pre-validate token before starting long-running agent work (skip in test/mock mode)
+      if (!userGitHubToken.startsWith('ghp_mock')) {
+        const ghRes = await fetch('https://api.github.com/user', {
+          headers: { Authorization: `Bearer ${userGitHubToken}`, Accept: 'application/vnd.github+json' },
+        }).catch(() => null);
+        if (ghRes && !ghRes.ok) {
+          throw new Error(`GitHub token geçersiz (HTTP ${ghRes.status}). Ayarlar → GitHub bölümünden yeniden bağlayın.`);
+        }
       }
       owner = await this.getGitHubOwner(pipeline.userId);
     } catch (err) {
@@ -331,6 +340,9 @@ export class PipelineOrchestrator {
       },
     );
 
+    // Abort if pipeline was cancelled during Proto execution
+    if (await this.isCancelled(pipelineId)) return;
+
     if (protoResult.type === 'error') {
       await this.store.update(pipelineId, {
         stage: 'failed',
@@ -364,6 +376,9 @@ export class PipelineOrchestrator {
       metrics: protoCompletedMetrics,
     });
     this.emitEvent(pipelineId, 'stage_change', 'trace_testing');
+
+    // Abort if pipeline was cancelled before Trace starts
+    if (await this.isCancelled(pipelineId)) return;
 
     // Run Trace
     await this.runTrace(pipelineId, metrics, owner, repoName, protoResult.data.branch, spec, model);
@@ -753,14 +768,31 @@ export class PipelineOrchestrator {
       .slice(0, 50);
   }
 
+  /** Check if pipeline was cancelled while background work was running. */
+  private async isCancelled(pipelineId: string): Promise<boolean> {
+    try {
+      const p = await this.store.getById(pipelineId);
+      return p?.stage === 'cancelled';
+    } catch {
+      return false;
+    }
+  }
+
   private async failPipeline(pipelineId: string, label: string, err: unknown): Promise<void> {
+    // Don't overwrite 'cancelled' with 'failed'
+    if (await this.isCancelled(pipelineId)) return;
+
     const isTimeout = err instanceof Error && err.message.includes('timed out');
     const error = isTimeout
       ? createPipelineError(PipelineErrorCode.PIPELINE_TIMEOUT, `${label}: ${(err as Error).message}`)
       : createPipelineError(PipelineErrorCode.AI_PROVIDER_ERROR, `${label}: ${err instanceof Error ? err.message : String(err)}`);
 
-    await this.store.update(pipelineId, { stage: 'failed', error });
-    this.emitEvent(pipelineId, 'error', 'failed', error);
+    try {
+      await this.store.update(pipelineId, { stage: 'failed', error });
+      this.emitEvent(pipelineId, 'error', 'failed', error);
+    } catch (storeErr) {
+      console.error(`[Pipeline] CRITICAL: failPipeline store.update failed for ${pipelineId}:`, storeErr);
+    }
   }
 
   private emitEvent(

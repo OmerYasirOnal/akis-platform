@@ -63,7 +63,9 @@ export type TraceResult =
 // ─── Constants ────────────────────────────────────
 
 const SOURCE_EXTENSIONS = ['.ts', '.tsx', '.js', '.jsx', '.vue', '.svelte', '.css', '.html'];
-const EXCLUDE_PATTERNS = ['node_modules/', '.git/', 'dist/', 'build/', '.next/'];
+const EXCLUDE_PATTERNS = ['node_modules/', '.git/', 'dist/', 'build/', '.next/', 'coverage/', '.cache/', '__pycache__/'];
+const MAX_SOURCE_FILES = 80;
+const MAX_FILE_SIZE_BYTES = 100_000; // 100KB per file
 
 const TEST_GENERATION_PROMPT = `You are Trace, a code verifier and test writer for a software project pipeline.
 
@@ -249,11 +251,15 @@ export class TraceAgent {
     for (let attempt = 0; attempt <= RETRY_CONFIG.maxRetries; attempt++) {
       try {
         const allFiles = await this.github.listFiles(owner, repo, branch);
-        const sourceFiles = allFiles.filter((f) => this.isSourceFile(f));
+        const sourceFiles = allFiles
+          .filter((f) => this.isSourceFile(f))
+          .slice(0, MAX_SOURCE_FILES); // Cap to prevent API abuse on large repos
 
         const contents: Array<{ filePath: string; content: string }> = [];
         for (const filePath of sourceFiles) {
           const content = await this.github.getFileContent(owner, repo, branch, filePath);
+          // Skip very large files that would bloat AI context
+          if (content.length > MAX_FILE_SIZE_BYTES) continue;
           contents.push({ filePath, content });
         }
 
