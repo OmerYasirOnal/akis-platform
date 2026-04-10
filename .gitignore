@@ -7,6 +7,7 @@ node_modules/
 coverage/
 *.lcov
 .nyc_output
+test-results/
 
 # Production
 dist/
@@ -173,6 +174,7 @@ scripts/check*.mjs
 scripts/clean-env.sh
 scripts/generate_planning_spreadsheet.py
 scripts/test-*.sh
+scripts/take-screenshots*
 scripts/akis-pr-autoflow.sh
 scripts/public-repo/
 
