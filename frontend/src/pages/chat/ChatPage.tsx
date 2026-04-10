@@ -411,8 +411,8 @@ export default function ChatPage() {
           // Mobile: fixed overlay, hidden by default
           'fixed inset-y-0 left-0 z-40',
           sidebarOpen ? 'translate-x-0' : '-translate-x-full',
-          // Tablet+: relative in flow, always visible
-          'md:relative md:z-auto md:translate-x-0',
+          // Tablet+: sticky in flow, always visible, fixed height so it doesn't scroll with chat
+          'md:sticky md:top-0 md:z-auto md:translate-x-0 md:h-screen',
         )}
       >
         <ConversationSidebar
