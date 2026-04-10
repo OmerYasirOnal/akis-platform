@@ -22,6 +22,24 @@ export class StaleStateError extends Error {
   }
 }
 
+/** Safely coerce JSONB date strings to Date objects inside metrics. */
+function parseMetrics(raw: Record<string, unknown> | null): PipelineState['metrics'] {
+  if (!raw) return { startedAt: new Date(), clarificationRounds: 0, retryCount: 0 };
+  const toDate = (v: unknown): Date | undefined =>
+    v == null ? undefined : (v instanceof Date ? v : new Date(String(v)));
+  return {
+    startedAt: toDate(raw.startedAt) ?? new Date(),
+    scribeCompletedAt: toDate(raw.scribeCompletedAt),
+    approvedAt: toDate(raw.approvedAt),
+    protoCompletedAt: toDate(raw.protoCompletedAt),
+    traceCompletedAt: toDate(raw.traceCompletedAt),
+    totalDurationMs: raw.totalDurationMs as number | undefined,
+    clarificationRounds: (raw.clarificationRounds as number) ?? 0,
+    retryCount: (raw.retryCount as number) ?? 0,
+    estimatedCost: raw.estimatedCost as number | undefined,
+  };
+}
+
 /**
  * Maps a Drizzle row to PipelineState. JSONB columns need casting.
  */
@@ -37,7 +55,7 @@ function rowToState(row: typeof pipelines.$inferSelect): PipelineState {
     protoOutput: row.protoOutput as PipelineState['protoOutput'],
     traceOutput: row.traceOutput as PipelineState['traceOutput'],
     protoConfig: row.protoConfig as PipelineState['protoConfig'],
-    metrics: (row.metrics ?? { startedAt: new Date(), clarificationRounds: 0, retryCount: 0 }) as PipelineState['metrics'],
+    metrics: parseMetrics(row.metrics as Record<string, unknown> | null),
     error: row.error as PipelineState['error'],
     intermediateState: row.intermediateState as PipelineState['intermediateState'],
     attemptCount: row.attemptCount,
