@@ -1642,6 +1642,7 @@ export const pipelines = pgTable('pipelines', {
   error: jsonb('error'),
   intermediateState: jsonb('intermediate_state'),
   attemptCount: integer('attempt_count').default(0).notNull(),
+  stageVersion: integer('stage_version').default(0).notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 }, (table) => ({

@@ -12,6 +12,7 @@
  *   POST   /repos/{owner}/{repo}/pulls                → createPR
  */
 import type { GitHubServiceLike } from '../core/pipeline-factory.js';
+import { GitHubRateLimitError, GitHubAPIError } from '../core/contracts/PipelineErrors.js';
 
 const GITHUB_API = 'https://api.github.com';
 
@@ -64,14 +65,15 @@ async function ghFetch<T>(
       } catch {
         detail = text;
       }
-      throw new Error(`GitHub API ${method} ${path} → ${res.status}: ${detail}`);
+      throw new GitHubAPIError(`GitHub API ${method} ${path} → ${res.status}: ${detail}`, res.status);
     }
 
     if (res.status === 204) return {} as T;
     return (await res.json()) as T;
   }
 
-  throw new Error(`GitHub API ${method} ${path} → rate limited after ${MAX_RATE_LIMIT_RETRIES + 1} attempts`);
+  // Rate limit exhausted — non-retryable so outer withRetry doesn't compound retries
+  throw new GitHubRateLimitError(`GitHub API ${method} ${path} → rate limited after ${MAX_RATE_LIMIT_RETRIES + 1} attempts`);
 }
 
 // ─── AKIS Platform Repo Guard ────────────────────

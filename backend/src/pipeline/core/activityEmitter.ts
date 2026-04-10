@@ -2,7 +2,7 @@ import { EventEmitter } from 'events';
 
 // Pipeline-level in-memory event bus for real-time activity tracking
 export const pipelineBus = new EventEmitter();
-pipelineBus.setMaxListeners(100);
+pipelineBus.setMaxListeners(50);
 
 export interface PipelineActivity {
   pipelineId: string;
@@ -16,6 +16,11 @@ export interface PipelineActivity {
 
 export function emitActivity(activity: PipelineActivity): void {
   pipelineBus.emit(`pipeline:${activity.pipelineId}`, activity);
+}
+
+/** Remove all listeners for a completed/failed/cancelled pipeline. */
+export function cleanupPipelineListeners(pipelineId: string): void {
+  pipelineBus.removeAllListeners(`pipeline:${pipelineId}`);
 }
 
 export function createActivityEmitter(

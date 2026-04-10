@@ -5,6 +5,7 @@ import type { UserFriendlyPlan } from './plan';
 
 export type ConversationUIState =
   | 'idle'
+  | 'scribe_clarifying'
   | 'scribe_running'
   | 'awaiting_approval'
   | 'scribe_revise'

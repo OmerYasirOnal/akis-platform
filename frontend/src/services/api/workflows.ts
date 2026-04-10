@@ -129,12 +129,12 @@ function mapConversation(pipeline: Pipeline): ConversationMessage[] {
         });
         break;
       case 'clarification': {
-        const clarification = msg.content as ScribeClarification;
+        const clarification = msg.content as ScribeClarification | undefined;
         messages.push({
           role: 'scribe',
           type: 'clarification',
           content: 'Fikrini daha iyi anlayabilmem için birkaç sorum var:',
-          questions: clarification.questions,
+          questions: clarification?.questions ?? [],
           timestamp: new Date().toISOString(),
         });
         break;
@@ -143,12 +143,13 @@ function mapConversation(pipeline: Pipeline): ConversationMessage[] {
         messages.push({
           role: 'user',
           type: 'message',
-          content: msg.content as string,
+          content: typeof msg.content === 'string' ? msg.content : String(msg.content ?? ''),
           timestamp: new Date().toISOString(),
         });
         break;
       case 'spec_draft': {
-        const specOutput = msg.content as ScribeOutput;
+        const specOutput = msg.content as ScribeOutput | undefined;
+        if (!specOutput?.spec) break;
         messages.push({
           role: 'scribe',
           type: 'spec',
@@ -299,10 +300,14 @@ export function mapPipelineToWorkflow(pipeline: Pipeline): Workflow {
 
   return {
     id: pipeline.id,
-    title: pipeline.title || pipeline.scribeConversation?.[0]?.type === 'user_idea'
-      ? (pipeline.title || (pipeline.scribeConversation[0] as { content: string }).content.slice(0, 60))
-      : (pipeline.title || 'Untitled Workflow'),
+    title: pipeline.title || (
+      pipeline.scribeConversation?.[0]?.type === 'user_idea' &&
+      typeof (pipeline.scribeConversation[0] as Record<string, unknown>)?.content === 'string'
+        ? ((pipeline.scribeConversation[0] as Record<string, unknown>).content as string).slice(0, 60)
+        : 'Untitled Workflow'
+    ),
     status: workflowStatus,
+    currentStage: pipeline.stage,
     createdAt: pipeline.createdAt,
     updatedAt: pipeline.updatedAt,
     stages,

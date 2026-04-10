@@ -5,6 +5,8 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { createPipelineRoutes } from './pipeline.routes.js';
 import type { PipelineOrchestrator } from '../core/orchestrator/PipelineOrchestrator.js';
+import { PipelineNotFoundError, InvalidStageError, GitHubAPIError } from '../core/contracts/PipelineErrors.js';
+import { StaleStateError } from '../db/DrizzlePipelineStore.js';
 import { ZodError } from 'zod';
 
 // ─── AKIS Platform Repo Guard ────────────────────
@@ -63,15 +65,35 @@ export async function pipelinePlugin(
       });
     }
 
-    // Orchestrator domain errors → 400 or 404
-    const msg = error.message ?? '';
-    if (msg.startsWith('Pipeline not found')) {
+    // Typed domain errors — instanceof checks (preferred over string matching)
+    if (error instanceof PipelineNotFoundError) {
       return reply.code(404).send({
-        error: { code: 'NOT_FOUND', message: msg },
+        error: { code: 'NOT_FOUND', message: error.message },
         requestId: request.id,
       });
     }
-    if (msg.startsWith('Invalid stage') || msg.startsWith('Cannot cancel') || msg.startsWith('Cannot skip')) {
+    if (error instanceof InvalidStageError) {
+      return reply.code(400).send({
+        error: { code: 'INVALID_STAGE', message: error.message },
+        requestId: request.id,
+      });
+    }
+    if (error instanceof StaleStateError) {
+      return reply.code(409).send({
+        error: { code: 'CONFLICT', message: 'Pipeline state changed concurrently. Please refresh and retry.' },
+        requestId: request.id,
+      });
+    }
+    if (error instanceof GitHubAPIError) {
+      return reply.code(502).send({
+        error: { code: 'GITHUB_API_ERROR', message: error.message },
+        requestId: request.id,
+      });
+    }
+
+    // Fallback string matching for legacy errors
+    const msg = error.message ?? '';
+    if (msg.startsWith('Cannot skip') || msg.startsWith('Cannot retry')) {
       return reply.code(400).send({
         error: { code: 'INVALID_STAGE', message: msg },
         requestId: request.id,

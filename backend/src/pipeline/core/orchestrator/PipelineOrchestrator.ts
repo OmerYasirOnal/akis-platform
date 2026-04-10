@@ -10,8 +10,8 @@ import type {
   ProtoOutput,
   TraceOutput,
 } from '../contracts/PipelineTypes.js';
-import { RETRY_CONFIG, createPipelineError, PipelineErrorCode } from '../contracts/PipelineErrors.js';
-import { createActivityEmitter, emitActivity } from '../activityEmitter.js';
+import { RETRY_CONFIG, createPipelineError, PipelineErrorCode, PipelineNotFoundError, InvalidStageError } from '../contracts/PipelineErrors.js';
+import { createActivityEmitter, emitActivity, cleanupPipelineListeners } from '../activityEmitter.js';
 import { withRetry } from '../retryWrapper.js';
 import { scoreScribeEffort, scoreProtoEffort, scoreTraceEffort } from '../effortScorer.js';
 import type { ScribeAgent, ScribeState, ScribeResult } from '../../agents/scribe/ScribeAgent.js';
@@ -39,7 +39,7 @@ export interface PipelineStore {
   create(userId: string): Promise<PipelineState>;
   getById(id: string): Promise<PipelineState | null>;
   listByUser(userId: string): Promise<PipelineState[]>;
-  update(id: string, data: Partial<PipelineStateUpdate>): Promise<PipelineState>;
+  update(id: string, data: Partial<PipelineStateUpdate>, opts?: { expectedStageVersion?: number }): Promise<PipelineState>;
 }
 
 export interface PipelineStateUpdate {
@@ -76,6 +76,9 @@ export interface AgentSet {
 }
 
 export class PipelineOrchestrator {
+  /** Per-pipeline mutation lock — serializes concurrent operations on the same pipeline. */
+  private locks = new Map<string, Promise<unknown>>();
+
   constructor(
     private store: PipelineStore,
     private scribe: ScribeAgent,
@@ -87,6 +90,24 @@ export class PipelineOrchestrator {
     private emit?: (event: PipelineEvent) => void,
     private createAgentsForModel?: (model: string, githubService?: import('../pipeline-factory.js').GitHubServiceLike) => AgentSet,
   ) {}
+
+  /**
+   * Serialize operations on the same pipeline — prevents concurrent mutations
+   * from corrupting FSM state. Different pipeline IDs run in parallel.
+   */
+  private async withLock<T>(pipelineId: string, fn: () => Promise<T>): Promise<T> {
+    const prev = this.locks.get(pipelineId) ?? Promise.resolve();
+    const next = prev.then(fn, fn); // run fn regardless of prev result
+    this.locks.set(pipelineId, next);
+    try {
+      return await next;
+    } finally {
+      // Clean up if this is still the latest entry (avoid memory leak)
+      if (this.locks.get(pipelineId) === next) {
+        this.locks.delete(pipelineId);
+      }
+    }
+  }
 
   private getAgents(model?: string): AgentSet {
     if (model && this.createAgentsForModel) {
@@ -166,8 +187,22 @@ export class PipelineOrchestrator {
   // ─── Send Message (Scribe Chat) ──────────────
 
   async sendMessage(pipelineId: string, message: string): Promise<PipelineState> {
+    return this.withLock(pipelineId, () => this._sendMessage(pipelineId, message));
+  }
+  private async _sendMessage(pipelineId: string, message: string): Promise<PipelineState> {
     const pipeline = await this.getPipeline(pipelineId);
     this.assertStage(pipeline, 'scribe_clarifying');
+
+    // Guard: prevent unbounded conversation growth (max 20 entries ≈ 10 rounds)
+    if (pipeline.scribeConversation.length >= 20) {
+      const error = createPipelineError(
+        PipelineErrorCode.AI_PROVIDER_ERROR,
+        'Maksimum konuşma limiti aşıldı (20 mesaj). Lütfen yeni bir pipeline başlatın.',
+      );
+      const failed = await this.store.update(pipelineId, { stage: 'failed', error });
+      this.emitEvent(pipelineId, 'error', 'failed', error);
+      return failed;
+    }
 
     const agents = this.getAgents(pipeline.model);
     const scribeState = this.reconstructScribeState(pipeline);
@@ -178,11 +213,11 @@ export class PipelineOrchestrator {
       { type: 'user_answer', content: message },
     ];
 
-    // Update with user answer immediately
+    // Update with user answer immediately (optimistic lock prevents concurrent mutations)
     const updated = await this.store.update(pipelineId, {
       scribeConversation: conversation,
       stage: 'scribe_generating',
-    });
+    }, { expectedStageVersion: pipeline.stageVersion });
     this.emitEvent(pipelineId, 'stage_change', 'scribe_generating');
 
     // Run Scribe continuation in background
@@ -237,6 +272,14 @@ export class PipelineOrchestrator {
     repoVisibility: 'public' | 'private',
     editedSpec?: StructuredSpec,
   ): Promise<PipelineState> {
+    return this.withLock(pipelineId, () => this._approveSpec(pipelineId, repoName, repoVisibility, editedSpec));
+  }
+  private async _approveSpec(
+    pipelineId: string,
+    repoName: string,
+    repoVisibility: 'public' | 'private',
+    editedSpec?: StructuredSpec,
+  ): Promise<PipelineState> {
     const pipeline = await this.getPipeline(pipelineId);
     this.assertStage(pipeline, 'awaiting_approval');
 
@@ -247,22 +290,11 @@ export class PipelineOrchestrator {
 
     // Resolve per-user GitHub token and owner, validate token is still valid
     let owner: string;
-    let userGitHubToken: string | null;
+    let userGitHubToken: string;
     try {
-      userGitHubToken = await this.getGitHubToken(pipeline.userId);
-      if (!userGitHubToken) {
-        throw new Error('GitHub bağlantısı bulunamadı. Ayarlar sayfasından GitHub hesabınızı bağlayın.');
-      }
-      // Pre-validate token before starting long-running agent work (skip in test/mock mode)
-      if (!userGitHubToken.startsWith('ghp_mock')) {
-        const ghRes = await fetch('https://api.github.com/user', {
-          headers: { Authorization: `Bearer ${userGitHubToken}`, Accept: 'application/vnd.github+json' },
-        }).catch(() => null);
-        if (ghRes && !ghRes.ok) {
-          throw new Error(`GitHub token geçersiz (HTTP ${ghRes.status}). Ayarlar → GitHub bölümünden yeniden bağlayın.`);
-        }
-      }
-      owner = await this.getGitHubOwner(pipeline.userId);
+      const gh = await this.validateGitHubAccess(pipeline.userId);
+      userGitHubToken = gh.token;
+      owner = gh.owner;
     } catch (err) {
       const error = createPipelineError(
         PipelineErrorCode.GITHUB_NOT_CONNECTED,
@@ -278,7 +310,7 @@ export class PipelineOrchestrator {
       { type: 'spec_approved', content: spec },
     ];
 
-    // Transition to proto_building — return immediately
+    // Transition to proto_building — return immediately (optimistic lock)
     const updated = await this.store.update(pipelineId, {
       stage: 'proto_building',
       approvedSpec: spec,
@@ -286,7 +318,7 @@ export class PipelineOrchestrator {
       scribeConversation: conversation,
       metrics: { ...pipeline.metrics, approvedAt: new Date() },
       error: null,
-    });
+    }, { expectedStageVersion: pipeline.stageVersion });
     this.emitEvent(pipelineId, 'stage_change', 'proto_building');
 
     // Create per-user GitHub adapter and run Proto + Trace in background
@@ -387,6 +419,9 @@ export class PipelineOrchestrator {
   // ─── Reject Spec ─────────────────────────────
 
   async rejectSpec(pipelineId: string, feedback: string): Promise<PipelineState> {
+    return this.withLock(pipelineId, () => this._rejectSpec(pipelineId, feedback));
+  }
+  private async _rejectSpec(pipelineId: string, feedback: string): Promise<PipelineState> {
     const pipeline = await this.getPipeline(pipelineId);
     this.assertStage(pipeline, 'awaiting_approval');
 
@@ -400,7 +435,7 @@ export class PipelineOrchestrator {
       stage: 'scribe_generating',
       scribeConversation: conversation,
       error: null,
-    });
+    }, { expectedStageVersion: pipeline.stageVersion });
 
     const agents = this.getAgents(pipeline.model);
     const result = await withTimeout(
@@ -437,6 +472,9 @@ export class PipelineOrchestrator {
   // ─── Retry ───────────────────────────────────
 
   async retryStage(pipelineId: string): Promise<PipelineState> {
+    return this.withLock(pipelineId, () => this._retryStage(pipelineId));
+  }
+  private async _retryStage(pipelineId: string): Promise<PipelineState> {
     const pipeline = await this.getPipeline(pipelineId);
     this.assertStage(pipeline, 'failed');
 
@@ -464,11 +502,14 @@ export class PipelineOrchestrator {
   // ─── Cancel ──────────────────────────────────
 
   async cancelPipeline(pipelineId: string): Promise<PipelineState> {
+    return this.withLock(pipelineId, () => this._cancelPipeline(pipelineId));
+  }
+  private async _cancelPipeline(pipelineId: string): Promise<PipelineState> {
     const pipeline = await this.getPipeline(pipelineId);
     // Already cancelled — return as-is
     if (pipeline.stage === 'cancelled') return pipeline;
     // Any stage can be cancelled (including completed — acts as "delete from view")
-    const updated = await this.store.update(pipelineId, { stage: 'cancelled' });
+    const updated = await this.store.update(pipelineId, { stage: 'cancelled' }, { expectedStageVersion: pipeline.stageVersion });
     this.emitEvent(pipelineId, 'stage_change', 'cancelled');
     return updated;
   }
@@ -476,6 +517,9 @@ export class PipelineOrchestrator {
   // ─── Skip Trace ──────────────────────────────
 
   async skipTrace(pipelineId: string): Promise<PipelineState> {
+    return this.withLock(pipelineId, () => this._skipTrace(pipelineId));
+  }
+  private async _skipTrace(pipelineId: string): Promise<PipelineState> {
     const pipeline = await this.getPipeline(pipelineId);
 
     // Allow skip from trace_testing OR failed — but only if Proto already succeeded
@@ -489,7 +533,7 @@ export class PipelineOrchestrator {
         ...pipeline.metrics,
         totalDurationMs: Date.now() - pipeline.metrics.startedAt.getTime(),
       },
-    });
+    }, { expectedStageVersion: pipeline.stageVersion });
     this.emitEvent(pipelineId, 'completed', 'completed_partial');
     return updated;
   }
@@ -632,9 +676,8 @@ export class PipelineOrchestrator {
   private async retryTrace(pipelineId: string, pipeline: PipelineState): Promise<PipelineState> {
     let owner: string;
     try {
-      const userToken = await this.getGitHubToken(pipeline.userId);
-      if (!userToken) throw new Error('GitHub bağlantısı bulunamadı.');
-      owner = await this.getGitHubOwner(pipeline.userId);
+      const gh = await this.validateGitHubAccess(pipeline.userId);
+      owner = gh.owner;
     } catch (err) {
       const error = createPipelineError(
         PipelineErrorCode.GITHUB_NOT_CONNECTED,
@@ -645,7 +688,8 @@ export class PipelineOrchestrator {
       return failed;
     }
 
-    await this.store.update(pipelineId, { stage: 'trace_testing' });
+    const p = await this.getPipeline(pipelineId);
+    await this.store.update(pipelineId, { stage: 'trace_testing' }, { expectedStageVersion: p.stageVersion });
     this.emitEvent(pipelineId, 'stage_change', 'trace_testing');
 
     const repo = pipeline.protoConfig?.repoName ?? pipeline.protoOutput!.repo.split('/')[1];
@@ -663,13 +707,11 @@ export class PipelineOrchestrator {
 
   private async retryProto(pipelineId: string, pipeline: PipelineState): Promise<PipelineState> {
     let owner: string;
-    let userGitHubToken: string | null;
+    let userGitHubToken: string;
     try {
-      userGitHubToken = await this.getGitHubToken(pipeline.userId);
-      if (!userGitHubToken) {
-        throw new Error('GitHub bağlantısı bulunamadı. Ayarlar sayfasından GitHub hesabınızı bağlayın.');
-      }
-      owner = await this.getGitHubOwner(pipeline.userId);
+      const gh = await this.validateGitHubAccess(pipeline.userId);
+      userGitHubToken = gh.token;
+      owner = gh.owner;
     } catch (err) {
       const error = createPipelineError(
         PipelineErrorCode.GITHUB_NOT_CONNECTED,
@@ -685,7 +727,8 @@ export class PipelineOrchestrator {
     const repoName = pipeline.protoConfig?.repoName ?? this.deriveRepoName(pipeline.approvedSpec.title);
     const repoVisibility = pipeline.protoConfig?.repoVisibility ?? 'private';
 
-    await this.store.update(pipelineId, { stage: 'proto_building' });
+    const current = await this.getPipeline(pipelineId);
+    await this.store.update(pipelineId, { stage: 'proto_building' }, { expectedStageVersion: current.stageVersion });
     this.emitEvent(pipelineId, 'stage_change', 'proto_building');
 
     // Per-user GitHub adapter for retry
@@ -723,7 +766,8 @@ export class PipelineOrchestrator {
     const agents = this.getAgents(pipeline.model);
     const scribeState = this.reconstructScribeState(pipeline);
     scribeState.pipelineId = pipelineId;
-    await this.store.update(pipelineId, { stage: 'scribe_clarifying' });
+    const current = await this.getPipeline(pipelineId);
+    await this.store.update(pipelineId, { stage: 'scribe_clarifying' }, { expectedStageVersion: current.stageVersion });
     this.emitEvent(pipelineId, 'stage_change', 'scribe_clarifying');
 
     const result = await withTimeout(
@@ -736,15 +780,34 @@ export class PipelineOrchestrator {
 
   // ─── Private: Utilities ──────────────────────
 
+  /** Validate GitHub token + resolve owner. Reusable by approveSpec and retry methods. */
+  private async validateGitHubAccess(userId: string): Promise<{ token: string; owner: string }> {
+    const token = await this.getGitHubToken(userId);
+    if (!token) {
+      throw new Error('GitHub bağlantısı bulunamadı. Ayarlar sayfasından GitHub hesabınızı bağlayın.');
+    }
+    // Pre-validate token (skip in test/mock mode)
+    if (!token.startsWith('ghp_mock')) {
+      const ghRes = await fetch('https://api.github.com/user', {
+        headers: { Authorization: `Bearer ${token}`, Accept: 'application/vnd.github+json' },
+      }).catch(() => null);
+      if (ghRes && !ghRes.ok) {
+        throw new Error(`GitHub token geçersiz (HTTP ${ghRes.status}). Ayarlar → GitHub bölümünden yeniden bağlayın.`);
+      }
+    }
+    const owner = await this.getGitHubOwner(userId);
+    return { token, owner };
+  }
+
   private async getPipeline(id: string): Promise<PipelineState> {
     const pipeline = await this.store.getById(id);
-    if (!pipeline) throw new Error(`Pipeline not found: ${id}`);
+    if (!pipeline) throw new PipelineNotFoundError(id);
     return pipeline;
   }
 
   private assertStage(pipeline: PipelineState, expected: PipelineStage): void {
     if (pipeline.stage !== expected) {
-      throw new Error(`Invalid stage: expected ${expected}, got ${pipeline.stage}`);
+      throw new InvalidStageError(expected, pipeline.stage);
     }
   }
 
@@ -787,11 +850,21 @@ export class PipelineOrchestrator {
       ? createPipelineError(PipelineErrorCode.PIPELINE_TIMEOUT, `${label}: ${(err as Error).message}`)
       : createPipelineError(PipelineErrorCode.AI_PROVIDER_ERROR, `${label}: ${err instanceof Error ? err.message : String(err)}`);
 
-    try {
-      await this.store.update(pipelineId, { stage: 'failed', error });
-      this.emitEvent(pipelineId, 'error', 'failed', error);
-    } catch (storeErr) {
-      console.error(`[Pipeline] CRITICAL: failPipeline store.update failed for ${pipelineId}:`, storeErr);
+    // Retry with exponential backoff — pipeline must not stay stuck in running state
+    const retryDelays = [1_000, 5_000, 15_000];
+    for (let attempt = 0; attempt <= retryDelays.length; attempt++) {
+      try {
+        await this.store.update(pipelineId, { stage: 'failed', error });
+        this.emitEvent(pipelineId, 'error', 'failed', error);
+        return; // success
+      } catch (storeErr) {
+        if (attempt < retryDelays.length) {
+          console.warn(`[Pipeline] failPipeline attempt ${attempt + 1} failed for ${pipelineId}, retrying in ${retryDelays[attempt]}ms:`, storeErr);
+          await new Promise((r) => setTimeout(r, retryDelays[attempt]));
+        } else {
+          console.error(`[Pipeline] CRITICAL: failPipeline exhausted all retries for ${pipelineId}. Pipeline may be stuck.`, storeErr);
+        }
+      }
     }
   }
 
@@ -802,6 +875,10 @@ export class PipelineOrchestrator {
     data?: unknown,
   ): void {
     this.emit?.({ pipelineId, type, stage, data });
+    // Clean up event listeners when pipeline reaches a terminal state
+    if (stage === 'completed' || stage === 'completed_partial' || stage === 'failed' || stage === 'cancelled') {
+      cleanupPipelineListeners(pipelineId);
+    }
   }
 
   private async writeCheckpoint(

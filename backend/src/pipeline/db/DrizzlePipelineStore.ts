@@ -2,14 +2,25 @@
  * DrizzlePipelineStore — PostgreSQL-backed PipelineStore implementation.
  * Replaces InMemoryPipelineStore for production use.
  */
-import { eq, desc } from 'drizzle-orm';
+import { eq, desc, and, sql, lt, inArray } from 'drizzle-orm';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
-import type { PipelineState } from '../core/contracts/PipelineTypes.js';
+import type { PipelineState, PipelineStage } from '../core/contracts/PipelineTypes.js';
 import type { PipelineStore } from '../core/orchestrator/PipelineOrchestrator.js';
 import { pipelines } from '../../db/schema.js';
 import type * as schema from '../../db/schema.js';
 
 type DB = NodePgDatabase<typeof schema>;
+
+/**
+ * Thrown when a stage transition fails due to a concurrent update.
+ * Indicates another process already changed the pipeline stage.
+ */
+export class StaleStateError extends Error {
+  constructor(pipelineId: string, expectedVersion: number) {
+    super(`Pipeline ${pipelineId} state is stale (expected version ${expectedVersion}). Another operation already updated the stage.`);
+    this.name = 'StaleStateError';
+  }
+}
 
 /**
  * Maps a Drizzle row to PipelineState. JSONB columns need casting.
@@ -30,6 +41,7 @@ function rowToState(row: typeof pipelines.$inferSelect): PipelineState {
     error: row.error as PipelineState['error'],
     intermediateState: row.intermediateState as PipelineState['intermediateState'],
     attemptCount: row.attemptCount,
+    stageVersion: row.stageVersion,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
@@ -80,7 +92,11 @@ export class DrizzlePipelineStore implements PipelineStore {
     return rows.map(rowToState);
   }
 
-  async update(id: string, data: Partial<PipelineState>): Promise<PipelineState> {
+  async update(
+    id: string,
+    data: Partial<PipelineState>,
+    opts?: { expectedStageVersion?: number },
+  ): Promise<PipelineState> {
     // Build update payload — only set fields that are explicitly passed
     const updateData: Record<string, unknown> = { updatedAt: new Date() };
 
@@ -97,13 +113,46 @@ export class DrizzlePipelineStore implements PipelineStore {
     if (data.intermediateState !== undefined) updateData.intermediateState = data.intermediateState;
     if (data.attemptCount !== undefined) updateData.attemptCount = data.attemptCount;
 
+    // Optimistic locking: when stage changes, require version match + increment
+    const isStageChange = data.stage !== undefined;
+    if (isStageChange) {
+      updateData.stageVersion = sql`${pipelines.stageVersion} + 1`;
+    }
+
+    const whereClause = isStageChange && opts?.expectedStageVersion !== undefined
+      ? and(eq(pipelines.id, id), eq(pipelines.stageVersion, opts.expectedStageVersion))
+      : eq(pipelines.id, id);
+
     const [row] = await this.db
       .update(pipelines)
       .set(updateData)
-      .where(eq(pipelines.id, id))
+      .where(whereClause)
       .returning();
 
+    if (!row && isStageChange && opts?.expectedStageVersion !== undefined) {
+      throw new StaleStateError(id, opts.expectedStageVersion);
+    }
     if (!row) throw new Error(`Pipeline ${id} not found`);
     return rowToState(row);
+  }
+
+  /** Find pipelines stuck in running stages longer than the threshold. */
+  async listStuck(
+    stages: PipelineStage[],
+    olderThan: Date,
+  ): Promise<Array<{ id: string; stage: PipelineStage; updatedAt: Date }>> {
+    const rows = await this.db
+      .select({ id: pipelines.id, stage: pipelines.stage, updatedAt: pipelines.updatedAt })
+      .from(pipelines)
+      .where(and(
+        inArray(pipelines.stage, stages),
+        lt(pipelines.updatedAt, olderThan),
+      ));
+
+    return rows.map((r) => ({
+      id: r.id,
+      stage: r.stage as PipelineStage,
+      updatedAt: r.updatedAt,
+    }));
   }
 }

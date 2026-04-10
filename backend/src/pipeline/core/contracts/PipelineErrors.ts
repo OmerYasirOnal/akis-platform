@@ -1,5 +1,42 @@
 import type { PipelineError } from './PipelineTypes.js';
 
+// ─── Typed Error Classes ─────────────────────────
+
+export class PipelineNotFoundError extends Error {
+  readonly code = 'PIPELINE_NOT_FOUND';
+  constructor(pipelineId: string) {
+    super(`Pipeline not found: ${pipelineId}`);
+    this.name = 'PipelineNotFoundError';
+  }
+}
+
+export class InvalidStageError extends Error {
+  readonly code = 'INVALID_STAGE';
+  constructor(expected: string, actual: string) {
+    super(`Invalid stage: expected ${expected}, got ${actual}`);
+    this.name = 'InvalidStageError';
+  }
+}
+
+export class GitHubAPIError extends Error {
+  readonly code = 'GITHUB_API_ERROR';
+  constructor(message: string, public readonly statusCode?: number) {
+    super(message);
+    this.name = 'GitHubAPIError';
+  }
+}
+
+export class GitHubRateLimitError extends Error {
+  readonly code = 'GITHUB_RATE_LIMITED';
+  readonly retryable = false;
+  constructor(message: string) {
+    super(message);
+    this.name = 'GitHubRateLimitError';
+  }
+}
+
+// ─── Error Codes ─────────────────────────────────
+
 export const PipelineErrorCode = {
   // Scribe errors
   AI_RATE_LIMITED: 'AI_RATE_LIMITED',

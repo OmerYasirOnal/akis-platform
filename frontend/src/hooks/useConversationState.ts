@@ -29,11 +29,12 @@ export function useConversationState(initialStage?: PipelineStage): Conversation
     setUIState(mapStageToUIState(stage));
   }, []);
 
-  const isInputEnabled = uiState === 'idle' || uiState === 'awaiting_approval';
+  const isInputEnabled = uiState === 'idle' || uiState === 'scribe_clarifying' || uiState === 'awaiting_approval';
   const showCancelButton = RUNNING_STATES.includes(uiState);
   const runningAgentName = getRunningAgentName(uiState);
 
   const inputPlaceholder = useMemo(() => {
+    if (uiState === 'scribe_clarifying') return 'Soruları yanıtlayın...';
     if (uiState === 'awaiting_approval') return 'Planı düzenlemek için yazın veya onaylayın...';
     if (runningAgentName) return `${runningAgentName} çalışıyor...`;
     return 'Projenizi anlatın...';

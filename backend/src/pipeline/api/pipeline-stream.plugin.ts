@@ -44,11 +44,21 @@ export async function pipelineStreamPlugin(
       `data: ${JSON.stringify({ type: 'connected', pipelineId: id })}\n\n`,
     );
 
+    let cleaned = false;
+    const cleanup = () => {
+      if (cleaned) return;
+      cleaned = true;
+      pipelineBus.off(`pipeline:${id}`, onActivity);
+      clearInterval(heartbeat);
+      clearTimeout(maxAge);
+    };
+
     const onActivity = (activity: PipelineActivity) => {
       try {
         raw.raw.write(`data: ${JSON.stringify(activity)}\n\n`);
       } catch {
-        // Client disconnected
+        // Client disconnected — clean up listener + timers
+        cleanup();
       }
     };
 
@@ -59,14 +69,17 @@ export async function pipelineStreamPlugin(
       try {
         raw.raw.write(`: heartbeat\n\n`);
       } catch {
-        clearInterval(heartbeat);
+        cleanup();
       }
     }, 15000);
 
-    reqRaw.raw.on('close', () => {
-      pipelineBus.off(`pipeline:${id}`, onActivity);
-      clearInterval(heartbeat);
-    });
+    // Max connection age: force-close after 30 min to prevent zombie connections
+    const maxAge = setTimeout(() => {
+      cleanup();
+      try { raw.raw.end(); } catch { /* already closed */ }
+    }, 30 * 60 * 1000);
+
+    reqRaw.raw.on('close', cleanup);
 
     // Tell Fastify we're handling the response ourselves
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

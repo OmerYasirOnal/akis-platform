@@ -128,6 +128,7 @@ export interface Workflow {
   id: string;
   title: string;
   status: WorkflowStatus;
+  currentStage?: import('./pipeline').PipelineStage;
   createdAt: string;
   updatedAt?: string;
   stages: WorkflowStages;

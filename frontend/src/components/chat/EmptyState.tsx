@@ -37,7 +37,7 @@ export function EmptyState({ variant, onNewConversation }: EmptyStateProps) {
   const handleWizardComplete = useCallback(async () => {
     try {
       await fetch('/auth/update-preferences', {
-        method: 'PUT',
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({ hasSeenBetaWelcome: true }),

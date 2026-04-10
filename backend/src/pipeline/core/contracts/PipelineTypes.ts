@@ -191,6 +191,7 @@ export interface PipelineState {
   error?: PipelineError;
   intermediateState?: Record<string, unknown>;
   attemptCount: number;
+  stageVersion: number;
 
   createdAt: Date;
   updatedAt: Date;
