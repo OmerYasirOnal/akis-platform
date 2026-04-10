@@ -167,19 +167,26 @@ export class ProtoAgent {
       return repoResult;
     }
 
-    // Step 3: Create feature branch
+    // Step 3: Create feature branch (retry to handle repo init delay)
     const branchName = `proto/scaffold-${Date.now()}`;
-    try {
-      await this.github.createBranch(input.owner, input.repoName, branchName);
-    } catch (err) {
-      emit?.('error', 'Branch oluşturulamadı', 0);
-      return {
-        type: 'error',
-        error: createPipelineError(
-          PipelineErrorCode.GITHUB_API_ERROR,
-          `Branch creation failed: ${err instanceof Error ? err.message : String(err)}`
-        ),
-      };
+    for (let branchAttempt = 0; branchAttempt < 3; branchAttempt++) {
+      try {
+        if (branchAttempt > 0) await this.delay(3000 * branchAttempt); // wait for repo init
+        await this.github.createBranch(input.owner, input.repoName, branchName);
+        break;
+      } catch (err) {
+        if (branchAttempt === 2) {
+          emit?.('error', 'Branch oluşturulamadı', 0);
+          return {
+            type: 'error',
+            error: createPipelineError(
+              PipelineErrorCode.GITHUB_API_ERROR,
+              `Branch creation failed: ${err instanceof Error ? err.message : String(err)}`
+            ),
+          };
+        }
+        console.warn(`[Proto] Branch creation attempt ${branchAttempt + 1} failed, retrying...`);
+      }
     }
 
     // Step 4: Push files
