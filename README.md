@@ -36,9 +36,21 @@
 
 AKIS, yazilim gelistirme surecini uc uzmanlasmis AI agent ile otomatize eden bir pipeline motorudur. Fikrinizi dogal dilde anlatirsiniz; AKIS yapilandirilmis bir spec dokumani uretir, calisan bir kod tabani olusturur ve dogrulama testleri yazar — hepsi insan onay kapisiyla.
 
-```
-  Fikir  ──>  SCRIBE  ──>  Insan Onayi  ──>  PROTO  ──>  TRACE  ──>  Calisan Proje
-              spec         incele & onayla     kod        testler
+```mermaid
+graph LR
+    A["Fikir"] --> B["SCRIBE\nfikir → spec"]
+    B --> C{"Insan Onayi"}
+    C -->|"onayla"| D["PROTO\nspec → kod"]
+    C -->|"reddet"| B
+    D --> E["TRACE\nkod → test"]
+    E --> F["Calisan Proje"]
+
+    style A fill:#1a2332,stroke:#07D1AF,color:#fff
+    style B fill:#0d3b66,stroke:#07D1AF,color:#fff
+    style C fill:#2a1a3e,stroke:#FF6B6B,color:#fff
+    style D fill:#0d3b66,stroke:#07D1AF,color:#fff
+    style E fill:#0d3b66,stroke:#07D1AF,color:#fff
+    style F fill:#0a3d2a,stroke:#07D1AF,color:#fff
 ```
 
 Her agent'in ciktisi bir sonraki asamada dogrulanir. Bu **dogrulama zinciri** platformun temel tasarim prensibidir — Scribe spec'leri insan tarafindan onaylanir, Proto kodu Trace tarafindan test edilir, Trace testleri otomatik calisir.
@@ -87,27 +99,30 @@ Her agent'in ciktisi bir sonraki asamada dogrulanir. Bu **dogrulama zinciri** pl
 
 ### Mimari
 
-```
-┌─────────────────────────────────────────────────────────┐
-│  FRONTEND — React 19 + Vite 7 + Tailwind 4             │
-│  Chat UI · Pipeline Gorsellestirme · Ayarlar · Onboarding│
-├─────────────────────────────────────────────────────────┤
-│  BACKEND — Fastify 4 + TypeScript                       │
-│                                                         │
-│  ┌─────────────────────────────────────────────────┐    │
-│  │          Pipeline Orchestrator (FSM)             │    │
-│  │                                                  │    │
-│  │  ┌────────┐    ┌────────┐    ┌───────┐          │    │
-│  │  │ SCRIBE │ ──>│ PROTO  │ ──>│ TRACE │          │    │
-│  │  │ fikir→ │    │ spec→  │    │ kod→  │          │    │
-│  │  │ spec   │    │ kod    │    │ test  │          │    │
-│  │  └────────┘    └────────┘    └───────┘          │    │
-│  └─────────────────────────────────────────────────┘    │
-│                                                         │
-│  Auth · GitHub MCP Adaptoru · AI Servisi · Pipeline Stats│
-├─────────────────────────────────────────────────────────┤
-│  ALTYAPI — PostgreSQL 16 · Drizzle ORM · Docker · Caddy │
-└─────────────────────────────────────────────────────────┘
+```mermaid
+graph TB
+    subgraph Frontend["FRONTEND — React 19 + Vite 7 + Tailwind 4"]
+        F1["Chat UI"] ~~~ F2["Pipeline Viz"] ~~~ F3["Ayarlar"] ~~~ F4["Onboarding"]
+    end
+
+    subgraph Backend["BACKEND — Fastify 4 + TypeScript"]
+        subgraph Pipeline["Pipeline Orchestrator — FSM"]
+            S["SCRIBE\nfikir → spec"] --> P["PROTO\nspec → kod"] --> T["TRACE\nkod → test"]
+        end
+        B1["Auth"] ~~~ B2["GitHub MCP"] ~~~ B3["AI Servisi"] ~~~ B4["Pipeline Stats"]
+    end
+
+    subgraph Infra["ALTYAPI — PostgreSQL 16 · Drizzle ORM · Docker · Caddy"]
+        I1[" "]
+    end
+
+    Frontend --> Backend --> Infra
+
+    style Frontend fill:#0d3b66,stroke:#07D1AF,color:#fff
+    style Backend fill:#1a2332,stroke:#07D1AF,color:#fff
+    style Pipeline fill:#2a1a3e,stroke:#FF6B6B,color:#fff
+    style Infra fill:#1a3a2a,stroke:#07D1AF,color:#fff
+    style I1 fill:transparent,stroke:transparent
 ```
 
 #### Agent'lar
@@ -132,22 +147,23 @@ AKIS, GitHub ile etkilesim icin **Model Context Protocol (MCP)** kullanir. Pipel
 
 #### Pipeline Durum Makinesi
 
-```
-scribe_clarifying → scribe_generating → awaiting_approval
-                                              │
-                                    ┌─────────┤
-                                    │ onayla   │ reddet
-                                    v          ↺
-                             proto_building
-                                    │
-                                    v
-                             trace_testing
-                                    │
-                              ┌─────┴──────┐
-                              v            v
-                          completed   completed_partial
+```mermaid
+stateDiagram-v2
+    [*] --> scribe_clarifying
+    scribe_clarifying --> scribe_generating
+    scribe_generating --> awaiting_approval
+    awaiting_approval --> proto_building : onayla
+    awaiting_approval --> scribe_clarifying : reddet
+    proto_building --> trace_testing
+    trace_testing --> completed
+    trace_testing --> completed_partial
+    scribe_clarifying --> failed
+    scribe_generating --> failed
+    proto_building --> failed
+    trace_testing --> failed
+    awaiting_approval --> cancelled
 
-Her asama → failed (3 deneme, exponential backoff) | cancelled
+    note right of failed : 3 deneme, exponential backoff
 ```
 
 ---
@@ -425,9 +441,21 @@ MIT — detaylar icin [`LICENSE`](LICENSE) dosyasina bakin.
 
 AKIS automates the software development pipeline through three specialized AI agents working in sequence. Describe your idea in natural language, and AKIS produces a structured specification, scaffolds a working codebase, and generates verification tests — all with human oversight at the approval gate.
 
-```
-  Idea  ──>  SCRIBE  ──>  Human Approval  ──>  PROTO  ──>  TRACE  ──>  Working Project
-              spec          review & approve      code        tests
+```mermaid
+graph LR
+    A["Idea"] --> B["SCRIBE\nidea → spec"]
+    B --> C{"Human Approval"}
+    C -->|"approve"| D["PROTO\nspec → code"]
+    C -->|"reject"| B
+    D --> E["TRACE\ncode → tests"]
+    E --> F["Working Project"]
+
+    style A fill:#1a2332,stroke:#07D1AF,color:#fff
+    style B fill:#0d3b66,stroke:#07D1AF,color:#fff
+    style C fill:#2a1a3e,stroke:#FF6B6B,color:#fff
+    style D fill:#0d3b66,stroke:#07D1AF,color:#fff
+    style E fill:#0d3b66,stroke:#07D1AF,color:#fff
+    style F fill:#0a3d2a,stroke:#07D1AF,color:#fff
 ```
 
 Each agent's output is verified by the next stage. This **verification chain** is central to the platform's design — Scribe specs are approved by humans, Proto code is tested by Trace, and Trace tests run automatically.
@@ -476,27 +504,30 @@ Each agent's output is verified by the next stage. This **verification chain** i
 
 ### Architecture
 
-```
-┌─────────────────────────────────────────────────────────┐
-│  FRONTEND — React 19 + Vite 7 + Tailwind 4             │
-│  Chat UI · Pipeline Viz · Settings · Onboarding         │
-├─────────────────────────────────────────────────────────┤
-│  BACKEND — Fastify 4 + TypeScript                       │
-│                                                         │
-│  ┌─────────────────────────────────────────────────┐    │
-│  │          Pipeline Orchestrator (FSM)             │    │
-│  │                                                  │    │
-│  │  ┌────────┐    ┌────────┐    ┌───────┐          │    │
-│  │  │ SCRIBE │ ──>│ PROTO  │ ──>│ TRACE │          │    │
-│  │  │ idea→  │    │ spec→  │    │ code→ │          │    │
-│  │  │ spec   │    │ code   │    │ tests │          │    │
-│  │  └────────┘    └────────┘    └───────┘          │    │
-│  └─────────────────────────────────────────────────┘    │
-│                                                         │
-│  Auth · GitHub MCP Adapter · AI Service · Pipeline Stats │
-├─────────────────────────────────────────────────────────┤
-│  INFRA — PostgreSQL 16 · Drizzle ORM · Docker · Caddy   │
-└─────────────────────────────────────────────────────────┘
+```mermaid
+graph TB
+    subgraph Frontend["FRONTEND — React 19 + Vite 7 + Tailwind 4"]
+        F1["Chat UI"] ~~~ F2["Pipeline Viz"] ~~~ F3["Settings"] ~~~ F4["Onboarding"]
+    end
+
+    subgraph Backend["BACKEND — Fastify 4 + TypeScript"]
+        subgraph Pipeline["Pipeline Orchestrator — FSM"]
+            S["SCRIBE\nidea → spec"] --> P["PROTO\nspec → code"] --> T["TRACE\ncode → tests"]
+        end
+        B1["Auth"] ~~~ B2["GitHub MCP"] ~~~ B3["AI Service"] ~~~ B4["Pipeline Stats"]
+    end
+
+    subgraph Infra["INFRA — PostgreSQL 16 · Drizzle ORM · Docker · Caddy"]
+        I1[" "]
+    end
+
+    Frontend --> Backend --> Infra
+
+    style Frontend fill:#0d3b66,stroke:#07D1AF,color:#fff
+    style Backend fill:#1a2332,stroke:#07D1AF,color:#fff
+    style Pipeline fill:#2a1a3e,stroke:#FF6B6B,color:#fff
+    style Infra fill:#1a3a2a,stroke:#07D1AF,color:#fff
+    style I1 fill:transparent,stroke:transparent
 ```
 
 #### Agents
@@ -521,22 +552,23 @@ AKIS uses the **Model Context Protocol (MCP)** to interface with GitHub. The pip
 
 #### Pipeline State Machine
 
-```
-scribe_clarifying → scribe_generating → awaiting_approval
-                                              │
-                                    ┌─────────┤
-                                    │ approve  │ reject
-                                    v          ↺
-                             proto_building
-                                    │
-                                    v
-                             trace_testing
-                                    │
-                              ┌─────┴──────┐
-                              v            v
-                          completed   completed_partial
+```mermaid
+stateDiagram-v2
+    [*] --> scribe_clarifying
+    scribe_clarifying --> scribe_generating
+    scribe_generating --> awaiting_approval
+    awaiting_approval --> proto_building : approve
+    awaiting_approval --> scribe_clarifying : reject
+    proto_building --> trace_testing
+    trace_testing --> completed
+    trace_testing --> completed_partial
+    scribe_clarifying --> failed
+    scribe_generating --> failed
+    proto_building --> failed
+    trace_testing --> failed
+    awaiting_approval --> cancelled
 
-Every stage → failed (3 retries, exponential backoff) | cancelled
+    note right of failed : 3 retries, exponential backoff
 ```
 
 ---
