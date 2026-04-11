@@ -613,7 +613,7 @@ export default function ChatPage() {
                 repoUrl={activeWorkflow?.stages?.proto?.repoUrl}
                 branch={activeWorkflow?.stages?.proto?.branch}
                 mode={chatMode}
-                hasPreview={!!protoFiles}
+                hasPreview={!!protoFiles || isRunning}
                 showPreview={showPreview}
                 onTogglePreview={() => setShowPreview(p => !p)}
                 messages={messages}
@@ -634,10 +634,16 @@ export default function ChatPage() {
                 createdFiles={createdFiles}
               />
             </ErrorBoundary>
-            {showPreview && protoFiles && (
+            {showPreview && (protoFiles || isRunning) && (
               <div className="hidden w-1/2 border-l border-ak-border lg:block">
                 <Suspense fallback={<div className="flex h-full items-center justify-center text-ak-text-tertiary text-sm">Yükleniyor...</div>}>
-                  <PreviewPanel files={protoFiles} title={activeWorkflow?.title} branch={activeWorkflow?.stages?.proto?.branch} />
+                  <PreviewPanel
+                    files={protoFiles}
+                    title={activeWorkflow?.title}
+                    branch={activeWorkflow?.stages?.proto?.branch}
+                    activities={pipelineActivities}
+                    createdFiles={createdFiles}
+                  />
                 </Suspense>
               </div>
             )}
