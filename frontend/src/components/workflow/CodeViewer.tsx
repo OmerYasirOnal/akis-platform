@@ -8,6 +8,7 @@ function detectLanguage(filePath: string): string {
     json: 'json', html: 'html', css: 'css', scss: 'scss',
     md: 'markdown', yaml: 'yaml', yml: 'yaml', sh: 'shell',
     py: 'python', sql: 'sql', toml: 'toml', xml: 'xml',
+    feature: 'gherkin',
   };
   return langMap[ext] || 'text';
 }
@@ -89,6 +90,18 @@ function getTokenRules(language: string): TokenRule[] {
       { name: 'chex', pattern: `#[0-9a-fA-F]{3,8}`, cls: TOKEN_CLASSES.number },
       { name: 'cstr', pattern: `"(?:[^"\\\\]|\\\\.)*"|'(?:[^'\\\\]|\\\\.)*'`, cls: TOKEN_CLASSES.string },
       { name: 'cnum', pattern: `\\b\\d+(?:px|em|rem|%|vh|vw|s|ms)?\\b`, cls: TOKEN_CLASSES.number },
+    ];
+  }
+
+  if (language === 'gherkin') {
+    return [
+      { name: 'gcmt', pattern: `#.*$`, cls: TOKEN_CLASSES.comment },
+      { name: 'gkw', pattern: `^\\s*(?:Feature|Scenario|Scenario Outline|Background|Examples|Rule)(?=:)`, cls: TOKEN_CLASSES.keyword },
+      { name: 'gstep', pattern: `^\\s*(?:Given|When|Then|And|But)\\b`, cls: TOKEN_CLASSES.type },
+      { name: 'gtag', pattern: `@[\\w-]+`, cls: TOKEN_CLASSES.tag },
+      { name: 'gstr', pattern: `"(?:[^"\\\\]|\\\\.)*"`, cls: TOKEN_CLASSES.string },
+      { name: 'gvar', pattern: `&lt;[^&]+&gt;`, cls: TOKEN_CLASSES.attr },
+      { name: 'gpipe', pattern: `\\|`, cls: TOKEN_CLASSES.punct },
     ];
   }
 

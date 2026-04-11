@@ -1,4 +1,5 @@
 import type { StructuredSpec } from '../core/contracts/PipelineTypes.js';
+import type { GitHubServiceLike } from '../core/pipeline-factory.js';
 
 export interface GherkinFeature {
   featureName: string;
@@ -94,6 +95,87 @@ export function generateGherkinFromSpec(spec: StructuredSpec): {
   }
 
   return { features, stepDefinitions };
+}
+
+/**
+ * Push generated Gherkin feature files (and step stubs) to a GitHub branch.
+ * Uses `pushFiles` for a single batched commit when available, otherwise
+ * falls back to per-file `commitFile` calls.
+ *
+ * @returns Number of files pushed (features + step definitions).
+ */
+export async function pushGherkinToGitHub(
+  github: GitHubServiceLike,
+  owner: string,
+  repo: string,
+  branch: string,
+  features: GherkinFeature[],
+): Promise<{ pushedFiles: number }> {
+  const { stepDefinitions } = generateStepDefinitionStubsForFeatures(features);
+
+  const files: Array<{ path: string; content: string }> = [
+    ...features.map((f) => ({ path: f.filePath, content: f.content })),
+    ...stepDefinitions.map((s) => ({ path: s.filePath, content: s.content })),
+  ];
+
+  if (files.length === 0) {
+    return { pushedFiles: 0 };
+  }
+
+  if (github.pushFiles) {
+    await github.pushFiles(owner, repo, branch, files, 'chore: add Gherkin BDD feature files [akis-pipeline]');
+  } else {
+    for (const file of files) {
+      await github.commitFile(
+        owner, repo, branch, file.path, file.content,
+        `chore: add ${file.path} [akis-pipeline]`,
+      );
+    }
+  }
+
+  return { pushedFiles: files.length };
+}
+
+/** Re-derive step definition stubs from already-generated features (avoids requiring the spec). */
+function generateStepDefinitionStubsForFeatures(
+  features: GherkinFeature[],
+): { stepDefinitions: StepDefinition[] } {
+  const stepDefinitions: StepDefinition[] = [];
+
+  for (const feature of features) {
+    // Parse Given/When/Then lines from the feature content
+    const criteria: Array<{ id: string; given: string; when: string; then: string }> = [];
+    const lines = feature.content.split('\n');
+    let current: { id: string; given: string; when: string; then: string } | null = null;
+
+    for (const line of lines) {
+      const trimmed = line.trim();
+      const scenarioMatch = trimmed.match(/^Scenario:\s*(.+)/);
+      if (scenarioMatch) {
+        if (current) criteria.push(current);
+        current = { id: scenarioMatch[1], given: '', when: '', then: '' };
+        continue;
+      }
+      if (!current) continue;
+      const givenMatch = trimmed.match(/^Given\s+(.+)/);
+      if (givenMatch) { current.given = givenMatch[1]; continue; }
+      const whenMatch = trimmed.match(/^When\s+(.+)/);
+      if (whenMatch) { current.when = whenMatch[1]; continue; }
+      const thenMatch = trimmed.match(/^Then\s+(.+)/);
+      if (thenMatch) { current.then = thenMatch[1]; continue; }
+    }
+    if (current) criteria.push(current);
+
+    if (criteria.length > 0) {
+      const safeName = feature.featureName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/-+$/, '');
+      stepDefinitions.push({
+        filePath: `features/steps/${safeName}.steps.ts`,
+        content: generateStepDefinitionStub(safeName, criteria),
+      });
+    }
+  }
+
+  return { stepDefinitions };
 }
 
 function generateStepDefinitionStub(

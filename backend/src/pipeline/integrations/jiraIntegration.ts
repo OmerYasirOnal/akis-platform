@@ -7,6 +7,18 @@
 import type { JiraMCPService } from '../../services/mcp/adapters/JiraMCPService.js';
 import type { StructuredSpec } from '../core/contracts/PipelineTypes.js';
 
+/** Race a promise against a timeout (ms). Rejects with descriptive error on timeout. */
+const withTimeout = <T>(promise: Promise<T>, ms: number): Promise<T> =>
+  Promise.race([
+    promise,
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error(`Jira timeout after ${ms}ms`)), ms),
+    ),
+  ]);
+
+/** Default timeout for individual Jira API calls (ms). */
+const JIRA_CALL_TIMEOUT = 5_000;
+
 /**
  * Create a Jira Epic from a StructuredSpec.
  * Each user story becomes a sub-task linked to the Epic.
@@ -18,24 +30,33 @@ export async function createJiraEpicFromSpec(
   spec: StructuredSpec,
 ): Promise<string | null> {
   try {
-    const epic = await jira.createIssue(projectKey, {
-      summary: spec.title,
-      description: spec.problemStatement,
-      issueType: 'Epic',
-      labels: ['akis-pipeline'],
-    });
+    const epic = await withTimeout(
+      jira.createIssue(projectKey, {
+        summary: spec.title,
+        description: spec.problemStatement,
+        issueType: 'Epic',
+        labels: ['akis-pipeline'],
+      }),
+      JIRA_CALL_TIMEOUT,
+    );
 
     // Create sub-tasks from user stories
     for (const story of spec.userStories) {
       try {
-        const child = await jira.createIssue(projectKey, {
-          summary: `${story.persona}: ${story.action}`,
-          description: `**Benefit:** ${story.benefit}`,
-          issueType: 'Task',
-          labels: ['akis-pipeline'],
-        });
+        const child = await withTimeout(
+          jira.createIssue(projectKey, {
+            summary: `${story.persona}: ${story.action}`,
+            description: `**Benefit:** ${story.benefit}`,
+            issueType: 'Task',
+            labels: ['akis-pipeline'],
+          }),
+          JIRA_CALL_TIMEOUT,
+        );
         // Link child to epic
-        await jira.linkIssues(child.key, epic.key, 'is child of').catch(() => {
+        await withTimeout(
+          jira.linkIssues(child.key, epic.key, 'is child of'),
+          JIRA_CALL_TIMEOUT,
+        ).catch(() => {
           // Link type may vary — non-fatal
         });
       } catch (storyErr) {
@@ -69,7 +90,7 @@ export async function commentJiraWithProtoResult(
     if (result.prUrl) {
       lines.push(`- Pull Request: ${result.prUrl}`);
     }
-    await jira.addComment(epicKey, lines.join('\n'));
+    await withTimeout(jira.addComment(epicKey, lines.join('\n')), JIRA_CALL_TIMEOUT);
     console.log(`[Jira] Commented Proto result on ${epicKey}`);
   } catch (err) {
     console.warn(`[Jira] Failed to comment Proto result on ${epicKey}:`, err);
@@ -93,18 +114,18 @@ export async function commentJiraWithTraceResult(
       `- Total tests: ${result.totalTests}`,
       `- Coverage: ${result.coveragePercentage}%`,
     ];
-    await jira.addComment(epicKey, lines.join('\n'));
+    await withTimeout(jira.addComment(epicKey, lines.join('\n')), JIRA_CALL_TIMEOUT);
     console.log(`[Jira] Commented Trace result on ${epicKey}`);
 
     // Optionally transition to Done if all passed
     if (result.passed) {
       try {
-        const { transitions } = await jira.getTransitions(epicKey);
+        const { transitions } = await withTimeout(jira.getTransitions(epicKey), JIRA_CALL_TIMEOUT);
         const done = transitions.find(
           (t) => t.name.toLowerCase() === 'done' || t.name.toLowerCase() === 'tamamlandı',
         );
         if (done) {
-          await jira.transitionIssue(epicKey, done.id);
+          await withTimeout(jira.transitionIssue(epicKey, done.id), JIRA_CALL_TIMEOUT);
           console.log(`[Jira] Transitioned ${epicKey} to Done`);
         }
       } catch (transErr) {

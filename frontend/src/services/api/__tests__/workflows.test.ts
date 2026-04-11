@@ -1,0 +1,241 @@
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import type { Pipeline, PipelineStage } from '../../../types/pipeline';
+
+// ── Mock HttpClient before importing workflows module ──
+
+const mockGet = vi.fn();
+const mockPost = vi.fn();
+const mockPatch = vi.fn();
+const mockDelete = vi.fn();
+
+vi.mock('../HttpClient', () => {
+  return {
+    HttpClient: class MockHttpClient {
+      get = mockGet;
+      post = mockPost;
+      patch = mockPatch;
+      delete = mockDelete;
+    },
+  };
+});
+
+vi.mock('../config', () => ({
+  getApiBaseUrl: () => 'http://localhost:3000',
+}));
+
+// Import after mocks are set up
+const { workflowsApi, mapPipelineToWorkflow } = await import('../workflows');
+
+// ── Helpers ───────────────────────────────────────
+
+function makePipeline(overrides: Partial<Pipeline> = {}): Pipeline {
+  return {
+    id: 'p-123',
+    userId: 'u-1',
+    stage: 'completed' as PipelineStage,
+    title: 'Test Project',
+    scribeConversation: [],
+    metrics: {
+      startedAt: '2024-01-01T00:00:00.000Z',
+      clarificationRounds: 0,
+      retryCount: 0,
+    },
+    createdAt: '2024-01-01T00:00:00.000Z',
+    updatedAt: '2024-01-01T00:00:00.000Z',
+    ...overrides,
+  };
+}
+
+// ── Tests ─────────────────────────────────────────
+
+describe('mapPipelineToWorkflow', () => {
+  describe('stage to workflow status mapping', () => {
+    it('maps scribe_clarifying to running', () => {
+      const w = mapPipelineToWorkflow(makePipeline({ stage: 'scribe_clarifying' }));
+      expect(w.status).toBe('running');
+      expect(w.stages.scribe.status).toBe('running');
+    });
+
+    it('maps scribe_generating to running', () => {
+      const w = mapPipelineToWorkflow(makePipeline({ stage: 'scribe_generating' }));
+      expect(w.status).toBe('running');
+      expect(w.stages.scribe.status).toBe('running');
+    });
+
+    it('maps awaiting_approval correctly', () => {
+      const w = mapPipelineToWorkflow(makePipeline({ stage: 'awaiting_approval' }));
+      expect(w.status).toBe('awaiting_approval');
+      expect(w.stages.scribe.status).toBe('completed');
+      expect(w.stages.approve.status).toBe('pending');
+    });
+
+    it('maps proto_building to running with scribe+approve completed', () => {
+      const w = mapPipelineToWorkflow(makePipeline({ stage: 'proto_building' }));
+      expect(w.status).toBe('running');
+      expect(w.stages.scribe.status).toBe('completed');
+      expect(w.stages.approve.status).toBe('completed');
+      expect(w.stages.proto.status).toBe('running');
+    });
+
+    it('maps trace_testing to running with proto completed', () => {
+      const w = mapPipelineToWorkflow(makePipeline({ stage: 'trace_testing' }));
+      expect(w.status).toBe('running');
+      expect(w.stages.proto.status).toBe('completed');
+      expect(w.stages.trace.status).toBe('running');
+    });
+
+    it('maps completed to all stages completed', () => {
+      const w = mapPipelineToWorkflow(makePipeline({ stage: 'completed' }));
+      expect(w.status).toBe('completed');
+      expect(w.stages.scribe.status).toBe('completed');
+      expect(w.stages.approve.status).toBe('completed');
+      expect(w.stages.proto.status).toBe('completed');
+      expect(w.stages.trace.status).toBe('completed');
+    });
+
+    it('maps completed_partial with trace failed', () => {
+      const w = mapPipelineToWorkflow(makePipeline({ stage: 'completed_partial' }));
+      expect(w.status).toBe('completed_partial');
+      expect(w.stages.proto.status).toBe('completed');
+      expect(w.stages.trace.status).toBe('failed');
+    });
+
+    it('maps cancelled to cancelled', () => {
+      const w = mapPipelineToWorkflow(makePipeline({ stage: 'cancelled' }));
+      expect(w.status).toBe('cancelled');
+    });
+  });
+
+  describe('title derivation', () => {
+    it('uses pipeline title when available', () => {
+      const w = mapPipelineToWorkflow(makePipeline({ title: 'My Project' }));
+      expect(w.title).toBe('My Project');
+    });
+
+    it('falls back to user idea content when no title', () => {
+      const w = mapPipelineToWorkflow(makePipeline({
+        title: undefined,
+        scribeConversation: [
+          { type: 'user_idea', content: 'Build a todo app with React' },
+        ],
+      }));
+      expect(w.title).toBe('Build a todo app with React');
+    });
+  });
+
+  describe('error mapping to stage', () => {
+    it('marks trace as failed when completed_partial has error', () => {
+      const w = mapPipelineToWorkflow(makePipeline({
+        stage: 'completed_partial',
+        error: { code: 'TRACE_FAILED', message: 'Test writing failed', retryable: true },
+      }));
+      expect(w.stages.trace.status).toBe('failed');
+      expect(w.stages.trace.error).toBe('Test writing failed');
+    });
+
+    it('marks proto as failed when proto_building has error', () => {
+      const w = mapPipelineToWorkflow(makePipeline({
+        stage: 'failed',
+        error: { code: 'PROTO_FAILED', message: 'GitHub push failed', retryable: true },
+      }));
+      // Scribe was completed since stage progressed past it
+      expect(w.stages.scribe.status).toBe('completed');
+    });
+  });
+});
+
+// ── API methods ───────────────────────────────────
+
+describe('workflowsApi', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  describe('list', () => {
+    it('calls GET /api/pipelines and maps response', async () => {
+      const pipeline = makePipeline();
+      mockGet.mockResolvedValueOnce({ pipelines: [pipeline] });
+
+      const workflows = await workflowsApi.list();
+
+      expect(mockGet).toHaveBeenCalledWith('/api/pipelines');
+      expect(workflows).toHaveLength(1);
+      expect(workflows[0].id).toBe('p-123');
+      expect(workflows[0].status).toBe('completed');
+    });
+
+    it('returns empty array when pipelines is not an array', async () => {
+      mockGet.mockResolvedValueOnce({ pipelines: null });
+
+      const workflows = await workflowsApi.list();
+
+      expect(workflows).toEqual([]);
+    });
+  });
+
+  describe('get', () => {
+    it('calls GET /api/pipelines/:id', async () => {
+      mockGet.mockResolvedValueOnce({ pipeline: makePipeline() });
+
+      const workflow = await workflowsApi.get('p-123');
+
+      expect(mockGet).toHaveBeenCalledWith('/api/pipelines/p-123');
+      expect(workflow.id).toBe('p-123');
+    });
+  });
+
+  describe('rename', () => {
+    it('calls PATCH /api/pipelines/:id/title with title body', async () => {
+      mockPatch.mockResolvedValueOnce({});
+
+      await workflowsApi.rename('p-123', 'New Title');
+
+      expect(mockPatch).toHaveBeenCalledWith('/api/pipelines/p-123/title', { title: 'New Title' });
+    });
+  });
+
+  describe('cancel', () => {
+    it('calls DELETE /api/pipelines/:id', async () => {
+      mockDelete.mockResolvedValueOnce({});
+
+      await workflowsApi.cancel('p-123');
+
+      expect(mockDelete).toHaveBeenCalledWith('/api/pipelines/p-123');
+    });
+  });
+
+  describe('create', () => {
+    it('calls POST /api/pipelines with idea payload', async () => {
+      mockPost.mockResolvedValueOnce({ pipeline: makePipeline({ stage: 'scribe_clarifying' }) });
+
+      const workflow = await workflowsApi.create({ idea: 'Build a todo app' });
+
+      expect(mockPost).toHaveBeenCalledWith('/api/pipelines', { idea: 'Build a todo app' });
+      expect(workflow.status).toBe('running');
+    });
+  });
+
+  describe('approve', () => {
+    it('calls POST /api/pipelines/:id/approve with repo details', async () => {
+      mockPost.mockResolvedValueOnce({ pipeline: makePipeline({ stage: 'proto_building' }) });
+
+      const workflow = await workflowsApi.approve('p-123', 'my-repo', 'private');
+
+      expect(mockPost).toHaveBeenCalledWith('/api/pipelines/p-123/approve', {
+        repoName: 'my-repo',
+        repoVisibility: 'private',
+      });
+      expect(workflow.stages.proto.status).toBe('running');
+    });
+  });
+
+  describe('sendMessage', () => {
+    it('calls POST /api/pipelines/:id/message with message body', async () => {
+      mockPost.mockResolvedValueOnce({ pipeline: makePipeline({ stage: 'scribe_generating' }) });
+
+      await workflowsApi.sendMessage('p-123', 'Here is my answer');
+
+      expect(mockPost).toHaveBeenCalledWith('/api/pipelines/p-123/message', { message: 'Here is my answer' });
+    });
+  });
+});
