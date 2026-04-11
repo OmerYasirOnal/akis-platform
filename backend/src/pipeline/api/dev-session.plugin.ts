@@ -265,7 +265,8 @@ export async function devSessionPlugin(
 
     if (!msg) return reply.code(404).send({ error: 'Message not found' });
     if (!msg.fileChanges) return reply.code(400).send({ error: 'No file changes to push' });
-    if (msg.changeStatus === 'pushed') return reply.code(400).send({ error: 'Already pushed' });
+    if (msg.changeStatus === 'pushed') return reply.code(409).send({ error: 'Already pushed' });
+    if (msg.changeStatus === 'rejected') return reply.code(409).send({ error: 'Cannot push rejected changes' });
 
     const session = await db.query.devSessions.findFirst({
       where: eq(devSessions.id, sessionId),
