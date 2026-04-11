@@ -372,6 +372,49 @@ export default function ChatPage() {
     navigate('/chat');
   }, [navigate]);
 
+  /** Check if the current pipeline is in a terminal state (no further agent work possible). */
+  const isTerminalState = useCallback((workflow: Workflow | null): boolean => {
+    if (!workflow?.currentStage) return false;
+    const terminalStages: PipelineStage[] = ['completed', 'completed_partial', 'failed', 'cancelled'];
+    return terminalStages.includes(workflow.currentStage);
+  }, []);
+
+  /** Build a context summary from a completed pipeline for follow-up conversations. */
+  const buildFollowUpContext = useCallback((workflow: Workflow): string => {
+    const parts: string[] = [];
+
+    // Include original idea
+    const ideaMsg = workflow.conversation?.find(m => m.role === 'user' && m.type === 'message');
+    if (ideaMsg) {
+      parts.push(`Önceki proje fikri: ${ideaMsg.content}`);
+    }
+
+    // Include spec summary if available
+    const specMsg = workflow.conversation?.find(m => m.type === 'spec' && m.spec);
+    if (specMsg?.spec) {
+      parts.push(`Önceki spec başlığı: ${specMsg.spec.title ?? 'Belirtilmedi'}`);
+      parts.push(`Problem: ${specMsg.spec.problemStatement}`);
+      if (specMsg.spec.userStories?.length) {
+        const stories = specMsg.spec.userStories.map(s => s.action || s.iWant || '').filter(Boolean);
+        parts.push(`Özellikler: ${stories.join(', ')}`);
+      }
+      const tc = specMsg.spec.technicalConstraints;
+      if (tc && typeof tc === 'object' && !Array.isArray(tc) && tc.stack) {
+        parts.push(`Tech stack: ${tc.stack}`);
+      }
+    }
+
+    // Include proto result if available
+    if (workflow.stages.proto.branch) {
+      parts.push(`GitHub branch: ${workflow.stages.proto.branch}`);
+    }
+    if (workflow.stages.proto.repo) {
+      parts.push(`Repo: ${workflow.stages.proto.repo}`);
+    }
+
+    return parts.join('\n');
+  }, []);
+
   const handleSend = useCallback(async (content: string) => {
     const userMsg: ChatMessage = { type: 'user', content, timestamp: new Date().toISOString() };
     setMessages((prev) => [...prev, userMsg]);
@@ -417,13 +460,54 @@ export default function ChatPage() {
     }
 
     if (!conversationId) return;
+
+    // If the current pipeline is in a terminal state, start a NEW pipeline
+    // with the previous pipeline's context so Scribe understands the history.
+    if (isTerminalState(activeWorkflow)) {
+      if (content.trim().length < 10) {
+        setMessages((prev) => [...prev, {
+          type: 'error',
+          agent: 'system',
+          message: 'Fikrinizi en az 10 karakter ile açıklayın.',
+          retryable: false,
+          timestamp: new Date().toISOString(),
+        }]);
+        return;
+      }
+
+      try {
+        setCreating(true);
+        const context = activeWorkflow ? buildFollowUpContext(activeWorkflow) : undefined;
+        const w = await workflowsApi.create({ idea: content, context });
+        loadedIdRef.current = w.id;
+        setActiveWorkflow(w);
+        setMessages(conversationToChatMessages(w.conversation ?? [], w.currentStage));
+        syncFromStage(w.currentStage ?? 'completed');
+        refreshList();
+        navigate(`/chat/${w.id}`, { replace: true });
+      } catch (e) {
+        console.error('Failed to create follow-up pipeline:', e);
+        const errorMsg = e instanceof Error ? e.message : 'Pipeline oluşturulamadı.';
+        setMessages((prev) => [...prev, {
+          type: 'error',
+          agent: 'system',
+          message: errorMsg,
+          retryable: true,
+          timestamp: new Date().toISOString(),
+        }]);
+      } finally {
+        setCreating(false);
+      }
+      return;
+    }
+
     try {
       await workflowsApi.sendMessage(conversationId, content);
       await refreshWorkflow();
     } catch (e) {
       console.error('Failed to send:', e);
     }
-  }, [conversationId, pendingConv, refreshWorkflow, refreshList, syncFromStage, navigate]);
+  }, [conversationId, pendingConv, activeWorkflow, isTerminalState, buildFollowUpContext, refreshWorkflow, refreshList, syncFromStage, navigate]);
 
   const handleApprove = useCallback(async () => {
     if (!conversationId || !activeWorkflow) return;
@@ -510,7 +594,7 @@ export default function ChatPage() {
       )}
 
       {/* Main content — top padding only on mobile for the top bar */}
-      <div className={cn('flex min-w-0 flex-1 flex-col', 'pt-[52px] md:pt-0')}>
+      <div className={cn('flex min-w-0 flex-1 flex-col overflow-hidden', 'pt-[52px] md:pt-0')}>
         {/* Profile completeness banner */}
         {!profileLoading && missingSteps.length > 0 && !conversationId && !pendingConv && (
           <ProfileSetupBanner
@@ -520,7 +604,7 @@ export default function ChatPage() {
         )}
 
         {conversationId || pendingConv ? (
-          <div className="flex min-w-0 flex-1">
+          <div className="flex min-w-0 flex-1 overflow-hidden">
             <ErrorBoundary>
               <ChatPanel
                 conversationId={conversationId ?? 'pending'}
@@ -534,7 +618,7 @@ export default function ChatPage() {
                 onTogglePreview={() => setShowPreview(p => !p)}
                 messages={messages}
                 uiState={uiState}
-                isInputEnabled={pendingConv ? !creating : isInputEnabled}
+                isInputEnabled={pendingConv ? !creating : (creating ? false : isInputEnabled)}
                 showCancelButton={showCancelButton}
                 inputPlaceholder={pendingConv ? 'Projenizi anlatın...' : inputPlaceholder}
                 onSend={handleSend}

@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useRef } from 'react';
 import type { ConversationUIState } from '../types/chat';
 import type { PipelineStage } from '../types/pipeline';
 import { mapStageToUIState, getRunningAgentName } from '../utils/mapPipelineEvent';
@@ -20,12 +20,18 @@ const RUNNING_STATES: ConversationUIState[] = [
   'ci_running',
 ];
 
+const TERMINAL_STAGES: PipelineStage[] = ['completed', 'completed_partial', 'failed'];
+
 export function useConversationState(initialStage?: PipelineStage): ConversationStateReturn {
   const [uiState, setUIState] = useState<ConversationUIState>(
     initialStage ? mapStageToUIState(initialStage) : 'idle',
   );
 
+  // Track the raw pipeline stage so we can distinguish terminal-idle from empty-idle
+  const currentStageRef = useRef<PipelineStage | undefined>(initialStage);
+
   const syncFromStage = useCallback((stage: PipelineStage) => {
+    currentStageRef.current = stage;
     setUIState(mapStageToUIState(stage));
   }, []);
 
@@ -37,6 +43,10 @@ export function useConversationState(initialStage?: PipelineStage): Conversation
     if (uiState === 'scribe_clarifying') return 'Soruları yanıtlayın...';
     if (uiState === 'awaiting_approval') return 'Planı düzenlemek için yazın veya onaylayın...';
     if (runningAgentName) return `${runningAgentName} çalışıyor...`;
+    // Terminal states (completed/failed) — guide user to continue or start fresh
+    if (uiState === 'idle' && currentStageRef.current && TERMINAL_STAGES.includes(currentStageRef.current)) {
+      return 'Devam etmek için yeni fikir yazın veya önceki projeyi geliştirin...';
+    }
     return 'Projenizi anlatın...';
   }, [uiState, runningAgentName]);
 

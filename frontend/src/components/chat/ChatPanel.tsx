@@ -125,7 +125,7 @@ export function ChatPanel({
   const isInitialLoad = !!conversationId && !isPending && messages.length === 0;
 
   return (
-    <div className="flex min-w-0 flex-1 flex-col">
+    <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
       {/* Header */}
       {conversationId && (
         <ChatHeader

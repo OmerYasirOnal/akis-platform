@@ -80,7 +80,13 @@ Rules:
 - Do NOT assume the user's technical knowledge level
 - Do NOT judge the idea
 - Group related questions together
-- Maximum 4 questions per round`;
+- Maximum 4 questions per round
+
+Partial Answer Handling:
+- If the user's answer only addresses some of the previously asked questions, acknowledge what was answered and re-ask ONLY the remaining unanswered questions.
+- If the user provides short or incomplete answers, infer what you can and ask follow-up questions only for truly missing critical information.
+- Do NOT repeat questions that the user has already answered, even if the answer was brief.
+- If the user says something like "hepsini sen belirle" or "sana bırakıyorum", treat it as delegation — make reasonable assumptions and proceed to spec generation.`;
 
 const SPEC_GENERATION_SYSTEM_PROMPT = `You are Scribe, a conversational spec writer for a software project pipeline.
 
@@ -471,7 +477,7 @@ export class ScribeAgent {
     ];
 
     if (state.context) {
-      parts.push(`Ek bağlam: ${state.context}`);
+      parts.push(`\nÖNCEKİ PROJE BAĞLAMI (kullanıcı daha önce tamamlanmış bir projeden devam ediyor):\n${state.context}\n\nKullanıcının yeni mesajını bu bağlam çerçevesinde değerlendir. Daha önce belirlenmiş kararları tekrar sormaktan kaçın.`);
     }
     if (state.targetStack) {
       parts.push(`Teknoloji tercihi: ${state.targetStack}`);
@@ -494,7 +500,7 @@ export class ScribeAgent {
     ];
 
     if (state.context) {
-      parts.push(`Ek bağlam: ${state.context}`);
+      parts.push(`\nÖNCEKİ PROJE BAĞLAMI (kullanıcı daha önce tamamlanmış bir projeden devam ediyor):\n${state.context}\n\nBu yeni spec'i oluştururken önceki projenin bağlamını göz önünde bulundur. Kullanıcı mevcut projeyi geliştirmek veya değiştirmek istiyor olabilir.`);
     }
     if (state.targetStack) {
       parts.push(`Teknoloji tercihi: ${state.targetStack}`);
