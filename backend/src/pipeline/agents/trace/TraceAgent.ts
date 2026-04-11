@@ -11,6 +11,7 @@ import {
 } from '../../core/contracts/PipelineErrors.js';
 import { createActivityEmitter } from '../../core/activityEmitter.js';
 import { generateGherkinFromSpec } from '../../integrations/cucumberGenerator.js';
+import { logger } from '../../../lib/logger.js';
 
 // ─── Dependency Interfaces ────────────────────────
 
@@ -302,7 +303,7 @@ export class TraceAgent {
 
           // Enforce total context budget
           if (totalChars + content.length > MAX_CODEBASE_CONTEXT_CHARS) {
-            console.log(`[Trace] Context budget reached at file ${i + 1}/${sourceFiles.length} (${totalChars} chars). Stopping.`);
+            logger.info(`[Trace] Context budget reached at file ${i + 1}/${sourceFiles.length} (${totalChars} chars). Stopping.`);
             break;
           }
 
@@ -370,7 +371,7 @@ export class TraceAgent {
       } catch (err) {
         const isTimeout = err instanceof Error && err.message.includes('timed out');
         if (isTimeout) {
-          console.warn(`[Trace] AI call timed out after ${AI_CALL_TIMEOUT_MS / 1000}s (attempt ${attempt + 1})`);
+          logger.warn(`[Trace] AI call timed out after ${AI_CALL_TIMEOUT_MS / 1000}s (attempt ${attempt + 1})`);
           emit?.('retry', `AI yanıt vermedi, tekrar deneniyor...`, 40);
         }
         if (attempt < RETRY_CONFIG.specValidationMaxRetries) continue;
@@ -388,7 +389,7 @@ export class TraceAgent {
         const extracted = this.extractJson(responseText);
         parsed = JSON.parse(extracted);
       } catch (parseErr) {
-        console.warn(`[Trace] JSON parse failed (attempt ${attempt + 1}, responseLen=${responseText.length}): ${parseErr instanceof Error ? parseErr.message : String(parseErr)}`);
+        logger.warn(`[Trace] JSON parse failed (attempt ${attempt + 1}, responseLen=${responseText.length}): ${parseErr instanceof Error ? parseErr.message : String(parseErr)}`);
         if (attempt < RETRY_CONFIG.specValidationMaxRetries) continue;
         return {
           type: 'error',
@@ -569,7 +570,7 @@ export class TraceAgent {
     const lastResort = this.repairJson(text.trim());
     try { JSON.parse(lastResort); return lastResort; } catch { /* fall through */ }
 
-    console.warn(`[Trace] extractJson: all strategies failed (len=${text.length}), first 300 chars: ${text.slice(0, 300)}`);
+    logger.warn(`[Trace] extractJson: all strategies failed (len=${text.length}), first 300 chars: ${text.slice(0, 300)}`);
     return text.trim();
   }
 

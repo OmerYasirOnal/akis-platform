@@ -12,6 +12,7 @@ import { sign } from '../services/auth/jwt.js';
 import { cookieOpts, env } from '../lib/env.js';
 import { getEnv } from '../config/env.js';
 import { HttpClient } from '../services/http/HttpClient.js';
+import { logger } from '../lib/logger.js';
 import type { EmailService } from '../services/email/EmailService.js';
 import {
   oauthTokenCrypto,
@@ -154,7 +155,7 @@ async function fetchGitHubProfile(accessToken: string, httpClient: HttpClient): 
   if (!email && userData.email) {
     email = userData.email;
     emailVerified = false; // Cannot confirm verification without /user/emails
-    console.warn(`[OAuth:GitHub] Using fallback email from /user endpoint, verification status unknown`);
+    logger.warn(`[OAuth:GitHub] Using fallback email from /user endpoint, verification status unknown`);
   }
   
   if (!email) {
@@ -331,10 +332,10 @@ export async function registerOAuthRoutes(fastify: FastifyInstance, emailService
     
     // Dev-only: Log OAuth App client_id prefix (no secrets) to verify correct credentials
     if (provider === 'github' && config.NODE_ENV !== 'production') {
-      console.log(`[OAuth:GitHub] Login using OAuth App client_id=${providerConfig.clientId.substring(0, 6)}...`);
+      logger.info(`[OAuth:GitHub] Login using OAuth App client_id=${providerConfig.clientId.substring(0, 6)}...`);
     }
     
-    console.log(`[OAuth] Flow initiated for provider: ${provider}, state: ${state.substring(0, 8)}...`);
+    logger.info(`[OAuth] Flow initiated for provider: ${provider}, state: ${state.substring(0, 8)}...`);
     
     return redirect(reply, authUrl);
   });
@@ -387,7 +388,7 @@ export async function registerOAuthRoutes(fastify: FastifyInstance, emailService
     
     // Handle OAuth errors from provider
     if (error) {
-      console.warn(`[OAuth] Error from provider ${provider}: ${error} - ${error_description}`);
+      logger.warn(`[OAuth] Error from provider ${provider}: ${error} - ${error_description}`);
       // URL-encode error parameter to prevent URL parsing issues and parameter injection
       const encodedError = encodeURIComponent(`oauth_${error}`);
       return redirect(reply, `${frontendUrl}/login?error=${encodedError}`);
@@ -397,7 +398,7 @@ export async function registerOAuthRoutes(fastify: FastifyInstance, emailService
     // This prevents race conditions where two callbacks could both pass validation
     // before either deletes the state (single-use CSRF protection)
     if (!state) {
-      console.warn(`[OAuth] Missing state for provider: ${provider}`);
+      logger.warn(`[OAuth] Missing state for provider: ${provider}`);
       return redirect(reply, `${frontendUrl}/login?error=oauth_invalid_state`);
     }
 
@@ -406,7 +407,7 @@ export async function registerOAuthRoutes(fastify: FastifyInstance, emailService
     // Forward to the integration callback handler which uses cookie-based state validation.
     const integrationStateCookie = request.cookies?.github_oauth_state;
     if (integrationStateCookie && integrationStateCookie === state) {
-      console.log(`[OAuth] Integration flow detected for ${provider}, forwarding to integration handler`);
+      logger.info(`[OAuth] Integration flow detected for ${provider}, forwarding to integration handler`);
       const qs = new URLSearchParams();
       if (code) qs.set('code', code);
       qs.set('state', state);
@@ -416,19 +417,19 @@ export async function registerOAuthRoutes(fastify: FastifyInstance, emailService
     // Verify HMAC-signed state (stateless — no server-side storage)
     const stateData = verifySignedState(state);
     if (!stateData) {
-      console.warn(`[OAuth] Invalid or expired state for provider: ${provider}`);
+      logger.warn(`[OAuth] Invalid or expired state for provider: ${provider}`);
       return redirect(reply, `${frontendUrl}/login?error=oauth_invalid_state`);
     }
 
     // Verify state matches provider
     if (stateData.provider !== provider) {
-      console.warn(`[OAuth] State provider mismatch: expected ${stateData.provider}, got ${provider}`);
+      logger.warn(`[OAuth] State provider mismatch: expected ${stateData.provider}, got ${provider}`);
       return redirect(reply, `${frontendUrl}/login?error=oauth_invalid_state`);
     }
     
     // Validate code
     if (!code) {
-      console.warn(`[OAuth] Missing authorization code for provider: ${provider}`);
+      logger.warn(`[OAuth] Missing authorization code for provider: ${provider}`);
       return redirect(reply, `${frontendUrl}/login?error=oauth_missing_code`);
     }
     
@@ -451,7 +452,7 @@ export async function registerOAuthRoutes(fastify: FastifyInstance, emailService
         profile = await fetchGoogleProfile(tokens.accessToken, httpClient);
       }
       
-      console.log(`[OAuth] Profile fetched for provider: ${provider}, email: ${profile.email.substring(0, 3)}***, emailVerified: ${profile.emailVerified}`);
+      logger.info(`[OAuth] Profile fetched for provider: ${provider}, email: ${profile.email.substring(0, 3)}***, emailVerified: ${profile.emailVerified}`);
       
       // Find or create user (concurrency-safe)
       // Use findOrCreate pattern with unique constraint handling
@@ -483,20 +484,20 @@ export async function registerOAuthRoutes(fastify: FastifyInstance, emailService
           user = created;
           isNewUser = true;
           
-          console.log(`[OAuth] New user created via ${provider}: ${user.id}, status: ${initialStatus}`);
+          logger.info(`[OAuth] New user created via ${provider}: ${user.id}, status: ${initialStatus}`);
         } catch (insertError: unknown) {
           // Handle race condition: if another request created the user concurrently,
           // catch the unique constraint violation and re-fetch the existing user
           const pgError = insertError as { code?: string };
           if (pgError.code === PG_UNIQUE_VIOLATION) {
-            console.log(`[OAuth] Concurrent insert detected for email: ${profile.email.substring(0, 3)}***, re-fetching existing user`);
+            logger.info(`[OAuth] Concurrent insert detected for email: ${profile.email.substring(0, 3)}***, re-fetching existing user`);
             user = await db.query.users.findFirst({
               where: eq(users.email, profile.email),
             });
             
             if (!user) {
               // This should not happen, but handle gracefully
-              console.error(`[OAuth] User not found after unique constraint violation`);
+              logger.error(`[OAuth] User not found after unique constraint violation`);
               return redirect(reply, `${frontendUrl}/login?error=oauth_failed`);
             }
             // Continue with existing user (not a new user)
@@ -517,11 +518,11 @@ export async function registerOAuthRoutes(fastify: FastifyInstance, emailService
       
       // Check user status first (consistent with email/password flow)
       if (user.status === 'disabled') {
-        console.warn(`[OAuth] User ${user.id} is disabled`);
+        logger.warn(`[OAuth] User ${user.id} is disabled`);
         return redirect(reply, `${frontendUrl}/login?error=account_disabled`);
       }
       if (user.status === 'deleted') {
-        console.warn(`[OAuth] User ${user.id} is deleted`);
+        logger.warn(`[OAuth] User ${user.id} is deleted`);
         return redirect(reply, `${frontendUrl}/login?error=account_not_found`);
       }
       
@@ -539,11 +540,11 @@ export async function registerOAuthRoutes(fastify: FastifyInstance, emailService
             })
             .where(eq(users.id, user.id));
           user = { ...user, status: 'active', emailVerified: true };
-          console.log(`[OAuth] User ${user.id} upgraded from pending_verification to active via ${provider}`);
+          logger.info(`[OAuth] User ${user.id} upgraded from pending_verification to active via ${provider}`);
         } else {
           // Provider did not verify email - CANNOT proceed (consistent with email/password)
           // This applies to ALL paths: new user, existing user, OR race-condition re-fetch
-          console.warn(`[OAuth] User ${user.id} has pending_verification status and OAuth provider did not verify email`);
+          logger.warn(`[OAuth] User ${user.id} has pending_verification status and OAuth provider did not verify email`);
           // Do NOT link OAuth account or create session for unverified users
           return redirect(reply, `${frontendUrl}/login?error=email_not_verified`);
         }
@@ -556,7 +557,7 @@ export async function registerOAuthRoutes(fastify: FastifyInstance, emailService
         user = { ...user, emailVerified: true };
       }
       
-      console.log(`[OAuth] User validation passed for ${user.id}, isNewUser: ${isNewUser}, status: ${user.status}`);
+      logger.info(`[OAuth] User validation passed for ${user.id}, isNewUser: ${isNewUser}, status: ${user.status}`);
       
       // Link OAuth account if not already linked
       const existingOAuthAccount = await db.query.oauthAccounts.findFirst({
@@ -595,7 +596,7 @@ export async function registerOAuthRoutes(fastify: FastifyInstance, emailService
               ? new Date(Date.now() + tokens.expiresIn * 1000)
               : undefined,
           });
-          console.log(`[OAuth] Account linked for user ${user.id} with provider ${provider}`);
+          logger.info(`[OAuth] Account linked for user ${user.id} with provider ${provider}`);
         } else {
           await db
             .update(oauthAccounts)
@@ -612,7 +613,7 @@ export async function registerOAuthRoutes(fastify: FastifyInstance, emailService
         _tokenStored = true;
       } catch (_tokenErr) {
         // Token encryption failed (AI_KEY_ENCRYPTION_KEY not set) — login still succeeds
-        console.warn(`[OAuth] Token storage skipped (encryption key missing). Login will proceed without stored OAuth token.`);
+        logger.warn(`[OAuth] Token storage skipped (encryption key missing). Login will proceed without stored OAuth token.`);
 
         // Still link the OAuth account if it doesn't exist (without tokens)
         if (!existingOAuthAccount) {
@@ -624,9 +625,9 @@ export async function registerOAuthRoutes(fastify: FastifyInstance, emailService
               accessToken: null,
               refreshToken: null,
             });
-            console.log(`[OAuth] Account linked (no token) for user ${user.id} with provider ${provider}`);
+            logger.info(`[OAuth] Account linked (no token) for user ${user.id} with provider ${provider}`);
           } catch (linkErr) {
-            console.warn(`[OAuth] Could not link account: ${linkErr instanceof Error ? linkErr.message : linkErr}`);
+            logger.warn(`[OAuth] Could not link account: ${linkErr instanceof Error ? linkErr.message : linkErr}`);
           }
         }
       }
@@ -649,13 +650,13 @@ export async function registerOAuthRoutes(fastify: FastifyInstance, emailService
         redirectPath = '/auth/welcome-beta';
       }
       
-      console.log(`[OAuth] Login successful for user ${user.id}, isNewUser: ${isNewUser}, redirecting to: ${redirectPath}`);
+      logger.info(`[OAuth] Login successful for user ${user.id}, isNewUser: ${isNewUser}, redirecting to: ${redirectPath}`);
       
       // Send welcome email for new OAuth users (fire-and-forget)
       if (isNewUser && emailService) {
         const loginUrl = `${frontendUrl}/login`;
         emailService.sendWelcomeEmail(user.email, user.name ?? undefined, loginUrl).catch((err) => {
-          console.error(`[OAuth] Failed to send welcome email for new user ${user.id}:`, err);
+          logger.error(`[OAuth] Failed to send welcome email for new user ${user.id}:`, err);
         });
       }
       
@@ -663,28 +664,28 @@ export async function registerOAuthRoutes(fastify: FastifyInstance, emailService
       
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err);
-      console.error(`[OAuth] Callback error for provider ${provider}: ${errorMessage}`);
+      logger.error(`[OAuth] Callback error for provider ${provider}: ${errorMessage}`);
       
       // Map specific errors to user-friendly error codes
       let errorCode = 'oauth_failed';
       
       if (errorMessage === 'OAUTH_MISSING_EMAIL') {
         errorCode = 'oauth_missing_email';
-        console.error(`[OAuth] ${provider} user has no accessible email. User may need to:`);
-        console.error(`  - Set a public email in their ${provider} profile`);
-        console.error(`  - Grant email permission (user:email scope for GitHub)`);
-        console.error(`  - Revoke and re-authorize the OAuth app`);
+        logger.error(`[OAuth] ${provider} user has no accessible email. User may need to:`);
+        logger.error(`  - Set a public email in their ${provider} profile`);
+        logger.error(`  - Grant email permission (user:email scope for GitHub)`);
+        logger.error(`  - Revoke and re-authorize the OAuth app`);
       } else if (
         err instanceof OAuthTokenCryptoError &&
         err.code === 'OAUTH_TOKEN_ENCRYPTION_KEY_MISSING'
       ) {
         errorCode = 'oauth_encryption_required';
-        console.error('[OAuth] Encryption key missing for OAuth token write');
+        logger.error('[OAuth] Encryption key missing for OAuth token write');
       } else if (errorMessage.includes('relation') && errorMessage.includes('does not exist')) {
         // PostgreSQL error when oauth_accounts table is missing
         errorCode = 'oauth_db_not_migrated';
-        console.error(`[OAuth] Database migration required! Run: cd backend && pnpm db:migrate`);
-        console.error(`[OAuth] Missing table: oauth_accounts (migration 0007_modern_nova.sql)`);
+        logger.error(`[OAuth] Database migration required! Run: cd backend && pnpm db:migrate`);
+        logger.error(`[OAuth] Missing table: oauth_accounts (migration 0007_modern_nova.sql)`);
       } else if (errorMessage.includes('23505')) {
         // Unique constraint violation - race condition (should be handled, but just in case)
         errorCode = 'oauth_failed';

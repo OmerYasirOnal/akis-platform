@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { cn } from '../../utils/cn';
 import { useAuth } from '../../contexts/AuthContext';
 import { useI18n } from '../../i18n/useI18n';
+import { ErrorBoundary } from '../../components/ErrorBoundary';
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -146,10 +147,12 @@ export default function SettingsPage() {
           </TabButton>
         </div>
 
-        {activeTab === 'ai-keys' && <AIKeysTab user={user} />}
-        {activeTab === 'pipeline-stats' && <PipelineStatsTab />}
-        {activeTab === 'integrity' && <IntegrityTab />}
-        {activeTab === 'integrations' && <IntegrationsTab />}
+        <ErrorBoundary fallbackPath="/settings" fallbackLabel="Ayarlar">
+          {activeTab === 'ai-keys' && <AIKeysTab user={user} />}
+          {activeTab === 'pipeline-stats' && <PipelineStatsTab />}
+          {activeTab === 'integrity' && <IntegrityTab />}
+          {activeTab === 'integrations' && <IntegrationsTab />}
+        </ErrorBoundary>
       </div>
     </div>
   );
@@ -189,7 +192,7 @@ function AIKeysTab({ user }: { user: ReturnType<typeof useAuth>['user'] }) {
       const res = await fetch('/api/settings/ai-keys/status', { credentials: 'include' });
       if (res.ok) setStatus(await res.json());
     } catch (e) {
-      console.warn('Failed to fetch AI key status:', e);
+      if (import.meta.env.DEV) console.warn('Failed to fetch AI key status:', e);
     } finally { setLoading(false); }
   }, []);
 
@@ -228,7 +231,7 @@ function AIKeysTab({ user }: { user: ReturnType<typeof useAuth>['user'] }) {
       });
       await fetchStatus();
     } catch (e) {
-      console.warn('Failed to delete AI key:', e);
+      if (import.meta.env.DEV) console.warn('Failed to delete AI key:', e);
     }
   };
 
@@ -242,7 +245,7 @@ function AIKeysTab({ user }: { user: ReturnType<typeof useAuth>['user'] }) {
       });
       await fetchStatus();
     } catch (e) {
-      console.warn('Failed to set active provider:', e);
+      if (import.meta.env.DEV) console.warn('Failed to set active provider:', e);
     }
   };
 

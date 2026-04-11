@@ -4,6 +4,7 @@
  * for the existing GitHub repo+branch.
  */
 import type { FileChange, DevSessionContext, FileTreeNode } from '../../../types/dev-session.js';
+import { logger } from '../../../lib/logger.js';
 
 export interface DevAIDeps {
   generateText(systemPrompt: string, userPrompt: string): Promise<string>;
@@ -30,7 +31,7 @@ export class DevAgent {
     const systemPrompt = this.buildSystemPrompt(input.context);
     const userPrompt = this.buildUserPrompt(input);
 
-    console.log(`[DevAgent] Prompt sizes: system=${systemPrompt.length} chars, user=${userPrompt.length} chars, est tokens=${Math.ceil((systemPrompt.length + userPrompt.length) / 4)}`);
+    logger.info(`[DevAgent] Prompt sizes: system=${systemPrompt.length} chars, user=${userPrompt.length} chars, est tokens=${Math.ceil((systemPrompt.length + userPrompt.length) / 4)}`);
 
     const rawResponse = await this.aiDeps.generateText(systemPrompt, userPrompt);
 

@@ -10,6 +10,15 @@ vi.mock('../../../hooks/useReducedMotion', () => ({
   useReducedMotion: () => true,
 }));
 
+vi.mock('../../../i18n/useI18n', () => ({
+  useI18n: () => ({
+    t: (key: string) => key,
+    locale: 'tr',
+    availableLocales: ['tr', 'en'],
+    setLocale: vi.fn(),
+  }),
+}));
+
 vi.mock('../../onboarding/WelcomeWizard', () => ({
   WelcomeWizard: () => <div data-testid="welcome-wizard" />,
 }));
@@ -22,8 +31,8 @@ describe('EmptyState', () => {
   describe('new-conversation variant', () => {
     it('shows greeting text', () => {
       render(<EmptyState variant="new-conversation" />);
-      expect(screen.getByText(/Merhaba/)).toBeInTheDocument();
-      expect(screen.getByText('AKIS')).toBeInTheDocument();
+      expect(screen.getByText(/chat\.emptyState\.greeting/)).toBeInTheDocument();
+      expect(screen.getByText('chat.emptyState.brandName')).toBeInTheDocument();
     });
 
     it('shows agent badges Scribe, Proto, and Trace', () => {
@@ -35,20 +44,20 @@ describe('EmptyState', () => {
 
     it('does not show the CTA button', () => {
       render(<EmptyState variant="new-conversation" />);
-      expect(screen.queryByRole('button', { name: /Yeni Sohbet/i })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /chat\.emptyState\.newChat/i })).not.toBeInTheDocument();
     });
   });
 
   describe('no-conversation variant', () => {
     it('shows the CTA button', () => {
       render(<EmptyState variant="no-conversation" onNewConversation={vi.fn()} />);
-      expect(screen.getByRole('button', { name: /Yeni Sohbet Başlat/i })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /chat\.emptyState\.newChat/i })).toBeInTheDocument();
     });
 
     it('calls onNewConversation when CTA button is clicked', () => {
       const onNewConversation = vi.fn();
       render(<EmptyState variant="no-conversation" onNewConversation={onNewConversation} />);
-      fireEvent.click(screen.getByRole('button', { name: /Yeni Sohbet Başlat/i }));
+      fireEvent.click(screen.getByRole('button', { name: /chat\.emptyState\.newChat/i }));
       expect(onNewConversation).toHaveBeenCalledOnce();
     });
 

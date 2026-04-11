@@ -245,7 +245,10 @@ export function ChatPanel({
           {showScrollDown && (
             <button
               onClick={scrollToBottom}
+              tabIndex={0}
+              role="button"
               aria-label="En alta kaydır"
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); scrollToBottom(); } }}
               className="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full border border-ak-border bg-ak-surface px-4 py-1.5 text-xs font-medium text-ak-text-secondary shadow-lg hover:text-ak-text-primary transition-colors animate-in fade-in slide-in-from-bottom-2 duration-200"
             >
               ↓ Yeni mesajlar

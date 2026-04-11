@@ -10,6 +10,7 @@ import {
 } from '../../core/contracts/PipelineErrors.js';
 import type { PipelineError } from '../../core/contracts/PipelineTypes.js';
 import { createActivityEmitter } from '../../core/activityEmitter.js';
+import { logger } from '../../../lib/logger.js';
 
 // ─── Dependency Interfaces ────────────────────────
 
@@ -185,7 +186,7 @@ export class ProtoAgent {
             ),
           };
         }
-        console.warn(`[Proto] Branch creation attempt ${branchAttempt + 1} failed, retrying...`);
+        logger.warn(`[Proto] Branch creation attempt ${branchAttempt + 1} failed, retrying...`);
       }
     }
 
@@ -212,7 +213,7 @@ export class ProtoAgent {
       prUrl = pr.url;
     } catch (err) {
       // PR failure is non-fatal — code is already pushed
-      console.warn(`[Proto] PR creation failed (non-fatal): ${err instanceof Error ? err.message : String(err)}`);
+      logger.warn(`[Proto] PR creation failed (non-fatal): ${err instanceof Error ? err.message : String(err)}`);
     }
 
     emit?.('complete', `Scaffold hazır: ${files.length} dosya push edildi`, 100);
@@ -261,7 +262,7 @@ export class ProtoAgent {
       try {
         responseText = await this.ai.generateText(SCAFFOLD_SYSTEM_PROMPT, userPrompt);
       } catch (err) {
-        console.error(`[Proto] Attempt ${attempt + 1}: AI call error:`, err instanceof Error ? err.message : String(err));
+        logger.error(`[Proto] Attempt ${attempt + 1}: AI call error: ${err instanceof Error ? err.message : String(err)}`);
         if (attempt < RETRY_CONFIG.specValidationMaxRetries) continue;
         return {
           type: 'error',
@@ -282,10 +283,10 @@ export class ProtoAgent {
         } catch {
           const sanitized = this.sanitizeJsonControlChars(jsonStr);
           parsed = JSON.parse(sanitized);
-          console.warn(`[Proto] Parsed after sanitizing control chars`);
+          logger.warn(`[Proto] Parsed after sanitizing control chars`);
         }
       } catch (parseErr) {
-        console.warn(`[Proto] JSON parse failed (attempt ${attempt + 1}, len=${responseText.length}): ${parseErr instanceof Error ? parseErr.message : String(parseErr)}`);
+        logger.warn(`[Proto] JSON parse failed (attempt ${attempt + 1}, len=${responseText.length}): ${parseErr instanceof Error ? parseErr.message : String(parseErr)}`);
         // Try to repair truncated JSON
         const repaired = this.repairTruncatedJson(responseText);
         if (repaired) {
@@ -323,7 +324,7 @@ export class ProtoAgent {
 
       // If repaired result has too few files, it's likely truncated — retry
       if (wasRepaired && fileCount < MIN_SCAFFOLD_FILES) {
-        console.warn(`[Proto] Repaired JSON only has ${fileCount} files (min: ${MIN_SCAFFOLD_FILES}), retrying...`);
+        logger.warn(`[Proto] Repaired JSON only has ${fileCount} files (min: ${MIN_SCAFFOLD_FILES}), retrying...`);
         if (attempt < RETRY_CONFIG.specValidationMaxRetries) continue;
       }
 
@@ -410,7 +411,7 @@ export class ProtoAgent {
     return files.filter((f) => {
       const p = f.filePath;
       if (p.includes('..') || p.startsWith('/') || p.startsWith('\\')) {
-        console.warn(`[Proto] Rejected unsafe file path: ${p}`);
+        logger.warn(`[Proto] Rejected unsafe file path: ${p}`);
         return false;
       }
       return true;
@@ -595,7 +596,7 @@ export class ProtoAgent {
 
     try {
       JSON.parse(json);
-      console.warn(`[Proto] Repaired truncated JSON (added ${json.length - this.extractJson(text).length} closing chars)`);
+      logger.warn(`[Proto] Repaired truncated JSON (added ${json.length - this.extractJson(text).length} closing chars)`);
       return json;
     } catch {
       return null;

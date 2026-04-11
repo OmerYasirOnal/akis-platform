@@ -26,7 +26,7 @@ export default function PrivacyConsent() {
         navigate(returnTo || '/dashboard');
       }
     } catch (err) {
-      console.error('Failed to update preferences:', err);
+      if (import.meta.env.DEV) console.error('Failed to update preferences:', err);
       const returnTo = getReturnTo();
       if (returnTo) setReturnTo(returnTo);
       navigate('/auth/welcome-beta');

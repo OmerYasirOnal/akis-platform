@@ -154,7 +154,7 @@ export function PreviewPanel({ files, title, loading: externalLoading, branch, a
         if (!cancelled) setStatus('ready');
       } catch (err) {
         if (!cancelled) {
-          console.error('Preview error:', err);
+          if (import.meta.env.DEV) console.error('Preview error:', err);
           setError(err instanceof Error ? err.message : 'Önizleme yüklenemedi');
           setStatus('error');
         }

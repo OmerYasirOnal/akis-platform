@@ -66,7 +66,7 @@ const warnMissingKey = (key: MessageKey, locale: Locale, reason: 'missing' | 'de
       ? ` Falling back to "${DEFAULT_LOCALE}".`
       : ' Missing in default locale as well.';
 
-  console.warn(`[i18n] Missing translation for "${key}" in locale "${locale}".${suffix}`);
+  if (isDev) console.warn(`[i18n] Missing translation for "${key}" in locale "${locale}".${suffix}`);
 };
 
 export function I18nProvider({ children }: PropsWithChildren) {

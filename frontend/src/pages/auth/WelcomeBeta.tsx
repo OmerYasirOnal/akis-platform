@@ -15,7 +15,7 @@ export default function WelcomeBeta() {
       const { AuthAPI } = await import('../../services/api/auth');
       await AuthAPI.updatePreferences({ hasSeenBetaWelcome: true });
     } catch (error) {
-      console.error('Failed to update preferences:', error);
+      if (import.meta.env.DEV) console.error('Failed to update preferences:', error);
       // Continue anyway - don't block user flow
     } finally {
       setSubmitting(false);

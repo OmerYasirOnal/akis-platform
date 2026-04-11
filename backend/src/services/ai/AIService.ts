@@ -11,6 +11,7 @@
 
 import { getEnv, getAIConfig, type AIConfig } from '../../config/env.js';
 import { AIRateLimitedError, AIProviderError } from '../../core/errors.js';
+import { logger } from '../../lib/logger.js';
 import { z } from 'zod';
 
 /**
@@ -529,7 +530,7 @@ class RealAIService implements AIService {
           const retryAfterMs = this.parseRetryAfter(response) || this.baseRetryDelay * Math.pow(2, attempt);
           const errorText = await response.text().catch(() => 'Rate limited');
           
-          console.warn(
+          logger.warn(
             `[AIService] Rate limited by ${this.config.provider} (attempt ${attempt + 1}/${this.maxRetries + 1}), ` +
             `retrying in ${retryAfterMs}ms: ${errorText.substring(0, 200)}`
           );
@@ -574,7 +575,7 @@ class RealAIService implements AIService {
             }
             
             // Log raw error for debugging but don't expose to user
-            console.error(`[AIService] Auth error from ${this.config.provider}: ${errorText.substring(0, 300)}`);
+            logger.error(`[AIService] Auth error from ${this.config.provider}: ${errorText.substring(0, 300)}`);
             
             const authError = new AIProviderError(
               'AI_AUTH_ERROR',
@@ -602,7 +603,7 @@ class RealAIService implements AIService {
               this.config.provider,
               response.status
             );
-            console.error(`[AIService] Model not found on ${this.config.provider}: ${model}. Raw error: ${errorText.substring(0, 200)}`);
+            logger.error(`[AIService] Model not found on ${this.config.provider}: ${model}. Raw error: ${errorText.substring(0, 200)}`);
             this.observer?.onAiCall({
               purpose,
               provider: this.config.provider,
@@ -616,7 +617,7 @@ class RealAIService implements AIService {
           
           // Server errors (5xx) - retry
           if (response.status >= 500 && attempt < this.maxRetries) {
-            console.warn(
+            logger.warn(
               `[AIService] Server error from ${this.config.provider} (${response.status}), ` +
               `retrying in ${this.baseRetryDelay * Math.pow(2, attempt)}ms`
             );
@@ -637,7 +638,7 @@ class RealAIService implements AIService {
             friendlyMessage = `Model "${model}" may not be available on ${providerLabel}. Please try a different model.`;
           }
           
-          console.error(`[AIService] Provider error from ${this.config.provider}: ${errorText.substring(0, 300)}`);
+          logger.error(`[AIService] Provider error from ${this.config.provider}: ${errorText.substring(0, 300)}`);
           
           const providerError = new AIProviderError(
             'AI_PROVIDER_ERROR',
@@ -692,7 +693,7 @@ class RealAIService implements AIService {
         lastError = error instanceof Error ? error : new Error(String(error));
         
         if (attempt < this.maxRetries) {
-          console.warn(
+          logger.warn(
             `[AIService] Network error (attempt ${attempt + 1}/${this.maxRetries + 1}): ${lastError.message}`
           );
           await this.delay(this.baseRetryDelay * Math.pow(2, attempt));
@@ -762,13 +763,13 @@ class RealAIService implements AIService {
       const validated = schema.parse(parsed);
       return validated;
     } catch (firstError) {
-      console.warn(`[AIService] First parse attempt failed for ${context}: ${firstError instanceof Error ? firstError.message : 'unknown'}`);
+      logger.warn(`[AIService] First parse attempt failed for ${context}: ${firstError instanceof Error ? firstError.message : 'unknown'}`);
       
       // Log raw response (redacted) for debugging
       const redactedResponse = response.length > 500 
         ? response.substring(0, 500) + '...(truncated)'
         : response;
-      console.warn(`[AIService] Raw response (redacted): ${redactedResponse}`);
+      logger.warn(`[AIService] Raw response (redacted): ${redactedResponse}`);
       
       // Repair attempt: ask AI to fix the JSON
       try {
@@ -788,13 +789,13 @@ class RealAIService implements AIService {
         const reparsed = JSON.parse(repairedJsonStr);
         const revalidated = schema.parse(reparsed);
         
-        console.log(`[AIService] Successfully repaired JSON for ${context}`);
+        logger.info(`[AIService] Successfully repaired JSON for ${context}`);
         return revalidated;
       } catch (repairError) {
         // Both attempts failed - throw with details
         const errorMessage = repairError instanceof Error ? repairError.message : 'unknown';
-        console.error(`[AIService] JSON repair failed for ${context}: ${errorMessage}`);
-        console.error(`[AIService] Model: ${this.config.modelDefault}`);
+        logger.error(`[AIService] JSON repair failed for ${context}: ${errorMessage}`);
+        logger.error(`[AIService] Model: ${this.config.modelDefault}`);
         
         throw new AIProviderError(
           'AI_INVALID_RESPONSE',
@@ -1125,7 +1126,7 @@ export function createAIService(
 ): AIService {
   // ALWAYS use mock in test environment to prevent external API calls during tests
   if (process.env.NODE_ENV === 'test') {
-    console.log('[AIService] Using mock provider (test environment)');
+    logger.info('[AIService] Using mock provider (test environment)');
     return new MockAIService(observer);
   }
 
@@ -1133,19 +1134,19 @@ export function createAIService(
   const resolvedConfig = config || getAIConfig(getEnv());
 
   if (resolvedConfig.provider === 'mock') {
-    console.log('[AIService] Using mock provider (no real AI calls)');
+    logger.info('[AIService] Using mock provider (no real AI calls)');
     return new MockAIService(observer);
   }
 
   if (!resolvedConfig.apiKey) {
-    console.warn(
+    logger.warn(
       `[AIService] No API key found for provider "${resolvedConfig.provider}", falling back to mock`
     );
     return new MockAIService(observer);
   }
 
-  console.log(`[AIService] Using ${resolvedConfig.provider} provider`);
-  console.log(`[AIService] Models: default=${resolvedConfig.modelDefault}, planner=${resolvedConfig.modelPlanner}, validation=${resolvedConfig.modelValidation}`);
+  logger.info(`[AIService] Using ${resolvedConfig.provider} provider`);
+  logger.info(`[AIService] Models: default=${resolvedConfig.modelDefault}, planner=${resolvedConfig.modelPlanner}, validation=${resolvedConfig.modelValidation}`);
   
   return new RealAIService(resolvedConfig, observer, runtimeOptions);
 }

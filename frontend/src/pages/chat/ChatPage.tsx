@@ -234,6 +234,9 @@ export default function ChatPage() {
     document.addEventListener('mouseup', onUp);
   }, []);
 
+  // Close mobile sidebar overlay when navigating to a conversation
+  useEffect(() => { setSidebarOpen(false); }, [conversationId]);
+
   // Auto-collapse sidebar on tablet resize + re-sync on mount/navigation
   useEffect(() => {
     const syncCollapse = () => {
@@ -263,7 +266,7 @@ export default function ChatPage() {
       // Hide cancelled pipelines from sidebar
       setConversations(workflows.filter((w) => w.status !== 'cancelled').map(workflowToListItem));
     }).catch((e) => {
-      console.warn('Failed to load conversation list:', e);
+      if (import.meta.env.DEV) console.warn('Failed to load conversation list:', e);
     });
   }, []);
 
@@ -408,7 +411,7 @@ export default function ChatPage() {
       setConversations((prev) => prev.filter((c) => c.id !== id));
       if (conversationId === id) navigate('/chat', { replace: true });
     } catch (e) {
-      console.error('Failed to delete:', e);
+      if (import.meta.env.DEV) console.error('Failed to delete:', e);
     }
   }, [conversationId, navigate]);
 
@@ -507,7 +510,7 @@ export default function ChatPage() {
         refreshList();
         navigate(`/chat/${w.id}`, { replace: true });
       } catch (e) {
-        console.error('Failed to create pipeline:', e);
+        if (import.meta.env.DEV) console.error('Failed to create pipeline:', e);
         const errorMsg = e instanceof Error ? e.message : 'Pipeline oluşturulamadı.';
         setMessages((prev) => [...prev, {
           type: 'error',
@@ -549,7 +552,7 @@ export default function ChatPage() {
         refreshList();
         navigate(`/chat/${w.id}`, { replace: true });
       } catch (e) {
-        console.error('Failed to create follow-up pipeline:', e);
+        if (import.meta.env.DEV) console.error('Failed to create follow-up pipeline:', e);
         const errorMsg = e instanceof Error ? e.message : 'Pipeline oluşturulamadı.';
         setMessages((prev) => [...prev, {
           type: 'error',
@@ -568,7 +571,7 @@ export default function ChatPage() {
       await workflowsApi.sendMessage(conversationId, content);
       await refreshWorkflow();
     } catch (e) {
-      console.error('Failed to send:', e);
+      if (import.meta.env.DEV) console.error('Failed to send:', e);
     }
   }, [conversationId, pendingConv, activeWorkflow, isTerminalState, buildFollowUpContext, refreshWorkflow, refreshList, syncFromStage, navigate]);
 
@@ -577,31 +580,31 @@ export default function ChatPage() {
     try {
       await workflowsApi.approve(conversationId, sanitizeRepoName(activeWorkflow.title ?? 'project'), 'private');
       await refreshWorkflow();
-    } catch (e) { console.error('Failed to approve:', e); }
+    } catch (e) { if (import.meta.env.DEV) console.error('Failed to approve:', e); }
   }, [conversationId, activeWorkflow, refreshWorkflow]);
 
   const handleReject = useCallback(async () => {
     if (!conversationId) return;
     try { await workflowsApi.reject(conversationId); await refreshWorkflow(); }
-    catch (e) { console.error('Failed to reject:', e); }
+    catch (e) { if (import.meta.env.DEV) console.error('Failed to reject:', e); }
   }, [conversationId, refreshWorkflow]);
 
   const handleCancel = useCallback(async () => {
     if (!conversationId) return;
     try { await workflowsApi.cancel(conversationId); await refreshWorkflow(); }
-    catch (e) { console.error('Failed to cancel:', e); }
+    catch (e) { if (import.meta.env.DEV) console.error('Failed to cancel:', e); }
   }, [conversationId, refreshWorkflow]);
 
   const handleRetry = useCallback(async () => {
     if (!conversationId) return;
     try { await workflowsApi.retry(conversationId); await refreshWorkflow(); }
-    catch (e) { console.error('Failed to retry:', e); }
+    catch (e) { if (import.meta.env.DEV) console.error('Failed to retry:', e); }
   }, [conversationId, refreshWorkflow]);
 
   const handleSkip = useCallback(async () => {
     if (!conversationId) return;
     try { await workflowsApi.skipTrace(conversationId); await refreshWorkflow(); }
-    catch (e) { console.error('Failed to skip:', e); }
+    catch (e) { if (import.meta.env.DEV) console.error('Failed to skip:', e); }
   }, [conversationId, refreshWorkflow]);
 
   return (
@@ -707,7 +710,7 @@ export default function ChatPage() {
             {/* Resizable preview panel with drag handle */}
             {showPreview && (protoFiles || isRunning) && (
               <>
-                {/* Drag handle */}
+                {/* Drag handle — desktop only */}
                 <div
                   onMouseDown={handleDragStart}
                   className="group hidden w-1 flex-shrink-0 cursor-col-resize bg-ak-border transition-colors hover:bg-ak-primary/50 active:bg-ak-primary lg:block"
@@ -717,20 +720,41 @@ export default function ChatPage() {
                     <div className="h-8 w-0.5 rounded-full bg-ak-text-tertiary opacity-0 transition-opacity group-hover:opacity-100" />
                   </div>
                 </div>
-                {/* Preview panel */}
+
+                {/* Preview panel — mobile: full-screen overlay, desktop: inline split */}
+                {/* Mobile overlay backdrop */}
                 <div
-                  className="hidden overflow-hidden lg:block"
+                  className="fixed inset-0 z-50 bg-black/50 lg:hidden"
+                  onClick={() => setShowPreview(false)}
+                />
+                <div
+                  className={cn(
+                    // Mobile: fixed full-screen overlay
+                    'fixed inset-0 z-50 overflow-hidden lg:relative lg:inset-auto lg:z-auto',
+                  )}
                   style={{ flexBasis: `${previewWidth}%`, flexGrow: 0, flexShrink: 0 }}
                 >
-                  <Suspense fallback={<div className="flex h-full items-center justify-center text-ak-text-tertiary text-sm">Yükleniyor...</div>}>
-                    <PreviewPanel
-                      files={protoFiles}
-                      title={activeWorkflow?.title}
-                      branch={activeWorkflow?.stages?.proto?.branch}
-                      activities={pipelineActivities}
-                      createdFiles={createdFiles}
-                    />
-                  </Suspense>
+                  {/* Mobile close button */}
+                  <button
+                    onClick={() => setShowPreview(false)}
+                    className="absolute right-3 top-3 z-10 rounded-lg bg-ak-surface-2 p-1.5 text-ak-text-secondary hover:text-ak-text-primary lg:hidden"
+                    aria-label="Önizlemeyi kapat"
+                  >
+                    <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                  <ErrorBoundary fallbackPath="/chat" fallbackLabel="Chat">
+                    <Suspense fallback={<div className="flex h-full items-center justify-center bg-ak-bg text-ak-text-tertiary text-sm">Yükleniyor...</div>}>
+                      <PreviewPanel
+                        files={protoFiles}
+                        title={activeWorkflow?.title}
+                        branch={activeWorkflow?.stages?.proto?.branch}
+                        activities={pipelineActivities}
+                        createdFiles={createdFiles}
+                      />
+                    </Suspense>
+                  </ErrorBoundary>
                 </div>
               </>
             )}

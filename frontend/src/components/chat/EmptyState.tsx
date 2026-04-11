@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import { cn } from '../../utils/cn';
 import { LOGO_MARK_SVG } from '../../theme/brand';
 import { useAuth } from '../../contexts/AuthContext';
+import { useI18n } from '../../i18n/useI18n';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
 import { WelcomeWizard } from '../onboarding/WelcomeWizard';
 import { AgentFeatureCard } from '../onboarding/AgentFeatureCard';
@@ -31,6 +32,7 @@ const TraceIcon = () => (
 
 export function EmptyState({ variant, onNewConversation }: EmptyStateProps) {
   const { user } = useAuth();
+  const { t } = useI18n();
   const reduced = useReducedMotion();
   const [showWizard, setShowWizard] = useState(() => !user?.hasSeenBetaWelcome);
 
@@ -53,10 +55,10 @@ export function EmptyState({ variant, onNewConversation }: EmptyStateProps) {
         <img src={LOGO_MARK_SVG} alt="AKIS" className="h-16 w-16 object-contain opacity-60" loading="eager" />
         <div className="max-w-md text-center">
           <h3 className="text-lg font-semibold text-ak-text-primary">
-            Merhaba! Ben <span className="text-ak-primary">AKIS</span>.
+            {t('chat.emptyState.greeting')} <span className="text-ak-primary">{t('chat.emptyState.brandName')}</span>.
           </h3>
           <p className="mt-1.5 text-sm text-ak-text-tertiary leading-relaxed">
-            Yazılım fikrinizi anlatın, birlikte hayata geçirelim.
+            {t('chat.emptyState.subtitle')}
           </p>
         </div>
         <div className="flex items-center gap-2 text-[10px] text-ak-text-tertiary">
@@ -99,14 +101,13 @@ export function EmptyState({ variant, onNewConversation }: EmptyStateProps) {
 
           <div className="text-center">
             <h2 className={cn('text-2xl font-bold text-ak-text-primary', !reduced && 'animate-fade-in')}>
-              Merhaba! Ben <span className="text-ak-primary">AKIS</span>.
+              {t('chat.emptyState.greeting')} <span className="text-ak-primary">{t('chat.emptyState.brandName')}</span>.
             </h2>
             <p className={cn(
               'mt-2 text-sm text-ak-text-tertiary leading-relaxed max-w-md mx-auto',
               !reduced && 'animate-fade-in',
             )} style={!reduced ? { animationDelay: '100ms', animationFillMode: 'backwards' } : undefined}>
-              Yazılım fikrinizi anlatın, birlikte hayata geçirelim.
-              Spec yazacağım, onaylayın, kodu ve testleri otomatik oluşturayım.
+              {t('chat.emptyState.heroSubtitle')}
             </p>
           </div>
 
@@ -115,21 +116,21 @@ export function EmptyState({ variant, onNewConversation }: EmptyStateProps) {
             <AgentFeatureCard
               agent="scribe"
               title="Scribe"
-              description="Fikrinizi detaylı bir spesifikasyona dönüştürür"
+              description={t('chat.emptyState.scribeDesc')}
               icon={<ScribeIcon />}
               delay={reduced ? 0 : 200}
             />
             <AgentFeatureCard
               agent="proto"
               title="Proto"
-              description="Spec'e göre çalışır MVP kodu üretir"
+              description={t('chat.emptyState.protoDesc')}
               icon={<ProtoIcon />}
               delay={reduced ? 0 : 400}
             />
             <AgentFeatureCard
               agent="trace"
               title="Trace"
-              description="Üretilen kodu doğrulayacak testleri yazar"
+              description={t('chat.emptyState.traceDesc')}
               icon={<TraceIcon />}
               delay={reduced ? 0 : 600}
             />
@@ -146,7 +147,7 @@ export function EmptyState({ variant, onNewConversation }: EmptyStateProps) {
               )}
               style={!reduced ? { animationDelay: '700ms', animationFillMode: 'backwards' } : undefined}
             >
-              + Yeni Sohbet Başlat
+              {t('chat.emptyState.newChat')}
             </button>
           )}
         </div>

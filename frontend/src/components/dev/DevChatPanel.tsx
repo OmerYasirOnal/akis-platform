@@ -37,7 +37,7 @@ export function DevChatPanel({ pipelineId, isCompleted }: DevChatPanelProps) {
       setSessionId(data.sessionId);
       setMessages(data.messages || []);
     } catch (err) {
-      console.error('Failed to start dev session:', err);
+      if (import.meta.env.DEV) console.error('Failed to start dev session:', err);
     } finally {
       setIsStarting(false);
     }
@@ -92,7 +92,7 @@ export function DevChatPanel({ pipelineId, isCompleted }: DevChatPanelProps) {
       const sessionData = await devSessionApi.getSession(pipelineId);
       setMessages(sessionData.messages);
     } catch (err) {
-      console.error('Chat error:', err);
+      if (import.meta.env.DEV) console.error('Chat error:', err);
       setStreamingText('');
     } finally {
       setIsLoading(false);
@@ -110,7 +110,7 @@ export function DevChatPanel({ pipelineId, isCompleted }: DevChatPanelProps) {
           : m
       ));
     } catch (err) {
-      console.error('Push failed:', err);
+      if (import.meta.env.DEV) console.error('Push failed:', err);
     } finally {
       setPushingId(null);
     }
@@ -124,7 +124,7 @@ export function DevChatPanel({ pipelineId, isCompleted }: DevChatPanelProps) {
         m.id === messageId ? { ...m, changeStatus: 'rejected' as const } : m
       ));
     } catch (err) {
-      console.error('Reject failed:', err);
+      if (import.meta.env.DEV) console.error('Reject failed:', err);
     }
   };
 

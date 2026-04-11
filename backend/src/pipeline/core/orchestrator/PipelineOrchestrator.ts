@@ -20,6 +20,7 @@ import { RETRY_CONFIG, createPipelineError, PipelineErrorCode, PipelineNotFoundE
 import { createActivityEmitter, emitActivity, cleanupPipelineListeners } from '../activityEmitter.js';
 import { withRetry } from '../retryWrapper.js';
 import { scoreScribeEffort, scoreProtoEffort, scoreTraceEffort } from '../effortScorer.js';
+import { logger } from '../../../lib/logger.js';
 import type { ScribeAgent, ScribeState, ScribeResult } from '../../agents/scribe/ScribeAgent.js';
 import type { ProtoAgent } from '../../agents/proto/ProtoAgent.js';
 import type { TraceAgent } from '../../agents/trace/TraceAgent.js';
@@ -157,8 +158,8 @@ export class PipelineOrchestrator {
 
     // Run Scribe in background (non-blocking)
     this.runScribeAnalysis(pipeline.id, pipeline.metrics, input, conversation, model).catch((err) => {
-      console.error(`[Pipeline] Background Scribe failed for ${pipeline.id}:`, err);
-      this.failPipeline(pipeline.id, 'Scribe', err).catch((e) => console.error('[Pipeline] failPipeline also failed:', e));
+      logger.error({ err, pipelineId: pipeline.id }, '[Pipeline] Background Scribe failed');
+      this.failPipeline(pipeline.id, 'Scribe', err).catch((e) => logger.error({ err: e }, '[Pipeline] failPipeline also failed'));
     });
 
     return updated;
@@ -179,7 +180,7 @@ export class PipelineOrchestrator {
     // Effort-based model routing
     const effort = scoreScribeEffort(input.idea);
     const effectiveModel = model ?? effort.model;
-    console.log(`[Scribe] Effort: ${effort.score}/10 → Model: ${effectiveModel} (${effort.reasoning})`);
+    logger.info(`[Scribe] Effort: ${effort.score}/10 → Model: ${effectiveModel} (${effort.reasoning})`);
 
     const agents = this.getAgents(effectiveModel);
     const scribeState = agents.scribe.createInitialState(input);
@@ -194,7 +195,7 @@ export class PipelineOrchestrator {
       {
         maxAttempts: 3,
         onError: (err, attempt) =>
-          console.warn(`[Pipeline] Scribe analyzIdea attempt ${attempt} failed:`, err),
+          logger.warn({ err, attempt }, '[Pipeline] Scribe analyzIdea attempt failed'),
       },
     );
 
@@ -245,8 +246,8 @@ export class PipelineOrchestrator {
 
     // Run Scribe continuation in background
     this.runScribeContinuation(pipelineId, pipeline.metrics, scribeState, conversation, pipeline.model).catch((err) => {
-      console.error(`[Pipeline] Background Scribe continuation failed for ${pipelineId}:`, err);
-      this.failPipeline(pipelineId, 'Scribe', err).catch((e) => console.error('[Pipeline] failPipeline also failed:', e));
+      logger.error({ err, pipelineId }, '[Pipeline] Background Scribe continuation failed');
+      this.failPipeline(pipelineId, 'Scribe', err).catch((e) => logger.error({ err: e }, '[Pipeline] failPipeline also failed'));
     });
 
     return updated;
@@ -274,7 +275,7 @@ export class PipelineOrchestrator {
       {
         maxAttempts: 3,
         onError: (err, attempt) =>
-          console.warn(`[Pipeline] Scribe continueAfterAnswer attempt ${attempt} failed:`, err),
+          logger.warn({ err, attempt }, '[Pipeline] Scribe continueAfterAnswer attempt failed'),
       },
     );
 
@@ -353,8 +354,8 @@ export class PipelineOrchestrator {
     // Create per-user GitHub adapter and run Proto + Trace in background
     const userGithubService = this.createGitHubService(userGitHubToken);
     this.runProtoAndTrace(pipelineId, pipeline.metrics, spec, repoName, repoVisibility, owner, pipeline.model, userGithubService).catch((err) => {
-      console.error(`[Pipeline] Background Proto+Trace failed for ${pipelineId}:`, err);
-      this.failPipeline(pipelineId, 'Proto/Trace', err).catch((e) => console.error('[Pipeline] failPipeline also failed:', e));
+      logger.error({ err, pipelineId }, '[Pipeline] Background Proto+Trace failed');
+      this.failPipeline(pipelineId, 'Proto/Trace', err).catch((e) => logger.error({ err: e }, '[Pipeline] failPipeline also failed'));
     });
 
     return updated;
@@ -378,7 +379,7 @@ export class PipelineOrchestrator {
     // Effort-based model routing for Proto
     const protoEffort = scoreProtoEffort(spec);
     const protoModel = model ?? protoEffort.model;
-    console.log(`[Proto] Effort: ${protoEffort.score}/10 → Model: ${protoModel} (${protoEffort.reasoning})`);
+    logger.info(`[Proto] Effort: ${protoEffort.score}/10 → Model: ${protoModel} (${protoEffort.reasoning})`);
 
     // Use per-user GitHub adapter if available, otherwise default agents
     const agents = userGithubService
@@ -397,7 +398,7 @@ export class PipelineOrchestrator {
       {
         maxAttempts: 3,
         onError: (err, attempt) =>
-          console.warn(`[Pipeline] Proto execute attempt ${attempt} failed:`, err),
+          logger.warn({ err, attempt }, '[Pipeline] Proto execute attempt failed'),
       },
     );
 
@@ -525,13 +526,13 @@ export class PipelineOrchestrator {
     // Determine which stage failed based on existing data
     if (pipeline.protoOutput && !pipeline.traceOutput) {
       this.retryTrace(pipelineId, pipeline).catch((err) => {
-        console.error(`[Pipeline] Retry trace failed for ${pipelineId}:`, err);
+        logger.error({ err, pipelineId }, '[Pipeline] Retry trace failed');
       });
       return updated;
     }
     if (pipeline.approvedSpec && !pipeline.protoOutput) {
       this.retryProto(pipelineId, pipeline).catch((err) => {
-        console.error(`[Pipeline] Retry proto failed for ${pipelineId}:`, err);
+        logger.error({ err, pipelineId }, '[Pipeline] Retry proto failed');
       });
       return updated;
     }
@@ -665,7 +666,7 @@ export class PipelineOrchestrator {
     // Effort-based model routing for Trace (estimate from spec criteria count)
     const traceEffort = scoreTraceEffort({ fileCount: spec?.acceptanceCriteria?.length ?? 5 });
     const traceModel = model ?? traceEffort.model;
-    console.log(`[Trace] Effort: ${traceEffort.score}/10 → Model: ${traceModel} (${traceEffort.reasoning})`);
+    logger.info(`[Trace] Effort: ${traceEffort.score}/10 → Model: ${traceModel} (${traceEffort.reasoning})`);
 
     const agents = this.getAgents(traceModel);
     await this.writeCheckpoint(pipelineId, 'trace', `${owner}/${repo}@${branch}`);
@@ -683,7 +684,7 @@ export class PipelineOrchestrator {
         onError: (err, attempt) => {
           const isTimeout = err instanceof Error && err.message.includes('timed out');
           const detail = isTimeout ? 'stage timeout' : (err instanceof Error ? err.message : String(err));
-          console.warn(`[Pipeline] Trace attempt ${attempt} failed (${detail})`);
+          logger.warn({ attempt, detail }, '[Pipeline] Trace attempt failed');
           traceEmit('error', `Trace hatası (deneme ${attempt}): ${isTimeout ? 'zaman aşımı' : 'beklenmeyen hata'}`, 0);
         },
       },
@@ -936,10 +937,10 @@ export class PipelineOrchestrator {
         return; // success
       } catch (storeErr) {
         if (attempt < retryDelays.length) {
-          console.warn(`[Pipeline] failPipeline attempt ${attempt + 1} failed for ${pipelineId}, retrying in ${retryDelays[attempt]}ms:`, storeErr);
+          logger.warn({ err: storeErr, pipelineId, attempt: attempt + 1 }, `[Pipeline] failPipeline attempt failed, retrying in ${retryDelays[attempt]}ms`);
           await new Promise((r) => setTimeout(r, retryDelays[attempt]));
         } else {
-          console.error(`[Pipeline] CRITICAL: failPipeline exhausted all retries for ${pipelineId}. Pipeline may be stuck.`, storeErr);
+          logger.error({ err: storeErr, pipelineId }, '[Pipeline] CRITICAL: failPipeline exhausted all retries. Pipeline may be stuck.');
         }
       }
     }
@@ -974,10 +975,10 @@ export class PipelineOrchestrator {
         await this.store.update(pipelineId, {
           jiraConfig: { projectKey, enabled: true, epicKey },
         });
-        console.log(`[Pipeline] Jira Epic ${epicKey} linked to pipeline ${pipelineId}`);
+        logger.info(`[Pipeline] Jira Epic ${epicKey} linked to pipeline ${pipelineId}`);
       }
     } catch (err) {
-      console.warn(`[Pipeline] Jira Epic creation failed (non-fatal):`, err);
+      logger.warn({ err }, '[Pipeline] Jira Epic creation failed (non-fatal)');
     }
   }
 
@@ -991,7 +992,7 @@ export class PipelineOrchestrator {
       if (!jira) return;
       await commentJiraWithProtoResult(jira, epicKey, result);
     } catch (err) {
-      console.warn(`[Pipeline] Jira Proto comment failed (non-fatal):`, err);
+      logger.warn({ err }, '[Pipeline] Jira Proto comment failed (non-fatal)');
     }
   }
 
@@ -1005,7 +1006,7 @@ export class PipelineOrchestrator {
       if (!jira) return;
       await commentJiraWithTraceResult(jira, epicKey, result);
     } catch (err) {
-      console.warn(`[Pipeline] Jira Trace comment failed (non-fatal):`, err);
+      logger.warn({ err }, '[Pipeline] Jira Trace comment failed (non-fatal)');
     }
   }
 
