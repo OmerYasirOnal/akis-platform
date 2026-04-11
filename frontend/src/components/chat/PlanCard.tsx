@@ -90,8 +90,9 @@ export function PlanCard({ plan, version, status, isChangeRequest, onApprove, on
                     </span>
                     <span>
                       <span className="font-medium text-ak-text-primary">{f.name}</span>
-                      {' — '}
-                      {f.description}
+                      {f.description && (
+                        <span className="text-ak-text-tertiary">{' — '}{f.description}</span>
+                      )}
                     </span>
                   </li>
                 ))}

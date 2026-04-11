@@ -82,10 +82,14 @@ function specToUserFriendlyPlan(spec: StructuredSpec): UserFriendlyPlan {
   return {
     projectName: spec.title ?? 'Proje',
     summary: spec.problemStatement,
-    features: spec.userStories.map((s) => ({
-      name: s.persona || s.as || 'Kullanici',
-      description: s.action || s.iWant || s.benefit || '',
-    })),
+    features: spec.userStories.map((s) => {
+      const action = s.action || s.iWant || '';
+      const benefit = s.benefit || s.soThat || '';
+      return {
+        name: action,
+        description: benefit,
+      };
+    }),
     techChoices,
     estimatedFiles: Math.max((spec.userStories?.length ?? 1) * 3, 5),
     requiresTests: true,
@@ -200,7 +204,9 @@ export default function ChatPage() {
     workflowsApi.list().then((workflows) => {
       // Hide cancelled pipelines from sidebar
       setConversations(workflows.filter((w) => w.status !== 'cancelled').map(workflowToListItem));
-    }).catch(() => {});
+    }).catch((e) => {
+      console.warn('Failed to load conversation list:', e);
+    });
   }, []);
 
   useEffect(() => { refreshList(); }, [refreshList]);
@@ -425,7 +431,7 @@ export default function ChatPage() {
   }, [conversationId, refreshWorkflow]);
 
   return (
-    <div className="flex h-screen overflow-hidden bg-ak-bg">
+    <div className="flex h-screen overflow-hidden bg-ak-bg" role="application" aria-label="AKIS Chat">
       {/* Mobile overlay */}
       {sidebarOpen && (
         <div className="fixed inset-0 z-30 bg-black/50 md:hidden" onClick={() => setSidebarOpen(false)} />
