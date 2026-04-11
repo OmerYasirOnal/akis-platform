@@ -289,13 +289,15 @@ export async function devSessionPlugin(
         commitMessage,
       );
 
-      await db.update(devMessages)
-        .set({ changeStatus: 'pushed', commitSha })
-        .where(eq(devMessages.id, messageId));
+      await db.transaction(async (tx) => {
+        await tx.update(devMessages)
+          .set({ changeStatus: 'pushed', commitSha })
+          .where(eq(devMessages.id, messageId));
 
-      await db.update(devSessions)
-        .set({ totalCommits: sql`total_commits + 1`, updatedAt: new Date() })
-        .where(eq(devSessions.id, sessionId));
+        await tx.update(devSessions)
+          .set({ totalCommits: sql`total_commits + 1`, updatedAt: new Date() })
+          .where(eq(devSessions.id, sessionId));
+      });
 
       return reply.send({
         commitSha,

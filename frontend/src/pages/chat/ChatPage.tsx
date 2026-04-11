@@ -190,7 +190,7 @@ export default function ChatPage() {
   const loadedIdRef = useRef<string | undefined>(undefined);
 
   const isRunning = activeWorkflow ? isRunningStage(activeWorkflow.currentStage) : false;
-  usePipelineStream(conversationId ?? '', isRunning);
+  const { activities: pipelineActivities, currentStep } = usePipelineStream(conversationId ?? '', isRunning);
 
   // Load conversation list — only on mount and after mutations, NOT on every chat switch
   const refreshList = useCallback(() => {
@@ -488,6 +488,8 @@ export default function ChatPage() {
               onSkip={handleSkip}
               onBack={() => { setPendingConv(null); navigate('/chat'); }}
               showBackButton
+              currentStep={currentStep}
+              activities={pipelineActivities}
             />
           </ErrorBoundary>
         ) : (
