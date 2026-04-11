@@ -148,14 +148,15 @@ export async function healthRoutes(fastify: FastifyInstance) {
     async (_request, reply) => {
       const timestamp = new Date().toISOString();
       const encryptionStatus = { configured: isEncryptionConfigured() };
+      const isProd = process.env.NODE_ENV === 'production';
       const emailProvider = process.env.EMAIL_PROVIDER || 'mock';
       const emailStatus: Record<string, unknown> = {
         configured: isEmailConfigured(emailProvider),
         provider: emailProvider,
       };
 
-      // Add SMTP details when provider is smtp (no secrets, just host/port/from)
-      if (emailProvider === 'smtp') {
+      // Add SMTP details only in non-production (prevents info leakage)
+      if (emailProvider === 'smtp' && !isProd) {
         emailStatus.host = process.env.SMTP_HOST || null;
         emailStatus.port = process.env.SMTP_PORT ? Number(process.env.SMTP_PORT) : 587;
         emailStatus.from = process.env.SMTP_FROM_EMAIL || null;
@@ -169,32 +170,34 @@ export async function healthRoutes(fastify: FastifyInstance) {
         oauthStatus = {
           google: !!(cfg.GOOGLE_OAUTH_CLIENT_ID && cfg.GOOGLE_OAUTH_CLIENT_SECRET),
           github: !!(cfg.GITHUB_OAUTH_CLIENT_ID && cfg.GITHUB_OAUTH_CLIENT_SECRET),
-          callbackBase: cfg.BACKEND_URL ? `${cfg.BACKEND_URL}/auth/oauth` : 'NOT_SET',
+          // Hide callback URL in production (reconnaissance prevention)
+          ...(isProd ? {} : { callbackBase: cfg.BACKEND_URL ? `${cfg.BACKEND_URL}/auth/oauth` : 'NOT_SET' }),
         };
       } catch {
-        oauthStatus = { google: false, github: false, callbackBase: 'env_error' };
+        oauthStatus = { google: false, github: false };
       }
 
       // MCP Gateway readiness (non-blocking, never leaks tokens)
       let mcpStatus: Record<string, unknown>;
       try {
         const mcpHealth = await checkMcpHealth();
-        const missingEnv: string[] = [];
-        if (!mcpHealth.gatewayUrl) missingEnv.push('GITHUB_MCP_BASE_URL');
-        if (!process.env.GITHUB_TOKEN) missingEnv.push('GITHUB_TOKEN');
         mcpStatus = {
           configured: !!mcpHealth.gatewayUrl && !!process.env.GITHUB_TOKEN,
           gatewayReachable: mcpHealth.healthy,
-          baseUrl: mcpHealth.gatewayUrl || null,
-          missingEnv,
+          // Hide internal URLs and missing env details in production
+          ...(isProd ? {} : {
+            baseUrl: mcpHealth.gatewayUrl || null,
+            missingEnv: [
+              ...(!mcpHealth.gatewayUrl ? ['GITHUB_MCP_BASE_URL'] : []),
+              ...(!process.env.GITHUB_TOKEN ? ['GITHUB_TOKEN'] : []),
+            ],
+          }),
           error: (!mcpHealth.healthy && mcpHealth.error) ? mcpHealth.error : null,
         };
       } catch {
         mcpStatus = {
           configured: false,
           gatewayReachable: false,
-          baseUrl: null,
-          missingEnv: ['GITHUB_MCP_BASE_URL', 'GITHUB_TOKEN'],
           error: 'MCP health check failed unexpectedly',
         };
       }
