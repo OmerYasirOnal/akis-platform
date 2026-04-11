@@ -1,5 +1,5 @@
 import type { Pipeline, PipelineStage } from '../types/pipeline';
-import type { ChatMessage, ConversationUIState, ConversationListItem, ConversationStatus } from '../types/chat';
+import type { ChatMessage, ChatMode, ConversationUIState, ConversationListItem, ConversationStatus } from '../types/chat';
 
 /**
  * Maps a backend PipelineStage to the frontend ConversationUIState.
@@ -24,6 +24,29 @@ export function mapStageToUIState(stage: PipelineStage): ConversationUIState {
     case 'cancelled':
     default:
       return 'idle';
+  }
+}
+
+/**
+ * Maps a PipelineStage to a semantic chat mode (Plan/Act/Ask/Review).
+ */
+export function mapStageToMode(stage?: PipelineStage): ChatMode {
+  switch (stage) {
+    case 'scribe_clarifying':
+      return 'ask';
+    case 'scribe_generating':
+    case 'awaiting_approval':
+      return 'plan';
+    case 'proto_building':
+    case 'trace_testing':
+    case 'ci_running':
+      return 'act';
+    case 'completed_partial':
+    case 'failed':
+      return 'review';
+    case 'completed':
+    default:
+      return 'ask';
   }
 }
 

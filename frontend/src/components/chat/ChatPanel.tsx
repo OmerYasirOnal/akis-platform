@@ -24,6 +24,10 @@ interface ChatPanelProps {
   branch?: string;
   prUrl?: string;
   prNumber?: number;
+  mode?: import('../../types/chat').ChatMode;
+  hasPreview?: boolean;
+  showPreview?: boolean;
+  onTogglePreview?: () => void;
   messages: ChatMessageType[];
   uiState: ConversationUIState;
   isInputEnabled: boolean;
@@ -49,6 +53,10 @@ export function ChatPanel({
   branch,
   prUrl,
   prNumber,
+  mode,
+  hasPreview,
+  showPreview,
+  onTogglePreview,
   messages,
   uiState,
   isInputEnabled,
@@ -129,6 +137,10 @@ export function ChatPanel({
           branch={branch}
           prUrl={prUrl}
           prNumber={prNumber}
+          mode={mode}
+          hasPreview={hasPreview}
+          showPreview={showPreview}
+          onTogglePreview={onTogglePreview}
           onBack={onBack}
           showBackButton={showBackButton}
         />

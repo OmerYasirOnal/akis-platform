@@ -1,4 +1,12 @@
 import { cn } from '../../utils/cn';
+import type { ChatMode } from '../../types/chat';
+
+const MODE_STYLES: Record<ChatMode, string> = {
+  ask: 'bg-blue-500/15 text-blue-400',
+  plan: 'bg-orange-500/15 text-orange-400',
+  act: 'bg-emerald-500/15 text-emerald-400',
+  review: 'bg-yellow-500/15 text-yellow-400',
+};
 
 interface ChatHeaderProps {
   repoShortName: string;
@@ -7,6 +15,10 @@ interface ChatHeaderProps {
   branch?: string;
   prUrl?: string;
   prNumber?: number;
+  mode?: ChatMode;
+  hasPreview?: boolean;
+  showPreview?: boolean;
+  onTogglePreview?: () => void;
   onBack?: () => void;
   showBackButton?: boolean;
 }
@@ -18,11 +30,15 @@ export function ChatHeader({
   branch,
   prUrl,
   prNumber,
+  mode,
+  hasPreview,
+  showPreview,
+  onTogglePreview,
   onBack,
   showBackButton,
 }: ChatHeaderProps) {
   return (
-    <div className="flex items-center gap-3 border-b border-ak-border bg-ak-surface px-4 py-3">
+    <div className="flex items-center gap-2 border-b border-ak-border bg-ak-surface px-4 py-3">
       {showBackButton && (
         <button
           onClick={onBack}
@@ -33,6 +49,13 @@ export function ChatHeader({
             <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
           </svg>
         </button>
+      )}
+
+      {/* Mode badge */}
+      {mode && (
+        <span className={cn('rounded px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider', MODE_STYLES[mode])}>
+          {mode}
+        </span>
       )}
 
       <div className="min-w-0 flex-1">
@@ -50,6 +73,7 @@ export function ChatHeader({
         )}
       </div>
 
+      {/* Repo badge */}
       {repoFullName && repoUrl && (
         <a
           href={repoUrl}
@@ -67,6 +91,7 @@ export function ChatHeader({
         </a>
       )}
 
+      {/* Branch badge */}
       {branch && (
         <div className="hidden items-center gap-1.5 sm:flex">
           <svg className="h-3 w-3 text-green-400" fill="currentColor" viewBox="0 0 16 16">
@@ -78,6 +103,26 @@ export function ChatHeader({
         </div>
       )}
 
+      {/* Preview toggle */}
+      {hasPreview && (
+        <button
+          onClick={onTogglePreview}
+          className={cn(
+            'hidden items-center gap-1 rounded-lg border px-2.5 py-1 text-[11px] font-medium sm:flex transition-colors',
+            showPreview
+              ? 'border-ak-primary bg-ak-primary/10 text-ak-primary'
+              : 'border-ak-border text-ak-text-secondary hover:border-ak-primary hover:text-ak-primary',
+          )}
+        >
+          <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+            <path strokeLinecap="round" strokeLinejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          Preview
+        </button>
+      )}
+
+      {/* PR badge */}
       {prUrl && prNumber && (
         <a
           href={prUrl}

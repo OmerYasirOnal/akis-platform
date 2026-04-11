@@ -515,8 +515,8 @@ export class TraceAgent {
   }
 
   private extractJson(text: string): string {
-    // Strategy 1: fenced code block
-    const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/);
+    // Strategy 1: fenced code block (also handles truncated blocks without closing ```)
+    const fenced = text.match(/```(?:json)?\s*([\s\S]*?)(?:```|$)/);
     if (fenced) {
       const candidate = fenced[1].trim();
       try { JSON.parse(candidate); return candidate; } catch { /* try repair */ }
@@ -542,6 +542,11 @@ export class TraceAgent {
       try { JSON.parse(repaired); return repaired; } catch { /* fall through */ }
     }
 
+    // Strategy 4: last resort — repair the entire text (handles truncated responses)
+    const lastResort = this.repairJson(text.trim());
+    try { JSON.parse(lastResort); return lastResort; } catch { /* fall through */ }
+
+    console.warn(`[Trace] extractJson: all strategies failed (len=${text.length}), first 300 chars: ${text.slice(0, 300)}`);
     return text.trim();
   }
 

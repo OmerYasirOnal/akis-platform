@@ -1,22 +1,24 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef, lazy, Suspense } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { cn } from '../../utils/cn';
 import { ConversationSidebar } from '../../components/chat/ConversationSidebar';
 import { ChatPanel } from '../../components/chat/ChatPanel';
 import { EmptyState } from '../../components/chat/EmptyState';
-// NewConversationModal removed — "Yeni Sohbet" opens empty chat directly
 import { useConversationState } from '../../hooks/useConversationState';
 import { usePipelineStream } from '../../hooks/usePipelineStream';
 import { useProfileCompleteness } from '../../hooks/useProfileCompleteness';
 import { ProfileSetupBanner } from '../../components/onboarding/ProfileSetupBanner';
 import { ProfileSetupWizard } from '../../components/onboarding/ProfileSetupWizard';
 import { ErrorBoundary } from '../../components/ErrorBoundary';
+import { mapStageToMode } from '../../utils/mapPipelineEvent';
 import type { ConversationListItem, ChatMessage, ConversationStatus } from '../../types/chat';
-import type { Workflow, WorkflowStatus, ConversationMessage, StructuredSpec } from '../../types/workflow';
+import type { Workflow, WorkflowStatus, ConversationMessage, StructuredSpec, FileTreeNode } from '../../types/workflow';
 import type { UserFriendlyPlan } from '../../types/plan';
 import type { PipelineStage } from '../../types/pipeline';
 import { workflowsApi } from '../../services/api/workflows';
 import { LOGO_MARK_SVG } from '../../theme/brand';
+
+const PreviewPanel = lazy(() => import('../../components/workflow/PreviewPanel').then(m => ({ default: m.PreviewPanel })));
 
 /* ── helpers ──────────────────────────────────────── */
 
@@ -167,6 +169,7 @@ export default function ChatPage() {
   // Pending new conversation — created locally, pipeline not yet started on backend
   const [pendingConv, setPendingConv] = useState<{ displayName: string } | null>(null);
   const [showProfileWizard, setShowProfileWizard] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
   const { missingSteps, loading: profileLoading } = useProfileCompleteness();
 
   // Auto-collapse sidebar on tablet resize + re-sync on mount/navigation
@@ -275,6 +278,21 @@ export default function ChatPage() {
     }
     return list;
   }, [conversations, pendingConv]);
+
+  // Proto files for StackBlitz preview
+  const protoFiles = useMemo(() => {
+    const protoMsg = activeWorkflow?.conversation?.find(m => m.type === 'proto_result');
+    if (!protoMsg?.protoResult?.files) return null;
+    const files: Record<string, string> = {};
+    for (const f of protoMsg.protoResult.files) {
+      const path = (f as FileTreeNode).path ?? (f as FileTreeNode).name;
+      if (path) files[path] = (f as unknown as { content?: string }).content ?? '';
+    }
+    return Object.keys(files).length > 0 ? files : null;
+  }, [activeWorkflow]);
+
+  // Chat mode (Plan/Act/Ask/Review)
+  const chatMode = useMemo(() => mapStageToMode(activeWorkflow?.currentStage), [activeWorkflow?.currentStage]);
 
   const handleRename = useCallback(async (id: string, newTitle: string) => {
     // Update locally immediately
@@ -469,30 +487,43 @@ export default function ChatPage() {
         )}
 
         {conversationId || pendingConv ? (
-          <ErrorBoundary>
-            <ChatPanel
-              conversationId={conversationId ?? 'pending'}
-              repoShortName={activeWorkflow?.title ?? pendingConv?.displayName ?? ''}
-              repoFullName={activeWorkflow?.stages?.proto?.repo ?? ''}
-              repoUrl={activeWorkflow?.stages?.proto?.repoUrl}
-              branch={activeWorkflow?.stages?.proto?.branch}
-              messages={messages}
-              uiState={uiState}
-              isInputEnabled={pendingConv ? !creating : isInputEnabled}
-              showCancelButton={showCancelButton}
-              inputPlaceholder={pendingConv ? 'Projenizi anlatın...' : inputPlaceholder}
-              onSend={handleSend}
-              onCancel={handleCancel}
-              onApprove={handleApprove}
-              onReject={handleReject}
-              onRetry={handleRetry}
-              onSkip={handleSkip}
-              onBack={() => { setPendingConv(null); navigate('/chat'); }}
-              showBackButton
-              currentStep={currentStep}
-              activities={pipelineActivities}
-            />
-          </ErrorBoundary>
+          <div className="flex min-w-0 flex-1">
+            <ErrorBoundary>
+              <ChatPanel
+                conversationId={conversationId ?? 'pending'}
+                repoShortName={activeWorkflow?.title ?? pendingConv?.displayName ?? ''}
+                repoFullName={activeWorkflow?.stages?.proto?.repo ?? ''}
+                repoUrl={activeWorkflow?.stages?.proto?.repoUrl}
+                branch={activeWorkflow?.stages?.proto?.branch}
+                mode={chatMode}
+                hasPreview={!!protoFiles}
+                showPreview={showPreview}
+                onTogglePreview={() => setShowPreview(p => !p)}
+                messages={messages}
+                uiState={uiState}
+                isInputEnabled={pendingConv ? !creating : isInputEnabled}
+                showCancelButton={showCancelButton}
+                inputPlaceholder={pendingConv ? 'Projenizi anlatın...' : inputPlaceholder}
+                onSend={handleSend}
+                onCancel={handleCancel}
+                onApprove={handleApprove}
+                onReject={handleReject}
+                onRetry={handleRetry}
+                onSkip={handleSkip}
+                onBack={() => { setPendingConv(null); navigate('/chat'); }}
+                showBackButton
+                currentStep={currentStep}
+                activities={pipelineActivities}
+              />
+            </ErrorBoundary>
+            {showPreview && protoFiles && (
+              <div className="hidden w-1/2 border-l border-ak-border lg:block">
+                <Suspense fallback={<div className="flex h-full items-center justify-center text-ak-text-tertiary text-sm">Yükleniyor...</div>}>
+                  <PreviewPanel files={protoFiles} title={activeWorkflow?.title} branch={activeWorkflow?.stages?.proto?.branch} />
+                </Suspense>
+              </div>
+            )}
+          </div>
         ) : (
           <EmptyState variant="no-conversation" onNewConversation={handleNewConversation} />
         )}

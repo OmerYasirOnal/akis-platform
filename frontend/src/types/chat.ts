@@ -13,6 +13,10 @@ export type ConversationUIState =
   | 'trace_running'
   | 'ci_running';
 
+/* ─── Chat Mode (Plan/Act/Ask/Review) ─────────── */
+
+export type ChatMode = 'ask' | 'plan' | 'act' | 'review';
+
 /* ─── Chat Messages ─────────────────────────────── */
 
 export type AgentName = 'scribe' | 'proto' | 'trace';

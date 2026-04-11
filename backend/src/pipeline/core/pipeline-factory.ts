@@ -58,7 +58,7 @@ function createTraceAIDeps(aiService: AIServiceLike, model?: string): TraceAIDep
       const result = await aiService.generateWorkArtifact({
         systemPrompt,
         task: userPrompt,
-        maxTokens: 16384,
+        maxTokens: 32768,
         modelOverride: model,
       });
       return result.content;
