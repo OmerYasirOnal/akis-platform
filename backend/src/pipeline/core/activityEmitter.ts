@@ -11,23 +11,47 @@ export interface PipelineActivity {
   message: string;
   detail?: string;
   progress?: number; // 0-100
+  retryCount?: number; // >0 when agent is retrying a transient failure
   timestamp: string;
 }
 
+// Ring buffer of recent activities per pipeline — used by the replay endpoint
+// so a client reconnecting mid-pipeline can reconstruct progress state without
+// waiting for the next live emit.
+const ACTIVITY_BUFFER_LIMIT = 50;
+const activityBuffers = new Map<string, PipelineActivity[]>();
+
 export function emitActivity(activity: PipelineActivity): void {
+  const buf = activityBuffers.get(activity.pipelineId) ?? [];
+  buf.push(activity);
+  if (buf.length > ACTIVITY_BUFFER_LIMIT) buf.shift();
+  activityBuffers.set(activity.pipelineId, buf);
   pipelineBus.emit(`pipeline:${activity.pipelineId}`, activity);
 }
 
-/** Remove all listeners for a completed/failed/cancelled pipeline. */
+export function getActivities(pipelineId: string): PipelineActivity[] {
+  return activityBuffers.get(pipelineId) ?? [];
+}
+
+/** Remove all listeners and drop buffered activities for a terminal pipeline. */
 export function cleanupPipelineListeners(pipelineId: string): void {
   pipelineBus.removeAllListeners(`pipeline:${pipelineId}`);
+  // Defer buffer cleanup so a client returning right after completion can
+  // still fetch the final state; 5 min is enough to cover typical reloads.
+  setTimeout(() => activityBuffers.delete(pipelineId), 5 * 60 * 1000).unref();
 }
 
 export function createActivityEmitter(
   pipelineId: string,
   stage: PipelineActivity['stage'],
 ) {
-  return (step: string, message: string, progress?: number, detail?: string) => {
+  return (
+    step: string,
+    message: string,
+    progress?: number,
+    detail?: string,
+    retryCount?: number,
+  ) => {
     emitActivity({
       pipelineId,
       stage,
@@ -35,6 +59,7 @@ export function createActivityEmitter(
       message,
       progress,
       detail,
+      retryCount,
       timestamp: new Date().toISOString(),
     });
   };

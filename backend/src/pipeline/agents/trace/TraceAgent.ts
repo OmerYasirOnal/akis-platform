@@ -168,7 +168,7 @@ export class TraceAgent {
       : undefined;
 
     // Step 1: Read codebase from GitHub
-    emit?.('fetching', 'Scaffold branch\'inden kaynak dosyalar alınıyor...', 15);
+    emit?.('fetching', 'Kaynak dosyalar okunuyor', 10);
     const codebaseResult = await this.readCodebase(input.repoOwner, input.repo, input.branch, emit);
     if (codebaseResult.type === 'error') {
       emit?.('error', 'Kod tabanı okunamadı', 0);
@@ -187,11 +187,9 @@ export class TraceAgent {
       };
     }
 
-    emit?.('analyzing', `${files.length} kaynak dosya analiz ediliyor...`, 30);
+    emit?.('analyzing', `Test stratejisi belirleniyor (${files.length} dosya)`, 30);
 
     // Step 2: Generate tests via AI (with dedicated timeout)
-    const totalChars = files.reduce((sum, f) => sum + f.content.length, 0);
-    emit?.('ai_call', `Claude AI ile Playwright testleri oluşturuluyor (${files.length} dosya, ${Math.round(totalChars / 1024)}KB)...`, 45);
     const testsResult = await this.generateTests(files, input.spec, emit);
     if (testsResult.type === 'error') {
       emit?.('error', 'Test üretimi başarısız oldu', 0);
@@ -199,7 +197,7 @@ export class TraceAgent {
     }
 
     const { testFiles, coverageMatrix, testSummary } = testsResult.data;
-    emit?.('parsing', `AI yanıtından ${testFiles.length} test dosyası çıkarıldı`, 75);
+    emit?.('parsing', `${testFiles.length} test dosyası hazırlandı`, 75);
 
     // Generate BDD/Gherkin feature files from spec
     const gherkinResult = input.spec
@@ -222,7 +220,7 @@ export class TraceAgent {
 
     // Step 3: Push test files + Gherkin features to Proto's branch
     const branchName = input.branch;
-    emit?.('traceability', 'Testler kabul kriterlerine eşleniyor...', 85);
+    emit?.('traceability', 'Testler doğrulanıyor', 85);
 
     // Combine Playwright test files with Gherkin feature/step files for push
     const allFilesToPush: TraceOutput['testFiles'] = [
@@ -258,7 +256,7 @@ export class TraceAgent {
       // PR failure is non-fatal — tests are already pushed
     }
 
-    emit?.('complete', `${testFiles.length} test dosyası oluşturuldu`, 100);
+    emit?.('complete', `Tamamlandı — ${testFiles.length} test dosyası hazır`, 100);
     return {
       type: 'output',
       data: {
@@ -280,7 +278,7 @@ export class TraceAgent {
     owner: string,
     repo: string,
     branch: string,
-    emit?: (phase: string, detail: string, progress: number) => void,
+    emit?: ReturnType<typeof createActivityEmitter>,
   ): Promise<
     | { type: 'output'; data: Array<{ filePath: string; content: string }> }
     | { type: 'error'; error: PipelineError }
@@ -320,7 +318,7 @@ export class TraceAgent {
         return { type: 'output', data: contents };
       } catch (err) {
         if (attempt < RETRY_CONFIG.maxRetries) {
-          emit?.('retry', `Dosya okuma yeniden deneniyor (${attempt + 1})...`, 15);
+          emit?.('retry', 'Bağlantı yeniden kuruluyor', 10, undefined, attempt + 1);
           await this.delay(RETRY_CONFIG.backoffDelays[attempt]);
           continue;
         }
@@ -350,7 +348,7 @@ export class TraceAgent {
   private async generateTests(
     files: Array<{ filePath: string; content: string }>,
     spec?: StructuredSpec,
-    emit?: (phase: string, detail: string, progress: number) => void,
+    emit?: ReturnType<typeof createActivityEmitter>,
   ): Promise<
     | { type: 'output'; data: Pick<TraceOutput, 'testFiles' | 'coverageMatrix' | 'testSummary'> }
     | { type: 'error'; error: PipelineError }
@@ -364,15 +362,19 @@ export class TraceAgent {
     for (let attempt = 0; attempt <= RETRY_CONFIG.specValidationMaxRetries; attempt++) {
       let responseText: string;
       try {
-        emit?.('ai_call', `AI çağrısı yapılıyor (deneme ${attempt + 1})...`, 45 + attempt * 5);
+        if (attempt === 0) {
+          emit?.('ai_call', 'Playwright testleri oluşturuluyor', 45);
+        } else {
+          emit?.('ai_call', 'Playwright testleri oluşturuluyor', 45, undefined, attempt);
+        }
         const aiPromise = this.ai.generateText(TEST_GENERATION_PROMPT, userPrompt);
         responseText = await withAiTimeout(aiPromise, AI_CALL_TIMEOUT_MS);
-        emit?.('parsing', 'AI yanıtı alındı, ayrıştırılıyor...', 65);
+        emit?.('parsing', 'Yanıt işleniyor', 65);
       } catch (err) {
         const isTimeout = err instanceof Error && err.message.includes('timed out');
         if (isTimeout) {
           logger.warn(`[Trace] AI call timed out after ${AI_CALL_TIMEOUT_MS / 1000}s (attempt ${attempt + 1})`);
-          emit?.('retry', `AI yanıt vermedi, tekrar deneniyor...`, 40);
+          emit?.('retry', 'Yeniden deneniyor', 40, undefined, attempt + 1);
         }
         if (attempt < RETRY_CONFIG.specValidationMaxRetries) continue;
         return {

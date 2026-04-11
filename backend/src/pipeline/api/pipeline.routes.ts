@@ -21,6 +21,7 @@ import {
   RejectSpecRequestSchema,
 } from '../core/contracts/PipelineSchemas.js';
 import type { PipelineOrchestrator } from '../core/orchestrator/PipelineOrchestrator.js';
+import { getActivities } from '../core/activityEmitter.js';
 
 export interface PipelineRoutesDeps {
   orchestrator: PipelineOrchestrator;
@@ -52,6 +53,11 @@ export function createPipelineRoutes(deps: PipelineRoutesDeps) {
       const { id } = (request as { params: { id: string } }).params;
       const pipeline = await orchestrator.getStatus(id);
       return { pipeline };
+    },
+
+    async getActivities(request: unknown) {
+      const { id } = (request as { params: { id: string } }).params;
+      return { activities: getActivities(id) };
     },
 
     async sendMessage(request: unknown) {

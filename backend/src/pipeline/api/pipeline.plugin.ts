@@ -139,6 +139,11 @@ export async function pipelinePlugin(
     return routes.getStatus(request);
   });
 
+  // GET /api/pipelines/:id/activities — replay buffered activities for state recovery
+  fastify.get('/:id/activities', { preHandler: [authPreHandler, ownershipPreHandler] }, async (request: FastifyRequest) => {
+    return routes.getActivities(request);
+  });
+
   // POST /api/pipelines/:id/message — send message to Scribe
   fastify.post('/:id/message', { preHandler: [authPreHandler, ownershipPreHandler] }, async (request: FastifyRequest) => {
     return routes.sendMessage(request);
