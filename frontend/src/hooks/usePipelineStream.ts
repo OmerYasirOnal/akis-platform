@@ -15,6 +15,7 @@ interface UsePipelineStreamResult {
   currentStep: PipelineActivity | null;
   isConnected: boolean;
   progressByStage: Record<string, number>;
+  createdFiles: string[];
 }
 
 export function usePipelineStream(
@@ -22,6 +23,7 @@ export function usePipelineStream(
   isActive: boolean,
 ): UsePipelineStreamResult {
   const [activities, setActivities] = useState<PipelineActivity[]>([]);
+  const [createdFiles, setCreatedFiles] = useState<string[]>([]);
   const [isConnected, setIsConnected] = useState(false);
   const esRef = useRef<EventSource | null>(null);
 
@@ -29,6 +31,7 @@ export function usePipelineStream(
     // Clear activities synchronously before establishing new connection
     // (prevents race condition where old activities leak into new pipeline)
     setActivities([]);
+    setCreatedFiles([]);
 
     if (!pipelineId || !isActive) {
       if (esRef.current) {
@@ -66,7 +69,18 @@ export function usePipelineStream(
         try {
           const data = JSON.parse(event.data);
           if (data.type === 'connected') return;
-          setActivities((prev) => [...prev, data as PipelineActivity]);
+          const activity = data as PipelineActivity;
+          setActivities((prev) => [...prev, activity]);
+
+          // Track file_created events for real-time file list
+          if (activity.step === 'file_created' && activity.detail) {
+            setCreatedFiles((prev) => [...prev, activity.detail!]);
+          }
+
+          // Reset file list when stage moves away from proto
+          if (activity.stage !== 'proto') {
+            setCreatedFiles([]);
+          }
         } catch {
           // parse error — ignore
         }
@@ -95,5 +109,5 @@ export function usePipelineStream(
     {},
   );
 
-  return { activities, currentStep, isConnected, progressByStage };
+  return { activities, currentStep, isConnected, progressByStage, createdFiles };
 }

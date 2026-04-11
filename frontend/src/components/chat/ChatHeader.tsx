@@ -107,8 +107,9 @@ export function ChatHeader({
       {hasPreview && (
         <button
           onClick={onTogglePreview}
+          aria-label={showPreview ? 'Preview kapat' : 'Preview aç'}
           className={cn(
-            'hidden items-center gap-1 rounded-lg border px-2.5 py-1 text-[11px] font-medium sm:flex transition-colors',
+            'hidden items-center gap-1 rounded-lg border px-2.5 py-1 text-[11px] font-medium lg:flex transition-colors',
             showPreview
               ? 'border-ak-primary bg-ak-primary/10 text-ak-primary'
               : 'border-ak-border text-ak-text-secondary hover:border-ak-primary hover:text-ak-primary',

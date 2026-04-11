@@ -29,6 +29,7 @@ export type ChatMessage =
       content: string;
       timestamp: string;
       activityEntryId?: string;
+      jiraEpicKey?: string;
     }
   | {
       type: 'clarification';
@@ -46,10 +47,45 @@ export type ChatMessage =
       timestamp: string;
     }
   | { type: 'file_created'; path: string; repo: string; timestamp: string }
-  | { type: 'pr_opened'; url: string; number: number; title: string; branch: string; filesChanged: number; linesChanged: number; timestamp: string }
-  | { type: 'test_result'; passed: number; failed: number; total: number; coverage: string; failures?: TestFailure[]; timestamp: string }
-  | { type: 'error'; agent: string; message: string; retryable: boolean; timestamp: string }
-  | { type: 'info'; content: string; timestamp: string };
+  | { type: 'pr_opened'; url: string; number: number; title: string; branch: string; filesChanged: number; linesChanged: number; timestamp: string; jiraEpicKey?: string }
+  | {
+      type: 'test_result';
+      passed: number;
+      failed: number;
+      total: number;
+      coverage: string;
+      failures?: TestFailure[];
+      testFiles?: Array<{ filePath: string; testCount: number }>;
+      coverageMatrix?: Record<string, string[]>;
+      coveredCriteria?: string[];
+      uncoveredCriteria?: string[];
+      timestamp: string;
+      jiraEpicKey?: string;
+    }
+  | {
+      type: 'error';
+      agent: string;
+      message: string;
+      retryable: boolean;
+      timestamp: string;
+      code?: string;
+      recoveryAction?: string;
+      retryCount?: number;
+      maxRetries?: number;
+    }
+  | { type: 'info'; content: string; timestamp: string }
+  | {
+      type: 'gherkin_spec';
+      features: Array<{
+        featureName: string;
+        filePath: string;
+        content: string;
+        scenarioCount: number;
+        mappedCriteria: string[];
+      }>;
+      totalScenarios: number;
+      timestamp: string;
+    };
 
 export interface TestFailure {
   file: string;

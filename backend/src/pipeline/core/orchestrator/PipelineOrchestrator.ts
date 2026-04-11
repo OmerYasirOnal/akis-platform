@@ -10,6 +10,12 @@ import type {
   ProtoOutput,
   TraceOutput,
 } from '../contracts/PipelineTypes.js';
+import { JiraMCPService } from '../../../services/mcp/adapters/JiraMCPService.js';
+import {
+  createJiraEpicFromSpec,
+  commentJiraWithProtoResult,
+  commentJiraWithTraceResult,
+} from '../../integrations/jiraIntegration.js';
 import { RETRY_CONFIG, createPipelineError, PipelineErrorCode, PipelineNotFoundError, InvalidStageError } from '../contracts/PipelineErrors.js';
 import { createActivityEmitter, emitActivity, cleanupPipelineListeners } from '../activityEmitter.js';
 import { withRetry } from '../retryWrapper.js';
@@ -58,6 +64,7 @@ export interface PipelineStateUpdate {
   protoOutput: ProtoOutput;
   traceOutput: TraceOutput;
   protoConfig: { repoName: string; repoVisibility: 'public' | 'private' };
+  jiraConfig: { projectKey: string; enabled: boolean; epicKey?: string };
   metrics: PipelineMetrics;
   error: PipelineError | null;
   intermediateState: Record<string, unknown>;
@@ -124,19 +131,29 @@ export class PipelineOrchestrator {
 
   // ─── Start Pipeline ──────────────────────────
 
-  async startPipeline(userId: string, input: ScribeInput, model?: string): Promise<PipelineState> {
+  async startPipeline(
+    userId: string,
+    input: ScribeInput,
+    model?: string,
+    jiraConfig?: { projectKey: string; enabled: boolean; epicKey?: string },
+  ): Promise<PipelineState> {
     const pipeline = await this.store.create(userId);
 
     const conversation: ScribeMessageType[] = [
       { type: 'user_idea', content: input.idea },
     ];
 
-    const updated = await this.store.update(pipeline.id, {
+    const updateData: Partial<PipelineStateUpdate> = {
       title: input.idea.slice(0, 100),
       model,
       scribeConversation: conversation,
       metrics: { ...pipeline.metrics, startedAt: new Date() },
-    });
+    };
+    if (jiraConfig) {
+      updateData.jiraConfig = jiraConfig;
+    }
+
+    const updated = await this.store.update(pipeline.id, updateData);
 
     // Run Scribe in background (non-blocking)
     this.runScribeAnalysis(pipeline.id, pipeline.metrics, input, conversation, model).catch((err) => {
@@ -277,14 +294,16 @@ export class PipelineOrchestrator {
     repoName: string,
     repoVisibility: 'public' | 'private',
     editedSpec?: StructuredSpec,
+    jiraConfig?: { projectKey: string; enabled: boolean; epicKey?: string },
   ): Promise<PipelineState> {
-    return this.withLock(pipelineId, () => this._approveSpec(pipelineId, repoName, repoVisibility, editedSpec));
+    return this.withLock(pipelineId, () => this._approveSpec(pipelineId, repoName, repoVisibility, editedSpec, jiraConfig));
   }
   private async _approveSpec(
     pipelineId: string,
     repoName: string,
     repoVisibility: 'public' | 'private',
     editedSpec?: StructuredSpec,
+    jiraConfig?: { projectKey: string; enabled: boolean; epicKey?: string },
   ): Promise<PipelineState> {
     const pipeline = await this.getPipeline(pipelineId);
     this.assertStage(pipeline, 'awaiting_approval');
@@ -317,14 +336,18 @@ export class PipelineOrchestrator {
     ];
 
     // Transition to proto_building — return immediately (optimistic lock)
-    const updated = await this.store.update(pipelineId, {
+    const approveUpdate: Partial<PipelineStateUpdate> = {
       stage: 'proto_building',
       approvedSpec: spec,
       protoConfig: { repoName, repoVisibility },
       scribeConversation: conversation,
       metrics: { ...pipeline.metrics, approvedAt: new Date() },
       error: null,
-    }, { expectedStageVersion: pipeline.stageVersion });
+    };
+    if (jiraConfig) {
+      approveUpdate.jiraConfig = jiraConfig;
+    }
+    const updated = await this.store.update(pipelineId, approveUpdate, { expectedStageVersion: pipeline.stageVersion });
     this.emitEvent(pipelineId, 'stage_change', 'proto_building');
 
     // Create per-user GitHub adapter and run Proto + Trace in background
@@ -414,6 +437,16 @@ export class PipelineOrchestrator {
       metrics: protoCompletedMetrics,
     });
     this.emitEvent(pipelineId, 'stage_change', 'trace_testing');
+
+    // Jira hook: comment Proto result (non-blocking)
+    if (pipeline.jiraConfig?.epicKey) {
+      this.runJiraProtoComment(pipeline.userId, pipeline.jiraConfig.epicKey, {
+        branch: protoResult.data.branch,
+        repo: protoResult.data.repo,
+        prUrl: protoResult.data.prUrl,
+        filesCreated: protoResult.data.metadata.filesCreated,
+      }).catch(() => {});
+    }
 
     // Abort if pipeline was cancelled before Trace starts
     if (await this.isCancelled(pipelineId)) return;
@@ -579,6 +612,7 @@ export class PipelineOrchestrator {
 
     if (result.type === 'spec') {
       conversation.push({ type: 'spec_draft', content: result.data });
+      const pipelineForJira = await this.store.getById(pipelineId);
       const updated = await this.store.update(pipelineId, {
         stage: 'awaiting_approval',
         scribeConversation: conversation,
@@ -587,6 +621,12 @@ export class PipelineOrchestrator {
         metrics: { ...metrics, scribeCompletedAt: new Date() },
       });
       this.emitEvent(pipelineId, 'stage_change', 'awaiting_approval', result.data);
+
+      // Jira hook: create Epic from spec (non-blocking, failures are swallowed)
+      if (pipelineForJira?.jiraConfig?.enabled && pipelineForJira.jiraConfig.projectKey) {
+        this.runJiraEpicCreation(pipelineId, pipelineForJira.userId, pipelineForJira.jiraConfig.projectKey, result.data.spec).catch(() => {});
+      }
+
       return updated;
     }
 
@@ -671,6 +711,16 @@ export class PipelineOrchestrator {
       },
     });
     this.emitEvent(pipelineId, 'completed', 'completed');
+
+    // Jira hook: comment Trace result (non-blocking)
+    const pipelineForJira = await this.store.getById(pipelineId);
+    if (pipelineForJira?.jiraConfig?.epicKey) {
+      this.runJiraTraceComment(pipelineForJira.userId, pipelineForJira.jiraConfig.epicKey, {
+        totalTests: traceResult.data.testSummary.totalTests,
+        coveragePercentage: traceResult.data.testSummary.coveragePercentage,
+        passed: traceResult.data.ok,
+      }).catch(() => {});
+    }
 
     // Pipeline tamamlanma sinyali
     emitActivity({
@@ -895,6 +945,57 @@ export class PipelineOrchestrator {
     // Clean up event listeners when pipeline reaches a terminal state
     if (stage === 'completed' || stage === 'completed_partial' || stage === 'failed' || stage === 'cancelled') {
       cleanupPipelineListeners(pipelineId);
+    }
+  }
+
+  // ─── Private: Jira Integration Helpers ────────
+
+  private async runJiraEpicCreation(
+    pipelineId: string,
+    userId: string,
+    projectKey: string,
+    spec: StructuredSpec,
+  ): Promise<void> {
+    try {
+      const jira = await JiraMCPService.fromOAuth(userId);
+      if (!jira) return;
+      const epicKey = await createJiraEpicFromSpec(jira, projectKey, spec);
+      if (epicKey) {
+        await this.store.update(pipelineId, {
+          jiraConfig: { projectKey, enabled: true, epicKey },
+        });
+        console.log(`[Pipeline] Jira Epic ${epicKey} linked to pipeline ${pipelineId}`);
+      }
+    } catch (err) {
+      console.warn(`[Pipeline] Jira Epic creation failed (non-fatal):`, err);
+    }
+  }
+
+  private async runJiraProtoComment(
+    userId: string,
+    epicKey: string,
+    result: { branch: string; repo: string; prUrl?: string; filesCreated: number },
+  ): Promise<void> {
+    try {
+      const jira = await JiraMCPService.fromOAuth(userId);
+      if (!jira) return;
+      await commentJiraWithProtoResult(jira, epicKey, result);
+    } catch (err) {
+      console.warn(`[Pipeline] Jira Proto comment failed (non-fatal):`, err);
+    }
+  }
+
+  private async runJiraTraceComment(
+    userId: string,
+    epicKey: string,
+    result: { totalTests: number; coveragePercentage: number; passed: boolean },
+  ): Promise<void> {
+    try {
+      const jira = await JiraMCPService.fromOAuth(userId);
+      if (!jira) return;
+      await commentJiraWithTraceResult(jira, epicKey, result);
+    } catch (err) {
+      console.warn(`[Pipeline] Jira Trace comment failed (non-fatal):`, err);
     }
   }
 

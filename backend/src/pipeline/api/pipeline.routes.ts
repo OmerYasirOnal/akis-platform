@@ -38,7 +38,7 @@ export function createPipelineRoutes(deps: PipelineRoutesDeps) {
         idea: body.idea,
         context: body.context,
         targetStack: body.targetStack,
-      }, body.model);
+      }, body.model, body.jiraConfig);
       return { pipeline };
     },
 
@@ -64,7 +64,7 @@ export function createPipelineRoutes(deps: PipelineRoutesDeps) {
     async approveSpec(request: unknown) {
       const { id } = (request as { params: { id: string } }).params;
       const body = ApproveSpecRequestSchema.parse((request as { body: unknown }).body);
-      const pipeline = await orchestrator.approveSpec(id, body.repoName, body.repoVisibility, body.spec);
+      const pipeline = await orchestrator.approveSpec(id, body.repoName, body.repoVisibility, body.spec, body.jiraConfig);
       return { pipeline };
     },
 

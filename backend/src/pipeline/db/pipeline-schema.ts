@@ -23,6 +23,7 @@ CREATE TABLE pipelines (
   proto_output JSONB,
   trace_output JSONB,
   proto_config JSONB,
+  jira_config JSONB,
   metrics JSONB DEFAULT '{}',
   error JSONB,
   created_at TIMESTAMPTZ DEFAULT NOW(),

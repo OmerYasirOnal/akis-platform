@@ -43,6 +43,7 @@ interface ChatPanelProps {
   showBackButton?: boolean;
   currentStep?: PipelineActivity | null;
   activities?: PipelineActivity[];
+  createdFiles?: string[];
 }
 
 export function ChatPanel({
@@ -72,6 +73,7 @@ export function ChatPanel({
   showBackButton,
   currentStep,
   activities,
+  createdFiles,
 }: ChatPanelProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -113,14 +115,10 @@ export function ChatPanel({
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  // Suggestion badge click → append to input (don't send immediately)
-  const [pendingSuggestion, setPendingSuggestion] = useState('');
+  // Suggestion badge click → send immediately
   const handleSuggestionClick = useCallback((text: string) => {
-    setPendingSuggestion(text);
-  }, []);
-  const handleSuggestionConsumed = useCallback(() => {
-    setPendingSuggestion('');
-  }, []);
+    onSend(text);
+  }, [onSend]);
 
   const isPending = conversationId === 'pending';
   const isEmpty = !conversationId || (isPending && messages.length === 0);
@@ -214,6 +212,19 @@ export function ChatPanel({
                             ))}
                           </div>
                         )}
+                        {createdFiles && createdFiles.length > 0 && currentStep?.stage === 'proto' && (
+                          <div className="mt-2 space-y-1 max-h-32 overflow-y-auto">
+                            {createdFiles.slice(-5).map((f) => (
+                              <div key={f} className="flex items-center gap-2 text-xs text-ak-text-secondary animate-fade-in">
+                                <span className="text-green-500">&#10003;</span>
+                                <span className="font-mono truncate">{f}</span>
+                              </div>
+                            ))}
+                            {createdFiles.length > 5 && (
+                              <span className="text-xs text-ak-text-tertiary">+{createdFiles.length - 5} daha...</span>
+                            )}
+                          </div>
+                        )}
                       </>
                     ) : (
                       <div className="flex gap-0.5 pt-2">
@@ -234,6 +245,7 @@ export function ChatPanel({
           {showScrollDown && (
             <button
               onClick={scrollToBottom}
+              aria-label="En alta kaydır"
               className="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full border border-ak-border bg-ak-surface px-4 py-1.5 text-xs font-medium text-ak-text-secondary shadow-lg hover:text-ak-text-primary transition-colors animate-in fade-in slide-in-from-bottom-2 duration-200"
             >
               ↓ Yeni mesajlar
@@ -250,8 +262,6 @@ export function ChatPanel({
           disabled={!isInputEnabled}
           showCancel={showCancelButton}
           placeholder={inputPlaceholder}
-          appendText={pendingSuggestion}
-          onAppendTextConsumed={handleSuggestionConsumed}
         />
       )}
     </div>

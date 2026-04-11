@@ -12,7 +12,7 @@ import { ProfileSetupWizard } from '../../components/onboarding/ProfileSetupWiza
 import { ErrorBoundary } from '../../components/ErrorBoundary';
 import { mapStageToMode } from '../../utils/mapPipelineEvent';
 import type { ConversationListItem, ChatMessage, ConversationStatus } from '../../types/chat';
-import type { Workflow, WorkflowStatus, ConversationMessage, StructuredSpec, FileTreeNode } from '../../types/workflow';
+import type { Workflow, WorkflowStatus, ConversationMessage, StructuredSpec } from '../../types/workflow';
 import type { UserFriendlyPlan } from '../../types/plan';
 import type { PipelineStage } from '../../types/pipeline';
 import { workflowsApi } from '../../services/api/workflows';
@@ -109,7 +109,34 @@ function conversationToChatMessages(conv: ConversationMessage[], currentStage?: 
       case 'scribe':
       case 'proto':
       case 'trace':
-        if (m.type === 'clarification' && m.questions?.length) {
+        if (m.type === 'trace_result' && m.traceResult) {
+          const tr = m.traceResult;
+          msgs.push({
+            type: 'test_result',
+            passed: tr.passing ?? 0,
+            failed: tr.failing ?? 0,
+            total: tr.testCount ?? 0,
+            coverage: tr.coverage ?? '0',
+            testFiles: tr.testFiles?.map((f) => ({ filePath: f.path ?? f.name, testCount: f.lines ?? 0 })),
+            coverageMatrix: tr.traceability?.reduce<Record<string, string[]>>((acc, t) => {
+              if (!acc[t.criterionId]) acc[t.criterionId] = [];
+              acc[t.criterionId].push(t.testFile);
+              return acc;
+            }, {}),
+            coveredCriteria: tr.traceability?.filter((t) => t.coverage !== 'none').map((t) => t.criterionId).filter((v, i, a) => a.indexOf(v) === i),
+            uncoveredCriteria: tr.traceability?.filter((t) => t.coverage === 'none').map((t) => t.criterionId).filter((v, i, a) => a.indexOf(v) === i),
+            timestamp: ts,
+          });
+          // Append BDD/Gherkin spec message if features were generated
+          if (tr.gherkinFeatures?.length) {
+            msgs.push({
+              type: 'gherkin_spec',
+              features: tr.gherkinFeatures,
+              totalScenarios: tr.gherkinFeatures.reduce((sum: number, f: { scenarioCount: number }) => sum + f.scenarioCount, 0),
+              timestamp: ts,
+            });
+          }
+        } else if (m.type === 'clarification' && m.questions?.length) {
           msgs.push({ type: 'clarification', role: m.role, content: m.content, questions: m.questions, timestamp: ts });
         } else if (m.type === 'spec' && m.spec) {
           specSeen = true;
@@ -197,7 +224,7 @@ export default function ChatPage() {
   const loadedIdRef = useRef<string | undefined>(undefined);
 
   const isRunning = activeWorkflow ? isRunningStage(activeWorkflow.currentStage) : false;
-  const { activities: pipelineActivities, currentStep } = usePipelineStream(conversationId ?? '', isRunning);
+  const { activities: pipelineActivities, currentStep, createdFiles } = usePipelineStream(conversationId ?? '', isRunning);
 
   // Load conversation list — only on mount and after mutations, NOT on every chat switch
   const refreshList = useCallback(() => {
@@ -291,8 +318,8 @@ export default function ChatPage() {
     if (!protoMsg?.protoResult?.files) return null;
     const files: Record<string, string> = {};
     for (const f of protoMsg.protoResult.files) {
-      const path = (f as FileTreeNode).path ?? (f as FileTreeNode).name;
-      if (path) files[path] = (f as unknown as { content?: string }).content ?? '';
+      const path = f.path ?? f.name;
+      if (path && f.content) files[path] = f.content;
     }
     return Object.keys(files).length > 0 ? files : null;
   }, [activeWorkflow]);
@@ -520,6 +547,7 @@ export default function ChatPage() {
                 showBackButton
                 currentStep={currentStep}
                 activities={pipelineActivities}
+                createdFiles={createdFiles}
               />
             </ErrorBoundary>
             {showPreview && protoFiles && (

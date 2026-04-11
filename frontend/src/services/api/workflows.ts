@@ -213,6 +213,7 @@ function mapConversation(pipeline: Pipeline): ConversationMessage[] {
           name: f.filePath.split('/').pop() || f.filePath,
           type: 'file' as const,
           path: f.filePath,
+          content: f.content,
           lines: f.linesOfCode,
           agent: 'proto' as const,
           status: 'new' as const,

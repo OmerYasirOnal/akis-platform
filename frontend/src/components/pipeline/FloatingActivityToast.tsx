@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { useI18n } from '../../i18n/useI18n';
 
 interface FloatingActivityToastProps {
   activity: {
@@ -30,6 +31,7 @@ export function FloatingActivityToast({
   pipelineStatus,
   onClickNavigate,
 }: FloatingActivityToastProps) {
+  const { t } = useI18n();
   const [visible, setVisible] = useState(false);
   const [exiting, setExiting] = useState(false);
   const [dismissed, setDismissed] = useState(false);
@@ -67,8 +69,8 @@ export function FloatingActivityToast({
     activity?.step === 'complete' || activity?.step === 'pipeline_complete';
   const message =
     isComplete
-      ? 'Tamamlandı'
-      : activity?.message || (pipelineStatus === 'completed' ? 'Pipeline tamamlandı' : 'Çalışıyor...');
+      ? t('chat.toast.completed')
+      : activity?.message || (pipelineStatus === 'completed' ? t('chat.toast.pipelineCompleted') : t('chat.toast.running'));
   const progress = activity?.progress || 0;
 
   const handleDismiss = (e: React.MouseEvent) => {

@@ -164,6 +164,10 @@ export function mapPipelineToChatMessages(pipeline: Pipeline): ChatMessage[] {
       failed: 0,
       total: to.testSummary?.totalTests ?? 0,
       coverage: to.testSummary?.coveragePercentage?.toString() ?? '0',
+      testFiles: to.testFiles?.map((f) => ({ filePath: f.filePath, testCount: f.testCount })),
+      coverageMatrix: to.coverageMatrix,
+      coveredCriteria: to.testSummary?.coveredCriteria,
+      uncoveredCriteria: to.testSummary?.uncoveredCriteria,
       timestamp: now,
     });
   }
@@ -175,6 +179,10 @@ export function mapPipelineToChatMessages(pipeline: Pipeline): ChatMessage[] {
       agent: pipeline.stage?.split('_')[0] ?? 'pipeline',
       message: pipeline.error.message,
       retryable: pipeline.error.retryable ?? false,
+      code: pipeline.error.code,
+      recoveryAction: pipeline.error.recoveryAction,
+      retryCount: pipeline.metrics?.retryCount ?? 0,
+      maxRetries: 3,
       timestamp: now,
     });
   }

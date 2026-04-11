@@ -135,6 +135,17 @@ export interface TraceOutput {
   };
   branch?: string;
   prUrl?: string;
+  gherkinFeatures?: Array<{
+    featureName: string;
+    filePath: string;
+    content: string;
+    scenarioCount: number;
+    mappedCriteria: string[];
+  }>;
+  stepDefinitions?: Array<{
+    filePath: string;
+    content: string;
+  }>;
 }
 
 // ─── PIPELINE ─────────────────────────────────────
@@ -186,6 +197,11 @@ export interface PipelineState {
   /** Reserved for future CI/CD integration (GitHub Actions run result) */
   ciResult?: { ok: boolean; runId: number; status: string; conclusion: string | null; htmlUrl: string };
   protoConfig?: { repoName: string; repoVisibility: 'public' | 'private' };
+  jiraConfig?: {
+    projectKey: string;
+    enabled: boolean;
+    epicKey?: string;
+  };
 
   metrics: PipelineMetrics;
   error?: PipelineError;

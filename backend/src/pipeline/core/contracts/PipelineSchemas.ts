@@ -205,6 +205,12 @@ export const PipelineMetricsSchema = z.object({
   estimatedCost: z.number().min(0).optional(),
 });
 
+export const JiraConfigSchema = z.object({
+  projectKey: z.string().min(1).max(20).regex(/^[A-Z][A-Z0-9_]*$/, 'Jira proje anahtarı geçersiz'),
+  enabled: z.boolean(),
+  epicKey: z.string().optional(),
+}).optional();
+
 export const PipelineStateSchema = z.object({
   id: z.string().uuid(),
   userId: z.string().uuid(),
@@ -220,6 +226,7 @@ export const PipelineStateSchema = z.object({
     repoName: z.string().min(1),
     repoVisibility: z.enum(['public', 'private']),
   }).optional(),
+  jiraConfig: JiraConfigSchema,
 
   metrics: PipelineMetricsSchema,
   error: PipelineErrorSchema.optional(),
@@ -235,6 +242,7 @@ export const StartPipelineRequestSchema = z.object({
   context: z.string().max(5000).optional(),
   targetStack: z.string().max(200).optional(),
   model: z.enum(['claude-sonnet-4-6', 'claude-haiku-4-5']).optional().default('claude-haiku-4-5'),
+  jiraConfig: JiraConfigSchema,
 });
 
 export const SendMessageRequestSchema = z.object({
@@ -249,6 +257,7 @@ export const ApproveSpecRequestSchema = z.object({
     .max(100)
     .regex(/^[a-zA-Z0-9._-]+$/, 'Repo adı geçersiz karakterler içeriyor'),
   repoVisibility: z.enum(['public', 'private']).default('private'),
+  jiraConfig: JiraConfigSchema,
 });
 
 export const RejectSpecRequestSchema = z.object({

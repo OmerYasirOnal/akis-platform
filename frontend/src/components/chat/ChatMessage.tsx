@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { cn } from '../../utils/cn';
 import type { ChatMessage as ChatMessageType, AgentName } from '../../types/chat';
 import { PlanCard } from './PlanCard';
@@ -27,12 +28,96 @@ function AgentAvatar({ agent }: { agent: AgentName }) {
   );
 }
 
+function JiraBadge({ epicKey }: { epicKey?: string }) {
+  if (!epicKey) return null;
+  return (
+    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs bg-blue-500/10 text-blue-400">
+      <svg className="h-3 w-3" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M11.571 11.513H0a5.218 5.218 0 0 0 5.232 5.215h2.13v2.057A5.215 5.215 0 0 0 12.593 24V12.518a1.005 1.005 0 0 0-1.022-1.005z" />
+      </svg>
+      {epicKey}
+    </span>
+  );
+}
+
 function formatTime(ts: string): string {
   try {
     return new Date(ts).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
   } catch {
     return '';
   }
+}
+
+function ClarificationMessage({
+  message,
+  onSuggestionClick,
+}: {
+  message: Extract<ChatMessageType, { type: 'clarification' }>;
+  onSuggestionClick?: (text: string) => void;
+}) {
+  const [sendingSuggestion, setSendingSuggestion] = useState<string | null>(null);
+  const cc = AGENT_COLORS[message.role];
+
+  const handleBadgeClick = (text: string) => {
+    setSendingSuggestion(text);
+    onSuggestionClick?.(text);
+    setTimeout(() => setSendingSuggestion(null), 2000);
+  };
+
+  return (
+    <div className="flex gap-2.5 animate-in fade-in slide-in-from-left-2 duration-200">
+      <AgentAvatar agent={message.role} />
+      <div className="min-w-0 flex-1">
+        <div className="mb-0.5 flex items-center gap-2">
+          <span className={cn('text-xs font-semibold', cc.text)}>{AGENT_COLORS[message.role].label}</span>
+          <span className="text-[10px] text-ak-text-tertiary">{formatTime(message.timestamp)}</span>
+        </div>
+        <p className="mb-2 whitespace-pre-wrap text-sm text-ak-text-secondary">{message.content}</p>
+        <div className="space-y-2">
+          {message.questions.map((q, i) => (
+            <div key={q.id} className={cn('rounded-lg border p-3', cc.border, cc.bg)}>
+              <p className="text-sm font-medium text-ak-text-primary">
+                {i + 1}. {q.question}
+              </p>
+              {q.reason && (
+                <p className="mt-1 text-xs text-ak-text-tertiary">{q.reason}</p>
+              )}
+              {q.suggestions && q.suggestions.length > 0 && (
+                <div className="mt-1.5 flex flex-wrap gap-1">
+                  {q.suggestions.map((s, si) => {
+                    const isSending = sendingSuggestion === s;
+                    return (
+                      <button
+                        key={si}
+                        type="button"
+                        disabled={isSending}
+                        onClick={() => handleBadgeClick(s)}
+                        className={cn(
+                          'rounded-full bg-ak-surface-2 px-2 py-0.5 text-[11px] text-ak-text-secondary transition-all duration-150',
+                          isSending
+                            ? 'opacity-50 pointer-events-none'
+                            : 'hover:bg-ak-primary/15 hover:text-ak-primary hover:scale-[1.03] active:scale-[0.97] cursor-pointer',
+                        )}
+                      >
+                        {isSending ? (
+                          <span className="inline-flex items-center gap-1">
+                            <svg className="h-3 w-3 text-ak-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                            </svg>
+                            Gonderiliyor...
+                          </span>
+                        ) : s}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export function ChatMessage({ message, onApprove, onReject, onRetry, onSkip, onSuggestionClick }: ChatMessageProps) {
@@ -56,6 +141,7 @@ export function ChatMessage({ message, onApprove, onReject, onRetry, onSkip, onS
             <div className="mb-0.5 flex items-center gap-2">
               <span className={cn('text-xs font-semibold', c.text)}>{c.label}</span>
               <span className="text-[10px] text-ak-text-tertiary">{formatTime(message.timestamp)}</span>
+              <JiraBadge epicKey={message.jiraEpicKey} />
             </div>
             <p className="whitespace-pre-wrap text-sm text-ak-text-secondary">{message.content}</p>
           </div>
@@ -63,47 +149,9 @@ export function ChatMessage({ message, onApprove, onReject, onRetry, onSkip, onS
       );
     }
 
-    case 'clarification': {
-      const cc = AGENT_COLORS[message.role];
-      return (
-        <div className="flex gap-2.5 animate-in fade-in slide-in-from-left-2 duration-200">
-          <AgentAvatar agent={message.role} />
-          <div className="min-w-0 flex-1">
-            <div className="mb-0.5 flex items-center gap-2">
-              <span className={cn('text-xs font-semibold', cc.text)}>{AGENT_COLORS[message.role].label}</span>
-              <span className="text-[10px] text-ak-text-tertiary">{formatTime(message.timestamp)}</span>
-            </div>
-            <p className="mb-2 whitespace-pre-wrap text-sm text-ak-text-secondary">{message.content}</p>
-            <div className="space-y-2">
-              {message.questions.map((q, i) => (
-                <div key={q.id} className={cn('rounded-lg border p-3', cc.border, cc.bg)}>
-                  <p className="text-sm font-medium text-ak-text-primary">
-                    {i + 1}. {q.question}
-                  </p>
-                  {q.reason && (
-                    <p className="mt-1 text-xs text-ak-text-tertiary">{q.reason}</p>
-                  )}
-                  {q.suggestions && q.suggestions.length > 0 && (
-                    <div className="mt-1.5 flex flex-wrap gap-1">
-                      {q.suggestions.map((s, si) => (
-                        <button
-                          key={si}
-                          type="button"
-                          onClick={() => onSuggestionClick?.(s)}
-                          className="rounded-full bg-ak-surface-2 px-2 py-0.5 text-[11px] text-ak-text-secondary hover:bg-ak-primary/15 hover:text-ak-primary hover:scale-[1.03] active:scale-[0.97] cursor-pointer transition-all duration-150"
-                        >
-                          {s}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      );
-    }
+    case 'clarification':
+      return <ClarificationMessage message={message} onSuggestionClick={onSuggestionClick} />;
+
 
     case 'plan':
       return (
@@ -137,6 +185,7 @@ export function ChatMessage({ message, onApprove, onReject, onRetry, onSkip, onS
               </svg>
             </span>
             <span className="text-sm font-semibold text-ak-text-primary">{message.title}</span>
+            <JiraBadge epicKey={message.jiraEpicKey} />
           </div>
           <div className="flex flex-wrap gap-3 text-xs text-ak-text-tertiary">
             <span className="rounded bg-ak-surface-2 px-2 py-0.5 font-mono">{message.branch}</span>
@@ -162,6 +211,7 @@ export function ChatMessage({ message, onApprove, onReject, onRetry, onSkip, onS
           <div className="mb-2 flex items-center gap-2">
             <span className="text-ak-trace">🧪</span>
             <span className="text-sm font-semibold text-ak-text-primary">Test Sonuçları</span>
+            <JiraBadge epicKey={message.jiraEpicKey} />
           </div>
           <div className="flex gap-4 text-xs">
             <div>
@@ -188,6 +238,73 @@ export function ChatMessage({ message, onApprove, onReject, onRetry, onSkip, onS
               ))}
             </div>
           )}
+
+          {/* Uncovered criteria warning — always visible */}
+          {message.uncoveredCriteria && message.uncoveredCriteria.length > 0 && (
+            <div className="mt-3 rounded-lg border border-red-500/30 bg-red-500/5 px-3 py-2">
+              <p className="text-xs font-semibold text-red-400">
+                ⚠ {message.uncoveredCriteria.length} kriter kapsanmadı
+              </p>
+              <ul className="mt-1.5 space-y-0.5">
+                {message.uncoveredCriteria.map((c) => (
+                  <li key={c} className="flex items-center gap-1.5 text-xs text-red-400/80">
+                    <span className="text-red-400">✗</span>
+                    {c}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {/* Test files — collapsible */}
+          {message.testFiles && message.testFiles.length > 0 && (
+            <details className="mt-3">
+              <summary className="cursor-pointer text-sm font-medium text-ak-text-secondary transition-colors hover:text-ak-text-primary">
+                Test Dosyaları ({message.testFiles.length})
+              </summary>
+              <ul className="mt-2 space-y-1">
+                {message.testFiles.map((f) => (
+                  <li key={f.filePath} className="flex items-center gap-2 font-mono text-xs text-ak-text-secondary">
+                    <span className="text-green-500">✓</span>
+                    {f.filePath}
+                    <span className="text-ak-text-tertiary">({f.testCount} test)</span>
+                  </li>
+                ))}
+              </ul>
+            </details>
+          )}
+
+          {/* Acceptance criteria coverage — collapsible */}
+          {message.coverageMatrix && Object.keys(message.coverageMatrix).length > 0 && (
+            <details className="mt-3">
+              <summary className="cursor-pointer text-sm font-medium text-ak-text-secondary transition-colors hover:text-ak-text-primary">
+                Kriter Kapsamı ({Object.keys(message.coverageMatrix).length})
+              </summary>
+              <div className="mt-2 space-y-1.5">
+                {Object.entries(message.coverageMatrix).map(([criterion, files]) => {
+                  const isCovered = files.length > 0;
+                  return (
+                    <div key={criterion} className="text-xs">
+                      <div className="flex items-center gap-1.5">
+                        <span className={isCovered ? 'text-green-500' : 'text-red-400'}>
+                          {isCovered ? '✓' : '✗'}
+                        </span>
+                        <span className="font-medium text-ak-text-primary">{criterion}</span>
+                      </div>
+                      {isCovered && (
+                        <div className="ml-5 mt-0.5 space-y-0.5">
+                          {files.map((tf) => (
+                            <span key={tf} className="block font-mono text-ak-text-tertiary">{tf}</span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </details>
+          )}
+
           {message.failed > 0 && (
             <div className="mt-3 flex gap-2">
               {onRetry && (
@@ -205,30 +322,80 @@ export function ChatMessage({ message, onApprove, onReject, onRetry, onSkip, onS
         </div>
       );
 
-    case 'error':
+    case 'error': {
+      const maxRetries = message.maxRetries ?? 3;
       return (
         <div className="rounded-xl border border-red-500/30 bg-red-500/5 p-4 animate-in fade-in slide-in-from-left-2 duration-200 animate-shake-subtle">
-          <div className="mb-1 flex items-center gap-2">
+          {/* Header: title + error code badge */}
+          <div className="mb-2 flex items-center gap-2 flex-wrap">
             <span className="text-red-400">⚠</span>
             <span className="text-sm font-semibold text-red-400">Hata</span>
+            {message.code && (
+              <span className="rounded-full bg-red-500/10 px-2 py-0.5 font-mono text-[10px] font-medium text-red-400 border border-red-500/20">
+                {message.code}
+              </span>
+            )}
           </div>
+
+          {/* Error message */}
           <p className="text-xs text-ak-text-secondary">{message.message}</p>
-          {message.retryable && (
-            <div className="mt-3 flex gap-2">
-              {onRetry && (
-                <button onClick={onRetry} className="rounded-lg border border-red-500/20 px-3 py-1.5 text-xs font-medium text-red-400 hover:bg-red-500/10 transition-colors">
-                  🔄 Tekrar Dene
-                </button>
-              )}
-              {onSkip && (
-                <button onClick={onSkip} className="rounded-lg border border-ak-border px-3 py-1.5 text-xs font-medium text-ak-text-tertiary hover:text-ak-text-secondary transition-colors">
-                  ⏭ Atla
-                </button>
-              )}
-            </div>
-          )}
+
+          {/* Retryable indicator + retry count */}
+          <div className="mt-2 flex items-center gap-3 flex-wrap">
+            {message.retryable ? (
+              <span className="flex items-center gap-1.5 text-[11px] text-green-400">
+                <span className="inline-block h-1.5 w-1.5 rounded-full bg-green-400" />
+                Tekrar denenebilir
+              </span>
+            ) : (
+              <span className="flex items-center gap-1.5 text-[11px] text-red-400">
+                <span className="inline-block h-1.5 w-1.5 rounded-full bg-red-400" />
+                Tekrar denenemez
+              </span>
+            )}
+            {message.retryCount != null && (
+              <span className="text-[11px] text-ak-text-tertiary">
+                Deneme: {message.retryCount}/{maxRetries}
+              </span>
+            )}
+          </div>
+
+          {/* Action buttons */}
+          <div className="mt-3 flex gap-2 flex-wrap">
+            {/* Standard retry button */}
+            {message.retryable && onRetry && (
+              <button onClick={onRetry} className="rounded-lg border border-red-500/20 px-3 py-1.5 text-xs font-medium text-red-400 hover:bg-red-500/10 transition-colors">
+                Tekrar Dene
+              </button>
+            )}
+            {/* Recovery action: edit_spec */}
+            {message.recoveryAction === 'edit_spec' && onReject && (
+              <button onClick={onReject} className="rounded-lg border border-blue-500/20 px-3 py-1.5 text-xs font-medium text-blue-400 hover:bg-blue-500/10 transition-colors">
+                Spec'i Duzenle
+              </button>
+            )}
+            {/* Recovery action: reconnect_github */}
+            {message.recoveryAction === 'reconnect_github' && (
+              <a href="/settings" className="rounded-lg border border-amber-500/20 px-3 py-1.5 text-xs font-medium text-amber-400 hover:bg-amber-500/10 transition-colors inline-flex items-center gap-1">
+                GitHub'i Yeniden Bagla
+              </a>
+            )}
+            {/* Recovery action: start_over */}
+            {message.recoveryAction === 'start_over' && (
+              <a href="/chat" className="rounded-lg border border-ak-primary/20 px-3 py-1.5 text-xs font-medium text-ak-primary hover:bg-ak-primary/10 transition-colors inline-flex items-center gap-1">
+                Yeni Pipeline Baslat
+              </a>
+            )}
+            {/* Skip button (always available on retryable errors) */}
+            {onSkip && (
+              <button onClick={onSkip} className="rounded-lg border border-ak-border px-3 py-1.5 text-xs font-medium text-ak-text-tertiary hover:text-ak-text-secondary transition-colors">
+                Atla
+              </button>
+            )}
+          </div>
         </div>
       );
+    }
 
     case 'info':
       return (
@@ -238,6 +405,61 @@ export function ChatMessage({ message, onApprove, onReject, onRetry, onSkip, onS
           </div>
         </div>
       );
+
+    case 'gherkin_spec': {
+      const { features, totalScenarios } = message;
+      return (
+        <div className="rounded-xl border border-green-500/20 bg-ak-surface p-4 animate-in fade-in slide-in-from-left-2 duration-200 space-y-3">
+          <div className="flex items-center gap-2">
+            <span className="text-lg text-green-500">
+              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25zM6.75 12h.008v.008H6.75V12zm0 3h.008v.008H6.75V15zm0 3h.008v.008H6.75V18z" />
+              </svg>
+            </span>
+            <span className="font-semibold text-ak-text-primary">BDD Spesifikasyonlari</span>
+            <span className="text-xs text-ak-text-tertiary">({totalScenarios} senaryo)</span>
+          </div>
+          {features.map((f, i) => (
+            <details key={i} className="group">
+              <summary className="cursor-pointer text-sm font-medium text-ak-text-secondary hover:text-ak-text-primary flex items-center gap-2 transition-colors">
+                <span className="text-green-500">
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                  </svg>
+                </span>
+                {f.featureName}
+                <span className="text-xs text-ak-text-tertiary">({f.scenarioCount} senaryo)</span>
+              </summary>
+              <div className="mt-2 ml-6">
+                <pre className="text-xs bg-ak-surface-2 rounded-lg p-3 overflow-x-auto whitespace-pre-wrap">
+                  {f.content.split('\n').map((line, li) => (
+                    <div key={li}>
+                      {/^(\s*)(Feature|Scenario|Given|When|Then|And|But):?/.test(line) ? (
+                        <span>
+                          <span className="text-green-400 font-semibold">
+                            {line.match(/^(\s*)(Feature|Scenario|Given|When|Then|And|But):?/)?.[0]}
+                          </span>
+                          {line.replace(/^(\s*)(Feature|Scenario|Given|When|Then|And|But):?/, '')}
+                        </span>
+                      ) : line}
+                    </div>
+                  ))}
+                </pre>
+                {f.mappedCriteria.length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-1">
+                    {f.mappedCriteria.map((c, ci) => (
+                      <span key={ci} className="px-2 py-0.5 rounded-full text-xs bg-purple-500/10 text-purple-400">
+                        {c.length > 60 ? c.slice(0, 57) + '...' : c}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </details>
+          ))}
+        </div>
+      );
+    }
 
     default:
       if (import.meta.env.DEV) {

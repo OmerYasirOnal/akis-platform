@@ -2,14 +2,35 @@ import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { cn } from '../../utils/cn';
 import { useAuth } from '../../contexts/AuthContext';
+import { useI18n } from '../../i18n/useI18n';
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
 /* ------------------------------------------------------------------ */
 
-type Tab = 'ai-keys' | 'pipeline-stats';
+type Tab = 'ai-keys' | 'pipeline-stats' | 'integrity' | 'integrations';
 
 type Provider = 'anthropic' | 'openai' | 'openrouter';
+
+interface IntegrityMetricsData {
+  avgSpecCompliance: { scribe: number; proto: number; trace: number };
+  assumptionStats: {
+    avgPerPipeline: number;
+    totalTracked: number;
+    topAssumptions: string[];
+  };
+  confidenceTrend: Array<{
+    week: string;
+    scribe: number;
+    proto: number;
+    trace: number;
+  }>;
+  criteriaStats: {
+    totalCriteria: number;
+    coveredCriteria: number;
+    coverageRate: number;
+  };
+}
 
 interface ProviderStatus {
   configured: boolean;
@@ -38,6 +59,10 @@ interface PipelineStatsData {
     createdAt: string;
     durationMs: number | null;
   }>;
+  errorFrequency?: Array<{ code: string; count: number }>;
+  modelDistribution?: Array<{ model: string; count: number }>;
+  tokenUsage?: Array<{ agent: string; inputTokens: number; outputTokens: number }>;
+  retryPatterns?: Array<{ stage: string; retries: number }>;
 }
 
 /* ------------------------------------------------------------------ */
@@ -50,17 +75,17 @@ const PROVIDERS: { key: Provider; label: string; description: string; placeholde
   { key: 'openrouter', label: 'OpenRouter', description: 'Birden fazla model', placeholder: 'sk-or-...' },
 ];
 
-const STAGE_LABELS: Record<string, { text: string; color: string }> = {
-  scribe_clarifying: { text: 'Scribe: Soru', color: 'text-blue-400 bg-blue-400/10' },
-  scribe_generating: { text: 'Scribe: Üretim', color: 'text-blue-400 bg-blue-400/10' },
-  awaiting_approval: { text: 'Onay Bekliyor', color: 'text-yellow-400 bg-yellow-400/10' },
-  proto_building: { text: 'Proto: İnşa', color: 'text-purple-400 bg-purple-400/10' },
-  trace_testing: { text: 'Trace: Test', color: 'text-cyan-400 bg-cyan-400/10' },
-  ci_running: { text: 'CI Çalışıyor', color: 'text-orange-400 bg-orange-400/10' },
-  completed: { text: 'Tamamlandı', color: 'text-emerald-400 bg-emerald-400/10' },
-  completed_partial: { text: 'Kısmi Tamamlandı', color: 'text-emerald-300 bg-emerald-300/10' },
-  failed: { text: 'Başarısız', color: 'text-red-400 bg-red-400/10' },
-  cancelled: { text: 'İptal', color: 'text-gray-400 bg-gray-400/10' },
+const STAGE_I18N_KEYS: Record<string, { key: string; color: string }> = {
+  scribe_clarifying: { key: 'pipeline.stage.scribeClarifying', color: 'text-blue-400 bg-blue-400/10' },
+  scribe_generating: { key: 'pipeline.stage.scribeGenerating', color: 'text-blue-400 bg-blue-400/10' },
+  awaiting_approval: { key: 'pipeline.stage.awaitingApproval', color: 'text-yellow-400 bg-yellow-400/10' },
+  proto_building: { key: 'pipeline.stage.protoBuilding', color: 'text-purple-400 bg-purple-400/10' },
+  trace_testing: { key: 'pipeline.stage.traceTesting', color: 'text-cyan-400 bg-cyan-400/10' },
+  ci_running: { key: 'pipeline.stage.ciRunning', color: 'text-orange-400 bg-orange-400/10' },
+  completed: { key: 'pipeline.stage.completed', color: 'text-emerald-400 bg-emerald-400/10' },
+  completed_partial: { key: 'pipeline.stage.completedPartial', color: 'text-emerald-300 bg-emerald-300/10' },
+  failed: { key: 'pipeline.stage.failed', color: 'text-red-400 bg-red-400/10' },
+  cancelled: { key: 'pipeline.stage.cancelled', color: 'text-gray-400 bg-gray-400/10' },
 };
 
 /* ------------------------------------------------------------------ */
@@ -89,28 +114,42 @@ function formatDate(iso: string): string {
 
 export default function SettingsPage() {
   const { user } = useAuth();
+  const { t } = useI18n();
   const [searchParams, setSearchParams] = useSearchParams();
-  const activeTab = (searchParams.get('tab') === 'pipeline-stats' ? 'pipeline-stats' : 'ai-keys') as Tab;
+  const tabParam = searchParams.get('tab');
+  const activeTab: Tab = tabParam === 'pipeline-stats' ? 'pipeline-stats'
+    : tabParam === 'integrity' ? 'integrity'
+    : tabParam === 'integrations' ? 'integrations'
+    : 'ai-keys';
 
   const setTab = (tab: Tab) => setSearchParams(tab === 'ai-keys' ? {} : { tab });
 
   return (
     <div className="flex min-h-screen flex-col bg-ak-bg">
       <div className="mx-auto w-full max-w-2xl px-4 py-8">
-        <h1 className="mb-1 text-lg font-semibold text-ak-text-primary">Ayarlar</h1>
-        <p className="mb-5 text-xs text-ak-text-tertiary">AI sağlayıcı, hesap ve pipeline ayarları.</p>
+        <h1 className="mb-1 text-lg font-semibold text-ak-text-primary">{t('settings.title')}</h1>
+        <p className="mb-5 text-xs text-ak-text-tertiary">{t('settings.subtitle')}</p>
 
         {/* Tab bar */}
         <div className="mb-6 flex gap-1 rounded-lg border border-ak-border bg-ak-surface p-1">
           <TabButton active={activeTab === 'ai-keys'} onClick={() => setTab('ai-keys')}>
-            AI Sağlayıcılar
+            {t('settings.tab.aiKeys')}
           </TabButton>
           <TabButton active={activeTab === 'pipeline-stats'} onClick={() => setTab('pipeline-stats')}>
-            Pipeline İstatistikleri
+            {t('settings.tab.pipelineStats')}
+          </TabButton>
+          <TabButton active={activeTab === 'integrity'} onClick={() => setTab('integrity')}>
+            {t('settings.tab.integrity')}
+          </TabButton>
+          <TabButton active={activeTab === 'integrations'} onClick={() => setTab('integrations')}>
+            {t('settings.tab.integrations')}
           </TabButton>
         </div>
 
-        {activeTab === 'ai-keys' ? <AIKeysTab user={user} /> : <PipelineStatsTab />}
+        {activeTab === 'ai-keys' && <AIKeysTab user={user} />}
+        {activeTab === 'pipeline-stats' && <PipelineStatsTab />}
+        {activeTab === 'integrity' && <IntegrityTab />}
+        {activeTab === 'integrations' && <IntegrationsTab />}
       </div>
     </div>
   );
@@ -133,10 +172,11 @@ function TabButton({ active, onClick, children }: { active: boolean; onClick: ()
 }
 
 /* ------------------------------------------------------------------ */
-/*  AI Keys Tab (mevcut içerik)                                        */
+/*  AI Keys Tab                                                        */
 /* ------------------------------------------------------------------ */
 
 function AIKeysTab({ user }: { user: ReturnType<typeof useAuth>['user'] }) {
+  const { t } = useI18n();
   const [status, setStatus] = useState<MultiProviderStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [editingProvider, setEditingProvider] = useState<Provider | null>(null);
@@ -148,8 +188,9 @@ function AIKeysTab({ user }: { user: ReturnType<typeof useAuth>['user'] }) {
     try {
       const res = await fetch('/api/settings/ai-keys/status', { credentials: 'include' });
       if (res.ok) setStatus(await res.json());
-    } catch { /* ignore */ }
-    finally { setLoading(false); }
+    } catch (e) {
+      console.warn('Failed to fetch AI key status:', e);
+    } finally { setLoading(false); }
   }, []);
 
   useEffect(() => { fetchStatus(); }, [fetchStatus]);
@@ -167,13 +208,13 @@ function AIKeysTab({ user }: { user: ReturnType<typeof useAuth>['user'] }) {
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(data.message || 'Key kaydedilemedi');
+        throw new Error(data.message || t('settings.ai.saveError'));
       }
       setEditingProvider(null);
       setApiKeyInput('');
       await fetchStatus();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Hata oluştu');
+      setError(e instanceof Error ? e.message : t('settings.ai.genericError'));
     } finally { setSaving(false); }
   };
 
@@ -186,7 +227,9 @@ function AIKeysTab({ user }: { user: ReturnType<typeof useAuth>['user'] }) {
         body: JSON.stringify({ provider }),
       });
       await fetchStatus();
-    } catch { /* ignore */ }
+    } catch (e) {
+      console.warn('Failed to delete AI key:', e);
+    }
   };
 
   const handleSetActive = async (provider: Provider) => {
@@ -198,15 +241,17 @@ function AIKeysTab({ user }: { user: ReturnType<typeof useAuth>['user'] }) {
         body: JSON.stringify({ provider }),
       });
       await fetchStatus();
-    } catch { /* ignore */ }
+    } catch (e) {
+      console.warn('Failed to set active provider:', e);
+    }
   };
 
   return (
     <>
-      <h2 className="mb-3 text-sm font-semibold text-ak-text-primary">AI Sağlayıcılar</h2>
+      <h2 className="mb-3 text-sm font-semibold text-ak-text-primary">{t('settings.ai.title')}</h2>
       <div className="space-y-3 mb-8">
         {loading ? (
-          <div className="rounded-xl border border-ak-border bg-ak-surface p-4 text-xs text-ak-text-tertiary">Yükleniyor...</div>
+          <div className="rounded-xl border border-ak-border bg-ak-surface p-4 text-xs text-ak-text-tertiary">{t('settings.loading')}</div>
         ) : (
           PROVIDERS.map((p) => {
             const ps = status?.providers[p.key];
@@ -221,14 +266,14 @@ function AIKeysTab({ user }: { user: ReturnType<typeof useAuth>['user'] }) {
                       <h3 className="text-sm font-semibold text-ak-text-primary">{p.label}</h3>
                       {isActive && (
                         <span className="rounded-full bg-ak-primary/10 px-2 py-0.5 text-[10px] font-medium text-ak-primary">
-                          Varsayılan
+                          {t('settings.ai.default')}
                         </span>
                       )}
                     </div>
                     <p className="text-xs text-ak-text-tertiary">
                       {ps?.configured
                         ? `API Key: ••••${ps.last4}`
-                        : 'Henüz eklenmedi'}
+                        : t('settings.ai.notConfigured')}
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
@@ -237,7 +282,7 @@ function AIKeysTab({ user }: { user: ReturnType<typeof useAuth>['user'] }) {
                         onClick={() => handleSetActive(p.key)}
                         className="rounded-lg border border-ak-border px-2.5 py-1 text-[11px] font-medium text-ak-text-secondary hover:text-ak-primary transition-colors"
                       >
-                        Varsayılan Yap
+                        {t('settings.ai.makeDefault')}
                       </button>
                     )}
                     {ps?.configured && (
@@ -245,7 +290,7 @@ function AIKeysTab({ user }: { user: ReturnType<typeof useAuth>['user'] }) {
                         onClick={() => handleDelete(p.key)}
                         className="rounded-lg border border-ak-border px-2.5 py-1 text-[11px] font-medium text-red-400 hover:bg-red-400/10 transition-colors"
                       >
-                        Sil
+                        {t('settings.ai.delete')}
                       </button>
                     )}
                     {!isEditing && (
@@ -253,7 +298,7 @@ function AIKeysTab({ user }: { user: ReturnType<typeof useAuth>['user'] }) {
                         onClick={() => { setEditingProvider(p.key); setApiKeyInput(''); setError(null); }}
                         className="rounded-lg bg-ak-primary/10 px-2.5 py-1 text-[11px] font-medium text-ak-primary hover:bg-ak-primary/20 transition-colors"
                       >
-                        {ps?.configured ? 'Güncelle' : '+ Ekle'}
+                        {ps?.configured ? t('settings.ai.update') : t('settings.ai.add')}
                       </button>
                     )}
                   </div>
@@ -278,7 +323,7 @@ function AIKeysTab({ user }: { user: ReturnType<typeof useAuth>['user'] }) {
                         onClick={() => { setEditingProvider(null); setApiKeyInput(''); setError(null); }}
                         className="rounded-lg border border-ak-border px-3 py-1.5 text-xs text-ak-text-secondary"
                       >
-                        İptal
+                        {t('settings.ai.cancel')}
                       </button>
                       <button
                         onClick={() => handleSave(p.key)}
@@ -288,7 +333,7 @@ function AIKeysTab({ user }: { user: ReturnType<typeof useAuth>['user'] }) {
                           (!apiKeyInput.trim() || saving) && 'opacity-50 cursor-not-allowed',
                         )}
                       >
-                        {saving ? 'Kaydediliyor...' : 'Kaydet'}
+                        {saving ? t('settings.ai.saving') : t('settings.ai.save')}
                       </button>
                     </div>
                   </div>
@@ -300,14 +345,14 @@ function AIKeysTab({ user }: { user: ReturnType<typeof useAuth>['user'] }) {
       </div>
 
       {/* User Info */}
-      <h2 className="mb-3 text-sm font-semibold text-ak-text-primary">Hesap</h2>
+      <h2 className="mb-3 text-sm font-semibold text-ak-text-primary">{t('settings.account.title')}</h2>
       <div className="rounded-xl border border-ak-border bg-ak-surface p-4">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-full bg-ak-primary/20 text-sm font-semibold text-ak-primary">
             {user?.name?.[0]?.toUpperCase() ?? '?'}
           </div>
           <div>
-            <p className="text-sm font-medium text-ak-text-primary">{user?.name ?? 'Kullanıcı'}</p>
+            <p className="text-sm font-medium text-ak-text-primary">{user?.name ?? t('settings.account.defaultName')}</p>
             <p className="text-xs text-ak-text-tertiary">{user?.email ?? ''}</p>
           </div>
         </div>
@@ -321,6 +366,7 @@ function AIKeysTab({ user }: { user: ReturnType<typeof useAuth>['user'] }) {
 /* ------------------------------------------------------------------ */
 
 function PipelineStatsTab() {
+  const { t } = useI18n();
   const [data, setData] = useState<PipelineStatsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -329,18 +375,18 @@ function PipelineStatsTab() {
     (async () => {
       try {
         const res = await fetch('/api/settings/pipeline-stats', { credentials: 'include' });
-        if (!res.ok) throw new Error('İstatistikler yüklenemedi');
+        if (!res.ok) throw new Error(t('settings.stats.error'));
         setData(await res.json());
       } catch (e) {
-        setError(e instanceof Error ? e.message : 'Hata oluştu');
+        setError(e instanceof Error ? e.message : t('settings.ai.genericError'));
       } finally {
         setLoading(false);
       }
     })();
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (loading) {
-    return <div className="rounded-xl border border-ak-border bg-ak-surface p-6 text-xs text-ak-text-tertiary text-center">Yükleniyor...</div>;
+    return <div className="rounded-xl border border-ak-border bg-ak-surface p-6 text-xs text-ak-text-tertiary text-center">{t('settings.loading')}</div>;
   }
 
   if (error) {
@@ -353,11 +399,11 @@ function PipelineStatsTab() {
     <>
       {/* Stat cards */}
       <div className="mb-6 grid grid-cols-2 gap-3">
-        <StatCard label="Toplam Pipeline" value={String(data.totalPipelines)} />
-        <StatCard label="Başarı Oranı" value={`%${data.successRate}`} accent={data.successRate >= 70} />
-        <StatCard label="Ort. Toplam Süre" value={formatDuration(data.avgDurations.totalMs)} />
+        <StatCard label={t('settings.stats.totalPipelines')} value={String(data.totalPipelines)} />
+        <StatCard label={t('settings.stats.successRate')} value={`%${data.successRate}`} accent={data.successRate >= 70} />
+        <StatCard label={t('settings.stats.avgTotalDuration')} value={formatDuration(data.avgDurations.totalMs)} />
         <div className="rounded-xl border border-ak-border bg-ak-surface p-4">
-          <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-ak-text-tertiary">Ort. Agent Süreleri</p>
+          <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-ak-text-tertiary">{t('settings.stats.avgAgentDurations')}</p>
           <div className="space-y-1.5">
             <AgentDuration label="Scribe" ms={data.avgDurations.scribeMs} />
             <AgentDuration label="Proto" ms={data.avgDurations.protoMs} />
@@ -367,33 +413,35 @@ function PipelineStatsTab() {
       </div>
 
       {/* Recent pipelines */}
-      <h2 className="mb-3 text-sm font-semibold text-ak-text-primary">Son Pipeline'lar</h2>
+      <h2 className="mb-3 text-sm font-semibold text-ak-text-primary">{t('settings.stats.recentPipelines')}</h2>
       {data.recentPipelines.length === 0 ? (
         <div className="rounded-xl border border-ak-border bg-ak-surface p-6 text-center text-xs text-ak-text-tertiary">
-          Henüz pipeline çalıştırılmamış.
+          {t('settings.stats.empty')}
         </div>
       ) : (
         <div className="overflow-hidden rounded-xl border border-ak-border">
           <table className="w-full text-xs">
             <thead>
               <tr className="border-b border-ak-border bg-ak-surface">
-                <th className="px-4 py-2.5 text-left font-semibold text-ak-text-tertiary">Başlık</th>
-                <th className="px-4 py-2.5 text-left font-semibold text-ak-text-tertiary">Durum</th>
-                <th className="px-4 py-2.5 text-left font-semibold text-ak-text-tertiary">Tarih</th>
-                <th className="px-4 py-2.5 text-right font-semibold text-ak-text-tertiary">Süre</th>
+                <th className="px-4 py-2.5 text-left font-semibold text-ak-text-tertiary">{t('settings.stats.th.title')}</th>
+                <th className="px-4 py-2.5 text-left font-semibold text-ak-text-tertiary">{t('settings.stats.th.status')}</th>
+                <th className="px-4 py-2.5 text-left font-semibold text-ak-text-tertiary">{t('settings.stats.th.date')}</th>
+                <th className="px-4 py-2.5 text-right font-semibold text-ak-text-tertiary">{t('settings.stats.th.duration')}</th>
               </tr>
             </thead>
             <tbody>
               {data.recentPipelines.map((p) => {
-                const stage = STAGE_LABELS[p.stage] ?? { text: p.stage, color: 'text-gray-400 bg-gray-400/10' };
+                const stageInfo = STAGE_I18N_KEYS[p.stage];
+                const stageText = stageInfo ? t(stageInfo.key as Parameters<typeof t>[0]) : p.stage;
+                const stageColor = stageInfo?.color ?? 'text-gray-400 bg-gray-400/10';
                 return (
                   <tr key={p.id} className="border-b border-ak-border/50 bg-ak-surface/50 last:border-b-0">
                     <td className="px-4 py-2.5 text-ak-text-primary font-medium truncate max-w-[200px]">
-                      {p.title || <span className="text-ak-text-tertiary italic">İsimsiz</span>}
+                      {p.title || <span className="text-ak-text-tertiary italic">{t('settings.stats.unnamed')}</span>}
                     </td>
                     <td className="px-4 py-2.5">
-                      <span className={cn('inline-block rounded-full px-2 py-0.5 text-[10px] font-medium', stage.color)}>
-                        {stage.text}
+                      <span className={cn('inline-block rounded-full px-2 py-0.5 text-[10px] font-medium', stageColor)}>
+                        {stageText}
                       </span>
                     </td>
                     <td className="px-4 py-2.5 text-ak-text-secondary">{formatDate(p.createdAt)}</td>
@@ -403,6 +451,130 @@ function PipelineStatsTab() {
               })}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {/* ── Analytics: Error Breakdown ──────────────────────────────── */}
+      {data.errorFrequency && data.errorFrequency.length > 0 && (
+        <div className="mt-6">
+          <h2 className="mb-3 text-sm font-semibold text-ak-text-primary">{t('settings.stats.errors')}</h2>
+          <div className="rounded-xl border border-ak-border bg-ak-surface p-4 space-y-2">
+            {(() => {
+              const maxCount = Math.max(...data.errorFrequency!.map((e) => e.count), 1);
+              return data.errorFrequency!.map((e) => (
+                <div key={e.code} className="flex items-center gap-2 text-sm">
+                  <span className="w-40 font-mono text-xs truncate text-ak-text-secondary">{e.code}</span>
+                  <div className="flex-1 h-4 bg-ak-surface-2 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-red-500/70 rounded-full transition-all"
+                      style={{ width: `${(e.count / maxCount) * 100}%` }}
+                    />
+                  </div>
+                  <span className="text-ak-text-secondary w-8 text-right text-xs">{e.count}</span>
+                </div>
+              ));
+            })()}
+          </div>
+        </div>
+      )}
+
+      {/* ── Analytics: Model Distribution ──────────────────────────── */}
+      {data.modelDistribution && data.modelDistribution.length > 0 && (
+        <div className="mt-6">
+          <h2 className="mb-3 text-sm font-semibold text-ak-text-primary">{t('settings.stats.models')}</h2>
+          <div className="rounded-xl border border-ak-border bg-ak-surface p-4 flex items-center gap-6">
+            {(() => {
+              const total = data.modelDistribution!.reduce((s, m) => s + m.count, 0) || 1;
+              const colors = ['#07D1AF', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6'];
+              let cumPct = 0;
+              const segments = data.modelDistribution!.map((m, i) => {
+                const start = cumPct;
+                const pct = (m.count / total) * 100;
+                cumPct += pct;
+                return { ...m, start, pct, color: colors[i % colors.length] };
+              });
+              const gradient = segments
+                .map((s) => `${s.color} ${s.start}% ${s.start + s.pct}%`)
+                .join(', ');
+              return (
+                <>
+                  <div
+                    className="w-28 h-28 rounded-full shrink-0"
+                    style={{
+                      background: `conic-gradient(${gradient})`,
+                      mask: 'radial-gradient(circle at center, transparent 40%, black 41%)',
+                      WebkitMask: 'radial-gradient(circle at center, transparent 40%, black 41%)',
+                    }}
+                  />
+                  <div className="space-y-1.5 min-w-0">
+                    {segments.map((s) => (
+                      <div key={s.model} className="flex items-center gap-2 text-xs">
+                        <span className="w-3 h-3 rounded-sm shrink-0" style={{ backgroundColor: s.color }} />
+                        <span className="text-ak-text-secondary truncate">{s.model}</span>
+                        <span className="ml-auto font-mono text-ak-text-primary">{s.count}</span>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              );
+            })()}
+          </div>
+        </div>
+      )}
+
+      {/* ── Analytics: Token Usage ─────────────────────────────────── */}
+      {data.tokenUsage && data.tokenUsage.length > 0 && (
+        <div className="mt-6">
+          <h2 className="mb-3 text-sm font-semibold text-ak-text-primary">{t('settings.stats.tokens')}</h2>
+          <div className="overflow-hidden rounded-xl border border-ak-border">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="border-b border-ak-border bg-ak-surface">
+                  <th className="px-4 py-2.5 text-left font-semibold text-ak-text-tertiary">Agent</th>
+                  <th className="px-4 py-2.5 text-right font-semibold text-ak-text-tertiary">Input</th>
+                  <th className="px-4 py-2.5 text-right font-semibold text-ak-text-tertiary">Output</th>
+                  <th className="px-4 py-2.5 text-right font-semibold text-ak-text-tertiary">Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.tokenUsage!.map((row) => (
+                  <tr key={row.agent} className="border-b border-ak-border/50 bg-ak-surface/50 last:border-b-0">
+                    <td className="px-4 py-2.5 text-ak-text-primary font-medium capitalize">{row.agent}</td>
+                    <td className="px-4 py-2.5 text-right font-mono text-ak-text-secondary">{row.inputTokens.toLocaleString()}</td>
+                    <td className="px-4 py-2.5 text-right font-mono text-ak-text-secondary">{row.outputTokens.toLocaleString()}</td>
+                    <td className="px-4 py-2.5 text-right font-mono text-ak-text-primary">{(row.inputTokens + row.outputTokens).toLocaleString()}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* ── Analytics: Retry Heatmap ──────────────────────────────── */}
+      {data.retryPatterns && data.retryPatterns.length > 0 && (
+        <div className="mt-6 mb-4">
+          <h2 className="mb-3 text-sm font-semibold text-ak-text-primary">{t('settings.stats.retries')}</h2>
+          <div className="rounded-xl border border-ak-border bg-ak-surface p-4 flex flex-wrap gap-2">
+            {data.retryPatterns!.map((rp) => {
+              const bg = rp.retries === 0
+                ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
+                : rp.retries <= 2
+                  ? 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30'
+                  : 'bg-red-500/20 text-red-400 border-red-500/30';
+              const stageInfo = STAGE_I18N_KEYS[rp.stage];
+              const label = stageInfo ? t(stageInfo.key as Parameters<typeof t>[0]) : rp.stage;
+              return (
+                <div
+                  key={rp.stage}
+                  className={cn('rounded-lg border px-3 py-2 text-xs font-medium', bg)}
+                >
+                  <div className="text-[10px] opacity-70">{label}</div>
+                  <div className="font-mono text-sm">{rp.retries}</div>
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
     </>
@@ -428,5 +600,311 @@ function AgentDuration({ label, ms }: { label: string; ms: number | null }) {
       <span className="text-[11px] text-ak-text-secondary">{label}</span>
       <span className="text-[11px] font-mono text-ak-text-primary">{formatDuration(ms)}</span>
     </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Integrity Tab                                                      */
+/* ------------------------------------------------------------------ */
+
+const AGENT_COLORS: Record<string, string> = {
+  scribe: '#3b82f6',  // blue
+  proto: '#f59e0b',   // amber
+  trace: '#8b5cf6',   // purple
+};
+
+function IntegrityTab() {
+  const { t } = useI18n();
+  const [data, setData] = useState<IntegrityMetricsData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch('/api/settings/integrity-metrics', { credentials: 'include' });
+        if (!res.ok) throw new Error(t('integrity.error'));
+        setData(await res.json());
+      } catch (e) {
+        setError(e instanceof Error ? e.message : t('integrity.error'));
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  if (loading) {
+    return <div className="rounded-xl border border-ak-border bg-ak-surface p-6 text-xs text-ak-text-tertiary text-center">{t('settings.loading')}</div>;
+  }
+
+  if (error) {
+    return <div className="rounded-xl border border-red-500/30 bg-red-500/5 p-4 text-xs text-red-400">{error}</div>;
+  }
+
+  if (!data) return null;
+
+  const hasData = data.avgSpecCompliance.scribe > 0 || data.avgSpecCompliance.proto > 0 || data.avgSpecCompliance.trace > 0
+    || data.confidenceTrend.length > 0 || data.criteriaStats.totalCriteria > 0 || data.assumptionStats.totalTracked > 0;
+
+  if (!hasData) {
+    return (
+      <div className="rounded-xl border border-ak-border bg-ak-surface p-6 text-center text-xs text-ak-text-tertiary">
+        {t('integrity.noData')}
+      </div>
+    );
+  }
+
+  return (
+    <>
+      {/* Spec Compliance */}
+      <h2 className="mb-3 text-sm font-semibold text-ak-text-primary">{t('integrity.compliance')}</h2>
+      <div className="mb-6 flex justify-center gap-8">
+        {(['scribe', 'proto', 'trace'] as const).map((agent) => (
+          <ComplianceCircle key={agent} label={agent} value={data.avgSpecCompliance[agent]} />
+        ))}
+      </div>
+
+      {/* Confidence Trend */}
+      {data.confidenceTrend.length > 0 && (
+        <>
+          <h2 className="mb-3 text-sm font-semibold text-ak-text-primary">{t('integrity.confidence')}</h2>
+          <div className="mb-6 rounded-xl border border-ak-border bg-ak-surface p-4">
+            <ConfidenceChart trend={data.confidenceTrend} />
+          </div>
+        </>
+      )}
+
+      {/* Criteria Coverage */}
+      {data.criteriaStats.totalCriteria > 0 && (
+        <>
+          <h2 className="mb-3 text-sm font-semibold text-ak-text-primary">{t('integrity.coverage')}</h2>
+          <div className="mb-6 rounded-xl border border-ak-border bg-ak-surface p-4">
+            <div className="h-6 rounded-full bg-ak-surface-2 overflow-hidden">
+              <div
+                className="h-full rounded-full bg-emerald-500 transition-all"
+                style={{ width: `${data.criteriaStats.coverageRate}%` }}
+              />
+            </div>
+            <p className="mt-2 text-xs text-ak-text-secondary text-center">
+              {data.criteriaStats.coveredCriteria}/{data.criteriaStats.totalCriteria} criteria covered ({data.criteriaStats.coverageRate}%)
+            </p>
+          </div>
+        </>
+      )}
+
+      {/* Top Assumptions */}
+      {data.assumptionStats.topAssumptions.length > 0 && (
+        <>
+          <h2 className="mb-3 text-sm font-semibold text-ak-text-primary">{t('integrity.assumptions')}</h2>
+          <div className="mb-6 rounded-xl border border-ak-border bg-ak-surface p-4">
+            <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-ak-text-tertiary">
+              {data.assumptionStats.totalTracked} tracked ({data.assumptionStats.avgPerPipeline.toFixed(1)} avg/pipeline)
+            </p>
+            <ol className="list-decimal list-inside space-y-1">
+              {data.assumptionStats.topAssumptions.map((a, i) => (
+                <li key={i} className="text-xs text-ak-text-secondary">{a}</li>
+              ))}
+            </ol>
+          </div>
+        </>
+      )}
+    </>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Integrity sub-components                                           */
+/* ------------------------------------------------------------------ */
+
+function ComplianceCircle({ label, value }: { label: string; value: number }) {
+  const pct = Math.round(value * 100);
+  return (
+    <div className="flex flex-col items-center gap-2">
+      <svg viewBox="0 0 36 36" className="h-24 w-24">
+        <path
+          d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+          fill="none"
+          stroke="var(--ak-surface-2)"
+          strokeWidth="3"
+        />
+        <path
+          d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+          fill="none"
+          stroke={AGENT_COLORS[label] ?? '#07D1AF'}
+          strokeWidth="3"
+          strokeDasharray={`${value * 100}, 100`}
+          strokeLinecap="round"
+        />
+        <text x="18" y="20" textAnchor="middle" className="fill-ak-text-primary text-[8px] font-bold">
+          {pct}%
+        </text>
+      </svg>
+      <span className="text-xs font-medium capitalize text-ak-text-secondary">{label}</span>
+    </div>
+  );
+}
+
+function ConfidenceChart({ trend }: { trend: IntegrityMetricsData['confidenceTrend'] }) {
+  if (trend.length === 0) return null;
+
+  const W = 400;
+  const H = 160;
+  const PX = 40; // left padding for Y labels
+  const PY = 20; // bottom padding for X labels
+  const chartW = W - PX - 10;
+  const chartH = H - PY - 10;
+
+  const xStep = trend.length > 1 ? chartW / (trend.length - 1) : chartW / 2;
+
+  const buildPoints = (key: 'scribe' | 'proto' | 'trace') =>
+    trend.map((d, i) => `${PX + i * xStep},${10 + chartH - d[key] * chartH}`).join(' ');
+
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} className="w-full" preserveAspectRatio="xMidYMid meet">
+      {/* Y axis gridlines */}
+      {[0, 0.25, 0.5, 0.75, 1].map((v) => {
+        const y = 10 + chartH - v * chartH;
+        return (
+          <g key={v}>
+            <line x1={PX} y1={y} x2={PX + chartW} y2={y} stroke="var(--ak-border)" strokeWidth="0.5" />
+            <text x={PX - 4} y={y + 3} textAnchor="end" className="fill-ak-text-tertiary text-[7px]">
+              {v.toFixed(2)}
+            </text>
+          </g>
+        );
+      })}
+
+      {/* X axis labels */}
+      {trend.map((d, i) => (
+        <text
+          key={i}
+          x={PX + i * xStep}
+          y={H - 2}
+          textAnchor="middle"
+          className="fill-ak-text-tertiary text-[6px]"
+        >
+          {d.week.slice(5)}
+        </text>
+      ))}
+
+      {/* Lines per agent */}
+      {(['scribe', 'proto', 'trace'] as const).map((agent) => (
+        <polyline
+          key={agent}
+          points={buildPoints(agent)}
+          fill="none"
+          stroke={AGENT_COLORS[agent]}
+          strokeWidth="2"
+          strokeLinejoin="round"
+          strokeLinecap="round"
+        />
+      ))}
+
+      {/* Legend */}
+      {(['scribe', 'proto', 'trace'] as const).map((agent, i) => (
+        <g key={agent} transform={`translate(${PX + i * 90}, ${H - PY + 14})`}>
+          <rect width="8" height="8" rx="2" fill={AGENT_COLORS[agent]} />
+          <text x="12" y="7" className="fill-ak-text-secondary text-[7px] capitalize">{agent}</text>
+        </g>
+      ))}
+    </svg>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Integrations Tab                                                   */
+/* ------------------------------------------------------------------ */
+
+function IntegrationsTab() {
+  const { t } = useI18n();
+  const [jiraProjectKey, setJiraProjectKey] = useState(() => localStorage.getItem('akis_jira_project_key') ?? '');
+  const [jiraEnabled, setJiraEnabled] = useState(() => localStorage.getItem('akis_jira_enabled') === 'true');
+  const [jiraConnected] = useState(false); // Placeholder until Atlassian OAuth status API exists
+
+  const handleProjectKeyChange = (val: string) => {
+    const upper = val.toUpperCase().replace(/[^A-Z0-9_]/g, '');
+    setJiraProjectKey(upper);
+    localStorage.setItem('akis_jira_project_key', upper);
+  };
+
+  const handleToggle = () => {
+    const next = !jiraEnabled;
+    setJiraEnabled(next);
+    localStorage.setItem('akis_jira_enabled', String(next));
+  };
+
+  return (
+    <>
+      <h2 className="mb-3 text-sm font-semibold text-ak-text-primary">{t('integrations.jira.title')}</h2>
+
+      <div className="rounded-xl border border-ak-border bg-ak-surface p-4 space-y-4">
+        {/* Connection status */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <svg className="h-5 w-5 text-blue-500" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M11.571 11.513H0a5.218 5.218 0 0 0 5.232 5.215h2.13v2.057A5.215 5.215 0 0 0 12.593 24V12.518a1.005 1.005 0 0 0-1.022-1.005zm5.723-5.756H5.736a5.215 5.215 0 0 0 5.215 5.232h2.13v2.057a5.216 5.216 0 0 0 5.215 5.215V6.742a.988.988 0 0 0-1.002-.985zM23.013 0H11.455a5.215 5.215 0 0 0 5.215 5.215h2.129v2.074A5.218 5.218 0 0 0 24.013 12.5V.985A.988.988 0 0 0 23.013 0z" />
+            </svg>
+            <span className="text-sm font-medium text-ak-text-primary">Jira</span>
+          </div>
+          <span className={cn(
+            'rounded-full px-2 py-0.5 text-[10px] font-medium',
+            jiraConnected
+              ? 'bg-emerald-500/10 text-emerald-400'
+              : 'bg-ak-surface-2 text-ak-text-tertiary',
+          )}>
+            {jiraConnected ? t('integrations.jira.connected') : t('integrations.jira.disconnected')}
+          </span>
+        </div>
+
+        {/* Connect button (placeholder) */}
+        {!jiraConnected && (
+          <button
+            className="w-full rounded-lg border border-ak-border bg-ak-surface-2 py-2 text-xs font-medium text-ak-text-secondary hover:text-ak-primary hover:border-ak-primary/30 transition-colors"
+            onClick={() => {
+              // Placeholder — Atlassian OAuth flow not yet wired
+              console.info('[Jira] OAuth connect not yet implemented');
+            }}
+          >
+            {t('integrations.jira.connect')}
+          </button>
+        )}
+
+        {/* Project Key input */}
+        <div>
+          <label className="mb-1 block text-xs font-medium text-ak-text-secondary">
+            {t('integrations.jira.projectKey')}
+          </label>
+          <input
+            type="text"
+            value={jiraProjectKey}
+            onChange={(e) => handleProjectKeyChange(e.target.value)}
+            placeholder="PROJ"
+            className={cn(
+              'w-full rounded-lg border border-ak-border bg-ak-surface-2 px-3 py-2 text-xs text-ak-text-primary font-mono',
+              'placeholder:text-ak-text-tertiary focus:border-ak-primary focus:outline-none focus:ring-1 focus:ring-ak-primary/30',
+            )}
+          />
+        </div>
+
+        {/* Enable toggle */}
+        <div className="flex items-center justify-between">
+          <span className="text-xs text-ak-text-secondary">{t('integrations.jira.enabled')}</span>
+          <button
+            onClick={handleToggle}
+            className={cn(
+              'relative h-5 w-9 rounded-full transition-colors',
+              jiraEnabled ? 'bg-ak-primary' : 'bg-ak-surface-2 border border-ak-border',
+            )}
+          >
+            <span
+              className={cn(
+                'absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform',
+                jiraEnabled ? 'translate-x-4' : 'translate-x-0.5',
+              )}
+            />
+          </button>
+        </div>
+      </div>
+    </>
   );
 }

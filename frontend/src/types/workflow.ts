@@ -112,6 +112,13 @@ export interface ConversationMessage {
       testName: string;
       coverage: 'full' | 'partial' | 'none';
     }>;
+    gherkinFeatures?: Array<{
+      featureName: string;
+      filePath: string;
+      content: string;
+      scenarioCount: number;
+      mappedCriteria: string[];
+    }>;
   };
 }
 
@@ -121,6 +128,7 @@ export interface FileTreeNode {
   path?: string;
   lang?: string;
   lines?: number;
+  content?: string;
   agent?: 'proto' | 'trace';
   status?: 'new' | 'modified' | 'test';
   children?: FileTreeNode[];

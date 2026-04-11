@@ -7,24 +7,11 @@ interface ChatInputProps {
   disabled?: boolean;
   showCancel?: boolean;
   placeholder?: string;
-  /** When set, appends text to the input (for suggestion badge clicks) */
-  appendText?: string;
-  /** Called after appendText is consumed */
-  onAppendTextConsumed?: () => void;
 }
 
-export function ChatInput({ onSend, onCancel, disabled, showCancel, placeholder, appendText, onAppendTextConsumed }: ChatInputProps) {
+export function ChatInput({ onSend, onCancel, disabled, showCancel, placeholder }: ChatInputProps) {
   const [value, setValue] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-
-  // Append suggestion text when prop changes
-  useEffect(() => {
-    if (!appendText) return;
-    setValue((prev) => (prev ? `${prev}\n${appendText}` : appendText));
-    onAppendTextConsumed?.();
-    // Focus input after appending
-    textareaRef.current?.focus();
-  }, [appendText, onAppendTextConsumed]);
 
   // Auto-resize textarea (1-5 lines)
   useEffect(() => {

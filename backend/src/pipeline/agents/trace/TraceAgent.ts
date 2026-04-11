@@ -10,6 +10,7 @@ import {
   RETRY_CONFIG,
 } from '../../core/contracts/PipelineErrors.js';
 import { createActivityEmitter } from '../../core/activityEmitter.js';
+import { generateGherkinFromSpec } from '../../integrations/cucumberGenerator.js';
 
 // ─── Dependency Interfaces ────────────────────────
 
@@ -199,21 +200,41 @@ export class TraceAgent {
     const { testFiles, coverageMatrix, testSummary } = testsResult.data;
     emit?.('parsing', `AI yanıtından ${testFiles.length} test dosyası çıkarıldı`, 75);
 
+    // Generate BDD/Gherkin feature files from spec
+    const gherkinResult = input.spec
+      ? generateGherkinFromSpec(input.spec)
+      : { features: [], stepDefinitions: [] };
+
     if (input.dryRun) {
       return {
         type: 'output',
-        data: { ok: true, testFiles, coverageMatrix, testSummary },
+        data: {
+          ok: true,
+          testFiles,
+          coverageMatrix,
+          testSummary,
+          gherkinFeatures: gherkinResult.features,
+          stepDefinitions: gherkinResult.stepDefinitions,
+        },
       };
     }
 
-    // Step 3: Push test files to Proto's branch (no separate branch)
+    // Step 3: Push test files + Gherkin features to Proto's branch
     const branchName = input.branch;
     emit?.('traceability', 'Testler kabul kriterlerine eşleniyor...', 85);
+
+    // Combine Playwright test files with Gherkin feature/step files for push
+    const allFilesToPush: TraceOutput['testFiles'] = [
+      ...testFiles,
+      ...gherkinResult.features.map((f) => ({ filePath: f.filePath, content: f.content, testCount: f.scenarioCount })),
+      ...gherkinResult.stepDefinitions.map((s) => ({ filePath: s.filePath, content: s.content, testCount: 0 })),
+    ];
+
     const pushResult = await this.pushTestFiles(
       input.repoOwner,
       input.repo,
       branchName,
-      testFiles
+      allFilesToPush
     );
     if (pushResult.type === 'error') {
       emit?.('error', 'Test dosyaları push edilemedi', 0);
@@ -246,6 +267,8 @@ export class TraceAgent {
         testSummary,
         branch: branchName,
         prUrl,
+        gherkinFeatures: gherkinResult.features,
+        stepDefinitions: gherkinResult.stepDefinitions,
       },
     };
   }

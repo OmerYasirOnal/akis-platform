@@ -191,7 +191,7 @@ export class ProtoAgent {
 
     // Step 4: Push files
     emit?.('github_push', `${files.length} dosya GitHub'a push ediliyor...`, 75);
-    const pushResult = await this.pushFiles(input.owner, input.repoName, branchName, files);
+    const pushResult = await this.pushFiles(input.owner, input.repoName, branchName, files, emit);
     if (pushResult.type === 'error') {
       emit?.('error', 'Dosyalar push edilemedi', 0);
       return pushResult;
@@ -421,13 +421,20 @@ export class ProtoAgent {
     owner: string,
     repo: string,
     branch: string,
-    files: ProtoOutput['files']
+    files: ProtoOutput['files'],
+    emit?: ReturnType<typeof createActivityEmitter>,
   ): Promise<{ type: 'output' } | { type: 'error'; error: PipelineError }> {
     files = this.sanitizeFiles(files);
+    const totalFiles = files.length;
     for (let attempt = 0; attempt <= RETRY_CONFIG.maxRetries; attempt++) {
       try {
         if (this.github.pushFiles) {
           // Batch push — single atomic commit via Git Tree API
+          // Emit file_created events before the batch commit so the UI shows progress
+          for (let i = 0; i < totalFiles; i++) {
+            const pct = 75 + Math.round(((i + 1) / totalFiles) * 15); // 75-90 range
+            emit?.('file_created', `${files[i].filePath} oluşturuldu`, pct, files[i].filePath);
+          }
           await this.github.pushFiles(
             owner,
             repo,
@@ -435,14 +442,18 @@ export class ProtoAgent {
             files.map((f) => ({ path: f.filePath, content: f.content })),
             `feat: initial scaffold (${files.length} files)`,
           );
+          emit?.('github_push', 'Tüm dosyalar push edildi', 90);
         } else {
           // Fallback: per-file commits (legacy adapters)
-          for (const file of files) {
+          for (let i = 0; i < totalFiles; i++) {
+            const file = files[i];
             await this.github.commitFile(
               owner, repo, branch,
               file.filePath, file.content,
               `feat: add ${file.filePath}`,
             );
+            const pct = 75 + Math.round(((i + 1) / totalFiles) * 15);
+            emit?.('file_created', `${file.filePath} oluşturuldu`, pct, file.filePath);
           }
         }
         return { type: 'output' };
