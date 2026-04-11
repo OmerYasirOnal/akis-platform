@@ -130,7 +130,7 @@ export function ChatPanel({
           <div className="mx-auto max-w-[720px] space-y-4 px-4 py-4">
             {messages.map((msg, i) => (
               <ChatMessage
-                key={i}
+                key={`${msg.type}-${msg.timestamp ?? ''}-${i}`}
                 message={msg}
                 onApprove={onApprove}
                 onReject={onReject}

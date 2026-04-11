@@ -10,6 +10,7 @@ import { usePipelineStream } from '../../hooks/usePipelineStream';
 import { useProfileCompleteness } from '../../hooks/useProfileCompleteness';
 import { ProfileSetupBanner } from '../../components/onboarding/ProfileSetupBanner';
 import { ProfileSetupWizard } from '../../components/onboarding/ProfileSetupWizard';
+import { ErrorBoundary } from '../../components/ErrorBoundary';
 import type { ConversationListItem, ChatMessage, ConversationStatus } from '../../types/chat';
 import type { Workflow, WorkflowStatus, ConversationMessage, StructuredSpec } from '../../types/workflow';
 import type { UserFriendlyPlan } from '../../types/plan';
@@ -468,25 +469,27 @@ export default function ChatPage() {
         )}
 
         {conversationId || pendingConv ? (
-          <ChatPanel
-            conversationId={conversationId ?? 'pending'}
-            repoShortName={activeWorkflow?.title ?? pendingConv?.displayName ?? ''}
-            repoFullName={activeWorkflow?.stages?.proto?.branch ?? ''}
-            branch={activeWorkflow?.stages?.proto?.branch}
-            messages={messages}
-            uiState={uiState}
-            isInputEnabled={pendingConv ? !creating : isInputEnabled}
-            showCancelButton={showCancelButton}
-            inputPlaceholder={pendingConv ? 'Projenizi anlatın...' : inputPlaceholder}
-            onSend={handleSend}
-            onCancel={handleCancel}
-            onApprove={handleApprove}
-            onReject={handleReject}
-            onRetry={handleRetry}
-            onSkip={handleSkip}
-            onBack={() => { setPendingConv(null); navigate('/chat'); }}
-            showBackButton
-          />
+          <ErrorBoundary>
+            <ChatPanel
+              conversationId={conversationId ?? 'pending'}
+              repoShortName={activeWorkflow?.title ?? pendingConv?.displayName ?? ''}
+              repoFullName={activeWorkflow?.stages?.proto?.branch ?? ''}
+              branch={activeWorkflow?.stages?.proto?.branch}
+              messages={messages}
+              uiState={uiState}
+              isInputEnabled={pendingConv ? !creating : isInputEnabled}
+              showCancelButton={showCancelButton}
+              inputPlaceholder={pendingConv ? 'Projenizi anlatın...' : inputPlaceholder}
+              onSend={handleSend}
+              onCancel={handleCancel}
+              onApprove={handleApprove}
+              onReject={handleReject}
+              onRetry={handleRetry}
+              onSkip={handleSkip}
+              onBack={() => { setPendingConv(null); navigate('/chat'); }}
+              showBackButton
+            />
+          </ErrorBoundary>
         ) : (
           <EmptyState variant="no-conversation" onNewConversation={handleNewConversation} />
         )}
