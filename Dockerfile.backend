@@ -1,16 +1,25 @@
+# syntax=docker/dockerfile:1
 # AKIS Backend Dockerfile — Staging/Production
 # Pipeline code lives at backend/src/pipeline/ (consolidated)
 # Build context: REPO ROOT (not backend/)
 #
 # Usage:
 #   docker build -f Dockerfile.backend -t akis-backend .
+#
+# Optimization notes (ARM64 OCI Free Tier — 1 OCPU, 6GB RAM):
+#   - python3/make/g++ REMOVED: all deps are pure JS (bcryptjs, not bcrypt)
+#   - pnpm installed ONCE in builder, reused in prod via COPY (saves ~50s)
+#   - BUILD_COMMIT arg moved AFTER dependency layers to avoid cache busting
+#   - pnpm store cache mount speeds up repeat installs on the same host
 
 # =============================================================================
 # Stage 1: Build
 # =============================================================================
 FROM node:20-alpine AS builder
 
-RUN apk add --no-cache python3 make g++ wget
+# python3/make/g++ NOT needed — all npm deps are pure JavaScript:
+#   bcryptjs (not bcrypt), pg, drizzle-orm, fastify, jose, zod, etc.
+# wget NOT needed in builder (only used in production HEALTHCHECK).
 RUN npm install -g pnpm@9
 
 # Recreate repo structure for TypeScript compilation
@@ -20,8 +29,11 @@ WORKDIR /build/backend
 # Copy package files first (for layer caching)
 COPY backend/package.json backend/pnpm-lock.yaml ./
 
-# Install all dependencies (including devDependencies for build)
-RUN pnpm install --frozen-lockfile
+# Install all dependencies (including devDependencies for build).
+# --mount=type=cache persists the pnpm store across builds on the same host,
+# so repeat installs only download changed packages (~2-3 min → ~30s).
+RUN --mount=type=cache,id=pnpm-store,target=/root/.local/share/pnpm/store \
+    pnpm install --frozen-lockfile
 
 # Copy TypeScript config
 COPY backend/tsconfig.json ./
@@ -45,16 +57,16 @@ RUN pnpm prune --prod
 # =============================================================================
 FROM node:20-alpine AS production
 
-ARG BUILD_COMMIT=unknown
-ARG BUILD_TIME=unknown
-ARG APP_VERSION=0.2.0
+# Install runtime dependencies only: wget (healthcheck), dumb-init (PID 1).
+# pnpm is NOT installed here — copied from builder below (saves ~50s on ARM64).
+# python3/make/g++ NOT needed at runtime.
+RUN apk add --no-cache wget dumb-init
 
-ENV BUILD_COMMIT=${BUILD_COMMIT}
-ENV BUILD_TIME=${BUILD_TIME}
-ENV APP_VERSION=${APP_VERSION}
-
-RUN apk add --no-cache wget dumb-init && \
-    npm install -g pnpm@9
+# Copy pnpm from builder instead of running npm install -g pnpm@9 again.
+# This reuses the already-downloaded binary and avoids a second npm registry fetch.
+COPY --from=builder /usr/local/lib/node_modules/pnpm /usr/local/lib/node_modules/pnpm
+COPY --from=builder /usr/local/bin/pnpm /usr/local/bin/pnpm
+COPY --from=builder /usr/local/bin/pnpx /usr/local/bin/pnpx
 
 # Create non-root user
 RUN addgroup -g 1001 -S akis && \
@@ -73,6 +85,17 @@ COPY --from=builder --chown=akis:akis /build/backend/package.json ./
 # Copy migrations (for runtime migration support)
 COPY --chown=akis:akis backend/migrations ./migrations
 COPY --chown=akis:akis backend/drizzle.config.ts ./
+
+# BUILD_COMMIT is set AFTER all COPY/RUN layers so changing the commit SHA
+# does NOT bust the Docker cache for dependency installation or compilation.
+# Only the ENV layer and everything below it is invalidated per deploy.
+ARG BUILD_COMMIT=unknown
+ARG BUILD_TIME=unknown
+ARG APP_VERSION=0.2.0
+
+ENV BUILD_COMMIT=${BUILD_COMMIT}
+ENV BUILD_TIME=${BUILD_TIME}
+ENV APP_VERSION=${APP_VERSION}
 
 USER akis
 
