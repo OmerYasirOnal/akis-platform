@@ -135,7 +135,9 @@ jobs:
 
       - name: Extract commit SHA
         id: meta
-        run: echo "short_sha=${GITHUB_SHA::7}" >> $GITHUB_OUTPUT
+        run: |
+          echo "short_sha=${GITHUB_SHA::7}" >> $GITHUB_OUTPUT
+          echo "repo_lower=$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
 
       - name: Build and push ARM64 image
         uses: docker/build-push-action@v6
@@ -145,8 +147,8 @@ jobs:
           platforms: linux/amd64
           push: true
           tags: |
-            ghcr.io/${{ github.repository }}/akis-backend:${{ steps.meta.outputs.short_sha }}
-            ghcr.io/${{ github.repository }}/akis-backend:latest
+            ghcr.io/${{ steps.meta.outputs.repo_lower }}/akis-backend:${{ steps.meta.outputs.short_sha }}
+            ghcr.io/${{ steps.meta.outputs.repo_lower }}/akis-backend:latest
           build-args: |
             BUILD_COMMIT=${{ steps.meta.outputs.short_sha }}
             BUILD_TIME=${{ github.event.head_commit.timestamp }}
