@@ -57,16 +57,9 @@ RUN pnpm prune --prod
 # =============================================================================
 FROM node:20-alpine AS production
 
-# Install runtime dependencies only: wget (healthcheck), dumb-init (PID 1).
-# pnpm is NOT installed here — copied from builder below (saves ~50s on ARM64).
+# Install runtime dependencies: wget (healthcheck), dumb-init (PID 1), pnpm (migrations).
 # python3/make/g++ NOT needed at runtime.
-RUN apk add --no-cache wget dumb-init
-
-# Copy pnpm from builder instead of running npm install -g pnpm@9 again.
-# This reuses the already-downloaded binary and avoids a second npm registry fetch.
-COPY --from=builder /usr/local/lib/node_modules/pnpm /usr/local/lib/node_modules/pnpm
-COPY --from=builder /usr/local/bin/pnpm /usr/local/bin/pnpm
-COPY --from=builder /usr/local/bin/pnpx /usr/local/bin/pnpx
+RUN apk add --no-cache wget dumb-init && npm install -g pnpm@9
 
 # Create non-root user
 RUN addgroup -g 1001 -S akis && \
