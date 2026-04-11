@@ -542,7 +542,7 @@ export default function ChatPage() {
   }, [conversationId, refreshWorkflow]);
 
   return (
-    <div className="flex h-screen overflow-hidden bg-ak-bg" role="application" aria-label="AKIS Chat">
+    <div className="flex h-dvh overflow-hidden bg-ak-bg" role="application" aria-label="AKIS Chat">
       {/* Mobile overlay */}
       {sidebarOpen && (
         <div className="fixed inset-0 z-30 bg-black/50 md:hidden" onClick={() => setSidebarOpen(false)} />
@@ -559,7 +559,7 @@ export default function ChatPage() {
           'fixed inset-y-0 left-0 z-40',
           sidebarOpen ? 'translate-x-0' : '-translate-x-full',
           // Tablet+: sticky in flow, always visible, fixed height so it doesn't scroll with chat
-          'md:sticky md:top-0 md:z-auto md:translate-x-0 md:h-screen',
+          'md:sticky md:top-0 md:z-auto md:translate-x-0 md:h-dvh',
         )}
       >
         <ConversationSidebar
@@ -574,7 +574,7 @@ export default function ChatPage() {
       </div>
 
       {/* Mobile top bar — only visible below md */}
-      <div className="absolute left-0 right-0 top-0 z-20 flex items-center gap-3 border-b border-ak-border bg-ak-surface px-4 py-3 md:hidden">
+      <div className="fixed left-0 right-0 top-0 z-20 flex items-center gap-3 border-b border-ak-border bg-ak-surface px-4 py-3 md:hidden">
         <button
           onClick={() => setSidebarOpen(true)}
           aria-label="Menü"
