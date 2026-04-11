@@ -27,7 +27,8 @@ export async function requireAuth(request: FastifyRequest): Promise<Authenticate
   const token = request.cookies?.[env.AUTH_COOKIE_NAME];
   
   if (!token) {
-    throw new Error('UNAUTHORIZED');
+    const err = Object.assign(new Error('UNAUTHORIZED'), { statusCode: 401 });
+    throw err;
   }
 
   try {
@@ -38,7 +39,8 @@ export async function requireAuth(request: FastifyRequest): Promise<Authenticate
     });
 
     if (!user || user.status !== 'active') {
-      throw new Error('UNAUTHORIZED');
+      const err = Object.assign(new Error('UNAUTHORIZED'), { statusCode: 401 });
+    throw err;
     }
 
     return {
@@ -48,7 +50,8 @@ export async function requireAuth(request: FastifyRequest): Promise<Authenticate
       role: (user as { role?: string }).role === 'admin' ? 'admin' : 'member',
     };
   } catch {
-    throw new Error('UNAUTHORIZED');
+    const err = Object.assign(new Error('UNAUTHORIZED'), { statusCode: 401 });
+    throw err;
   }
 }
 
