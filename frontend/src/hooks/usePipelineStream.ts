@@ -7,6 +7,7 @@ export interface PipelineActivity {
   message: string;
   detail?: string;
   progress?: number;
+  retryCount?: number;
   timestamp: string;
 }
 
@@ -45,6 +46,35 @@ export function usePipelineStream(
     let retryCount = 0;
     let retryTimer: ReturnType<typeof setTimeout> | null = null;
     let cancelled = false;
+    const seenTimestamps = new Set<string>();
+
+    const ingest = (activity: PipelineActivity) => {
+      // Dedupe so hydrated history + live stream don't stack duplicates
+      const key = `${activity.stage}:${activity.step}:${activity.timestamp}`;
+      if (seenTimestamps.has(key)) return;
+      seenTimestamps.add(key);
+      setActivities((prev) => [...prev, activity]);
+
+      if (activity.step === 'file_created' && activity.detail) {
+        setCreatedFiles((prev) => [...prev, activity.detail!]);
+      }
+      if (activity.stage !== 'proto') {
+        setCreatedFiles([]);
+      }
+    };
+
+    // Hydrate from buffered history first so a reconnecting client sees the
+    // latest progress instead of waiting for the next live emit.
+    fetch(`/api/pipelines/${pipelineId}/activities`, { credentials: 'include' })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (cancelled || !data) return;
+        const list = (data as { activities?: PipelineActivity[] }).activities ?? [];
+        for (const a of list) ingest(a);
+      })
+      .catch(() => {
+        // Non-fatal — the live stream still takes over
+      });
 
     function connect() {
       if (cancelled) return;
@@ -69,18 +99,7 @@ export function usePipelineStream(
         try {
           const data = JSON.parse(event.data);
           if (data.type === 'connected') return;
-          const activity = data as PipelineActivity;
-          setActivities((prev) => [...prev, activity]);
-
-          // Track file_created events for real-time file list
-          if (activity.step === 'file_created' && activity.detail) {
-            setCreatedFiles((prev) => [...prev, activity.detail!]);
-          }
-
-          // Reset file list when stage moves away from proto
-          if (activity.stage !== 'proto') {
-            setCreatedFiles([]);
-          }
+          ingest(data as PipelineActivity);
         } catch {
           // parse error — ignore
         }

@@ -8,6 +8,7 @@ import { ChatHeader } from './ChatHeader';
 import { EmptyState } from './EmptyState';
 import { ChatSkeleton } from './ChatSkeleton';
 import { ClarificationCard } from './ClarificationCard';
+import { TraceProgressStepper } from './TraceProgressStepper';
 
 function getAgentInfo(uiState: ConversationUIState) {
   if (uiState.includes('scribe')) return { label: 'Scribe', color: 'var(--ak-scribe, #3b82f6)' };
@@ -182,9 +183,11 @@ export function ChatPanel({
             {(uiState === 'scribe_running' || uiState === 'scribe_revise' || uiState === 'proto_running' || uiState === 'trace_running' || uiState === 'ci_running') && (() => {
               const { label: agentLabel, color: agentColor } = getAgentInfo(uiState);
               const progress = currentStep?.progress;
+              const retryCount = currentStep?.retryCount ?? 0;
               const completedSteps = activities?.filter(
                 (a) => a.step !== 'complete' && a.step !== 'error' && a !== currentStep,
               ).slice(-3);
+              const showTraceStepper = uiState === 'trace_running';
 
               return (
                 <div key={uiState} className="flex gap-2.5 animate-in fade-in duration-200">
@@ -201,11 +204,18 @@ export function ChatPanel({
                     />
                   </div>
                   <div className="flex-1 min-w-0">
-                    {currentStep ? (
+                    {showTraceStepper && (activities?.length ?? 0) > 0 ? (
+                      <TraceProgressStepper activities={activities ?? []} currentStep={currentStep ?? null} />
+                    ) : currentStep ? (
                       <>
-                        <div className="text-sm leading-snug">
+                        <div className="text-sm leading-snug flex items-center gap-1.5 flex-wrap">
                           <span className="font-semibold" style={{ color: agentColor }}>{agentLabel}</span>
-                          <span className="text-ak-text-secondary ml-1.5">{currentStep.message}</span>
+                          <span className="text-ak-text-secondary">{currentStep.message}</span>
+                          {retryCount > 0 && (
+                            <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-1.5 py-0 text-[10px] text-amber-400">
+                              yeniden deneniyor ({retryCount}/3)
+                            </span>
+                          )}
                         </div>
                         {progress != null && progress > 0 && (
                           <div className="mt-1.5 w-full h-1 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--ak-border, rgba(255,255,255,0.08))' }}>
