@@ -674,7 +674,7 @@ export default function ChatPage() {
             {/* Chat panel — takes remaining width */}
             <div
               className="min-w-0 flex-1 flex flex-col min-h-0"
-              style={showPreview && (protoFiles || isRunning) ? { flexBasis: `${100 - previewWidth}%`, flexGrow: 0, flexShrink: 0 } : undefined}
+              style={showPreview && protoFiles ? { flexBasis: `${100 - previewWidth}%`, flexGrow: 0, flexShrink: 0 } : undefined}
             >
               <ErrorBoundary>
                 <ChatPanel
@@ -684,7 +684,7 @@ export default function ChatPage() {
                   repoUrl={activeWorkflow?.stages?.proto?.repoUrl}
                   branch={activeWorkflow?.stages?.proto?.branch}
                   mode={chatMode}
-                  hasPreview={!!protoFiles || isRunning}
+                  hasPreview={!!protoFiles}
                   showPreview={showPreview}
                   onTogglePreview={() => setShowPreview(p => !p)}
                   messages={messages}
