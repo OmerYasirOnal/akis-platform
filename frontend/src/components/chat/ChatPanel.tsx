@@ -7,6 +7,7 @@ import { ChatInput } from './ChatInput';
 import { ChatHeader } from './ChatHeader';
 import { EmptyState } from './EmptyState';
 import { ChatSkeleton } from './ChatSkeleton';
+import { ClarificationCard } from './ClarificationCard';
 
 function getAgentInfo(uiState: ConversationUIState) {
   if (uiState.includes('scribe')) return { label: 'Scribe', color: 'var(--ak-scribe, #3b82f6)' };
@@ -115,10 +116,22 @@ export function ChatPanel({
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  // Suggestion badge click → send immediately
-  const handleSuggestionClick = useCallback((text: string) => {
-    onSend(text);
-  }, [onSend]);
+  // Pending clarification: render above input when the latest message is an unanswered question set
+  const pendingClarification = (() => {
+    for (let i = messages.length - 1; i >= 0; i--) {
+      const msg = messages[i];
+      if (msg.type === 'user') return null;
+      if (msg.type === 'clarification') return msg;
+    }
+    return null;
+  })();
+
+  const handleClarificationSubmit = useCallback(
+    (combined: string) => {
+      onSend(combined);
+    },
+    [onSend],
+  );
 
   const isPending = conversationId === 'pending';
   const isEmpty = !conversationId || (isPending && messages.length === 0);
@@ -162,7 +175,6 @@ export function ChatPanel({
                 onReject={onReject}
                 onRetry={onRetry}
                 onSkip={onSkip}
-                onSuggestionClick={handleSuggestionClick}
               />
             ))}
 
@@ -255,6 +267,14 @@ export function ChatPanel({
             </button>
           )}
         </div>
+      )}
+
+      {/* Clarification card (above input) */}
+      {conversationId && pendingClarification && pendingClarification.questions.length > 0 && (
+        <ClarificationCard
+          questions={pendingClarification.questions}
+          onSubmit={handleClarificationSubmit}
+        />
       )}
 
       {/* Input */}

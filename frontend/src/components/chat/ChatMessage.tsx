@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { cn } from '../../utils/cn';
 import type { ChatMessage as ChatMessageType, AgentName } from '../../types/chat';
 import { PlanCard } from './PlanCard';
@@ -9,7 +8,6 @@ interface ChatMessageProps {
   onReject?: () => void;
   onRetry?: () => void;
   onSkip?: () => void;
-  onSuggestionClick?: (text: string) => void;
 }
 
 const AGENT_COLORS: Record<AgentName, { bg: string; border: string; text: string; label: string }> = {
@@ -50,19 +48,10 @@ function formatTime(ts: string): string {
 
 function ClarificationMessage({
   message,
-  onSuggestionClick,
 }: {
   message: Extract<ChatMessageType, { type: 'clarification' }>;
-  onSuggestionClick?: (text: string) => void;
 }) {
-  const [sendingSuggestion, setSendingSuggestion] = useState<string | null>(null);
   const cc = AGENT_COLORS[message.role];
-
-  const handleBadgeClick = (text: string) => {
-    setSendingSuggestion(text);
-    onSuggestionClick?.(text);
-    setTimeout(() => setSendingSuggestion(null), 2000);
-  };
 
   return (
     <div className="flex gap-2.5 animate-in fade-in slide-in-from-left-2 duration-200">
@@ -84,32 +73,14 @@ function ClarificationMessage({
               )}
               {q.suggestions && q.suggestions.length > 0 && (
                 <div className="mt-1.5 flex flex-wrap gap-1">
-                  {q.suggestions.map((s, si) => {
-                    const isSending = sendingSuggestion === s;
-                    return (
-                      <button
-                        key={si}
-                        type="button"
-                        disabled={isSending}
-                        onClick={() => handleBadgeClick(s)}
-                        className={cn(
-                          'rounded-full bg-ak-surface-2 px-2 py-0.5 text-[11px] text-ak-text-secondary transition-all duration-150',
-                          isSending
-                            ? 'opacity-50 pointer-events-none'
-                            : 'hover:bg-ak-primary/15 hover:text-ak-primary hover:scale-[1.03] active:scale-[0.97] cursor-pointer',
-                        )}
-                      >
-                        {isSending ? (
-                          <span className="inline-flex items-center gap-1">
-                            <svg className="h-3 w-3 text-ak-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                            </svg>
-                            Gonderiliyor...
-                          </span>
-                        ) : s}
-                      </button>
-                    );
-                  })}
+                  {q.suggestions.map((s, si) => (
+                    <span
+                      key={si}
+                      className="rounded-full bg-ak-surface-2 px-2 py-0.5 text-[11px] text-ak-text-tertiary cursor-default"
+                    >
+                      {s}
+                    </span>
+                  ))}
                 </div>
               )}
             </div>
@@ -120,7 +91,7 @@ function ClarificationMessage({
   );
 }
 
-export function ChatMessage({ message, onApprove, onReject, onRetry, onSkip, onSuggestionClick }: ChatMessageProps) {
+export function ChatMessage({ message, onApprove, onReject, onRetry, onSkip }: ChatMessageProps) {
   switch (message.type) {
     case 'user':
       return (
@@ -150,7 +121,7 @@ export function ChatMessage({ message, onApprove, onReject, onRetry, onSkip, onS
     }
 
     case 'clarification':
-      return <ClarificationMessage message={message} onSuggestionClick={onSuggestionClick} />;
+      return <ClarificationMessage message={message} />;
 
 
     case 'plan':

@@ -126,15 +126,14 @@ describe('ChatMessage — clarification', () => {
     expect(screen.getByText('Desktop')).toBeInTheDocument();
   });
 
-  it('calls onSuggestionClick with suggestion text when badge clicked', () => {
-    const handleSuggestion = vi.fn();
-    render(<ChatMessage message={msg} onSuggestionClick={handleSuggestion} />);
-    fireEvent.click(screen.getByText('Web'));
-    expect(handleSuggestion).toHaveBeenCalledWith('Web');
+  it('renders suggestion badges as read-only (no buttons)', () => {
+    render(<ChatMessage message={msg} />);
+    // Historical clarification badges are display-only spans, not interactive buttons
+    expect(screen.queryByRole('button', { name: 'Web' })).not.toBeInTheDocument();
+    expect(screen.getByText('Web').tagName).toBe('SPAN');
   });
 
-  it('does not call onSuggestionClick when handler not provided', () => {
-    // Should not throw when clicking suggestion without handler
+  it('clicking a historical suggestion does not throw', () => {
     render(<ChatMessage message={msg} />);
     expect(() => fireEvent.click(screen.getByText('Mobile'))).not.toThrow();
   });
