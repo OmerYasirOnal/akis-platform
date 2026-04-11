@@ -3,10 +3,12 @@
  *
  * Each agent scores its input complexity (1–10) and the system
  * automatically selects the most cost-effective Claude model:
- *   1–3  → Haiku   (fast, cheap)
- *   4–7  → Sonnet  (balanced)
- *   8–10 → Opus    (maximum capability)
+ *   1–4  → Haiku   (fast, cheap)
+ *   5+   → Sonnet  (balanced quality for complex specs)
  */
+
+const MODEL_HAIKU = 'claude-haiku-4-5-20251001';
+const MODEL_SONNET = 'claude-sonnet-4-6';
 
 export interface EffortScore {
   score: number;
@@ -97,8 +99,8 @@ function selectModel(score: number): string {
   // Tiered model selection based on complexity:
   // Low complexity (1-4): Haiku — fast, cost-effective
   // Medium-high complexity (5+): Sonnet — better quality for complex specs
-  if (score >= 5) return 'claude-sonnet-4-6';
-  return 'claude-haiku-4-5-20251001';
+  if (score >= 5) return MODEL_SONNET;
+  return MODEL_HAIKU;
 }
 
 function clamp(score: number): number {

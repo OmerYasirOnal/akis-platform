@@ -147,7 +147,7 @@ export async function pipelinePlugin(
   // POST /api/pipelines/:id/approve — approve spec
   fastify.post('/:id/approve', { preHandler: [authPreHandler, ownershipPreHandler] }, async (request: FastifyRequest, reply: FastifyReply) => {
     const body = (request as unknown as { body: Record<string, unknown> }).body;
-    const repoName = typeof body?.repoName === 'string' ? body.repoName : '';
+    const repoName = typeof body?.repoName === 'string' ? body.repoName.trim() : '';
     if (isBlockedPlatformRepo(repoName)) {
       return reply.code(400).send({
         error: {

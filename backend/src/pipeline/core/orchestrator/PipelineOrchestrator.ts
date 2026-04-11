@@ -701,7 +701,7 @@ export class PipelineOrchestrator {
     if (!pipeline.protoOutput) {
       throw new Error('Cannot retry Trace: protoOutput is missing');
     }
-    const repo = pipeline.protoConfig?.repoName ?? pipeline.protoOutput.repo.split('/')[1];
+    const repo = pipeline.protoConfig?.repoName ?? pipeline.protoOutput.repo.split('/')[1] ?? pipeline.protoOutput.repo;
 
     return this.runTrace(
       pipelineId,
