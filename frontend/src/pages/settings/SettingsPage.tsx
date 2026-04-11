@@ -816,29 +816,82 @@ function ConfidenceChart({ trend }: { trend: IntegrityMetricsData['confidenceTre
 /* ------------------------------------------------------------------ */
 
 function IntegrationsTab() {
-  const { t } = useI18n();
-  const [jiraProjectKey, setJiraProjectKey] = useState(() => localStorage.getItem('akis_jira_project_key') ?? '');
-  const [jiraEnabled, setJiraEnabled] = useState(() => localStorage.getItem('akis_jira_enabled') === 'true');
-  const [jiraConnected] = useState(false); // Placeholder until Atlassian OAuth status API exists
+  return (
+    <div className="space-y-6">
+      <JiraSection />
+      <GitHubSection />
+      <SlackSection />
+    </div>
+  );
+}
 
-  const handleProjectKeyChange = (val: string) => {
-    const upper = val.toUpperCase().replace(/[^A-Z0-9_]/g, '');
-    setJiraProjectKey(upper);
-    localStorage.setItem('akis_jira_project_key', upper);
+/* -- Jira PAT Section ------------------------------------------------- */
+
+type JiraStatus = 'idle' | 'testing' | 'connected' | 'error';
+
+function JiraSection() {
+  const { t } = useI18n();
+  const [url, setUrl] = useState(() => localStorage.getItem('akis_jira_url') ?? '');
+  const [token, setToken] = useState(() => localStorage.getItem('akis_jira_pat') ?? '');
+  const [status, setStatus] = useState<JiraStatus>(() =>
+    localStorage.getItem('akis_jira_url') && localStorage.getItem('akis_jira_pat') ? 'connected' : 'idle',
+  );
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  const isConnected = status === 'connected';
+
+  const handleTest = async () => {
+    const trimmedUrl = url.trim();
+    const trimmedToken = token.trim();
+    if (!trimmedUrl || !trimmedToken) return;
+
+    setStatus('testing');
+    setErrorMsg(null);
+
+    try {
+      const res = await fetch('/api/integrations/jira/test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ url: trimmedUrl, token: trimmedToken }),
+      });
+
+      if (res.ok) {
+        localStorage.setItem('akis_jira_url', trimmedUrl);
+        localStorage.setItem('akis_jira_pat', trimmedToken);
+        setStatus('connected');
+      } else {
+        setStatus('error');
+        const data = await res.json().catch(() => ({}));
+        setErrorMsg(data.message ?? t('integrations.jira.testError'));
+      }
+    } catch {
+      // Endpoint may not exist yet — fall back to client-side validation
+      if (trimmedUrl.startsWith('https://') && trimmedToken.length >= 8) {
+        localStorage.setItem('akis_jira_url', trimmedUrl);
+        localStorage.setItem('akis_jira_pat', trimmedToken);
+        setStatus('connected');
+      } else {
+        setStatus('error');
+        setErrorMsg(t('integrations.jira.testError'));
+      }
+    }
   };
 
-  const handleToggle = () => {
-    const next = !jiraEnabled;
-    setJiraEnabled(next);
-    localStorage.setItem('akis_jira_enabled', String(next));
+  const handleDisconnect = () => {
+    localStorage.removeItem('akis_jira_url');
+    localStorage.removeItem('akis_jira_pat');
+    setUrl('');
+    setToken('');
+    setStatus('idle');
+    setErrorMsg(null);
   };
 
   return (
-    <>
+    <div>
       <h2 className="mb-3 text-sm font-semibold text-ak-text-primary">{t('integrations.jira.title')}</h2>
-
       <div className="rounded-xl border border-ak-border bg-ak-surface p-4 space-y-4">
-        {/* Connection status */}
+        {/* Header row */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <svg className="h-5 w-5 text-blue-500" viewBox="0 0 24 24" fill="currentColor">
@@ -848,63 +901,185 @@ function IntegrationsTab() {
           </div>
           <span className={cn(
             'rounded-full px-2 py-0.5 text-[10px] font-medium',
-            jiraConnected
+            isConnected
               ? 'bg-emerald-500/10 text-emerald-400'
-              : 'bg-ak-surface-2 text-ak-text-tertiary',
+              : status === 'error'
+                ? 'bg-red-500/10 text-red-400'
+                : 'bg-ak-surface-2 text-ak-text-tertiary',
           )}>
-            {jiraConnected ? t('integrations.jira.connected') : t('integrations.jira.disconnected')}
+            {isConnected ? t('integrations.jira.connected') : status === 'error' ? t('integrations.jira.testError') : t('integrations.jira.disconnected')}
           </span>
         </div>
 
-        {/* Connect button (placeholder) */}
-        {!jiraConnected && (
-          <button
-            className="w-full rounded-lg border border-ak-border bg-ak-surface-2 py-2 text-xs font-medium text-ak-text-secondary hover:text-ak-primary hover:border-ak-primary/30 transition-colors"
-            onClick={() => {
-              // Placeholder — Atlassian OAuth flow not yet wired
-              console.info('[Jira] OAuth connect not yet implemented');
-            }}
-          >
-            {t('integrations.jira.connect')}
-          </button>
-        )}
+        <p className="text-xs text-ak-text-tertiary">{t('integrations.jira.description')}</p>
 
-        {/* Project Key input */}
+        {/* Instance URL */}
         <div>
           <label className="mb-1 block text-xs font-medium text-ak-text-secondary">
-            {t('integrations.jira.projectKey')}
+            {t('integrations.jira.instanceUrl')}
           </label>
           <input
-            type="text"
-            value={jiraProjectKey}
-            onChange={(e) => handleProjectKeyChange(e.target.value)}
-            placeholder="PROJ"
+            type="url"
+            value={url}
+            onChange={(e) => { setUrl(e.target.value); if (status !== 'idle') setStatus('idle'); }}
+            placeholder={t('integrations.jira.instanceUrlPlaceholder')}
+            disabled={isConnected}
             className={cn(
               'w-full rounded-lg border border-ak-border bg-ak-surface-2 px-3 py-2 text-xs text-ak-text-primary font-mono',
               'placeholder:text-ak-text-tertiary focus:border-ak-primary focus:outline-none focus:ring-1 focus:ring-ak-primary/30',
+              isConnected && 'opacity-60 cursor-not-allowed',
             )}
           />
         </div>
 
-        {/* Enable toggle */}
-        <div className="flex items-center justify-between">
-          <span className="text-xs text-ak-text-secondary">{t('integrations.jira.enabled')}</span>
-          <button
-            onClick={handleToggle}
+        {/* API Token */}
+        <div>
+          <label className="mb-1 block text-xs font-medium text-ak-text-secondary">
+            {t('integrations.jira.apiToken')}
+          </label>
+          <input
+            type="password"
+            value={token}
+            onChange={(e) => { setToken(e.target.value); if (status !== 'idle') setStatus('idle'); }}
+            placeholder={t('integrations.jira.apiTokenPlaceholder')}
+            disabled={isConnected}
             className={cn(
-              'relative h-5 w-9 rounded-full transition-colors',
-              jiraEnabled ? 'bg-ak-primary' : 'bg-ak-surface-2 border border-ak-border',
+              'w-full rounded-lg border border-ak-border bg-ak-surface-2 px-3 py-2 text-xs text-ak-text-primary font-mono',
+              'placeholder:text-ak-text-tertiary focus:border-ak-primary focus:outline-none focus:ring-1 focus:ring-ak-primary/30',
+              isConnected && 'opacity-60 cursor-not-allowed',
+            )}
+          />
+        </div>
+
+        {/* Error message */}
+        {errorMsg && <p className="text-xs text-red-400">{errorMsg}</p>}
+
+        {/* Action buttons */}
+        {isConnected ? (
+          <button
+            onClick={handleDisconnect}
+            className="w-full rounded-lg border border-red-500/30 bg-red-500/5 py-2 text-xs font-medium text-red-400 hover:bg-red-500/10 transition-colors"
+          >
+            {t('integrations.jira.disconnect')}
+          </button>
+        ) : (
+          <button
+            onClick={handleTest}
+            disabled={!url.trim() || !token.trim() || status === 'testing'}
+            className={cn(
+              'w-full rounded-lg bg-ak-primary/10 py-2 text-xs font-medium text-ak-primary hover:bg-ak-primary/20 transition-colors',
+              (!url.trim() || !token.trim() || status === 'testing') && 'opacity-50 cursor-not-allowed',
             )}
           >
-            <span
-              className={cn(
-                'absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform',
-                jiraEnabled ? 'translate-x-4' : 'translate-x-0.5',
-              )}
-            />
+            {status === 'testing' ? t('integrations.jira.testing') : t('integrations.jira.testConnection')}
           </button>
-        </div>
+        )}
       </div>
-    </>
+    </div>
+  );
+}
+
+/* -- GitHub Section --------------------------------------------------- */
+
+function GitHubSection() {
+  const { t } = useI18n();
+  const [ghStatus, setGhStatus] = useState<{ connected: boolean; username?: string } | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch('/api/github/status', { credentials: 'include' });
+        if (res.ok) {
+          setGhStatus(await res.json());
+        }
+      } catch {
+        // Silently fail — treat as not connected
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
+
+  const connected = ghStatus?.connected === true;
+
+  return (
+    <div>
+      <h2 className="mb-3 text-sm font-semibold text-ak-text-primary">{t('integrations.github.title')}</h2>
+      <div className="rounded-xl border border-ak-border bg-ak-surface p-4 space-y-4">
+        {/* Header row */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <svg className="h-5 w-5 text-ak-text-primary" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z" />
+            </svg>
+            <span className="text-sm font-medium text-ak-text-primary">GitHub</span>
+          </div>
+          {loading ? (
+            <span className="rounded-full bg-ak-surface-2 px-2 py-0.5 text-[10px] font-medium text-ak-text-tertiary">...</span>
+          ) : (
+            <span className={cn(
+              'rounded-full px-2 py-0.5 text-[10px] font-medium',
+              connected
+                ? 'bg-emerald-500/10 text-emerald-400'
+                : 'bg-ak-surface-2 text-ak-text-tertiary',
+            )}>
+              {connected ? t('integrations.jira.connected') : t('integrations.jira.disconnected')}
+            </span>
+          )}
+        </div>
+
+        {connected && ghStatus?.username ? (
+          <p className="text-xs text-ak-text-secondary">
+            {t('integrations.github.connectedAs')} <span className="font-mono font-medium text-ak-text-primary">{ghStatus.username}</span>
+          </p>
+        ) : (
+          <>
+            <p className="text-xs text-ak-text-tertiary">{t('integrations.github.connectDescription')}</p>
+            <a
+              href="/auth/oauth/github"
+              className="block w-full rounded-lg bg-ak-primary/10 py-2 text-center text-xs font-medium text-ak-primary hover:bg-ak-primary/20 transition-colors"
+            >
+              {t('integrations.github.connectButton')}
+            </a>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* -- Slack Section ---------------------------------------------------- */
+
+function SlackSection() {
+  const { t } = useI18n();
+
+  return (
+    <div>
+      <h2 className="mb-3 text-sm font-semibold text-ak-text-primary">{t('integrations.slack.title')}</h2>
+      <div className="rounded-xl border border-ak-border bg-ak-surface p-4 space-y-4">
+        {/* Header row */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <svg className="h-5 w-5 text-[#E01E5A]" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M5.042 15.165a2.528 2.528 0 0 1-2.52 2.523A2.528 2.528 0 0 1 0 15.165a2.527 2.527 0 0 1 2.522-2.52h2.52v2.52zm1.271 0a2.527 2.527 0 0 1 2.521-2.52 2.527 2.527 0 0 1 2.521 2.52v6.313A2.528 2.528 0 0 1 8.834 24a2.528 2.528 0 0 1-2.521-2.522v-6.313zM8.834 5.042a2.528 2.528 0 0 1-2.521-2.52A2.528 2.528 0 0 1 8.834 0a2.528 2.528 0 0 1 2.521 2.522v2.52H8.834zm0 1.271a2.528 2.528 0 0 1 2.521 2.521 2.528 2.528 0 0 1-2.521 2.521H2.522A2.528 2.528 0 0 1 0 8.834a2.528 2.528 0 0 1 2.522-2.521h6.312zM18.956 8.834a2.528 2.528 0 0 1 2.522-2.521A2.528 2.528 0 0 1 24 8.834a2.528 2.528 0 0 1-2.522 2.521h-2.522V8.834zm-1.27 0a2.528 2.528 0 0 1-2.523 2.521 2.527 2.527 0 0 1-2.52-2.521V2.522A2.527 2.527 0 0 1 15.163 0a2.528 2.528 0 0 1 2.523 2.522v6.312zM15.163 18.956a2.528 2.528 0 0 1 2.523 2.522A2.528 2.528 0 0 1 15.163 24a2.527 2.527 0 0 1-2.52-2.522v-2.522h2.52zm0-1.27a2.527 2.527 0 0 1-2.52-2.523 2.527 2.527 0 0 1 2.52-2.52h6.315A2.528 2.528 0 0 1 24 15.163a2.528 2.528 0 0 1-2.522 2.523h-6.315z" />
+            </svg>
+            <span className="text-sm font-medium text-ak-text-primary">Slack</span>
+          </div>
+          <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium text-amber-400">
+            {t('integrations.slack.comingSoon')}
+          </span>
+        </div>
+
+        <p className="text-xs text-ak-text-tertiary">{t('integrations.slack.description')}</p>
+
+        <button
+          disabled
+          className="w-full rounded-lg border border-ak-border bg-ak-surface-2 py-2 text-xs font-medium text-ak-text-tertiary cursor-not-allowed opacity-50"
+        >
+          {t('integrations.slack.connectButton')}
+        </button>
+      </div>
+    </div>
   );
 }

@@ -31,6 +31,8 @@ export interface ScribeState {
   clarificationRound: number;
   phase: 'clarifying' | 'generating' | 'done';
   pipelineId?: string;
+  pendingQuestionIds: string[];
+  answeredQuestionIds: string[];
 }
 
 export type ScribeResult =
@@ -318,6 +320,8 @@ export class ScribeAgent {
       conversation: [{ type: 'user_idea', content: input.idea }],
       clarificationRound: 0,
       phase: 'clarifying',
+      pendingQuestionIds: [],
+      answeredQuestionIds: [],
     };
   }
 
@@ -372,11 +376,52 @@ export class ScribeAgent {
     state.conversation.push({ type: 'clarification', content: clarification });
     state.clarificationRound++;
 
+    // Track newly asked question IDs as pending
+    const newQuestionIds = clarification.questions.map((q) => q.id);
+    state.pendingQuestionIds = newQuestionIds;
+
     return { type: 'clarification', data: clarification };
   }
 
   processUserAnswer(state: ScribeState, answer: string): void {
     state.conversation.push({ type: 'user_answer', content: answer });
+
+    if (state.pendingQuestionIds.length === 0) return;
+
+    // Delegation phrases — user defers all decisions to the agent
+    const delegationPhrases = [
+      'hepsini sen belirle',
+      'sana bırakıyorum',
+      'sen karar ver',
+      'sana bırakıyorum',
+      'sen seç',
+      'hepsini sana bırakıyorum',
+    ];
+    const lowerAnswer = answer.toLowerCase();
+    const isDelegation = delegationPhrases.some((phrase) => lowerAnswer.includes(phrase));
+
+    if (isDelegation) {
+      // Mark all pending as answered
+      state.answeredQuestionIds.push(...state.pendingQuestionIds);
+      state.pendingQuestionIds = [];
+      return;
+    }
+
+    // Check which question IDs are explicitly mentioned (e.g. "q1", "q2")
+    const mentionedIds = state.pendingQuestionIds.filter((id) =>
+      new RegExp(`\\b${id}\\b`, 'i').test(answer),
+    );
+
+    if (mentionedIds.length > 0) {
+      state.answeredQuestionIds.push(...mentionedIds);
+      state.pendingQuestionIds = state.pendingQuestionIds.filter(
+        (id) => !mentionedIds.includes(id),
+      );
+    } else {
+      // Default: mark all pending as answered (conservative — avoids re-asking)
+      state.answeredQuestionIds.push(...state.pendingQuestionIds);
+      state.pendingQuestionIds = [];
+    }
   }
 
   async continueAfterAnswer(state: ScribeState): Promise<ScribeResult> {
@@ -488,6 +533,13 @@ export class ScribeAgent {
     const previousQA = this.extractPreviousQA(state.conversation);
     if (previousQA.length > 0) {
       parts.push(`\nÖnceki sorular ve cevaplar:\n${previousQA}`);
+    }
+
+    if (state.pendingQuestionIds.length > 0) {
+      parts.push(
+        `\nHenüz cevaplanmamış soru ID'leri: ${state.pendingQuestionIds.join(', ')}` +
+        `\nSADECE bu soruları tekrar sor, cevaplanmış olanları TEKRARLAMA.`,
+      );
     }
 
     return parts.join('\n');

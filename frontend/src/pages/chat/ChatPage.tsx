@@ -10,6 +10,7 @@ import { useProfileCompleteness } from '../../hooks/useProfileCompleteness';
 import { ProfileSetupBanner } from '../../components/onboarding/ProfileSetupBanner';
 import { ProfileSetupWizard } from '../../components/onboarding/ProfileSetupWizard';
 import { ErrorBoundary } from '../../components/ErrorBoundary';
+import { toast } from '../../components/ui/Toast';
 import { mapStageToMode } from '../../utils/mapPipelineEvent';
 import type { ConversationListItem, ChatMessage, ConversationStatus } from '../../types/chat';
 import type { Workflow, WorkflowStatus, ConversationMessage, StructuredSpec } from '../../types/workflow';
@@ -304,25 +305,54 @@ export default function ChatPage() {
   const prevConvLenRef = useRef(0);
   const activeStageRef = useRef(activeWorkflow?.currentStage);
   activeStageRef.current = activeWorkflow?.currentStage;
+  const consecutiveErrorsRef = useRef(0);
+  const backoffRef = useRef(3000);
+  const connectionLostRef = useRef(false);
 
   useEffect(() => {
     if (!conversationId || !isRunning) return;
     const controller = new AbortController();
-    const interval = setInterval(async () => {
+    let timeoutId: ReturnType<typeof setTimeout>;
+
+    const poll = async () => {
       if (controller.signal.aborted) return;
       try {
         const w = await workflowsApi.get(conversationId);
-        if (controller.signal.aborted) return; // stale response guard
+        if (controller.signal.aborted) return;
+
+        // Success — reset error tracking
+        consecutiveErrorsRef.current = 0;
+        backoffRef.current = 3000;
+        if (connectionLostRef.current) {
+          connectionLostRef.current = false;
+          toast('Bağlantı yeniden kuruldu.', 'success');
+        }
+
         const convLen = w.conversation?.length ?? 0;
         const stageChanged = w.currentStage !== activeStageRef.current;
-        if (convLen === prevConvLenRef.current && !stageChanged) return;
-        prevConvLenRef.current = convLen;
-        setActiveWorkflow(w);
-        setMessages(conversationToChatMessages(w.conversation ?? [], w.currentStage));
-        syncFromStage(w.currentStage ?? 'completed');
-      } catch { /* ignore */ }
-    }, 3000);
-    return () => { controller.abort(); clearInterval(interval); };
+        if (convLen !== prevConvLenRef.current || stageChanged) {
+          prevConvLenRef.current = convLen;
+          setActiveWorkflow(w);
+          setMessages(conversationToChatMessages(w.conversation ?? [], w.currentStage));
+          syncFromStage(w.currentStage ?? 'completed');
+        }
+      } catch {
+        if (controller.signal.aborted) return;
+        consecutiveErrorsRef.current += 1;
+        backoffRef.current = Math.min(backoffRef.current * 2, 30000);
+        if (consecutiveErrorsRef.current >= 5 && !connectionLostRef.current) {
+          connectionLostRef.current = true;
+          toast('Sunucuya bağlanılamıyor. Yeniden denenecek...', 'warning');
+        }
+      }
+
+      if (!controller.signal.aborted) {
+        timeoutId = setTimeout(poll, backoffRef.current);
+      }
+    };
+
+    timeoutId = setTimeout(poll, backoffRef.current);
+    return () => { controller.abort(); clearTimeout(timeoutId); };
   }, [conversationId, isRunning, syncFromStage]);
 
   // Sidebar conversations: real + pending
@@ -358,11 +388,14 @@ export default function ChatPage() {
   const chatMode = useMemo(() => mapStageToMode(activeWorkflow?.currentStage), [activeWorkflow?.currentStage]);
 
   const handleRename = useCallback(async (id: string, newTitle: string) => {
-    // Update locally immediately
     setConversations((prev) =>
       prev.map((c) => (c.id === id ? { ...c, title: newTitle } : c)),
     );
-    // Title rename is local-only (backend persistence planned for M2)
+    try {
+      await workflowsApi.rename(id, newTitle);
+    } catch {
+      // Polling will eventually correct; silently ignore
+    }
   }, []);
 
   const handleDelete = useCallback(async (id: string) => {

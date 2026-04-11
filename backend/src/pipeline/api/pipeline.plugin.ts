@@ -175,6 +175,16 @@ export async function pipelinePlugin(
     return routes.skipTrace(request);
   });
 
+  // PATCH /api/pipelines/:id/title — rename pipeline
+  fastify.route({
+    method: 'PATCH',
+    url: '/:id/title',
+    preHandler: [authPreHandler, ownershipPreHandler],
+    handler: async (request: FastifyRequest) => {
+      return routes.updateTitle(request);
+    },
+  });
+
   // DELETE /api/pipelines/:id — cancel pipeline
   fastify.route({
     method: 'DELETE',

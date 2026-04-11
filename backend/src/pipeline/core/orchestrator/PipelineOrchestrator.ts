@@ -587,6 +587,14 @@ export class PipelineOrchestrator {
     return this.store.listByUser(userId);
   }
 
+  async updateTitle(pipelineId: string, userId: string, title: string): Promise<PipelineState> {
+    const pipeline = await this.getPipeline(pipelineId);
+    if (pipeline.userId !== userId) {
+      throw new Error('UNAUTHORIZED');
+    }
+    return this.store.update(pipelineId, { title });
+  }
+
   // ─── Private: Scribe Result Handler ──────────
 
   private async handleScribeResult(
@@ -887,6 +895,8 @@ export class PipelineOrchestrator {
       conversation: [...pipeline.scribeConversation],
       clarificationRound: clarificationCount,
       phase: pipeline.stage === 'awaiting_approval' ? 'done' : 'clarifying',
+      pendingQuestionIds: [],
+      answeredQuestionIds: [],
     };
   }
 

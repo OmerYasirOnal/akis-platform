@@ -359,6 +359,10 @@ export const workflowsApi = {
     return mapPipelineToWorkflow(res.pipeline);
   },
 
+  rename: async (id: string, title: string): Promise<void> => {
+    await http.patch(`/api/pipelines/${id}/title`, { title });
+  },
+
   cancel: async (id: string): Promise<void> => {
     await http.delete(`/api/pipelines/${id}`);
   },

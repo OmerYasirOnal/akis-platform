@@ -123,6 +123,18 @@ export function createPipelineRoutes(deps: PipelineRoutesDeps) {
       };
     },
 
+    async updateTitle(request: unknown) {
+      const userId = getUserId(request);
+      const { id } = (request as { params: { id: string } }).params;
+      const { title } = (request as { body: { title: string } }).body;
+      if (!title || typeof title !== 'string' || title.trim().length === 0) {
+        throw Object.assign(new Error('Title is required'), { statusCode: 400 });
+      }
+      const trimmed = title.trim().slice(0, 200);
+      const pipeline = await orchestrator.updateTitle(id, userId, trimmed);
+      return { pipeline };
+    },
+
     async getFileContent(request: unknown) {
       const { id, '*': filePath } = (request as { params: { id: string; '*': string } }).params;
       if (!filePath) throw new Error('File path is required');

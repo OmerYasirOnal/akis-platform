@@ -162,6 +162,18 @@ export class HttpClient {
     return this.parseJsonResponse<T>(response);
   }
 
+  async patch<T>(path: string, body?: unknown, options?: RequestOptions): Promise<T> {
+    const url = `${this.baseURL}${path}`;
+    const response = await this.fetchWithRetry(url, {
+      credentials: 'include',
+      ...options,
+      method: 'PATCH',
+      body: body ? JSON.stringify(body) : undefined,
+    });
+
+    return this.parseJsonResponse<T>(response);
+  }
+
   async put<T>(path: string, body?: unknown, options?: RequestOptions): Promise<T> {
     const url = `${this.baseURL}${path}`;
     const response = await this.fetchWithRetry(url, {
