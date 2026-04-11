@@ -408,14 +408,14 @@ phase_start
 BUILD_TIME="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
 
 if [ "$CONFIRM" = true ]; then
-  echo "Building ${IMAGE_TAG} for linux/arm64..."
+  echo "Building ${IMAGE_TAG} for linux/amd64..."
   echo "  (Cross-compiling on local machine — faster than OCI Free Tier)"
 
   # Use docker buildx to cross-compile for ARM64.
   # --load loads the image into the local Docker daemon (required for docker save).
-  # --platform linux/arm64 targets the OCI ARM64 server.
+  # --platform linux/amd64 targets the OCI ARM64 server.
   if docker buildx build \
-      --platform linux/arm64 \
+      --platform linux/amd64 \
       -f Dockerfile.backend \
       --build-arg BUILD_COMMIT="${EXPECTED_SHORT}" \
       --build-arg BUILD_TIME="${BUILD_TIME}" \
@@ -427,7 +427,7 @@ if [ "$CONFIRM" = true ]; then
     echo "Local ARM64 build successful"
   else
     error_exit "Local Docker build failed" \
-      "Check build errors above. Ensure docker buildx is configured for linux/arm64." 2
+      "Check build errors above. Ensure docker buildx is configured for linux/amd64." 2
   fi
 
   # Save image as tarball for transfer
@@ -440,7 +440,7 @@ if [ "$CONFIRM" = true ]; then
       "Check disk space and Docker daemon status" 2
   fi
 else
-  echo "[DRY-RUN] Would run: docker buildx build --platform linux/arm64 -f Dockerfile.backend -t ${IMAGE_TAG} --load ."
+  echo "[DRY-RUN] Would run: docker buildx build --platform linux/amd64 -f Dockerfile.backend -t ${IMAGE_TAG} --load ."
   echo "[DRY-RUN] Would run: docker save -o ${IMAGE_TARBALL} ${IMAGE_TAG}"
 fi
 
