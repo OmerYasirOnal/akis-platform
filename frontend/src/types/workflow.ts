@@ -46,6 +46,8 @@ export interface StageResult {
   spec?: StructuredSpec | null;
   approvedBy?: string;
   branch?: string;
+  repo?: string;
+  repoUrl?: string;
   files?: string[];
   tests?: number;
   coverage?: string;

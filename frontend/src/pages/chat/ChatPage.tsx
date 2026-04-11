@@ -57,7 +57,7 @@ function workflowToListItem(w: Workflow): ConversationListItem {
   return {
     id: w.id,
     title: w.title || 'Untitled',
-    repoFullName: w.stages.proto.branch ?? w.title ?? '',
+    repoFullName: w.stages.proto.repo ?? w.title ?? '',
     repoShortName: w.title || 'Untitled',
     status: statusMap[w.status] ?? 'idle',
     fileCount: w.stages.proto.files?.length ?? 0,
@@ -473,7 +473,8 @@ export default function ChatPage() {
             <ChatPanel
               conversationId={conversationId ?? 'pending'}
               repoShortName={activeWorkflow?.title ?? pendingConv?.displayName ?? ''}
-              repoFullName={activeWorkflow?.stages?.proto?.branch ?? ''}
+              repoFullName={activeWorkflow?.stages?.proto?.repo ?? ''}
+              repoUrl={activeWorkflow?.stages?.proto?.repoUrl}
               branch={activeWorkflow?.stages?.proto?.branch}
               messages={messages}
               uiState={uiState}

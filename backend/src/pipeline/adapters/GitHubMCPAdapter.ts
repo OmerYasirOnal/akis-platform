@@ -92,40 +92,50 @@ export function createGitHubMCPAdapter(mcp: GitHubMCPAdapterDeps): GitHubService
 
     async listFiles(owner: string, repo: string, branch: string): Promise<string[]> {
       const files: string[] = [];
+      const visited = new Set<string>();
+      const MAX_DEPTH = 10;
+      const MAX_FILES = 200;
+      const EXCLUDE = ['node_modules/', '.git/', 'dist/', 'build/', '.next/', 'coverage/', '.cache/', '__pycache__/'];
 
-      async function listDir(dirPath: string): Promise<void> {
-        const result = await mcp.callToolRaw<unknown>('get_file_contents', {
-          owner,
-          repo,
-          path: dirPath || '',
-          branch,
-        });
+      async function listDir(dirPath: string, depth: number): Promise<void> {
+        if (depth > MAX_DEPTH || files.length >= MAX_FILES) return;
+        if (visited.has(dirPath)) return;
+        visited.add(dirPath);
 
-        // GitHub returns array for directories
-        if (Array.isArray(result)) {
-          for (const entry of result) {
-            if (!entry || typeof entry !== 'object') continue;
-            const e = entry as Record<string, unknown>;
-            const entryPath = typeof e.path === 'string' ? e.path : typeof e.name === 'string' ? e.name : '';
-            const entryType = typeof e.type === 'string' ? e.type : '';
+        let result: unknown;
+        try {
+          result = await mcp.callToolRaw<unknown>('get_file_contents', {
+            owner, repo, path: dirPath || '', branch,
+          });
+        } catch (err) {
+          console.warn(`[MCP listFiles] Failed to read dir "${dirPath}":`, err instanceof Error ? err.message : err);
+          return;
+        }
 
-            if (!entryPath) continue;
+        if (!Array.isArray(result)) return;
 
-            // Skip common non-source directories
-            if (entryPath === 'node_modules' || entryPath === '.git' || entryPath === 'dist' || entryPath === 'build' || entryPath === '.next') {
-              continue;
-            }
+        for (const entry of result) {
+          if (files.length >= MAX_FILES) break;
+          if (!entry || typeof entry !== 'object') continue;
+          const e = entry as Record<string, unknown>;
+          const entryPath = typeof e.path === 'string' ? e.path : typeof e.name === 'string' ? e.name : '';
+          const entryType = typeof e.type === 'string' ? e.type : '';
+          if (!entryPath) continue;
 
-            if (entryType === 'dir') {
-              await listDir(entryPath);
-            } else {
-              files.push(entryPath);
-            }
+          // Skip excluded directories (check nested paths too)
+          if (EXCLUDE.some((p) => entryPath.includes(p) || entryPath === p.replace('/', ''))) {
+            continue;
+          }
+
+          if (entryType === 'dir') {
+            await listDir(entryPath, depth + 1);
+          } else {
+            files.push(entryPath);
           }
         }
       }
 
-      await listDir('');
+      await listDir('', 0);
       return files;
     },
 

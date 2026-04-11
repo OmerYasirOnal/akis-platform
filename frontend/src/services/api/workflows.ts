@@ -98,6 +98,8 @@ function mapProtoOutput(protoOutput?: ProtoOutput): Partial<StageResult> {
   if (!protoOutput) return {};
   return {
     branch: protoOutput.branch,
+    repo: protoOutput.repo,
+    repoUrl: protoOutput.repoUrl,
     files: protoOutput.files.map(f => f.filePath),
   };
 }

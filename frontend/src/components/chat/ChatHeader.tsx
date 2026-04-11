@@ -3,6 +3,7 @@ import { cn } from '../../utils/cn';
 interface ChatHeaderProps {
   repoShortName: string;
   repoFullName: string;
+  repoUrl?: string;
   branch?: string;
   prUrl?: string;
   prNumber?: number;
@@ -13,6 +14,7 @@ interface ChatHeaderProps {
 export function ChatHeader({
   repoShortName,
   repoFullName,
+  repoUrl,
   branch,
   prUrl,
   prNumber,
@@ -35,8 +37,35 @@ export function ChatHeader({
 
       <div className="min-w-0 flex-1">
         <h1 className="truncate text-sm font-semibold text-ak-text-primary">{repoShortName}</h1>
-        <p className="truncate text-[11px] text-ak-text-tertiary">{repoFullName}</p>
+        {repoFullName && (
+          <p className="truncate text-[11px] text-ak-text-tertiary">
+            {repoUrl ? (
+              <a href={repoUrl} target="_blank" rel="noopener noreferrer" className="hover:text-ak-primary transition-colors">
+                {repoFullName}
+              </a>
+            ) : (
+              repoFullName
+            )}
+          </p>
+        )}
       </div>
+
+      {repoFullName && repoUrl && (
+        <a
+          href={repoUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={cn(
+            'hidden items-center gap-1 rounded-lg border border-ak-border px-2 py-0.5 text-[11px] text-ak-text-secondary sm:flex',
+            'hover:border-ak-primary hover:text-ak-primary transition-colors',
+          )}
+        >
+          <svg className="h-3 w-3" fill="currentColor" viewBox="0 0 16 16">
+            <path fillRule="evenodd" d="M2 2.5A2.5 2.5 0 014.5 0h8.75a.75.75 0 01.75.75v12.5a.75.75 0 01-.75.75h-2.5a.75.75 0 110-1.5h1.75v-2h-8a1 1 0 00-.714 1.7.75.75 0 01-1.072 1.05A2.495 2.495 0 012 11.5v-9zm10.5-1V9h-8c-.356 0-.694.074-1 .208V2.5a1 1 0 011-1h8zM5 12.25v3.25a.25.25 0 00.4.2l1.45-1.087a.25.25 0 01.3 0L8.6 15.7a.25.25 0 00.4-.2v-3.25a.25.25 0 00-.25-.25h-3.5a.25.25 0 00-.25.25z" />
+          </svg>
+          {repoFullName.split('/').pop()}
+        </a>
+      )}
 
       {branch && (
         <div className="hidden items-center gap-1.5 sm:flex">

@@ -20,6 +20,7 @@ interface ChatPanelProps {
   conversationId?: string;
   repoShortName: string;
   repoFullName: string;
+  repoUrl?: string;
   branch?: string;
   prUrl?: string;
   prNumber?: number;
@@ -44,6 +45,7 @@ export function ChatPanel({
   conversationId,
   repoShortName,
   repoFullName,
+  repoUrl,
   branch,
   prUrl,
   prNumber,
@@ -123,6 +125,7 @@ export function ChatPanel({
         <ChatHeader
           repoShortName={repoShortName || 'Yeni Sohbet'}
           repoFullName={repoFullName || ''}
+          repoUrl={repoUrl}
           branch={branch}
           prUrl={prUrl}
           prNumber={prNumber}

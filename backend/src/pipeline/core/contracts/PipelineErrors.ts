@@ -57,6 +57,7 @@ export const PipelineErrorCode = {
   TRACE_CODE_READ_FAILED: 'TRACE_CODE_READ_FAILED',
   TRACE_EMPTY_CODEBASE: 'TRACE_EMPTY_CODEBASE',
   TRACE_TEST_GENERATION_FAILED: 'TRACE_TEST_GENERATION_FAILED',
+  TRACE_AI_CALL_TIMEOUT: 'TRACE_AI_CALL_TIMEOUT',
 
   // General pipeline errors
   AI_KEY_MISSING: 'AI_KEY_MISSING',
@@ -150,6 +151,11 @@ const ERROR_DEFINITIONS: Record<
     retryable: true,
     recoveryAction: 'retry',
   },
+  [PipelineErrorCode.TRACE_AI_CALL_TIMEOUT]: {
+    message: 'Test üretimi sırasında AI yanıt vermedi. Tekrar deneniyor...',
+    retryable: true,
+    recoveryAction: 'retry',
+  },
   [PipelineErrorCode.AI_KEY_MISSING]: {
     message:
       'AI servisi yapılandırılmamış. Sistem yöneticisiyle iletişime geçin.',
@@ -193,4 +199,8 @@ export const RETRY_CONFIG = {
   stageTimeoutMs: 5 * 60 * 1000,
   /** Trace reads files from GitHub + generates many tests — needs more time */
   traceStageTimeoutMs: 10 * 60 * 1000,
+  /** Dedicated timeout for a single AI generation call (prevents indefinite hangs) */
+  aiCallTimeoutMs: 3 * 60 * 1000,
+  /** Max total codebase context size sent to AI (characters) */
+  maxCodebaseContextChars: 200_000,
 } as const;
