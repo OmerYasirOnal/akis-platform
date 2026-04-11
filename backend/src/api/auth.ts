@@ -219,14 +219,14 @@ export async function authRoutes(fastify: FastifyInstance) {
     (request as unknown as Record<string, unknown>).__authUser as { id: string; email: string; name: string; role: string };
 
   // GET /auth/profile — full profile with github info
-  fastify.get('/profile', { preHandler: authPreHandler }, async (request) => {
+  fastify.get('/profile', { preHandler: authPreHandler }, async (request, reply) => {
     const authUser = getUser(request);
     const user = await db.query.users.findFirst({
       where: eq(users.id, authUser.id),
     });
 
     if (!user) {
-      throw new Error('UNAUTHORIZED');
+      return sendError(reply, request, 'UNAUTHORIZED', 'User not found');
     }
 
     return {
