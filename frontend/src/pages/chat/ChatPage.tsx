@@ -201,7 +201,37 @@ export default function ChatPage() {
   const [pendingConv, setPendingConv] = useState<{ displayName: string } | null>(null);
   const [showProfileWizard, setShowProfileWizard] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
+  // Resizable preview panel (percentage of container width, 30-70%)
+  const [previewWidth, setPreviewWidth] = useState(50);
+  const splitContainerRef = useRef<HTMLDivElement>(null);
+  const isDraggingRef = useRef(false);
   const { missingSteps, loading: profileLoading } = useProfileCompleteness();
+
+  // Drag-to-resize handler for the split pane
+  const handleDragStart = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    isDraggingRef.current = true;
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+
+    const onMove = (ev: MouseEvent) => {
+      if (!isDraggingRef.current || !splitContainerRef.current) return;
+      const rect = splitContainerRef.current.getBoundingClientRect();
+      const pct = ((rect.right - ev.clientX) / rect.width) * 100;
+      setPreviewWidth(Math.max(25, Math.min(70, pct)));
+    };
+
+    const onUp = () => {
+      isDraggingRef.current = false;
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+    };
+
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  }, []);
 
   // Auto-collapse sidebar on tablet resize + re-sync on mount/navigation
   useEffect(() => {
@@ -604,48 +634,72 @@ export default function ChatPage() {
         )}
 
         {conversationId || pendingConv ? (
-          <div className="flex min-w-0 flex-1 overflow-hidden">
-            <ErrorBoundary>
-              <ChatPanel
-                conversationId={conversationId ?? 'pending'}
-                repoShortName={activeWorkflow?.title ?? pendingConv?.displayName ?? ''}
-                repoFullName={activeWorkflow?.stages?.proto?.repo ?? ''}
-                repoUrl={activeWorkflow?.stages?.proto?.repoUrl}
-                branch={activeWorkflow?.stages?.proto?.branch}
-                mode={chatMode}
-                hasPreview={!!protoFiles || isRunning}
-                showPreview={showPreview}
-                onTogglePreview={() => setShowPreview(p => !p)}
-                messages={messages}
-                uiState={uiState}
-                isInputEnabled={pendingConv ? !creating : (creating ? false : isInputEnabled)}
-                showCancelButton={showCancelButton}
-                inputPlaceholder={pendingConv ? 'Projenizi anlatın...' : inputPlaceholder}
-                onSend={handleSend}
-                onCancel={handleCancel}
-                onApprove={handleApprove}
-                onReject={handleReject}
-                onRetry={handleRetry}
-                onSkip={handleSkip}
-                onBack={() => { setPendingConv(null); navigate('/chat'); }}
-                showBackButton
-                currentStep={currentStep}
-                activities={pipelineActivities}
-                createdFiles={createdFiles}
-              />
-            </ErrorBoundary>
+          <div ref={splitContainerRef} className="flex min-w-0 flex-1 overflow-hidden">
+            {/* Chat panel — takes remaining width */}
+            <div
+              className="min-w-0 flex-1 overflow-hidden"
+              style={showPreview && (protoFiles || isRunning) ? { flexBasis: `${100 - previewWidth}%`, flexGrow: 0, flexShrink: 0 } : undefined}
+            >
+              <ErrorBoundary>
+                <ChatPanel
+                  conversationId={conversationId ?? 'pending'}
+                  repoShortName={activeWorkflow?.title ?? pendingConv?.displayName ?? ''}
+                  repoFullName={activeWorkflow?.stages?.proto?.repo ?? ''}
+                  repoUrl={activeWorkflow?.stages?.proto?.repoUrl}
+                  branch={activeWorkflow?.stages?.proto?.branch}
+                  mode={chatMode}
+                  hasPreview={!!protoFiles || isRunning}
+                  showPreview={showPreview}
+                  onTogglePreview={() => setShowPreview(p => !p)}
+                  messages={messages}
+                  uiState={uiState}
+                  isInputEnabled={pendingConv ? !creating : (creating ? false : isInputEnabled)}
+                  showCancelButton={showCancelButton}
+                  inputPlaceholder={pendingConv ? 'Projenizi anlatın...' : inputPlaceholder}
+                  onSend={handleSend}
+                  onCancel={handleCancel}
+                  onApprove={handleApprove}
+                  onReject={handleReject}
+                  onRetry={handleRetry}
+                  onSkip={handleSkip}
+                  onBack={() => { setPendingConv(null); navigate('/chat'); }}
+                  showBackButton
+                  currentStep={currentStep}
+                  activities={pipelineActivities}
+                  createdFiles={createdFiles}
+                />
+              </ErrorBoundary>
+            </div>
+
+            {/* Resizable preview panel with drag handle */}
             {showPreview && (protoFiles || isRunning) && (
-              <div className="hidden w-1/2 border-l border-ak-border lg:block">
-                <Suspense fallback={<div className="flex h-full items-center justify-center text-ak-text-tertiary text-sm">Yükleniyor...</div>}>
-                  <PreviewPanel
-                    files={protoFiles}
-                    title={activeWorkflow?.title}
-                    branch={activeWorkflow?.stages?.proto?.branch}
-                    activities={pipelineActivities}
-                    createdFiles={createdFiles}
-                  />
-                </Suspense>
-              </div>
+              <>
+                {/* Drag handle */}
+                <div
+                  onMouseDown={handleDragStart}
+                  className="group hidden w-1 flex-shrink-0 cursor-col-resize bg-ak-border transition-colors hover:bg-ak-primary/50 active:bg-ak-primary lg:block"
+                  title="Sürükleyerek boyutlandır"
+                >
+                  <div className="flex h-full items-center justify-center">
+                    <div className="h-8 w-0.5 rounded-full bg-ak-text-tertiary opacity-0 transition-opacity group-hover:opacity-100" />
+                  </div>
+                </div>
+                {/* Preview panel */}
+                <div
+                  className="hidden overflow-hidden lg:block"
+                  style={{ flexBasis: `${previewWidth}%`, flexGrow: 0, flexShrink: 0 }}
+                >
+                  <Suspense fallback={<div className="flex h-full items-center justify-center text-ak-text-tertiary text-sm">Yükleniyor...</div>}>
+                    <PreviewPanel
+                      files={protoFiles}
+                      title={activeWorkflow?.title}
+                      branch={activeWorkflow?.stages?.proto?.branch}
+                      activities={pipelineActivities}
+                      createdFiles={createdFiles}
+                    />
+                  </Suspense>
+                </div>
+              </>
             )}
           </div>
         ) : (
