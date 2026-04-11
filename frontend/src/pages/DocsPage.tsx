@@ -1,119 +1,54 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { cn } from '../utils/cn';
 import { LOGO_MARK_SVG } from '../theme/brand';
+import { useI18n } from '../i18n/useI18n';
 
-const SECTIONS = [
-  {
-    id: 'getting-started',
-    title: 'Başlangıç',
-    content: `## Başlangıç
+const SECTION_IDS = ['getting-started', 'pipeline', 'providers', 'settings', 'faq'] as const;
 
-### Hesap Oluşturma
-1. Ana sayfada **"Başla"** butonuna tıklayın
-2. E-posta adresinizi girin veya GitHub/Google ile giriş yapın
-3. E-posta doğrulamasını tamamlayın
+type SectionId = (typeof SECTION_IDS)[number];
 
-### AI Sağlayıcı Ayarlama
-1. Giriş yaptıktan sonra **Ayarlar** sayfasına gidin
-2. Kullanmak istediğiniz AI sağlayıcının yanındaki **"+ Ekle"** butonuna tıklayın
-3. API key'inizi girin ve kaydedin
-4. Varsayılan sağlayıcınızı seçin
+interface Section {
+  id: SectionId;
+  title: string;
+  content: string;
+}
 
-### GitHub Bağlama
-Proto agent'ın kod üretip push edebilmesi için GitHub bağlantısı gereklidir:
-- GitHub OAuth ile giriş yaptıysanız otomatik bağlanır
-- Alternatif: Ayarlar > GitHub bölümünden Personal Access Token ekleyin`,
+const SECTION_KEY_MAP: Record<SectionId, { title: string; content: string }> = {
+  'getting-started': {
+    title: 'docsPage.sections.gettingStarted.title',
+    content: 'docsPage.sections.gettingStarted.content',
   },
-  {
-    id: 'pipeline',
-    title: 'Pipeline Akışı',
-    content: `## Pipeline Akışı
-
-AKIS'in 3 aşamalı pipeline'ı fikrinizi çalışan koda dönüştürür:
-
-### 1. Scribe — Spec Oluşturma
-- Yeni sohbet başlatın ve projenizi anlatın
-- Scribe agent sorular sorarak fikrinizi netleştirir
-- Yapılandırılmış bir spec (özellik dokümanı) üretir
-- Spec'i inceleyip **onaylayın** veya düzenleyip tekrar gönderin
-
-### 2. Proto — Kod Üretimi
-- Onaylanan spec'e göre MVP scaffold oluşturur
-- Dosyaları GitHub'a push eder (branch: \`proto/scaffold-{timestamp}\`)
-- Desteklenen stack'ler: React+Vite, Next.js, Node.js+Express, Python+FastAPI
-
-### 3. Trace — Test Üretimi
-- Proto'nun ürettiği kodu GitHub'dan okur
-- O koda özel Playwright e2e testleri yazar
-- Testleri aynı branch'e commit eder
-
-### Durum Makinesi
-\`\`\`
-scribe_clarifying → scribe_generating → awaiting_approval
-→ proto_building → trace_testing → completed
-\`\`\``,
+  pipeline: {
+    title: 'docsPage.sections.pipeline.title',
+    content: 'docsPage.sections.pipeline.content',
   },
-  {
-    id: 'providers',
-    title: 'AI Sağlayıcılar',
-    content: `## AI Sağlayıcılar
-
-AKIS üç farklı AI sağlayıcıyı destekler:
-
-### Anthropic (Claude)
-- **Varsayılan model:** claude-sonnet-4-6
-- **API Key alma:** [console.anthropic.com](https://console.anthropic.com/)
-- Key formatı: \`sk-ant-...\`
-
-### OpenAI
-- **Varsayılan model:** gpt-4o
-- **API Key alma:** [platform.openai.com](https://platform.openai.com/)
-- Key formatı: \`sk-...\`
-
-### OpenRouter
-- **Varsayılan model:** anthropic/claude-sonnet-4
-- **API Key alma:** [openrouter.ai](https://openrouter.ai/)
-- Key formatı: \`sk-or-...\`
-- Birden fazla modele tek key ile erişim
-- Ücretsiz modeller mevcut (ör: google/gemini-2.0-flash-exp:free)`,
+  providers: {
+    title: 'docsPage.sections.providers.title',
+    content: 'docsPage.sections.providers.content',
   },
-  {
-    id: 'settings',
-    title: 'Ayarlar',
-    content: `## Ayarlar
-
-### API Key Yönetimi
-- Her sağlayıcı için ayrı key ekleyebilirsiniz
-- Key'ler AES-256-GCM ile şifrelenerek saklanır
-- Varsayılan sağlayıcınızı seçebilirsiniz
-- Key'leri istediğiniz zaman güncelleyebilir veya silebilirsiniz
-
-### GitHub Bağlantısı
-- OAuth ile giriş yaptıysanız otomatik bağlıdır
-- Bağlantı durumunu Ayarlar sayfasında görebilirsiniz`,
+  settings: {
+    title: 'docsPage.sections.settings.title',
+    content: 'docsPage.sections.settings.content',
   },
-  {
-    id: 'faq',
-    title: 'SSS',
-    content: `## Sıkça Sorulan Sorular
-
-### Pipeline ne kadar sürer?
-Tipik bir pipeline 2-5 dakika sürer. Karmaşık projeler daha uzun sürebilir.
-
-### Hangi dilleri destekliyor?
-Spec yazımı Türkçe veya İngilizce olabilir. Kod üretimi projenin stack'ine göre yapılır.
-
-### Ücretsiz kullanabilir miyim?
-Evet! OpenRouter üzerinden ücretsiz modeller kullanabilirsiniz. Ayarlar'dan OpenRouter key'inizi ekleyip ücretsiz bir model seçmeniz yeterli.
-
-### Spec'i düzenleyebilir miyim?
-Evet, Scribe spec ürettikten sonra "Reddet" ile düzenleme yapabilir ve tekrar gönderebilirsiniz.
-
-### Mevcut repoma push edebilir mi?
-Evet, Proto agent mevcut bir repoya yeni branch açarak push edebilir.`,
+  faq: {
+    title: 'docsPage.sections.faq.title',
+    content: 'docsPage.sections.faq.content',
   },
-];
+};
+
+function useSections(): Section[] {
+  const { t } = useI18n();
+  return useMemo(
+    () =>
+      SECTION_IDS.map((id) => ({
+        id,
+        title: t(SECTION_KEY_MAP[id].title),
+        content: t(SECTION_KEY_MAP[id].content),
+      })),
+    [t],
+  );
+}
 
 function renderMarkdown(md: string) {
   return md.split('\n').map((line, i) => {
@@ -130,7 +65,9 @@ function renderMarkdown(md: string) {
 
 export default function DocsPage() {
   const navigate = useNavigate();
-  const [activeSection, setActiveSection] = useState('getting-started');
+  const { t } = useI18n();
+  const sections = useSections();
+  const [activeSection, setActiveSection] = useState<SectionId>('getting-started');
 
   return (
     <div className="min-h-screen bg-[#0A1215] text-white">
@@ -139,13 +76,13 @@ export default function DocsPage() {
         <button onClick={() => navigate('/')} className="flex items-center gap-2 hover:opacity-80 transition">
           <img src={LOGO_MARK_SVG} alt="AKIS" className="h-7 w-7" />
           <span className="text-base font-extrabold tracking-tight text-[#07D1AF]">AKIS</span>
-          <span className="text-xs text-gray-500 ml-1">Docs</span>
+          <span className="text-xs text-gray-500 ml-1">{t('docsPage.nav.docsLabel')}</span>
         </button>
         <button
           onClick={() => navigate('/login')}
           className="rounded-lg bg-[#07D1AF]/10 px-4 py-1.5 text-xs font-medium text-[#07D1AF] hover:bg-[#07D1AF]/20 transition"
         >
-          Giriş Yap
+          {t('docsPage.nav.login')}
         </button>
       </nav>
 
@@ -153,7 +90,7 @@ export default function DocsPage() {
         {/* Sidebar */}
         <aside className="hidden md:block w-56 flex-shrink-0 border-r border-gray-800 py-6 pr-4 pl-4">
           <nav className="sticky top-6 space-y-1">
-            {SECTIONS.map((s) => (
+            {sections.map((s) => (
               <button
                 key={s.id}
                 onClick={() => setActiveSection(s.id)}
@@ -175,16 +112,16 @@ export default function DocsPage() {
           {/* Mobile section select */}
           <select
             value={activeSection}
-            onChange={(e) => setActiveSection(e.target.value)}
+            onChange={(e) => setActiveSection(e.target.value as SectionId)}
             className="mb-6 block w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-sm text-white md:hidden"
           >
-            {SECTIONS.map((s) => (
+            {sections.map((s) => (
               <option key={s.id} value={s.id}>{s.title}</option>
             ))}
           </select>
 
           <div className="prose prose-invert max-w-none">
-            {renderMarkdown(SECTIONS.find((s) => s.id === activeSection)?.content ?? '')}
+            {renderMarkdown(sections.find((s) => s.id === activeSection)?.content ?? '')}
           </div>
         </main>
       </div>

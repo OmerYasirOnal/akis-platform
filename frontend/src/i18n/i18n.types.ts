@@ -1127,6 +1127,20 @@ export const MESSAGE_KEYS = [
   'integrity.assumptions',
   'integrity.noData',
   'integrity.error',
+
+  // DocsPage (public /docs route)
+  'docsPage.nav.login',
+  'docsPage.nav.docsLabel',
+  'docsPage.sections.gettingStarted.title',
+  'docsPage.sections.gettingStarted.content',
+  'docsPage.sections.pipeline.title',
+  'docsPage.sections.pipeline.content',
+  'docsPage.sections.providers.title',
+  'docsPage.sections.providers.content',
+  'docsPage.sections.settings.title',
+  'docsPage.sections.settings.content',
+  'docsPage.sections.faq.title',
+  'docsPage.sections.faq.content',
 ] as const;
 
 // Keep strong autocomplete for known keys while allowing incremental key rollout.

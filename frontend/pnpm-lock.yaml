@@ -41,12 +41,6 @@ importers:
       '@tailwindcss/typography':
         specifier: ^0.5.19
         version: 0.5.19(tailwindcss@4.1.17)
-      dockview:
-        specifier: ^5.1.0
-        version: 5.2.0(react@19.2.0)
-      openapi-typescript:
-        specifier: ^7.10.1
-        version: 7.10.1(typescript@5.9.3)
       react:
         specifier: ^19.1.1
         version: 19.2.0
@@ -87,6 +81,9 @@ importers:
       autoprefixer:
         specifier: ^10.4.21
         version: 10.4.21(postcss@8.5.6)
+      dockview:
+        specifier: ^5.1.0
+        version: 5.2.0(react@19.2.0)
       eslint:
         specifier: ^9.36.0
         version: 9.39.1(jiti@2.6.1)
@@ -105,6 +102,9 @@ importers:
       jsdom:
         specifier: ^27.1.0
         version: 27.1.0
+      openapi-typescript:
+        specifier: ^7.10.1
+        version: 7.10.1(typescript@5.9.3)
       postcss:
         specifier: ^8.5.6
         version: 8.5.6
