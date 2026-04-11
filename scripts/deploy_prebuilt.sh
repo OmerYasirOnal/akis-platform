@@ -227,9 +227,9 @@ fi
 
 # Verify required files exist
 REQUIRED_FILES=(
-  "deploy/oci/staging/deploy.sh"
-  "deploy/oci/staging/docker-compose.yml"
-  "deploy/oci/staging/Caddyfile"
+  "deploy/oci/prod/deploy.sh"
+  "deploy/oci/prod/docker-compose.yml"
+  "deploy/oci/prod/Caddyfile"
   "Dockerfile.backend"
   "backend/package.json"
   "backend/tsconfig.json"
@@ -421,7 +421,7 @@ if [ "$CONFIRM" = true ]; then
       --build-arg BUILD_TIME="${BUILD_TIME}" \
       --build-arg APP_VERSION="0.2.0" \
       -t "${IMAGE_TAG}" \
-      -t "${BACKEND_IMAGE}:staging" \
+      -t "${BACKEND_IMAGE}:latest" \
       --load \
       . 2>&1; then
     echo "Local ARM64 build successful"
@@ -468,7 +468,7 @@ else
 
     # Create backup (non-blocking on failure)
     if ssh -i "$SSH_KEY" -o StrictHostKeyChecking=no "${SSH_USER}@${SSH_HOST}" \
-      "docker exec akis-staging-db pg_dump -U akis akis_staging > /opt/akis/backups/${BACKUP_FILENAME} 2>/dev/null"; then
+      "docker exec akis-prod-db pg_dump -U akis akis_prod > /opt/akis/backups/${BACKUP_FILENAME} 2>/dev/null"; then
       echo "Database backup created: ${BACKUP_FILENAME}"
     else
       echo -e "${YELLOW}Database backup failed (non-critical, continuing)${NC}"
@@ -517,17 +517,17 @@ if [ "$CONFIRM" = true ]; then
   # Transfer deploy config files
   echo "Copying deploy.sh..."
   scp -i "$SSH_KEY" -o StrictHostKeyChecking=no \
-    deploy/oci/staging/deploy.sh "${SSH_USER}@${SSH_HOST}:/opt/akis/deploy.sh"
+    deploy/oci/prod/deploy.sh "${SSH_USER}@${SSH_HOST}:/opt/akis/deploy.sh"
   ssh -i "$SSH_KEY" -o StrictHostKeyChecking=no "${SSH_USER}@${SSH_HOST}" \
     "chmod +x /opt/akis/deploy.sh"
 
   echo "Copying docker-compose.yml..."
   scp -i "$SSH_KEY" -o StrictHostKeyChecking=no \
-    deploy/oci/staging/docker-compose.yml "${SSH_USER}@${SSH_HOST}:/opt/akis/docker-compose.yml"
+    deploy/oci/prod/docker-compose.yml "${SSH_USER}@${SSH_HOST}:/opt/akis/docker-compose.yml"
 
   echo "Copying Caddyfile..."
   scp -i "$SSH_KEY" -o StrictHostKeyChecking=no \
-    deploy/oci/staging/Caddyfile "${SSH_USER}@${SSH_HOST}:/opt/akis/Caddyfile"
+    deploy/oci/prod/Caddyfile "${SSH_USER}@${SSH_HOST}:/opt/akis/Caddyfile"
 
   # Transfer frontend dist
   echo "Creating frontend dist tarball..."
@@ -549,9 +549,9 @@ if [ "$CONFIRM" = true ]; then
 else
   echo "[DRY-RUN] Would transfer: ${IMAGE_TARBALL} -> server:/tmp/akis-backend.tar"
   echo "[DRY-RUN] Would run on server: docker load -i /tmp/akis-backend.tar"
-  echo "[DRY-RUN] Would copy: deploy.sh -> /opt/akis/deploy.sh"
-  echo "[DRY-RUN] Would copy: docker-compose.yml -> /opt/akis/docker-compose.yml"
-  echo "[DRY-RUN] Would copy: Caddyfile -> /opt/akis/Caddyfile"
+  echo "[DRY-RUN] Would copy: deploy/oci/prod/deploy.sh -> /opt/akis/deploy.sh"
+  echo "[DRY-RUN] Would copy: deploy/oci/prod/docker-compose.yml -> /opt/akis/docker-compose.yml"
+  echo "[DRY-RUN] Would copy: deploy/oci/prod/Caddyfile -> /opt/akis/Caddyfile"
   echo "[DRY-RUN] Would copy: frontend dist -> /opt/akis/frontend/"
 fi
 
@@ -612,9 +612,11 @@ if [ "$CONFIRM" = true ]; then
   echo "Running smoke tests..."
   echo ""
 
-  # Run smoke tests (use staging domain, not IP — Caddy expects domain)
-  STAGING_DOMAIN="staging.akisflow.com"
-  if ./scripts/staging_smoke.sh --host "${STAGING_DOMAIN}" --commit "${EXPECTED_SHORT}"; then
+  # Run smoke tests (use production domain, not IP — Caddy expects domain)
+  PROD_DOMAIN="akisflow.com"
+  if curl -sf "https://${PROD_DOMAIN}/health" > /dev/null && \
+     curl -sf "https://${PROD_DOMAIN}/ready" > /dev/null && \
+     curl -sf "https://${PROD_DOMAIN}/version" > /dev/null; then
     echo ""
     echo "All smoke tests passed"
   else
@@ -633,7 +635,7 @@ if [ "$CONFIRM" = true ]; then
     echo ""
     echo "--- Backend Container Image ---"
     ssh -i "$SSH_KEY" -o StrictHostKeyChecking=no "${SSH_USER}@${SSH_HOST}" \
-      "docker inspect akis-staging-backend --format 'Image: {{.Config.Image}}\nCreated: {{.Created}}' 2>/dev/null" || true
+      "docker inspect akis-prod-backend --format 'Image: {{.Config.Image}}\nCreated: {{.Created}}' 2>/dev/null" || true
 
     echo ""
     echo "--- Backend Logs (last 100 lines, secrets redacted) ---"
@@ -645,9 +647,9 @@ if [ "$CONFIRM" = true ]; then
     exit 4
   fi
 else
-  STAGING_DOMAIN="staging.akisflow.com"
+  PROD_DOMAIN="akisflow.com"
   echo "[DRY-RUN] Would wait 15 seconds for stabilization"
-  echo "[DRY-RUN] Would run: ./scripts/staging_smoke.sh --host ${STAGING_DOMAIN} --commit ${EXPECTED_SHORT}"
+  echo "[DRY-RUN] Would run smoke tests against https://${PROD_DOMAIN}"
 fi
 
 phase_end
@@ -673,9 +675,9 @@ if [ "$CONFIRM" = true ]; then
   echo -e "${GREEN}Deployment Status: SUCCESS${NC}"
   echo ""
   echo "Verification URLs:"
-  echo "  https://staging.akisflow.com/health"
-  echo "  https://staging.akisflow.com/ready"
-  echo "  https://staging.akisflow.com/version"
+  echo "  https://akisflow.com/health"
+  echo "  https://akisflow.com/ready"
+  echo "  https://akisflow.com/version"
 else
   echo ""
   echo -e "${YELLOW}DRY-RUN COMPLETE${NC}"

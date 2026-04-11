@@ -125,7 +125,7 @@ export function ChatPanel({
   const isInitialLoad = !!conversationId && !isPending && messages.length === 0;
 
   return (
-    <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+    <div className="flex min-w-0 flex-1 flex-col min-h-0">
       {/* Header */}
       {conversationId && (
         <ChatHeader
@@ -152,7 +152,7 @@ export function ChatPanel({
           <ChatSkeleton />
         </div>
       ) : (
-        <div ref={scrollRef} className="relative flex-1 overflow-y-auto">
+        <div ref={scrollRef} className="relative flex-1 overflow-y-auto min-h-0">
           <div className="mx-auto max-w-[720px] space-y-4 px-4 py-4">
             {messages.map((msg, i) => (
               <ChatMessage

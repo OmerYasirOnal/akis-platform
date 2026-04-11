@@ -660,7 +660,7 @@ export default function ChatPage() {
       )}
 
       {/* Main content — top padding only on mobile for the top bar */}
-      <div className={cn('flex min-w-0 flex-1 flex-col overflow-hidden', 'pt-[52px] md:pt-0')}>
+      <div className={cn('flex min-w-0 flex-1 flex-col min-h-0', 'pt-[52px] md:pt-0')}>
         {/* Profile completeness banner */}
         {!profileLoading && missingSteps.length > 0 && !conversationId && !pendingConv && (
           <ProfileSetupBanner
@@ -670,10 +670,10 @@ export default function ChatPage() {
         )}
 
         {conversationId || pendingConv ? (
-          <div ref={splitContainerRef} className="flex min-w-0 flex-1 overflow-hidden">
+          <div ref={splitContainerRef} className="flex min-w-0 flex-1 min-h-0">
             {/* Chat panel — takes remaining width */}
             <div
-              className="min-w-0 flex-1 overflow-hidden"
+              className="min-w-0 flex-1 flex flex-col min-h-0"
               style={showPreview && (protoFiles || isRunning) ? { flexBasis: `${100 - previewWidth}%`, flexGrow: 0, flexShrink: 0 } : undefined}
             >
               <ErrorBoundary>

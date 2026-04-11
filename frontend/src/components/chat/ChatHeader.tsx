@@ -38,7 +38,7 @@ export function ChatHeader({
   showBackButton,
 }: ChatHeaderProps) {
   return (
-    <div className="flex items-center gap-2 border-b border-ak-border bg-ak-surface px-4 py-3">
+    <div className="flex shrink-0 items-center gap-2 border-b border-ak-border bg-ak-surface px-4 py-3 z-10">
       {showBackButton && (
         <button
           onClick={onBack}
@@ -109,7 +109,7 @@ export function ChatHeader({
           onClick={onTogglePreview}
           aria-label={showPreview ? 'Preview kapat' : 'Preview aç'}
           className={cn(
-            'hidden items-center gap-1 rounded-lg border px-2.5 py-1 text-[11px] font-medium lg:flex transition-colors',
+            'hidden items-center gap-1 rounded-lg border px-2.5 py-1 text-[11px] font-medium md:flex transition-colors',
             showPreview
               ? 'border-ak-primary bg-ak-primary/10 text-ak-primary'
               : 'border-ak-border text-ak-text-secondary hover:border-ak-primary hover:text-ak-primary',

@@ -44,7 +44,7 @@ export function ChatInput({ onSend, onCancel, disabled, showCancel, placeholder 
   );
 
   return (
-    <div className="px-4 pb-4 pt-2">
+    <div className="shrink-0 px-4 pb-4 pt-2">
       <div className={cn(
         'mx-auto flex max-w-[720px] items-end gap-2 rounded-2xl border p-2',
         'backdrop-blur-xl bg-ak-surface/80 border-ak-border/50 shadow-lg',
