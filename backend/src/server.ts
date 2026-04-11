@@ -1,4 +1,5 @@
 import rateLimit from '@fastify/rate-limit';
+import compress from '@fastify/compress';
 import { buildApp } from './server.app.js';
 import { getEnv } from './config/env.js';
 import { corsPlugin } from './plugins/security/cors.js';
@@ -45,6 +46,9 @@ app.addContentTypeParser(
 await app.register(helmetPlugin, {
   enableCSP: env.NODE_ENV === 'production',
 });
+
+// Response compression (gzip/brotli — reduces bandwidth on OCI Free Tier)
+await app.register(compress, { global: true });
 
 // Soft rate limit
 await app.register(rateLimit, {
