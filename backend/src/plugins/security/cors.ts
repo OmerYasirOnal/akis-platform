@@ -31,8 +31,13 @@ export const corsPlugin = fp<CorsPluginOptions>(
 
     const allowAll = normalizedOrigins.has('*');
 
+    // Security: credentials + wildcard origin is dangerous — disable credentials if wildcard
+    if (allowAll && process.env.NODE_ENV === 'production') {
+      console.warn('[CORS] Wildcard origin (*) with credentials is insecure in production. Disabling credentials.');
+    }
+
     await fastify.register(cors, {
-      credentials: true,
+      credentials: !allowAll,
       exposedHeaders: ['set-cookie'],
       origin: (
         origin: string | undefined,

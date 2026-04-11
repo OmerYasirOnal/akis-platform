@@ -69,6 +69,16 @@ async function ghFetch<T>(
     }
 
     if (res.status === 204) return {} as T;
+
+    const contentType = res.headers.get('content-type') ?? '';
+    if (!contentType.includes('application/json')) {
+      const body = await res.text().catch(() => '');
+      throw new GitHubAPIError(
+        `GitHub API ${method} ${path} → ${res.status}: Expected JSON, got Content-Type "${contentType}". Body: ${body.slice(0, 200)}`,
+        res.status,
+      );
+    }
+
     return (await res.json()) as T;
   }
 

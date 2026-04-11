@@ -12,9 +12,14 @@ export interface VerificationCodeOptions {
   ttlMinutes?: number;
 }
 
+const MAX_VERIFY_ATTEMPTS = 5;
+const LOCKOUT_MS = 30 * 60 * 1000; // 30 minutes
+
 export class VerificationService {
   private readonly emailService: EmailService;
   private readonly ttlMinutes: number;
+  /** Tracks failed verification attempts per userId to prevent brute-force on 6-digit codes. */
+  private readonly failedAttempts = new Map<string, { count: number; lockedUntil?: number }>();
 
   constructor(emailService: EmailService, options: VerificationCodeOptions = {}) {
     this.emailService = emailService;
@@ -70,6 +75,12 @@ export class VerificationService {
    * @throws Error if too many invalid attempts
    */
   async verifyCode(userId: string, code: string): Promise<boolean> {
+    // Check lockout (brute-force protection for 6-digit codes)
+    const attempts = this.failedAttempts.get(userId);
+    if (attempts?.lockedUntil && Date.now() < attempts.lockedUntil) {
+      throw new Error('VERIFICATION_LOCKED');
+    }
+
     // Find the most recent unused token for this user with this code
     const token = await db.query.emailVerificationTokens.findFirst({
       where: and(
@@ -80,14 +91,20 @@ export class VerificationService {
       orderBy: (tokens, { desc }) => [desc(tokens.createdAt)],
     });
 
-    if (!token) {
+    if (!token || new Date() > token.expiresAt) {
+      // Track failed attempt
+      const current = this.failedAttempts.get(userId) ?? { count: 0 };
+      current.count += 1;
+      if (current.count >= MAX_VERIFY_ATTEMPTS) {
+        current.lockedUntil = Date.now() + LOCKOUT_MS;
+        console.warn(`[Verification] User ${userId} locked out after ${MAX_VERIFY_ATTEMPTS} failed attempts`);
+      }
+      this.failedAttempts.set(userId, current);
       return false;
     }
 
-    // Check if expired
-    if (new Date() > token.expiresAt) {
-      return false;
-    }
+    // Success — clear failed attempts
+    this.failedAttempts.delete(userId);
 
     // Mark as used
     await db

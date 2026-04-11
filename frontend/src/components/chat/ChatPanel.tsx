@@ -1,16 +1,26 @@
 import { useRef, useEffect, useState, useCallback } from 'react';
 import { cn } from '../../utils/cn';
 import type { ChatMessage as ChatMessageType, ConversationUIState } from '../../types/chat';
+import type { PipelineActivity } from '../../hooks/usePipelineStream';
 import { ChatMessage } from './ChatMessage';
 import { ChatInput } from './ChatInput';
 import { ChatHeader } from './ChatHeader';
 import { EmptyState } from './EmptyState';
 import { ChatSkeleton } from './ChatSkeleton';
 
+function getAgentInfo(uiState: ConversationUIState) {
+  if (uiState.includes('scribe')) return { label: 'Scribe', color: 'var(--ak-scribe, #3b82f6)' };
+  if (uiState === 'proto_running') return { label: 'Proto', color: 'var(--ak-proto, #f59e0b)' };
+  if (uiState === 'trace_running') return { label: 'Trace', color: 'var(--ak-trace, #8b5cf6)' };
+  if (uiState === 'ci_running') return { label: 'CI', color: 'var(--color-yellow-400, #facc15)' };
+  return { label: 'Agent', color: 'var(--ak-primary, #07D1AF)' };
+}
+
 interface ChatPanelProps {
   conversationId?: string;
   repoShortName: string;
   repoFullName: string;
+  repoUrl?: string;
   branch?: string;
   prUrl?: string;
   prNumber?: number;
@@ -27,12 +37,15 @@ interface ChatPanelProps {
   onSkip: () => void;
   onBack?: () => void;
   showBackButton?: boolean;
+  currentStep?: PipelineActivity | null;
+  activities?: PipelineActivity[];
 }
 
 export function ChatPanel({
   conversationId,
   repoShortName,
   repoFullName,
+  repoUrl,
   branch,
   prUrl,
   prNumber,
@@ -49,6 +62,8 @@ export function ChatPanel({
   onSkip,
   onBack,
   showBackButton,
+  currentStep,
+  activities,
 }: ChatPanelProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -110,6 +125,7 @@ export function ChatPanel({
         <ChatHeader
           repoShortName={repoShortName || 'Yeni Sohbet'}
           repoFullName={repoFullName || ''}
+          repoUrl={repoUrl}
           branch={branch}
           prUrl={prUrl}
           prNumber={prNumber}
@@ -140,24 +156,64 @@ export function ChatPanel({
               />
             ))}
 
-            {/* Typing indicator for running agents */}
-            {(uiState === 'scribe_running' || uiState === 'scribe_revise' || uiState === 'proto_running' || uiState === 'trace_running' || uiState === 'ci_running') && (
-              <div key={uiState} className="flex gap-2.5 animate-in fade-in duration-200">
-                <div className={cn(
-                  'flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg border transition-colors duration-300',
-                  uiState.includes('scribe') ? 'border-ak-scribe/30 bg-ak-scribe/10' :
-                  uiState === 'proto_running' ? 'border-ak-proto/30 bg-ak-proto/10' :
-                  uiState === 'ci_running' ? 'border-yellow-400/30 bg-yellow-400/10' :
-                  'border-ak-trace/30 bg-ak-trace/10',
-                )}>
-                  <div className="flex gap-0.5">
-                    <span className="h-1 w-1 animate-bounce rounded-full bg-ak-text-tertiary [animation-delay:0ms]" />
-                    <span className="h-1 w-1 animate-bounce rounded-full bg-ak-text-tertiary [animation-delay:150ms]" />
-                    <span className="h-1 w-1 animate-bounce rounded-full bg-ak-text-tertiary [animation-delay:300ms]" />
+            {/* Activity indicator for running agents */}
+            {(uiState === 'scribe_running' || uiState === 'scribe_revise' || uiState === 'proto_running' || uiState === 'trace_running' || uiState === 'ci_running') && (() => {
+              const { label: agentLabel, color: agentColor } = getAgentInfo(uiState);
+              const progress = currentStep?.progress;
+              const completedSteps = activities?.filter(
+                (a) => a.step !== 'complete' && a.step !== 'error' && a !== currentStep,
+              ).slice(-3);
+
+              return (
+                <div key={uiState} className="flex gap-2.5 animate-in fade-in duration-200">
+                  <div className={cn(
+                    'flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg border transition-colors duration-300',
+                    uiState.includes('scribe') ? 'border-ak-scribe/30 bg-ak-scribe/10' :
+                    uiState === 'proto_running' ? 'border-ak-proto/30 bg-ak-proto/10' :
+                    uiState === 'ci_running' ? 'border-yellow-400/30 bg-yellow-400/10' :
+                    'border-ak-trace/30 bg-ak-trace/10',
+                  )}>
+                    <span
+                      className="h-2 w-2 rounded-full animate-pulse"
+                      style={{ backgroundColor: agentColor }}
+                    />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    {currentStep ? (
+                      <>
+                        <div className="text-sm leading-snug">
+                          <span className="font-semibold" style={{ color: agentColor }}>{agentLabel}</span>
+                          <span className="text-ak-text-secondary ml-1.5">{currentStep.message}</span>
+                        </div>
+                        {progress != null && progress > 0 && (
+                          <div className="mt-1.5 w-full h-1 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--ak-border, rgba(255,255,255,0.08))' }}>
+                            <div
+                              className="h-full rounded-full transition-all duration-500 ease-out"
+                              style={{ width: `${progress}%`, backgroundColor: agentColor }}
+                            />
+                          </div>
+                        )}
+                        {completedSteps && completedSteps.length > 0 && (
+                          <div className="mt-1 space-y-0.5">
+                            {completedSteps.map((a, i) => (
+                              <div key={i} className="text-xs text-ak-text-tertiary truncate">
+                                {'✓ '}{a.message}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <div className="flex gap-0.5 pt-2">
+                        <span className="h-1 w-1 animate-bounce rounded-full bg-ak-text-tertiary [animation-delay:0ms]" />
+                        <span className="h-1 w-1 animate-bounce rounded-full bg-ak-text-tertiary [animation-delay:150ms]" />
+                        <span className="h-1 w-1 animate-bounce rounded-full bg-ak-text-tertiary [animation-delay:300ms]" />
+                      </div>
+                    )}
                   </div>
                 </div>
-              </div>
-            )}
+              );
+            })()}
 
             <div ref={bottomRef} />
           </div>

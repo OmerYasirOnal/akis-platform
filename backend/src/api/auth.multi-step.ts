@@ -82,7 +82,7 @@ export async function registerMultiStepAuthRoutes(
    */
 
   // Step 1: Name + Email
-  fastify.post('/signup/start', async (request, reply) => {
+  fastify.post('/signup/start', { config: { rateLimit: { max: 5, timeWindow: '1 minute' } } }, async (request, reply) => {
     const body = SignupStartSchema.parse(request.body);
     const email = body.email.toLowerCase();
 
@@ -141,7 +141,7 @@ export async function registerMultiStepAuthRoutes(
   });
 
   // Step 2: Set Password
-  fastify.post('/signup/password', async (request, reply) => {
+  fastify.post('/signup/password', { config: { rateLimit: { max: 5, timeWindow: '1 minute' } } }, async (request, reply) => {
     const body = SignupPasswordSchema.parse(request.body);
 
     // Find user
@@ -210,8 +210,8 @@ export async function registerMultiStepAuthRoutes(
     };
   });
 
-  // Step 3: Verify Email Code
-  fastify.post('/verify-email', async (request, reply) => {
+  // Step 3: Verify Email Code (strict limit — 6-digit code brutable)
+  fastify.post('/verify-email', { config: { rateLimit: { max: 5, timeWindow: '1 minute' } } }, async (request, reply) => {
     const body = VerifyEmailSchema.parse(request.body);
 
     try {
@@ -249,13 +249,16 @@ export async function registerMultiStepAuthRoutes(
         message: 'Email verified successfully',
       };
     } catch (error) {
+      if (error instanceof Error && error.message === 'VERIFICATION_LOCKED') {
+        return sendError(reply, request, 'RATE_LIMITED', 'Too many failed attempts. Please try again in 30 minutes.', undefined, 429);
+      }
       console.error('[Auth] Verification error:', error);
       return sendError(reply, request, 'INTERNAL_ERROR', 'Failed to verify email');
     }
   });
 
   // Resend verification code
-  fastify.post('/resend-code', async (request, reply) => {
+  fastify.post('/resend-code', { config: { rateLimit: { max: 3, timeWindow: '1 minute' } } }, async (request, reply) => {
     const body = ResendCodeSchema.parse(request.body);
 
     const user = await db.query.users.findFirst({
@@ -292,7 +295,7 @@ export async function registerMultiStepAuthRoutes(
    */
 
   // Step 1: Email Check
-  fastify.post('/login/start', async (request, reply) => {
+  fastify.post('/login/start', { config: { rateLimit: { max: 10, timeWindow: '1 minute' } } }, async (request, reply) => {
     const body = LoginStartSchema.parse(request.body);
     const email = body.email.toLowerCase();
 
@@ -348,8 +351,8 @@ export async function registerMultiStepAuthRoutes(
     };
   });
 
-  // Step 2: Password Verification
-  fastify.post('/login/complete', async (request, reply) => {
+  // Step 2: Password Verification (strict — brute force target)
+  fastify.post('/login/complete', { config: { rateLimit: { max: 5, timeWindow: '1 minute' } } }, async (request, reply) => {
     const body = LoginCompleteSchema.parse(request.body);
 
     const user = await db.query.users.findFirst({

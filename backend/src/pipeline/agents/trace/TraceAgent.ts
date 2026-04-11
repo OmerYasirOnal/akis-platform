@@ -66,6 +66,17 @@ const SOURCE_EXTENSIONS = ['.ts', '.tsx', '.js', '.jsx', '.vue', '.svelte', '.cs
 const EXCLUDE_PATTERNS = ['node_modules/', '.git/', 'dist/', 'build/', '.next/', 'coverage/', '.cache/', '__pycache__/'];
 const MAX_SOURCE_FILES = 80;
 const MAX_FILE_SIZE_BYTES = 100_000; // 100KB per file
+const AI_CALL_TIMEOUT_MS = RETRY_CONFIG.aiCallTimeoutMs;
+const MAX_CODEBASE_CONTEXT_CHARS = RETRY_CONFIG.maxCodebaseContextChars;
+
+/** Timeout wrapper for individual AI calls (prevents indefinite hangs). */
+function withAiTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout>;
+  const timeout = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => reject(new Error(`AI call timed out after ${Math.round(ms / 1000)}s`)), ms);
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timeoutId));
+}
 
 const TEST_GENERATION_PROMPT = `You are Trace, a code verifier and test writer for a software project pipeline.
 
@@ -156,7 +167,7 @@ export class TraceAgent {
 
     // Step 1: Read codebase from GitHub
     emit?.('fetching', 'Scaffold branch\'inden kaynak dosyalar alınıyor...', 15);
-    const codebaseResult = await this.readCodebase(input.repoOwner, input.repo, input.branch);
+    const codebaseResult = await this.readCodebase(input.repoOwner, input.repo, input.branch, emit);
     if (codebaseResult.type === 'error') {
       emit?.('error', 'Kod tabanı okunamadı', 0);
       return codebaseResult;
@@ -176,9 +187,10 @@ export class TraceAgent {
 
     emit?.('analyzing', `${files.length} kaynak dosya analiz ediliyor...`, 30);
 
-    // Step 2: Generate tests via AI
-    emit?.('ai_call', 'Claude AI ile Playwright testleri oluşturuluyor...', 45);
-    const testsResult = await this.generateTests(files, input.spec);
+    // Step 2: Generate tests via AI (with dedicated timeout)
+    const totalChars = files.reduce((sum, f) => sum + f.content.length, 0);
+    emit?.('ai_call', `Claude AI ile Playwright testleri oluşturuluyor (${files.length} dosya, ${Math.round(totalChars / 1024)}KB)...`, 45);
+    const testsResult = await this.generateTests(files, input.spec, emit);
     if (testsResult.type === 'error') {
       emit?.('error', 'Test üretimi başarısız oldu', 0);
       return testsResult;
@@ -243,7 +255,8 @@ export class TraceAgent {
   private async readCodebase(
     owner: string,
     repo: string,
-    branch: string
+    branch: string,
+    emit?: (phase: string, detail: string, progress: number) => void,
   ): Promise<
     | { type: 'output'; data: Array<{ filePath: string; content: string }> }
     | { type: 'error'; error: PipelineError }
@@ -253,19 +266,37 @@ export class TraceAgent {
         const allFiles = await this.github.listFiles(owner, repo, branch);
         const sourceFiles = allFiles
           .filter((f) => this.isSourceFile(f))
-          .slice(0, MAX_SOURCE_FILES); // Cap to prevent API abuse on large repos
+          .slice(0, MAX_SOURCE_FILES);
+
+        emit?.('fetching', `${sourceFiles.length} kaynak dosya okunuyor...`, 18);
 
         const contents: Array<{ filePath: string; content: string }> = [];
-        for (const filePath of sourceFiles) {
+        let totalChars = 0;
+        for (let i = 0; i < sourceFiles.length; i++) {
+          const filePath = sourceFiles[i];
           const content = await this.github.getFileContent(owner, repo, branch, filePath);
-          // Skip very large files that would bloat AI context
           if (content.length > MAX_FILE_SIZE_BYTES) continue;
+
+          // Enforce total context budget
+          if (totalChars + content.length > MAX_CODEBASE_CONTEXT_CHARS) {
+            console.log(`[Trace] Context budget reached at file ${i + 1}/${sourceFiles.length} (${totalChars} chars). Stopping.`);
+            break;
+          }
+
           contents.push({ filePath, content });
+          totalChars += content.length;
+
+          // Emit progress every 3 files
+          if ((i + 1) % 3 === 0 || i === sourceFiles.length - 1) {
+            const pct = 15 + Math.round(((i + 1) / sourceFiles.length) * 12);
+            emit?.('fetching', `${i + 1}/${sourceFiles.length} dosya okundu...`, pct);
+          }
         }
 
         return { type: 'output', data: contents };
       } catch (err) {
         if (attempt < RETRY_CONFIG.maxRetries) {
+          emit?.('retry', `Dosya okuma yeniden deneniyor (${attempt + 1})...`, 15);
           await this.delay(RETRY_CONFIG.backoffDelays[attempt]);
           continue;
         }
@@ -294,7 +325,8 @@ export class TraceAgent {
 
   private async generateTests(
     files: Array<{ filePath: string; content: string }>,
-    spec?: StructuredSpec
+    spec?: StructuredSpec,
+    emit?: (phase: string, detail: string, progress: number) => void,
   ): Promise<
     | { type: 'output'; data: Pick<TraceOutput, 'testFiles' | 'coverageMatrix' | 'testSummary'> }
     | { type: 'error'; error: PipelineError }
@@ -308,14 +340,22 @@ export class TraceAgent {
     for (let attempt = 0; attempt <= RETRY_CONFIG.specValidationMaxRetries; attempt++) {
       let responseText: string;
       try {
-        responseText = await this.ai.generateText(TEST_GENERATION_PROMPT, userPrompt);
-      } catch {
+        emit?.('ai_call', `AI çağrısı yapılıyor (deneme ${attempt + 1})...`, 45 + attempt * 5);
+        const aiPromise = this.ai.generateText(TEST_GENERATION_PROMPT, userPrompt);
+        responseText = await withAiTimeout(aiPromise, AI_CALL_TIMEOUT_MS);
+        emit?.('parsing', 'AI yanıtı alındı, ayrıştırılıyor...', 65);
+      } catch (err) {
+        const isTimeout = err instanceof Error && err.message.includes('timed out');
+        if (isTimeout) {
+          console.warn(`[Trace] AI call timed out after ${AI_CALL_TIMEOUT_MS / 1000}s (attempt ${attempt + 1})`);
+          emit?.('retry', `AI yanıt vermedi, tekrar deneniyor...`, 40);
+        }
         if (attempt < RETRY_CONFIG.specValidationMaxRetries) continue;
         return {
           type: 'error',
           error: createPipelineError(
-            PipelineErrorCode.TRACE_TEST_GENERATION_FAILED,
-            'AI call failed after retries'
+            isTimeout ? PipelineErrorCode.TRACE_AI_CALL_TIMEOUT : PipelineErrorCode.TRACE_TEST_GENERATION_FAILED,
+            isTimeout ? `AI call timed out after ${AI_CALL_TIMEOUT_MS / 1000}s` : 'AI call failed after retries'
           ),
         };
       }

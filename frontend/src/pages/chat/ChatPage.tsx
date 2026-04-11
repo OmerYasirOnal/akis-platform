@@ -57,7 +57,7 @@ function workflowToListItem(w: Workflow): ConversationListItem {
   return {
     id: w.id,
     title: w.title || 'Untitled',
-    repoFullName: w.stages.proto.branch ?? w.title ?? '',
+    repoFullName: w.stages.proto.repo ?? w.title ?? '',
     repoShortName: w.title || 'Untitled',
     status: statusMap[w.status] ?? 'idle',
     fileCount: w.stages.proto.files?.length ?? 0,
@@ -190,7 +190,7 @@ export default function ChatPage() {
   const loadedIdRef = useRef<string | undefined>(undefined);
 
   const isRunning = activeWorkflow ? isRunningStage(activeWorkflow.currentStage) : false;
-  usePipelineStream(conversationId ?? '', isRunning);
+  const { activities: pipelineActivities, currentStep } = usePipelineStream(conversationId ?? '', isRunning);
 
   // Load conversation list — only on mount and after mutations, NOT on every chat switch
   const refreshList = useCallback(() => {
@@ -473,7 +473,8 @@ export default function ChatPage() {
             <ChatPanel
               conversationId={conversationId ?? 'pending'}
               repoShortName={activeWorkflow?.title ?? pendingConv?.displayName ?? ''}
-              repoFullName={activeWorkflow?.stages?.proto?.branch ?? ''}
+              repoFullName={activeWorkflow?.stages?.proto?.repo ?? ''}
+              repoUrl={activeWorkflow?.stages?.proto?.repoUrl}
               branch={activeWorkflow?.stages?.proto?.branch}
               messages={messages}
               uiState={uiState}
@@ -488,6 +489,8 @@ export default function ChatPage() {
               onSkip={handleSkip}
               onBack={() => { setPendingConv(null); navigate('/chat'); }}
               showBackButton
+              currentStep={currentStep}
+              activities={pipelineActivities}
             />
           </ErrorBoundary>
         ) : (

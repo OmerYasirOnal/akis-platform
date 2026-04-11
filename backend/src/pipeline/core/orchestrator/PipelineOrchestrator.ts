@@ -632,12 +632,20 @@ export class PipelineOrchestrator {
       },
       {
         maxAttempts: 3,
-        onError: (err, attempt) =>
-          console.warn(`[Pipeline] Trace execute attempt ${attempt} failed:`, err),
+        onError: (err, attempt) => {
+          const isTimeout = err instanceof Error && err.message.includes('timed out');
+          const detail = isTimeout ? 'stage timeout' : (err instanceof Error ? err.message : String(err));
+          console.warn(`[Pipeline] Trace attempt ${attempt} failed (${detail})`);
+          traceEmit('error', `Trace hatası (deneme ${attempt}): ${isTimeout ? 'zaman aşımı' : 'beklenmeyen hata'}`, 0);
+        },
       },
     );
 
     if (traceResult.type === 'error') {
+      const isAiTimeout = traceResult.error.code === 'TRACE_AI_CALL_TIMEOUT';
+      traceEmit('error', isAiTimeout
+        ? 'AI servisi yanıt vermedi — test üretimi atlandı'
+        : `Test üretimi başarısız: ${traceResult.error.message}`, 0);
       // Graceful degradation — completed_partial (keep error visible for UI)
       const updated = await this.store.update(pipelineId, {
         stage: 'completed_partial',

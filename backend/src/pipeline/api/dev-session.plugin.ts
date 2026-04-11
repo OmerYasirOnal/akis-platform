@@ -265,7 +265,8 @@ export async function devSessionPlugin(
 
     if (!msg) return reply.code(404).send({ error: 'Message not found' });
     if (!msg.fileChanges) return reply.code(400).send({ error: 'No file changes to push' });
-    if (msg.changeStatus === 'pushed') return reply.code(400).send({ error: 'Already pushed' });
+    if (msg.changeStatus === 'pushed') return reply.code(409).send({ error: 'Already pushed' });
+    if (msg.changeStatus === 'rejected') return reply.code(409).send({ error: 'Cannot push rejected changes' });
 
     const session = await db.query.devSessions.findFirst({
       where: eq(devSessions.id, sessionId),
@@ -289,13 +290,15 @@ export async function devSessionPlugin(
         commitMessage,
       );
 
-      await db.update(devMessages)
-        .set({ changeStatus: 'pushed', commitSha })
-        .where(eq(devMessages.id, messageId));
+      await db.transaction(async (tx) => {
+        await tx.update(devMessages)
+          .set({ changeStatus: 'pushed', commitSha })
+          .where(eq(devMessages.id, messageId));
 
-      await db.update(devSessions)
-        .set({ totalCommits: sql`total_commits + 1`, updatedAt: new Date() })
-        .where(eq(devSessions.id, sessionId));
+        await tx.update(devSessions)
+          .set({ totalCommits: sql`total_commits + 1`, updatedAt: new Date() })
+          .where(eq(devSessions.id, sessionId));
+      });
 
       return reply.send({
         commitSha,

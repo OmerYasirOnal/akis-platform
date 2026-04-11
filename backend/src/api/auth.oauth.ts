@@ -5,7 +5,7 @@
 
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { eq, and } from 'drizzle-orm';
-import { randomBytes } from 'crypto';
+import { randomBytes, createHmac } from 'crypto';
 import { db } from '../db/client.js';
 import { users, oauthAccounts } from '../db/schema.js';
 import { sign } from '../services/auth/jwt.js';
@@ -42,28 +42,40 @@ interface OAuthUserProfile {
 // OAuth state TTL configuration
 const STATE_TTL_MS = 10 * 60 * 1000; // 10 minutes
 
-// State storage for CSRF protection (in-memory for now, could use Redis in production)
-const oauthStateStore = new Map<string, { provider: string; createdAt: number }>();
-
-// Check if a state token has expired based on TTL
-function isStateExpired(createdAt: number, nowMs: number = Date.now()): boolean {
-  return nowMs - createdAt > STATE_TTL_MS;
+/**
+ * HMAC-signed OAuth state tokens — no server-side storage needed.
+ * State = base64url(payload).signature where payload = JSON { provider, ts, nonce }
+ * Restart-safe: state is self-contained and verified via HMAC signature.
+ */
+function getSigningKey(): string {
+  return env.AUTH_JWT_SECRET || 'dev-oauth-state-key';
 }
 
-// Cleanup expired states (background maintenance - not for correctness)
-// Note: TTL is enforced at callback time via isStateExpired(), cleanup is just housekeeping
-function cleanupExpiredStates() {
-  const now = Date.now();
-  for (const [state, data] of oauthStateStore.entries()) {
-    if (isStateExpired(data.createdAt, now)) {
-      oauthStateStore.delete(state);
-    }
+function hmacSign(payload: string): string {
+  return createHmac('sha256', getSigningKey()).update(payload).digest('base64url');
+}
+
+function generateSignedState(provider: string): string {
+  const payload = JSON.stringify({ provider, ts: Date.now(), nonce: randomBytes(16).toString('hex') });
+  const encoded = Buffer.from(payload).toString('base64url');
+  const sig = hmacSign(encoded);
+  return `${encoded}.${sig}`;
+}
+
+function verifySignedState(state: string): { provider: string; createdAt: number } | null {
+  const dotIdx = state.indexOf('.');
+  if (dotIdx < 0) return null;
+  const encoded = state.slice(0, dotIdx);
+  const sig = state.slice(dotIdx + 1);
+  if (hmacSign(encoded) !== sig) return null;
+  try {
+    const payload = JSON.parse(Buffer.from(encoded, 'base64url').toString());
+    if (!payload.provider || !payload.ts) return null;
+    if (Date.now() - payload.ts > STATE_TTL_MS) return null;
+    return { provider: payload.provider, createdAt: payload.ts };
+  } catch {
+    return null;
   }
-}
-
-// Generate cryptographically secure state parameter
-function generateState(): string {
-  return randomBytes(32).toString('hex');
 }
 
 // Get OAuth provider configuration
@@ -268,19 +280,8 @@ export async function registerOAuthRoutes(fastify: FastifyInstance, emailService
 
   const githubConfigured = !!(config.GITHUB_OAUTH_CLIENT_ID && config.GITHUB_OAUTH_CLIENT_SECRET);
   const googleConfigured = !!(config.GOOGLE_OAUTH_CLIENT_ID && config.GOOGLE_OAUTH_CLIENT_SECRET);
-  console.log(`[OAuth] Providers: github=${githubConfigured ? 'configured' : 'NOT configured'}, google=${googleConfigured ? 'configured' : 'NOT configured'}`);
-  if (githubConfigured || googleConfigured) {
-    console.log(`[OAuth] Callback base: ${config.BACKEND_URL}/auth/oauth/<provider>/callback`);
-  }
+  fastify.log.info({ github: githubConfigured, google: googleConfigured }, '[OAuth] Provider status');
 
-  // Cleanup expired states periodically
-  const cleanupInterval = setInterval(cleanupExpiredStates, 60000); // Every minute
-  
-  // Ensure cleanup on server close
-  fastify.addHook('onClose', () => {
-    clearInterval(cleanupInterval);
-  });
-  
   /**
    * GET /auth/oauth/:provider
    * Initiates OAuth flow by redirecting to provider
@@ -306,9 +307,8 @@ export async function registerOAuthRoutes(fastify: FastifyInstance, emailService
       });
     }
     
-    // Generate state for CSRF protection
-    const state = generateState();
-    oauthStateStore.set(state, { provider, createdAt: Date.now() });
+    // Generate HMAC-signed state for CSRF protection (stateless, restart-safe)
+    const state = generateSignedState(provider);
     
     // Build authorization URL — use FRONTEND_URL so callback goes through Vite proxy in dev,
     // keeping cookies on the same origin. Must match GitHub OAuth App's callback URL.
@@ -413,23 +413,13 @@ export async function registerOAuthRoutes(fastify: FastifyInstance, emailService
       return redirect(reply, `/api/integrations/github/oauth/callback?${qs.toString()}`);
     }
 
-    // Atomically consume the state: get data and delete in one logical operation
-    // A second callback with the same state will get undefined and fail
-    const stateData = oauthStateStore.get(state);
-    const wasDeleted = oauthStateStore.delete(state); // Consume immediately (single-use)
-    
-    // If state didn't exist or wasn't deleted, it's invalid (possibly already consumed)
-    if (!stateData || !wasDeleted) {
-      console.warn(`[OAuth] Invalid or already-consumed state for provider: ${provider}`);
+    // Verify HMAC-signed state (stateless — no server-side storage)
+    const stateData = verifySignedState(state);
+    if (!stateData) {
+      console.warn(`[OAuth] Invalid or expired state for provider: ${provider}`);
       return redirect(reply, `${frontendUrl}/login?error=oauth_invalid_state`);
     }
-    
-    // Now validate the consumed state data (TTL check)
-    if (isStateExpired(stateData.createdAt)) {
-      console.warn(`[OAuth] State expired for provider: ${provider}, age: ${Date.now() - stateData.createdAt}ms`);
-      return redirect(reply, `${frontendUrl}/login?error=oauth_invalid_state`);
-    }
-    
+
     // Verify state matches provider
     if (stateData.provider !== provider) {
       console.warn(`[OAuth] State provider mismatch: expected ${stateData.provider}, got ${provider}`);
